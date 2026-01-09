@@ -1,0 +1,121 @@
+✅ OANDA client initialized (practice)
+✅ Yahoo Finance client initialized
+
+======================================================================
+DOWNLOADING H1 DATA FOR 34 ASSETS
+Date range: 2014-01-01 to 2025-12-31
+======================================================================
+
+Downloading:   0%|          | 0/34 [00:00<?, ?it/s]Downloading:   3%|▎         | 1/34 [00:08<04:54,  8.91s/it]Downloading:   6%|▌         | 2/34 [00:17<04:32,  8.50s/it]Downloading:   9%|▉         | 3/34 [00:25<04:18,  8.35s/it]Downloading:  12%|█▏        | 4/34 [00:33<04:04,  8.15s/it]Downloading:  15%|█▍        | 5/34 [00:41<03:53,  8.07s/it]Downloading:  18%|█▊        | 6/34 [00:48<03:42,  7.96s/it]Downloading:  21%|██        | 7/34 [00:56<03:35,  7.99s/it]Downloading:  24%|██▎       | 8/34 [01:05<03:29,  8.07s/it]Downloading:  26%|██▋       | 9/34 [01:13<03:24,  8.16s/it]Downloading:  29%|██▉       | 10/34 [01:21<03:16,  8.17s/it]Downloading:  32%|███▏      | 11/34 [01:30<03:11,  8.33s/it]Downloading:  35%|███▌      | 12/34 [01:39<03:08,  8.58s/it]Downloading:  38%|███▊      | 13/34 [01:47<02:56,  8.40s/it]Downloading:  41%|████      | 14/34 [01:55<02:44,  8.23s/it]Downloading:  44%|████▍     | 15/34 [02:03<02:37,  8.29s/it]Downloading:  47%|████▋     | 16/34 [02:13<02:34,  8.59s/it]Downloading:  50%|█████     | 17/34 [02:21<02:24,  8.52s/it]Downloading:  53%|█████▎    | 18/34 [02:29<02:15,  8.45s/it]Downloading:  56%|█████▌    | 19/34 [02:37<02:04,  8.30s/it]Downloading:  59%|█████▉    | 20/34 [02:45<01:55,  8.24s/it]Downloading:  62%|██████▏   | 21/34 [02:53<01:47,  8.24s/it]Downloading:  65%|██████▍   | 22/34 [03:01<01:37,  8.12s/it]Downloading:  68%|██████▊   | 23/34 [03:10<01:29,  8.14s/it]Downloading:  71%|███████   | 24/34 [03:18<01:21,  8.19s/it]Downloading:  74%|███████▎  | 25/34 [03:26<01:12,  8.10s/it]Downloading:  76%|███████▋  | 26/34 [03:34<01:04,  8.09s/it]Downloading:  79%|███████▉  | 27/34 [03:42<00:56,  8.02s/it]Downloading:  82%|████████▏ | 28/34 [03:50<00:48,  8.12s/it]Downloading:  85%|████████▌ | 29/34 [03:58<00:40,  8.16s/it]Downloading:  88%|████████▊ | 30/34 [04:07<00:33,  8.27s/it]Downloading:  91%|█████████ | 31/34 [04:14<00:24,  8.08s/it]Downloading:  94%|█████████▍| 32/34 [04:22<00:16,  8.06s/it]Downloading:  97%|█████████▋| 33/34 [04:30<00:07,  7.93s/it]Downloading: 100%|██████████| 34/34 [04:37<00:00,  7.75s/it]Downloading: 100%|██████████| 34/34 [04:37<00:00,  8.17s/it]
+   📥 Downloading EUR_USD H1 from OANDA...
+   ✅ Downloaded 74,593 candles for EUR_USD
+✅ EUR_USD - 74,593 candles saved (oanda)
+   📥 Downloading GBP_USD H1 from OANDA...
+   ✅ Downloaded 74,596 candles for GBP_USD
+✅ GBP_USD - 74,596 candles saved (oanda)
+   📥 Downloading USD_JPY H1 from OANDA...
+   ✅ Downloaded 74,610 candles for USD_JPY
+✅ USD_JPY - 74,610 candles saved (oanda)
+   📥 Downloading USD_CHF H1 from OANDA...
+   ✅ Downloaded 74,597 candles for USD_CHF
+✅ USD_CHF - 74,597 candles saved (oanda)
+   📥 Downloading AUD_USD H1 from OANDA...
+   ✅ Downloaded 74,587 candles for AUD_USD
+✅ AUD_USD - 74,587 candles saved (oanda)
+   📥 Downloading USD_CAD H1 from OANDA...
+   ✅ Downloaded 74,618 candles for USD_CAD
+✅ USD_CAD - 74,618 candles saved (oanda)
+   📥 Downloading NZD_USD H1 from OANDA...
+   ✅ Downloaded 74,608 candles for NZD_USD
+✅ NZD_USD - 74,608 candles saved (oanda)
+   📥 Downloading EUR_GBP H1 from OANDA...
+   ✅ Downloaded 74,593 candles for EUR_GBP
+✅ EUR_GBP - 74,593 candles saved (oanda)
+   📥 Downloading EUR_JPY H1 from OANDA...
+   ✅ Downloaded 74,585 candles for EUR_JPY
+✅ EUR_JPY - 74,585 candles saved (oanda)
+   📥 Downloading EUR_CHF H1 from OANDA...
+   ✅ Downloaded 74,593 candles for EUR_CHF
+✅ EUR_CHF - 74,593 candles saved (oanda)
+   📥 Downloading EUR_AUD H1 from OANDA...
+   ✅ Downloaded 74,591 candles for EUR_AUD
+✅ EUR_AUD - 74,591 candles saved (oanda)
+   📥 Downloading EUR_CAD H1 from OANDA...
+   ✅ Downloaded 74,593 candles for EUR_CAD
+✅ EUR_CAD - 74,593 candles saved (oanda)
+   📥 Downloading EUR_NZD H1 from OANDA...
+   ✅ Downloaded 74,596 candles for EUR_NZD
+✅ EUR_NZD - 74,596 candles saved (oanda)
+   📥 Downloading GBP_JPY H1 from OANDA...
+   ✅ Downloaded 74,599 candles for GBP_JPY
+✅ GBP_JPY - 74,599 candles saved (oanda)
+   📥 Downloading GBP_CHF H1 from OANDA...
+   ✅ Downloaded 74,598 candles for GBP_CHF
+✅ GBP_CHF - 74,598 candles saved (oanda)
+   📥 Downloading GBP_AUD H1 from OANDA...
+   ✅ Downloaded 74,581 candles for GBP_AUD
+✅ GBP_AUD - 74,581 candles saved (oanda)
+   📥 Downloading GBP_CAD H1 from OANDA...
+   ✅ Downloaded 74,599 candles for GBP_CAD
+✅ GBP_CAD - 74,599 candles saved (oanda)
+   📥 Downloading GBP_NZD H1 from OANDA...
+   ✅ Downloaded 74,592 candles for GBP_NZD
+✅ GBP_NZD - 74,592 candles saved (oanda)
+   📥 Downloading AUD_JPY H1 from OANDA...
+   ✅ Downloaded 74,604 candles for AUD_JPY
+✅ AUD_JPY - 74,604 candles saved (oanda)
+   📥 Downloading AUD_CHF H1 from OANDA...
+   ✅ Downloaded 74,579 candles for AUD_CHF
+✅ AUD_CHF - 74,579 candles saved (oanda)
+   📥 Downloading AUD_CAD H1 from OANDA...
+   ✅ Downloaded 74,593 candles for AUD_CAD
+✅ AUD_CAD - 74,593 candles saved (oanda)
+   📥 Downloading AUD_NZD H1 from OANDA...
+   ✅ Downloaded 74,588 candles for AUD_NZD
+✅ AUD_NZD - 74,588 candles saved (oanda)
+   📥 Downloading NZD_JPY H1 from OANDA...
+   ✅ Downloaded 74,610 candles for NZD_JPY
+✅ NZD_JPY - 74,610 candles saved (oanda)
+   📥 Downloading NZD_CHF H1 from OANDA...
+   ✅ Downloaded 74,586 candles for NZD_CHF
+✅ NZD_CHF - 74,586 candles saved (oanda)
+   📥 Downloading NZD_CAD H1 from OANDA...
+   ✅ Downloaded 74,606 candles for NZD_CAD
+✅ NZD_CAD - 74,606 candles saved (oanda)
+   📥 Downloading CHF_JPY H1 from OANDA...
+   ✅ Downloaded 74,592 candles for CHF_JPY
+✅ CHF_JPY - 74,592 candles saved (oanda)
+   📥 Downloading CAD_JPY H1 from OANDA...
+   ✅ Downloaded 74,594 candles for CAD_JPY
+✅ CAD_JPY - 74,594 candles saved (oanda)
+   📥 Downloading CAD_CHF H1 from OANDA...
+   ✅ Downloaded 74,585 candles for CAD_CHF
+✅ CAD_CHF - 74,585 candles saved (oanda)
+   📥 Downloading XAU_USD H1 from OANDA...
+   ✅ Downloaded 71,234 candles for XAU_USD
+✅ XAU_USD - 71,234 candles saved (oanda)
+   📥 Downloading XAG_USD H1 from OANDA...
+   ✅ Downloaded 71,227 candles for XAG_USD
+✅ XAG_USD - 71,227 candles saved (oanda)
+   📥 Downloading SPX500_USD H1 from OANDA...
+   ✅ Downloaded 71,127 candles for SPX500_USD
+✅ SPX500_USD - 71,127 candles saved (oanda)
+   📥 Downloading NAS100_USD H1 from OANDA...
+   ✅ Downloaded 71,130 candles for NAS100_USD
+✅ NAS100_USD - 71,130 candles saved (oanda)
+   📥 Downloading BTC_USD H1 from OANDA...
+   ✅ Downloaded 65,855 candles for BTC_USD
+✅ BTC_USD - 65,855 candles saved (oanda)
+   📥 Downloading ETH_USD H1 from OANDA...
+   ✅ Downloaded 36,309 candles for ETH_USD
+✅ ETH_USD - 36,309 candles saved (oanda)
+
+======================================================================
+DOWNLOAD SUMMARY
+======================================================================
+✅ Success (OANDA):  34
+✅ Success (Yahoo):  0
+⏭️  Skipped:         0
+❌ Failed:          0
+
+✅ Results saved to: analysis/h1_download_results.json
