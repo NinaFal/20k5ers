@@ -321,7 +321,7 @@ class MT5Client:
         symbol: str,
         timeframe: str = "D1",
         count: int = 100,
-        timeout_seconds: float = 10.0,
+        timeout_seconds: float = 120.0,
     ) -> List[Dict]:
         """
         Get OHLCV candle data with timeout protection.
@@ -330,7 +330,7 @@ class MT5Client:
             symbol: Trading symbol
             timeframe: Timeframe string (M1, M5, H1, H4, D1, W1, MN1)
             count: Number of candles to fetch
-            timeout_seconds: Max time to wait for data (default 10s)
+            timeout_seconds: Max time to wait for data (default 120s for initial sync)
             
         Returns:
             List of candle dicts, or empty list if timeout/error

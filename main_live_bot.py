@@ -1107,6 +1107,28 @@ class LiveTradingBot:
                 log.error(f"✗ {oanda_sym} -> {broker_sym} FAILED to get symbol info")
         log.info("=" * 70)
         
+        # Pre-sync MT5 historical data for all symbols
+        # This ensures data is cached and scans are faster
+        log.info("\n" + "=" * 70)
+        log.info("PRE-SYNCING MT5 HISTORICAL DATA")
+        log.info("=" * 70)
+        log.info("This may take a few minutes on first run...")
+        synced_count = 0
+        failed_symbols = []
+        for oanda_sym, broker_sym in self.symbol_map.items():
+            # Request D1 data to trigger MT5 sync (with long timeout)
+            test_data = self.mt5.get_ohlcv(broker_sym, "D1", 100, timeout_seconds=120.0)
+            if len(test_data) >= 50:
+                synced_count += 1
+            else:
+                failed_symbols.append(f"{oanda_sym} ({len(test_data)} candles)")
+        log.info(f"✓ Successfully synced {synced_count}/{len(self.symbol_map)} symbols")
+        if failed_symbols:
+            log.warning(f"⚠ Symbols with insufficient data: {', '.join(failed_symbols[:10])}")
+            if len(failed_symbols) > 10:
+                log.warning(f"  ...and {len(failed_symbols) - 10} more")
+        log.info("=" * 70)
+        
         balance = account.get('balance', 0)
         equity = account.get('equity', 0)
         if balance > 0:
