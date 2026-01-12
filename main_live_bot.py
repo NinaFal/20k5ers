@@ -44,6 +44,48 @@ from zoneinfo import ZoneInfo  # Python 3.9+
 # ═══════════════════════════════════════════════════════════════════════════════
 SERVER_TZ = ZoneInfo("Europe/Helsinki")  # UTC+2/+3 (EET/EEST)
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CRYPTO DETECTION - For weekend 24/7 scanning
+# ═══════════════════════════════════════════════════════════════════════════════
+def is_crypto_pair(symbol: str) -> bool:
+    """
+    Check if symbol is a cryptocurrency that trades 24/7.
+    
+    Crypto markets (BTC, ETH, etc.) trade continuously through weekends,
+    unlike forex/indices which close Friday evening and reopen Sunday evening.
+    
+    Args:
+        symbol: Trading symbol (e.g., "BTCUSD", "ETHUSD", "EURUSD")
+        
+    Returns:
+        True if crypto pair (trades 24/7 including weekends)
+        False if traditional pair (closed on weekends)
+    """
+    crypto_keywords = [
+        "BTC",     # Bitcoin
+        "ETH",     # Ethereum
+        "XBT",     # Bitcoin (alternative ticker)
+        "CRYPTO",  # Generic crypto prefix
+        "LTC",     # Litecoin
+        "XRP",     # Ripple
+        "BCH",     # Bitcoin Cash
+        "ADA",     # Cardano
+        "DOT",     # Polkadot
+        "LINK",    # Chainlink
+        "UNI",     # Uniswap
+        "MATIC",   # Polygon
+        "SOL",     # Solana
+        "AVAX",    # Avalanche
+    ]
+    
+    # Normalize symbol - remove separators, convert to uppercase
+    symbol_normalized = symbol.upper().replace("_", "").replace("/", "").replace(".", "")
+    
+    # Check if any crypto keyword is in the symbol
+    return any(keyword in symbol_normalized for keyword in crypto_keywords)
+
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -586,11 +628,17 @@ class LiveTradingBot:
             current_price = tick.bid if setup.get("direction") == "bullish" else tick.ask
             entry_distance_r = abs(current_price - entry) / risk
             
-            # Check if entry still valid (not too far)
+            # NOTE: Don't cancel based on distance - setup was valid at placement
+            # Price can temporarily move away and come back
+            # Only cancel via: time expiry (7d), SL breach, or direction change
+            # if entry_distance_r > FIVEERS_CONFIG.max_entry_distance_r:
+            #     log.info(f"[{symbol}] Entry too far ({entry_distance_r:.2f}R > {FIVEERS_CONFIG.max_entry_distance_r}R), removing")
+            #     signals_to_remove.append(symbol)
+            #     continue
+            
+            # Log distance for monitoring
             if entry_distance_r > FIVEERS_CONFIG.max_entry_distance_r:
-                log.info(f"[{symbol}] Entry too far ({entry_distance_r:.2f}R > {FIVEERS_CONFIG.max_entry_distance_r}R), removing")
-                signals_to_remove.append(symbol)
-                continue
+                log.debug(f"[{symbol}] Entry {entry_distance_r:.2f}R away (beyond {FIVEERS_CONFIG.max_entry_distance_r}R) - keeping order, price may return")
             
             # Check if price is close enough to place limit order
             if entry_distance_r <= proximity_r:
@@ -1605,29 +1653,20 @@ class LiveTradingBot:
                 log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}%")
                 return False
             
-            # DYNAMIC POSITION LIMIT based on drawdown
-            # Reduces exposure when in drawdown to protect account
-            max_trades = FIVEERS_CONFIG.get_max_trades(profit_pct, total_dd_pct)
+            # STATIC POSITION LIMIT - Match simulator behavior
+            # Simple hard cap at 100 positions (unlimited trades)
+            max_trades = 100
             pending_count = len([s for s in self.pending_setups.values() if s.status == "pending"])
             open_positions = getattr(snapshot, "open_positions", len(self.mt5.get_my_positions()) if self.mt5 else 0)
             total_exposure = open_positions + pending_count
 
-            # Check against dynamic max trades limit
+            # Check against static max trades limit
             if total_exposure >= max_trades:
-                replaced = self._try_replace_worst_pending(
-                    new_symbol=symbol,
-                    new_confluence=setup.get("confluence_score", 0),
-                    new_entry_distance_r=entry_distance_r,
-                )
-                if not replaced:
-                    log.info(f"[{symbol}] Max trades reached for DD {total_dd_pct:.1f}%: {total_exposure}/{max_trades} (positions: {open_positions}, pending: {pending_count})")
-                    return False
-                pending_count = len([s for s in self.pending_setups.values() if s.status == "pending"])
-            
-            total_risk_pct = getattr(snapshot, "total_risk_pct", 0)
-            if total_risk_pct >= FIVEERS_CONFIG.max_cumulative_risk_pct:
-                log.info(f"[{symbol}] Max cumulative risk reached: {total_risk_pct:.1f}%/{FIVEERS_CONFIG.max_cumulative_risk_pct}%")
+                log.info(f"[{symbol}] Max trades reached: {total_exposure}/{max_trades} (positions: {open_positions}, pending: {pending_count})")
                 return False
+            
+            # NOTE: NO cumulative risk check - removed to match simulator
+            # Simulator has no cumulative risk limits, only position count limit
             
             win_streak = getattr(self.risk_manager.state, 'win_streak', 0) if hasattr(self.risk_manager, 'state') else 0
             loss_streak = getattr(self.risk_manager.state, 'loss_streak', 0) if hasattr(self.risk_manager, 'state') else 0
@@ -1685,21 +1724,8 @@ class LiveTradingBot:
             log.info(f"  Stop pips: {risk_pips:.1f}")
             log.info(f"  Lot size: {lot_size}")
             
-            # Get total risk from snapshot with fallback to 0
-            current_total_risk_usd = getattr(snapshot, 'total_risk_usd', 0.0)
-            simulated_risk = current_total_risk_usd + risk_usd
-            simulated_risk_pct = (simulated_risk / snapshot.balance) * 100
-            
-            if simulated_risk_pct > FIVEERS_CONFIG.max_cumulative_risk_pct:
-                available_risk = (FIVEERS_CONFIG.max_cumulative_risk_pct / 100 * snapshot.balance) - current_total_risk_usd
-                if available_risk <= 0:
-                    log.warning(f"[{symbol}] No risk budget available")
-                    return False
-                
-                reduction = available_risk / risk_usd
-                lot_size = round(lot_size * reduction * 0.9, 2)
-                lot_size = max(0.01, lot_size)
-                log.info(f"[{symbol}] Lot reduced to {lot_size} to stay within cumulative risk limit")
+            # NOTE: NO cumulative risk reduction - removed to match simulator
+            # Simulator has no cumulative risk logic, only position count limit
             
             # NOTE: We do NOT simulate daily loss from potential SL hit.
             # The simulator (simulate_main_live_bot.py) only checks DDD at fill moment,
@@ -1935,96 +1961,98 @@ class LiveTradingBot:
         if setups_to_remove:
             self._save_pending_setups()
     
-    def validate_setup(self, symbol: str) -> bool:
-        """
-        Re-validate a pending setup to check if it's still valid.
+    # DISABLED: validate_setup() - align with simulator
+    # def validate_setup(self, symbol: str) -> bool:
+    # """
+    # Re-validate a pending setup to check if it's still valid.
         
-        Like the backtest, cancels if:
-        - Structure has shifted
-        - SL has been breached
-        - Confluence is no longer met
-        """
-        if symbol not in self.pending_setups:
-            return True
+    # Like the backtest, cancels if:
+    # - Structure has shifted
+    # - SL has been breached
+    # - Confluence is no longer met
+    # """
+    # if symbol not in self.pending_setups:
+    # return True
         
-        setup = self.pending_setups[symbol]
-        if setup.status != "pending":
-            return True
+    # setup = self.pending_setups[symbol]
+    # if setup.status != "pending":
+    # return True
         
-        data = self.get_candle_data(symbol)
+    # data = self.get_candle_data(symbol)
         
-        if not data["daily"] or len(data["daily"]) < 30:
-            return True
+    # if not data["daily"] or len(data["daily"]) < 30:
+    # return True
         
-        monthly_candles = data["monthly"] if data["monthly"] else []
-        weekly_candles = data["weekly"]
-        daily_candles = data["daily"]
-        h4_candles = data["h4"] if data["h4"] else daily_candles[-20:]
+    # monthly_candles = data["monthly"] if data["monthly"] else []
+    # weekly_candles = data["weekly"]
+    # daily_candles = data["daily"]
+    # h4_candles = data["h4"] if data["h4"] else daily_candles[-20:]
         
-        mn_trend = _infer_trend(monthly_candles) if monthly_candles else "mixed"
-        wk_trend = _infer_trend(weekly_candles) if weekly_candles else "mixed"
-        d_trend = _infer_trend(daily_candles) if daily_candles else "mixed"
+    # mn_trend = _infer_trend(monthly_candles) if monthly_candles else "mixed"
+    # wk_trend = _infer_trend(weekly_candles) if weekly_candles else "mixed"
+    # d_trend = _infer_trend(daily_candles) if daily_candles else "mixed"
         
-        direction, _, _ = _pick_direction_from_bias(mn_trend, wk_trend, d_trend)
+    # direction, _, _ = _pick_direction_from_bias(mn_trend, wk_trend, d_trend)
         
-        if direction != setup.direction:
-            log.warning(f"[{symbol}] Direction changed from {setup.direction} to {direction} - cancelling setup")
-            if setup.order_ticket:
-                self.mt5.cancel_pending_order(setup.order_ticket)
-            del self.pending_setups[symbol]
-            self._save_pending_setups()
-            return False
+    # if direction != setup.direction:
+    # log.warning(f"[{symbol}] Direction changed from {setup.direction} to {direction} - cancelling setup")
+    # if setup.order_ticket:
+    # self.mt5.cancel_pending_order(setup.order_ticket)
+    # del self.pending_setups[symbol]
+    # self._save_pending_setups()
+    # return False
         
-        historical_sr = get_all_htf_sr_levels(symbol) if HISTORICAL_SR_AVAILABLE else None
+    # historical_sr = get_all_htf_sr_levels(symbol) if HISTORICAL_SR_AVAILABLE else None
         
-        flags, notes, trade_levels = compute_confluence(
-            monthly_candles,
-            weekly_candles,
-            daily_candles,
-            h4_candles,
-            direction,
-            self.params,
-            historical_sr,
-        )
+    # flags, notes, trade_levels = compute_confluence(
+    # monthly_candles,
+    # weekly_candles,
+    # daily_candles,
+    # h4_candles,
+    # direction,
+    # self.params,
+    # historical_sr,
+    # )
         
-        confluence_score = sum(1 for v in flags.values() if v)
-        has_rr = flags.get("rr", False)
-        quality_factors = sum([
-            flags.get("location", False),
-            flags.get("fib", False),
-            flags.get("liquidity", False),
-            flags.get("structure", False),
-            flags.get("htf_bias", False)
-        ])
+    # confluence_score = sum(1 for v in flags.values() if v)
+    # has_rr = flags.get("rr", False)
+    # quality_factors = sum([
+    # flags.get("location", False),
+    # flags.get("fib", False),
+    # flags.get("liquidity", False),
+    # flags.get("structure", False),
+    # flags.get("htf_bias", False)
+    # ])
         
-        # BUGFIX: Removed has_rr gate for consistency with new active signal criteria
-        if not (confluence_score >= MIN_CONFLUENCE and quality_factors >= 1):
-            log.warning(f"[{symbol}] Setup no longer valid (conf: {confluence_score}/7, quality: {quality_factors}) - cancelling")
-            if setup.order_ticket:
-                self.mt5.cancel_pending_order(setup.order_ticket)
-            del self.pending_setups[symbol]
-            self._save_pending_setups()
-            return False
+    # # BUGFIX: Removed has_rr gate for consistency with new active signal criteria
+    # if not (confluence_score >= MIN_CONFLUENCE and quality_factors >= 1):
+    # log.warning(f"[{symbol}] Setup no longer valid (conf: {confluence_score}/7, quality: {quality_factors}) - cancelling")
+    # if setup.order_ticket:
+    # self.mt5.cancel_pending_order(setup.order_ticket)
+    # del self.pending_setups[symbol]
+    # self._save_pending_setups()
+    # return False
         
-        return True
+    # return True
     
-    def validate_all_setups(self):
-        """Validate all pending setups periodically."""
-        if not self.pending_setups:
-            return
+    # DISABLED: validate_all_setups()
+    # def validate_all_setups(self):
+    # """Validate all pending setups periodically."""
+    # if not self.pending_setups:
+    # return
         
-        log.info(f"Validating {len(self.pending_setups)} pending setups...")
+    # log.info(f"Validating {len(self.pending_setups)} pending setups...")
         
-        symbols_to_validate = list(self.pending_setups.keys())
+    # symbols_to_validate = list(self.pending_setups.keys())
         
-        for symbol in symbols_to_validate:
-            try:
-                self.validate_setup(symbol)
-                time.sleep(0.2)
-            except Exception as e:
-                log.error(f"[{symbol}] Error validating setup: {e}")
+    # for symbol in symbols_to_validate:
+    # try:
+    # self.validate_setup(symbol)
+    # time.sleep(0.2)
+    # except Exception as e:
+    # log.error(f"[{symbol}] Error validating setup: {e}")
         
-        self.last_validate_time = datetime.now(timezone.utc)
+    # self.last_validate_time = datetime.now(timezone.utc)
     
     def monitor_live_pnl(self) -> bool:
         """
@@ -2418,8 +2446,20 @@ class LiveTradingBot:
         # Only scan symbols that are available on broker
         available_symbols = [s for s in TRADABLE_SYMBOLS if s in self.symbol_map]
         
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # WEEKEND CRYPTO SCANNING - Detect if it's weekend and filter accordingly
+        # ═══════════════════════════════════════════════════════════════════════════════
+        current_day = datetime.now(timezone.utc).weekday()  # 0=Monday, 6=Sunday
+        is_weekend = current_day in [5, 6]  # Saturday=5, Sunday=6
+        
         for symbol in available_symbols:
             try:
+                # ═══════════════════════════════════════════════════════════
+                # WEEKEND LOGIC - Skip forex on weekends, ALWAYS scan crypto
+                # ═══════════════════════════════════════════════════════════
+                if is_weekend and not is_crypto_pair(symbol):
+                    log.debug(f"[{symbol}] Skipping weekend scan - forex market closed")
+                    continue
                 
                 setup = self.scan_symbol(symbol)
                 
@@ -2598,11 +2638,12 @@ class LiveTradingBot:
                 self.check_pending_orders()
                 self.check_position_updates()
                 
-                # Validate setups
-                if self.last_validate_time:
-                    next_validate = self.last_validate_time + timedelta(minutes=self.VALIDATE_INTERVAL_MINUTES)
-                    if now >= next_validate:
-                        self.validate_all_setups()
+                # Validate setups - DISABLED to align with simulator
+                # Simulator trusts signal at scan time, only expires via time/SL breach
+                # if self.last_validate_time:
+                #     next_validate = self.last_validate_time + timedelta(minutes=self.VALIDATE_INTERVAL_MINUTES)
+                #     if now >= next_validate:
+                #         self.validate_all_setups()
                 
                 # ═══════════════════════════════════════════════════════════════
                 # DAILY SCAN - 10 min after daily close (00:10 server time)

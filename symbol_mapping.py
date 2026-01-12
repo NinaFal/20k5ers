@@ -4,17 +4,22 @@ Symbol Mapping for Multi-Broker Support
 Maps internal OANDA-style symbols (EUR_USD) to broker-specific symbols.
 
 Supported Brokers:
-- 5ers (FTMO-style): EURUSD, US500.cash
+- 5ers (FTMO-style): EURUSD, SP500 (NO .cash suffix!)
 - Forex.com: EURUSD, US500
+
+CRITICAL FIX: 5ers uses direct index names WITHOUT .cash suffix!
+- SP500 (not US500.cash)
+- NAS100 (not US100.cash)
+- UK100 (not UK100.cash)
 
 Usage:
     from symbol_mapping import get_broker_symbol, get_internal_symbol
     
     # Convert internal -> broker
-    broker_sym = get_broker_symbol("EUR_USD", "forexcom")  # -> "EURUSD"
+    broker_sym = get_broker_symbol("SPX500_USD", "fiveers")  # -> "SP500"
     
     # Convert broker -> internal
-    internal_sym = get_internal_symbol("EURUSD", "forexcom")  # -> "EUR_USD"
+    internal_sym = get_internal_symbol("SP500", "fiveers")  # -> "SPX500_USD"
 """
 
 from typing import Dict, List, Tuple, Optional
@@ -42,7 +47,7 @@ ALL_FOREX_PAIRS_OANDA: List[str] = [
 
 ALL_METALS_OANDA: List[str] = ["XAU_USD", "XAG_USD"]
 ALL_CRYPTO_OANDA: List[str] = ["BTC_USD", "ETH_USD"]
-ALL_INDICES_OANDA: List[str] = ["SPX500_USD", "NAS100_USD"]
+ALL_INDICES_OANDA: List[str] = ["SPX500_USD", "NAS100_USD", "UK100_USD"]
 
 ALL_TRADABLE_OANDA: List[str] = (
     ALL_FOREX_PAIRS_OANDA + ALL_METALS_OANDA + ALL_CRYPTO_OANDA + ALL_INDICES_OANDA
@@ -102,9 +107,11 @@ OANDA_TO_FIVEERS: Dict[str, str] = {
     "BTC_USD": "BTCUSD",
     "ETH_USD": "ETHUSD",
     
-    # ============ INDICES (2) ============
-    "SPX500_USD": "US500.cash",
-    "NAS100_USD": "US100.cash",
+    # ============ INDICES (3) ============
+    # CRITICAL: 5ers uses direct names WITHOUT .cash suffix!
+    "SPX500_USD": "SP500",    # S&P 500 - NOT US500.cash!
+    "NAS100_USD": "NAS100",   # Nasdaq 100 - NOT US100.cash!
+    "UK100_USD": "UK100",     # FTSE 100 - NOT UK100.cash!
 }
 
 
@@ -165,10 +172,11 @@ OANDA_TO_FOREXCOM: Dict[str, str] = {
     "BTC_USD": "BTCUSD",
     "ETH_USD": "ETHUSD",
     
-    # ============ INDICES (2) ============
+    # ============ INDICES (3) ============
     # Forex.com variations: US500, SPX500, USA500 - verify!
     "SPX500_USD": "US500",
     "NAS100_USD": "USTEC",  # or NAS100, US100, USTEC100
+    "UK100_USD": "UK100",
 }
 
 
@@ -207,11 +215,11 @@ def get_broker_symbol(internal_symbol: str, broker: str = "fiveers") -> str:
     Convert internal (OANDA-style) symbol to broker-specific symbol.
     
     Args:
-        internal_symbol: Internal symbol (e.g., "EUR_USD")
+        internal_symbol: Internal symbol (e.g., "EUR_USD", "SPX500_USD")
         broker: Broker name ("fiveers", "forexcom", etc.)
     
     Returns:
-        Broker-specific symbol (e.g., "EURUSD")
+        Broker-specific symbol (e.g., "EURUSD", "SP500")
     """
     broker_lower = broker.lower()
     mapping = BROKER_MAPPINGS.get(broker_lower, OANDA_TO_FIVEERS)
@@ -228,11 +236,11 @@ def get_internal_symbol(broker_symbol: str, broker: str = "fiveers") -> str:
     Convert broker-specific symbol to internal (OANDA-style) symbol.
     
     Args:
-        broker_symbol: Broker symbol (e.g., "EURUSD")
+        broker_symbol: Broker symbol (e.g., "EURUSD", "SP500")
         broker: Broker name ("fiveers", "forexcom", etc.)
     
     Returns:
-        Internal symbol (e.g., "EUR_USD")
+        Internal symbol (e.g., "EUR_USD", "SPX500_USD")
     """
     broker_lower = broker.lower()
     
@@ -275,7 +283,7 @@ def get_symbol_map_for_broker(broker: str = "fiveers") -> Dict[str, str]:
 ALL_FOREX_PAIRS_FTMO: List[str] = [OANDA_TO_FIVEERS[s] for s in ALL_FOREX_PAIRS_OANDA]
 ALL_METALS_FTMO: List[str] = ["XAUUSD", "XAGUSD"]
 ALL_CRYPTO_FTMO: List[str] = ["BTCUSD", "ETHUSD"]
-ALL_INDICES_FTMO: List[str] = ["US500.cash", "US100.cash"]
+ALL_INDICES_FTMO: List[str] = ["SP500", "NAS100", "UK100"]  # 5ers direct names (no .cash suffix)
 
 ALL_TRADABLE_FTMO: List[str] = (
     ALL_FOREX_PAIRS_FTMO + ALL_METALS_FTMO + ALL_CRYPTO_FTMO + ALL_INDICES_FTMO
@@ -335,6 +343,7 @@ def get_contract_specs() -> Dict[str, Dict]:
         "ETH_USD": {"pip_value": 0.01, "contract_size": 1, "pip_location": 2},
         "SPX500_USD": {"pip_value": 0.1, "contract_size": 1, "pip_location": 1},
         "NAS100_USD": {"pip_value": 0.1, "contract_size": 1, "pip_location": 1},
+        "UK100_USD": {"pip_value": 0.1, "contract_size": 1, "pip_location": 1},
     }
 
 

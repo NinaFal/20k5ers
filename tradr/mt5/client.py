@@ -321,19 +321,32 @@ class MT5Client:
         symbol: str,
         timeframe: str = "D1",
         count: int = 100,
-        timeout_seconds: float = 30.0,
+        timeout_seconds: float = 10.0,
     ) -> List[Dict]:
         """
         Get OHLCV candle data with timeout protection.
+        
+        CRITICAL: Uses position 1 (not 0) to EXCLUDE current incomplete candle.
+        This ensures we only use COMPLETED candles for signal generation.
+        
+        Position 0 = Current incomplete candle (still forming)
+        Position 1 = Last completed candle (first in our result)
+        Position 2 = Candle before that, etc.
+        
+        When scanning at 00:10 server time (10 min after daily close):
+        - Position 0 = NEW candle (00:00-00:10, incomplete!)
+        - Position 1 = YESTERDAY's completed candle (what we want)
+        
+        This matches backtest behavior exactly.
         
         Args:
             symbol: Trading symbol
             timeframe: Timeframe string (M1, M5, H1, H4, D1, W1, MN1)
             count: Number of candles to fetch
-            timeout_seconds: Max time to wait for data (default 30s)
+            timeout_seconds: Max time to wait for data (default 10s)
             
         Returns:
-            List of candle dicts, or empty list if timeout/error
+            List of candle dicts (COMPLETED candles only), or empty list if timeout/error
         """
         if not self.connected:
             return []
@@ -370,7 +383,11 @@ class MT5Client:
         
         def fetch_rates():
             try:
-                rates = mt5.copy_rates_from_pos(symbol, tf, 0, count)
+                # CRITICAL FIX: Changed position 0 → 1 to EXCLUDE incomplete current candle
+                # Position 0 = current incomplete candle (EXCLUDED)
+                # Position 1 = last completed candle (FIRST in our result)
+                # This ensures backtest parity - only completed candles used for signals
+                rates = mt5.copy_rates_from_pos(symbol, tf, 1, count)
                 result_queue.put(rates)
             except Exception as e:
                 result_queue.put(None)

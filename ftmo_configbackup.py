@@ -6,11 +6,6 @@ ALIGNED WITH simulate_main_live_bot.py:
 - immediate_entry_r: 0.05 (market order threshold)
 - max_entry_distance_r: 1.5 (max distance for valid entry)
 - XAUUSD pip size: 0.01 (MT5 Forex.com compliant)
-
-WEEKEND FIXES APPLIED 2026-01-10:
-- pending_order_expiry_hours: 168h (7 calendar days = 5 trading days)
-- Accounts for weekends in expiry calculation
-- Matches backtest max_wait_bars=5 exactly
 """
 
 from dataclasses import dataclass, field
@@ -43,7 +38,7 @@ class Fiveers60KConfig:
     risk_per_trade_pct: float = 0.6  # 0.6% risk per trade ($360 per R on 60K account)
     max_risk_aggressive_pct: float = 1.5  # Aggressive mode: 1.5%
     max_risk_normal_pct: float = 0.75  # Normal mode: 0.75%
-    max_risk_conservative_pct: float = 0.4  # Conservative mode: 0.4% (aligned with simulator)
+    max_risk_conservative_pct: float = 0.5  # Conservative mode: 0.5%
     max_cumulative_risk_pct: float = 5.0  # Max total risk across all positions
 
     # === TRADE LIMITS ===
@@ -61,11 +56,8 @@ class Fiveers60KConfig:
     entry_check_interval_minutes: int = 30  # Check entry proximity every 30 minutes
 
     # === PENDING ORDER SETTINGS ===
-    # WEEKEND-AWARE: 168 hours = 7 calendar days = 5 TRADING days
-    # Friday signal: Fri+Sat+Sun+Mon+Tue+Wed+Thu = expires next Friday (5 trading days)
-    # Matches backtest max_wait_bars=5 which counts trading days only
-    pending_order_expiry_hours: float = 168.0  # 7 calendar days = 5 trading days (accounts for weekends)
-    pending_order_max_age_hours: float = 168.0  # Match expiry (was 6.0 - too short!)
+    pending_order_expiry_hours: float = 120.0  # 5 days - matches backtest max_wait_bars=5
+    pending_order_max_age_hours: float = 6.0  # Max age for pending orders (same as expiry)
 
     # === SL VALIDATION (ATR-based) ===
     min_sl_atr_ratio: float = 1.0  # Minimum SL = 1.0 * ATR
@@ -113,24 +105,24 @@ class Fiveers60KConfig:
     min_confluence_multiplier: float = 0.6  # Floor at 0.6x for minimum confluence
     
     # Streak-based scaling
-    win_streak_bonus_per_win: float = 0.0  # DISABLED - not in simulator
+    win_streak_bonus_per_win: float = 0.05  # +5% per consecutive win
     max_win_streak_bonus: float = 0.20  # Cap at +20% bonus
-    loss_streak_reduction_per_loss: float = 0.0  # DISABLED - not in simulator
+    loss_streak_reduction_per_loss: float = 0.10  # -10% per consecutive loss
     max_loss_streak_reduction: float = 0.40  # Cap at -40% reduction
     consecutive_loss_halt: int = 5  # Halt trading after 5 consecutive losses
     streak_reset_after_win: bool = True  # Reset loss streak counter after a win
     
     # Volatility Parity Position Sizing
-    use_volatility_parity: bool = False  # DISABLED - not in simulator
+    use_volatility_parity: bool = True  # Enable volatility parity adjustment
     volatility_parity_reference_atr: float = 0.0  # Reference ATR (0 = auto-calculate from median)
     volatility_parity_min_risk: float = 0.25  # Minimum risk % with volatility parity
     volatility_parity_max_risk: float = 2.0  # Maximum risk % with volatility parity
     
     # Equity curve scaling
     equity_boost_threshold_pct: float = 3.0  # Boost size after 3% profit
-    equity_boost_multiplier: float = 1.0  # DISABLED - not in simulator
+    equity_boost_multiplier: float = 1.10  # +10% size when profitable
     equity_reduce_threshold_pct: float = 2.0  # Reduce size after 2% loss
-    equity_reduce_multiplier: float = 1.0  # DISABLED - not in simulator
+    equity_reduce_multiplier: float = 0.80  # -20% size when in drawdown
 
     # === ASSET WHITELIST (Top 10 Performers from Backtest) ===
     # Based on Jan-Nov 2024 backtest with 5/7 confluence filter
