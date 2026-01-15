@@ -2648,7 +2648,7 @@ def simulate_trades(
             continue
         signal_to_pending_entry[id(sig)] = {
             "signal": sig,
-            "wait_until_bar": sig.bar_index + 5,
+            "wait_until_bar": sig.bar_index + 7,  # 7 bars to cover weekend
         }
     
     trades = []
