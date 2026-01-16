@@ -553,6 +553,19 @@ class LiveTradingBot:
         entry = setup.get("entry", 0)
         sl = setup.get("stop_loss", 0)
         
+        # BUGFIX: Don't add if we already have a pending/filled setup
+        if symbol in self.pending_setups:
+            existing = self.pending_setups[symbol]
+            if existing.status in ("pending", "filled"):
+                log.info(f"[{symbol}] Not adding to entry queue - already have {existing.status} setup")
+                return
+        
+        # BUGFIX: Don't add if we have an open position
+        broker_symbol = self.symbol_map.get(symbol, symbol)
+        if self.check_existing_position(broker_symbol):
+            log.info(f"[{symbol}] Not adding to entry queue - already have open position")
+            return
+        
         self.awaiting_entry[symbol] = {
             **setup,
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -673,6 +686,20 @@ class LiveTradingBot:
     def add_to_awaiting_spread(self, setup: Dict):
         """Add setup to awaiting spread queue."""
         symbol = setup["symbol"]
+        
+        # BUGFIX: Don't add if we already have a pending/filled setup
+        if symbol in self.pending_setups:
+            existing = self.pending_setups[symbol]
+            if existing.status in ("pending", "filled"):
+                log.info(f"[{symbol}] Not adding to spread queue - already have {existing.status} setup")
+                return
+        
+        # BUGFIX: Don't add if we have an open position
+        broker_symbol = self.symbol_map.get(symbol, symbol)
+        if self.check_existing_position(broker_symbol):
+            log.info(f"[{symbol}] Not adding to spread queue - already have open position")
+            return
+        
         self.awaiting_spread[symbol] = {
             **setup,
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -1293,10 +1320,11 @@ class LiveTradingBot:
             log.info(f"[{symbol}] Already in position, skipping")
             return None
         
+        # BUGFIX: Block ALL existing setups, not just "pending" status
         if symbol in self.pending_setups:
             existing = self.pending_setups[symbol]
-            if existing.status == "pending":
-                log.info(f"[{symbol}] Already have pending setup, skipping")
+            if existing.status in ("pending", "filled"):
+                log.info(f"[{symbol}] Already have {existing.status} setup, skipping")
                 return None
         
         data = self.get_candle_data(symbol)
@@ -1628,11 +1656,19 @@ class LiveTradingBot:
                 
                 log.info(f"[{symbol}] Spread check passed: {current_spread_pips:.1f} pips")
         
+        # BUGFIX: Block ALL existing setups, not just "pending" status
+        # This prevents re-entry when position is still open (filled) or recently closed
         if symbol in self.pending_setups:
             existing = self.pending_setups[symbol]
-            if existing.status == "pending":
-                log.info(f"[{symbol}] Already have pending setup at {existing.entry_price:.5f}, skipping")
+            if existing.status in ("pending", "filled"):
+                log.info(f"[{symbol}] Already have {existing.status} setup at {existing.entry_price:.5f}, skipping")
                 return False
+        
+        # Also check if we have an open position for this symbol
+        broker_symbol = self.symbol_map.get(symbol, symbol)
+        if self.check_existing_position(broker_symbol):
+            log.info(f"[{symbol}] Already have open position, skipping")
+            return False
         
         if CHALLENGE_MODE and self.challenge_manager:
             snapshot = self.challenge_manager.get_account_snapshot()
@@ -1875,6 +1911,29 @@ class LiveTradingBot:
                     exit_price=0.0,
                     pnl_usd=0.0,
                 )
+                
+                # BUGFIX: Remove closed position from pending_setups AND queues
+                # This prevents re-entry of the same setup after position closes
+                symbol_to_remove = None
+                for symbol, setup in list(self.pending_setups.items()):
+                    if setup.order_ticket == order_id and setup.status == "filled":
+                        log.info(f"[{symbol}] Removing closed position from pending_setups (ticket {order_id})")
+                        symbol_to_remove = symbol
+                        del self.pending_setups[symbol]
+                        self._save_pending_setups()
+                        break
+                
+                # Also remove from entry/spread queues to prevent re-execution
+                if symbol_to_remove:
+                    if symbol_to_remove in self.awaiting_entry:
+                        log.info(f"[{symbol_to_remove}] Removing from entry queue after position close")
+                        del self.awaiting_entry[symbol_to_remove]
+                        self._save_awaiting_entry()
+                    
+                    if symbol_to_remove in self.awaiting_spread:
+                        log.info(f"[{symbol_to_remove}] Removing from spread queue after position close")
+                        del self.awaiting_spread[symbol_to_remove]
+                        self._save_awaiting_spread()
     
     def check_pending_orders(self):
         """
