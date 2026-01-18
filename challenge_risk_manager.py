@@ -121,8 +121,9 @@ class ChallengeRiskManager:
         self.peak_equity: float = config.account_size
         self.current_balance: float = config.account_size
         self.current_equity: float = config.account_size
-        
+
         self.day_start_balance: float = config.account_size
+        self.day_start_equity: float = config.account_size  # BUGFIX: Init voor DDD-bewaking
         self.daily_pnl: float = 0.0
         self.total_drawdown: float = 0.0
         self.total_drawdown_pct: float = 0.0
@@ -520,7 +521,6 @@ def create_challenge_manager(
     **kwargs
 ) -> ChallengeRiskManager:
     """
-            self.day_start_equity: float = config.account_size  # Init voor DDD-bewaking
     Factory function to create a ChallengeRiskManager with custom config.
     """
     config = ChallengeConfig(account_size=account_size, **kwargs)
