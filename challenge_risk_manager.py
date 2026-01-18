@@ -158,24 +158,40 @@ class ChallengeRiskManager:
     
     def _load_state(self):
         """Load persisted state from file."""
+        # CRITICAL: Hardcoded fallback to protect initial balance
+        PROTECTED_INITIAL_BALANCE = 20000.0
+
         if self.state_file.exists():
             try:
                 with open(self.state_file, 'r') as f:
                     state = json.load(f)
-                
-                self.starting_balance = state.get('starting_balance', self.config.account_size)
+
+                # PROTECTED: Always use $20,000 if starting_balance is missing from JSON
+                self.starting_balance = state.get('starting_balance', PROTECTED_INITIAL_BALANCE)
+
+                # Prevent accidental overwrite: If starting_balance in JSON is clearly wrong (> $25k or < $15k), reset to $20k
+                if self.starting_balance > 25000.0 or self.starting_balance < 15000.0:
+                    log.warning(f"⚠️ starting_balance in JSON ({self.starting_balance:,.2f}) seems incorrect. Resetting to ${PROTECTED_INITIAL_BALANCE:,.2f}")
+                    self.starting_balance = PROTECTED_INITIAL_BALANCE
+
                 self.peak_equity = state.get('peak_equity', self.config.account_size)
                 self.day_start_balance = state.get('day_start_balance', self.config.account_size)
                 self.day_start_equity = state.get('day_start_equity', self.config.account_size)  # Load equity start
                 self.trades_today = state.get('trades_today', 0)
-                
+
                 saved_date = state.get('current_date')
                 if saved_date:
                     self.current_date = date.fromisoformat(saved_date)
-                    
-                log.info(f"Loaded challenge state: peak_equity=${self.peak_equity:,.2f}")
+
+                log.info(f"Loaded challenge state: starting_balance=${self.starting_balance:,.2f}, peak_equity=${self.peak_equity:,.2f}")
             except Exception as e:
                 log.warning(f"Could not load state file: {e}")
+                # PROTECTED: Use hardcoded value if file load fails
+                self.starting_balance = PROTECTED_INITIAL_BALANCE
+        else:
+            # PROTECTED: Use hardcoded value for new challenges
+            log.info(f"No state file found. Using protected initial balance: ${PROTECTED_INITIAL_BALANCE:,.2f}")
+            self.starting_balance = PROTECTED_INITIAL_BALANCE
     
     def _save_state(self):
         """Persist state to file."""
