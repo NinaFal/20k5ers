@@ -1218,6 +1218,7 @@ class LiveTradingBot:
                     config=config,
                     mt5_client=self.mt5,
                     state_file="challenge_risk_state.json",
+                    trading_days_file=self.TRADING_DAYS_FILE,
                 )
                 self.challenge_manager.sync_with_mt5(balance, equity)
                 log.info("Challenge Risk Manager initialized with ELITE PROTECTION")
@@ -1254,6 +1255,121 @@ class LiveTradingBot:
             if pos.symbol == broker_symbol:
                 return True
         return False
+    
+    def _calculate_lot_size_at_fill(
+        self,
+        symbol: str,
+        broker_symbol: str,
+        entry: float,
+        sl: float,
+        confluence: int,
+    ) -> float:
+        """
+        BUGFIX P0: Calculate lot size at FILL MOMENT (not signal moment).
+        
+        This ensures:
+        1. Lot size uses CURRENT balance (proper compounding)
+        2. DDD/TDD checks use current equity
+        3. Risk percentage reflects current account state
+        
+        Args:
+            symbol: OANDA format symbol
+            broker_symbol: Broker format symbol
+            entry: Entry price
+            sl: Stop loss price
+            confluence: Confluence score
+            
+        Returns:
+            Lot size (float), or 0.0 if cannot calculate
+        """
+        from tradr.risk.position_sizing import calculate_lot_size
+        from ftmo_config import FIVEERS_CONFIG
+        
+        if not CHALLENGE_MODE or not self.challenge_manager:
+            log.error(f"[{symbol}] Cannot calculate lot size - challenge manager not available")
+            return 0.0
+        
+        # Get CURRENT account snapshot (not stale snapshot from signal moment)
+        snapshot = self.challenge_manager.get_account_snapshot()
+        if snapshot is None:
+            log.error(f"[{symbol}] Cannot get account snapshot")
+            return 0.0
+        
+        # Get current DDD/TDD state
+        daily_loss_pct = getattr(snapshot, "daily_loss_pct", 0)
+        total_dd_pct = getattr(snapshot, "total_dd_pct", 0)
+        profit_pct = (snapshot.equity - self.challenge_manager.initial_balance) / self.challenge_manager.initial_balance * 100
+        
+        # Check if trading is halted
+        if daily_loss_pct >= FIVEERS_CONFIG.daily_loss_halt_pct:
+            log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {FIVEERS_CONFIG.daily_loss_halt_pct}%")
+            return 0.0
+        
+        if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
+            log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}%")
+            return 0.0
+        
+        # Get win/loss streaks
+        win_streak = getattr(self.risk_manager.state, 'win_streak', 0) if hasattr(self.risk_manager, 'state') else 0
+        loss_streak = getattr(self.risk_manager.state, 'loss_streak', 0) if hasattr(self.risk_manager, 'state') else 0
+        
+        # Calculate risk percentage (dynamic or static)
+        if FIVEERS_CONFIG.use_dynamic_lot_sizing:
+            risk_pct = FIVEERS_CONFIG.get_dynamic_risk_pct(
+                confluence_score=confluence,
+                win_streak=win_streak,
+                loss_streak=loss_streak,
+                current_profit_pct=profit_pct,
+                daily_loss_pct=daily_loss_pct,
+                total_dd_pct=total_dd_pct,
+            )
+            log.info(f"[{symbol}] Dynamic risk: {risk_pct:.3f}% (confluence: {confluence}, streaks: +{win_streak}/-{loss_streak})\"")
+        else:
+            risk_pct = FIVEERS_CONFIG.get_risk_pct(daily_loss_pct, total_dd_pct)
+        
+        if risk_pct <= 0:
+            log.warning(f"[{symbol}] Risk percentage is 0 - trading halted")
+            return 0.0
+        
+        # Get symbol info
+        symbol_info = self.mt5.get_symbol_info(broker_symbol)
+        max_lot = symbol_info.get('max_lot', 100.0) if symbol_info else 100.0
+        min_lot = symbol_info.get('min_lot', 0.01) if symbol_info else 0.01
+        
+        # Calculate lot size using CURRENT balance
+        lot_result = calculate_lot_size(
+            symbol=broker_symbol,
+            account_balance=snapshot.balance,  # CURRENT balance!
+            risk_percent=risk_pct / 100,
+            entry_price=entry,
+            stop_loss_price=sl,
+            max_lot=max_lot,
+            min_lot=min_lot,
+            broker="5ers",  # CRITICAL: Use 5ers contract specs
+        )
+        
+        if lot_result.get("error") or lot_result["lot_size"] <= 0:
+            log.warning(f"[{symbol}] Cannot calculate lot size: {lot_result.get('error', 'unknown error')}")
+            return 0.0
+        
+        lot_size = lot_result["lot_size"]
+        risk_usd = lot_result["risk_usd"]
+        risk_pips = lot_result["stop_pips"]
+        
+        # Round to lot step
+        if symbol_info:
+            lot_step = symbol_info.get('lot_step', 0.01)
+            lot_size = max(min_lot, round(lot_size / lot_step) * lot_step)
+            lot_size = min(lot_size, max_lot)
+        
+        log.info(f"[{symbol}] Lot size calculated at FILL MOMENT:")
+        log.info(f"  Balance: ${snapshot.balance:.2f}")
+        log.info(f"  Risk %: {risk_pct:.2f}% (daily loss: {daily_loss_pct:.1f}%, DD: {total_dd_pct:.1f}%)")
+        log.info(f"  Risk $: ${risk_usd:.2f}")
+        log.info(f"  Stop pips: {risk_pips:.1f}")
+        log.info(f"  Lot size: {lot_size}")
+        
+        return lot_size
     
     def _calculate_atr(self, candles: List[Dict], period: int = 14) -> float:
         """
@@ -1704,65 +1820,10 @@ class LiveTradingBot:
             # NOTE: NO cumulative risk check - removed to match simulator
             # Simulator has no cumulative risk limits, only position count limit
             
-            win_streak = getattr(self.risk_manager.state, 'win_streak', 0) if hasattr(self.risk_manager, 'state') else 0
-            loss_streak = getattr(self.risk_manager.state, 'loss_streak', 0) if hasattr(self.risk_manager, 'state') else 0
-            
-            if FIVEERS_CONFIG.use_dynamic_lot_sizing:
-                risk_pct = FIVEERS_CONFIG.get_dynamic_risk_pct(
-                    confluence_score=confluence,
-                    win_streak=win_streak,
-                    loss_streak=loss_streak,
-                    current_profit_pct=profit_pct,
-                    daily_loss_pct=daily_loss_pct,
-                    total_dd_pct=total_dd_pct,
-                )
-                log.info(f"[{symbol}] Dynamic risk: {risk_pct:.3f}% (confluence: {confluence}/7, win_streak: {win_streak}, loss_streak: {loss_streak})")
-            else:
-                risk_pct = FIVEERS_CONFIG.get_risk_pct(daily_loss_pct, total_dd_pct)
-            
-            if risk_pct <= 0:
-                log.warning(f"[{symbol}] Risk percentage is 0 - trading halted")
-                return False
-            
-            from tradr.risk.position_sizing import calculate_lot_size
-            
-            symbol_info = self.mt5.get_symbol_info(broker_symbol)
-            max_lot = symbol_info.get('max_lot', 100.0) if symbol_info else 100.0
-            min_lot = symbol_info.get('min_lot', 0.01) if symbol_info else 0.01
-            
-            lot_result = calculate_lot_size(
-                symbol=broker_symbol,
-                account_balance=snapshot.balance,
-                risk_percent=risk_pct / 100,
-                entry_price=entry,
-                stop_loss_price=sl,
-                max_lot=max_lot,
-                min_lot=min_lot,
-                broker="5ers",  # CRITICAL: Use 5ers contract specs ($1/point for indices)
-            )
-            
-            if lot_result.get("error") or lot_result["lot_size"] <= 0:
-                log.warning(f"[{symbol}] Cannot calculate lot size: {lot_result.get('error', 'unknown error')}")
-                return False
-            
-            lot_size = lot_result["lot_size"]
-            risk_usd = lot_result["risk_usd"]
-            risk_pips = lot_result["stop_pips"]
-            
-            if symbol_info:
-                lot_step = symbol_info.get('lot_step', 0.01)
-                lot_size = max(min_lot, round(lot_size / lot_step) * lot_step)
-                lot_size = min(lot_size, max_lot)
-            
-            log.info(f"[{symbol}] Risk calculation:")
-            log.info(f"  Balance: ${snapshot.balance:.2f}")
-            log.info(f"  Risk %: {risk_pct:.2f}% (daily loss: {daily_loss_pct:.1f}%, DD: {total_dd_pct:.1f}%)")
-            log.info(f"  Risk $: ${risk_usd:.2f}")
-            log.info(f"  Stop pips: {risk_pips:.1f}")
-            log.info(f"  Lot size: {lot_size}")
-            
-            # NOTE: NO cumulative risk reduction - removed to match simulator
-            # Simulator has no cumulative risk logic, only position count limit
+            # BUGFIX P0: LOT SIZE WILL BE CALCULATED AT FILL MOMENT
+            # Do NOT calculate lot size here - it will be calculated when order fills
+            # This ensures proper compounding with current balance, not stale balance
+            log.info(f"[{symbol}] Risk check passed - lot size will be calculated at fill moment")
             
             # NOTE: We do NOT simulate daily loss from potential SL hit.
             # The simulator (simulate_main_live_bot.py) only checks DDD at fill moment,
@@ -1785,6 +1846,19 @@ class LiveTradingBot:
         if entry_distance_r <= FIVEERS_CONFIG.immediate_entry_r:
             order_type = "MARKET"
             log.info(f"[{symbol}] Price at entry ({entry_distance_r:.2f}R) - using MARKET ORDER")
+            
+            # BUGFIX P0: Calculate lot size at FILL MOMENT (not signal moment)
+            lot_size = self._calculate_lot_size_at_fill(
+                symbol=symbol,
+                broker_symbol=broker_symbol,
+                entry=entry,
+                sl=sl,
+                confluence=confluence,
+            )
+            
+            if lot_size <= 0:
+                log.error(f"[{symbol}] Invalid lot size calculation: {lot_size}")
+                return False
             
             result = self.mt5.place_market_order(
                 symbol=broker_symbol,
@@ -1827,7 +1901,7 @@ class LiveTradingBot:
                 created_at=datetime.now(timezone.utc).isoformat(),
                 order_ticket=result.order_id,
                 status="filled",
-                lot_size=result.volume,
+                lot_size=lot_size,  # Actual lot size used for market order
             )
             
         else:
@@ -1839,13 +1913,18 @@ class LiveTradingBot:
             log.info(f"  SL: {sl:.5f}")
             log.info(f"  TP1: {tp1:.5f}")
             log.info(f"  TP3: {tp3:.5f} (closes ALL remaining)" if tp3 else "  TP3: N/A")
-            log.info(f"  Lot Size: {lot_size}")
+            log.info(f"  Lot Size: Will be calculated when order fills")
             log.info(f"  Expiration: {FIVEERS_CONFIG.pending_order_expiry_hours} hours")
+            
+            # BUGFIX P0: Use minimal lot size for pending order placement
+            # Real lot size will be calculated when order actually fills
+            symbol_info = self.mt5.get_symbol_info(broker_symbol)
+            min_lot = symbol_info.get('min_lot', 0.01) if symbol_info else 0.01
             
             result = self.mt5.place_pending_order(
                 symbol=broker_symbol,
                 direction=direction,
-                volume=lot_size,
+                volume=min_lot,  # Placeholder - will be adjusted on fill
                 entry_price=entry,
                 sl=sl,
                 tp=0,  # No auto-TP - bot manages partial closes at TP1/TP2/TP3 manually
@@ -1876,7 +1955,7 @@ class LiveTradingBot:
                 created_at=datetime.now(timezone.utc).isoformat(),
                 order_ticket=result.order_id,
                 status="pending",
-                lot_size=lot_size,
+                lot_size=0.0,  # Will be calculated when order fills
             )
         
         self.pending_setups[symbol] = pending_setup
@@ -1979,16 +2058,71 @@ class LiveTradingBot:
             broker_symbol = self.symbol_map.get(symbol, symbol)
             if broker_symbol in position_symbols:
                 log.info(f"[{symbol}] Pending order FILLED! Position now open (broker: {broker_symbol})")
-                setup.status = "filled"
                 
-                self.risk_manager.record_trade_open(
-                    symbol=broker_symbol,
-                    direction=setup.direction,
-                    entry_price=setup.entry_price,
-                    stop_loss=setup.stop_loss,
-                    lot_size=setup.lot_size,
-                    order_id=setup.order_ticket or 0,
-                )
+                # BUGFIX P0: Calculate lot size at FILL MOMENT (not signal moment)
+                # Find the actual position to get filled volume
+                filled_position = next((p for p in my_positions if p.symbol == broker_symbol), None)
+                
+                if filled_position:
+                    # CRITICAL: Recalculate lot size with CURRENT balance
+                    # The pending order was placed with min_lot as placeholder
+                    # Now we need to modify the position to correct lot size
+                    correct_lot_size = self._calculate_lot_size_at_fill(
+                        symbol=symbol,
+                        broker_symbol=broker_symbol,
+                        entry=setup.entry_price,
+                        sl=setup.stop_loss,
+                        confluence=setup.confluence,
+                    )
+                    
+                    if correct_lot_size > 0 and abs(filled_position.volume - correct_lot_size) > 0.01:
+                        # Position filled with placeholder lot size - need to adjust
+                        log.warning(f"[{symbol}] Position filled with {filled_position.volume} lots, should be {correct_lot_size} lots")
+                        log.warning(f"[{symbol}] Closing and re-opening with correct lot size...")
+                        
+                        # Close the position with wrong lot size
+                        close_result = self.mt5.close_position(filled_position.ticket)
+                        
+                        if close_result.success:
+                            # Re-open with correct lot size
+                            reopen_result = self.mt5.place_market_order(
+                                symbol=broker_symbol,
+                                direction=setup.direction,
+                                volume=correct_lot_size,
+                                sl=setup.stop_loss,
+                                tp=0,
+                            )
+                            
+                            if reopen_result.success:
+                                log.info(f"[{symbol}] ✅ Position re-opened with correct lot size: {correct_lot_size}")
+                                setup.lot_size = correct_lot_size
+                                setup.order_ticket = reopen_result.order_id
+                            else:
+                                log.error(f"[{symbol}] ❌ Failed to re-open position: {reopen_result.error}")
+                                setup.status = "cancelled"
+                                setups_to_remove.append(symbol)
+                                continue
+                        else:
+                            log.error(f"[{symbol}] ❌ Failed to close position for re-sizing: {close_result.error}")
+                            # Keep the position but with wrong lot size
+                            setup.lot_size = filled_position.volume
+                    else:
+                        # Lot size is close enough or correct
+                        setup.lot_size = filled_position.volume
+                    
+                    setup.status = "filled"
+                    
+                    self.risk_manager.record_trade_open(
+                        symbol=broker_symbol,
+                        direction=setup.direction,
+                        entry_price=setup.entry_price,
+                        stop_loss=setup.stop_loss,
+                        lot_size=setup.lot_size,
+                        order_id=setup.order_ticket or 0,
+                    )
+                else:
+                    log.error(f"[{symbol}] Position marked as filled but not found in MT5!")
+                    setup.status = "filled"
                 
                 self._save_pending_setups()
                 self.record_trading_day()
