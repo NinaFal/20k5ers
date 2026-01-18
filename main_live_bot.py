@@ -492,6 +492,32 @@ class LiveTradingBot:
         
         return False
     
+    def is_news_blackout(self) -> bool:
+        """Check if currently in news event blackout period."""
+        if not FIVEERS_CONFIG.block_trading_around_news:
+            return False
+        
+        from ftmo_config import FIVEERS_CONFIG
+        now = datetime.now(timezone.utc)
+        
+        # Check each major news event
+        for day_of_week, hour, minute in FIVEERS_CONFIG.major_news_events:
+            if now.weekday() != day_of_week:
+                continue
+            
+            # Create news event time for today
+            news_time = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            
+            # Calculate blackout window
+            blackout_start = news_time - timedelta(minutes=FIVEERS_CONFIG.news_blackout_minutes_before)
+            blackout_end = news_time + timedelta(minutes=FIVEERS_CONFIG.news_blackout_minutes_after)
+            
+            if blackout_start <= now <= blackout_end:
+                log.warning(f"📰 NEWS BLACKOUT: {now.strftime('%H:%M UTC')} - Event at {news_time.strftime('%H:%M UTC')}")
+                return True
+        
+        return False
+    
     # ═══════════════════════════════════════════════════════════════════════════
     # SPREAD QUEUE - Track signals waiting for better spread
     # ═══════════════════════════════════════════════════════════════════════════
@@ -2284,8 +2310,9 @@ class LiveTradingBot:
         if current_equity < initial:
             total_dd_pct = ((initial - current_equity) / initial) * 100
         
-        # Cancel pending orders if approaching limits (above 3.5% daily or 7% total)
-        if daily_loss_pct >= 3.5 or total_dd_pct >= 7.0:
+        # Cancel pending orders if approaching limits (above 3.0% daily or 6% total)
+        # IMPROVED: Cancel earlier to prevent slippage issues
+        if daily_loss_pct >= 3.0 or total_dd_pct >= 6.0:
             pending_orders = self.mt5.get_my_pending_orders()
             if pending_orders:
                 log.warning(f"Approaching limits (Daily: {daily_loss_pct:.1f}%, DD: {total_dd_pct:.1f}%) - cancelling {len(pending_orders)} pending orders")
@@ -2294,8 +2321,9 @@ class LiveTradingBot:
                 self.pending_setups.clear()
                 self._save_pending_setups()
         
-        # Start closing positions if above 4.0% daily or 8.0% total
-        if daily_loss_pct >= 4.0 or total_dd_pct >= 8.0:
+        # Start closing positions if above 3.5% daily or 7.0% total
+        # IMPROVED: Close earlier to account for slippage (0.3-0.5% buffer to 5% limit)
+        if daily_loss_pct >= 3.5 or total_dd_pct >= 7.0:
             positions = self.mt5.get_my_positions()
             if not positions:
                 return False
@@ -2627,6 +2655,27 @@ class LiveTradingBot:
         Now places pending limit orders instead of market orders
         to match backtest entry behavior exactly.
         """
+        # NEWS BLACKOUT CHECK
+        if self.is_news_blackout():
+            log.warning("Skipping scan - major news event blackout period")
+            return
+        
+        # WEEKEND GAP PROTECTION CHECK
+        if CHALLENGE_MODE and self.challenge_manager:
+            if self.challenge_manager.should_close_for_weekend():
+                log.warning("🌅 WEEKEND GAP PROTECTION TRIGGERED - closing all positions")
+                positions = self.mt5.get_my_positions()
+                for pos in positions:
+                    result = self.mt5.close_position(pos.ticket)
+                    if result.success:
+                        log.info(f"  ✓ Closed {pos.symbol} for weekend protection")
+                        self.risk_manager.record_trade_close(
+                            order_id=pos.ticket,
+                            exit_price=result.price,
+                            pnl_usd=pos.profit,
+                        )
+                return
+        
         log.info("=" * 70)
         log.info(f"MARKET SCAN - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
         log.info(f"Strategy Mode: {SIGNAL_MODE} (Min Confluence: {MIN_CONFLUENCE}/7)")

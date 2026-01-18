@@ -193,6 +193,27 @@ class ChallengeRiskManager:
         except Exception as e:
             log.error(f"Could not save state file: {e}")
     
+    def should_close_for_weekend(self) -> bool:
+        """Check if positions should be closed for weekend gap protection."""
+        now = datetime.now()
+        
+        # Check if it's Friday
+        if now.weekday() != 4:  # 4 = Friday
+            return False
+        
+        # Check if it's after closing hour
+        friday_close_hour = getattr(self.config, 'friday_close_hour', 22)
+        if now.hour < friday_close_hour:
+            return False
+        
+        # Check if DDD is above threshold
+        weekend_threshold = getattr(self.config, 'weekend_close_ddd_threshold_pct', 2.0)
+        if self.daily_loss_pct >= weekend_threshold:
+            log.warning(f"🌅 WEEKEND GAP PROTECTION: Friday {now.hour}:00, DDD={self.daily_loss_pct:.1f}% >= {weekend_threshold}%")
+            return True
+        
+        return False
+    
     def sync_with_mt5(self, balance: float, equity: float):
         """
         Sync state with MT5 account data.
@@ -240,6 +261,10 @@ class ChallengeRiskManager:
         if self.total_drawdown_pct >= self.config.total_dd_emergency_pct:
             self.risk_mode = RiskMode.EMERGENCY
             log.critical(f"🚨 EMERGENCY: Total DD {self.total_drawdown_pct:.1f}% >= {self.config.total_dd_emergency_pct}%! CLOSING ALL POSITIONS!")
+        elif self.daily_loss_pct >= getattr(self.config, 'daily_loss_emergency_pct', 4.5):
+            # FLASH CRASH PROTECTION: Emergency stop at 4.5% (before 5% breach)
+            self.risk_mode = RiskMode.EMERGENCY
+            log.critical(f"🚨 FLASH CRASH PROTECTION: Daily loss {self.daily_loss_pct:.1f}% >= 4.5%! CLOSING ALL POSITIONS IMMEDIATELY!")
         elif self.daily_loss_pct >= self.config.daily_loss_halt_pct:
             self.risk_mode = RiskMode.HALTED
             log.error(f"🛑 HALT: Daily loss {self.daily_loss_pct:.1f}% >= {self.config.daily_loss_halt_pct}%! NO NEW TRADES!")

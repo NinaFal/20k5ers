@@ -37,8 +37,18 @@ class Fiveers60KConfig:
     daily_loss_warning_pct: float = 2.0  # Warning at 2.0% daily loss
     daily_loss_reduce_pct: float = 3.0  # Reduce risk at 3.0% daily loss
     daily_loss_halt_pct: float = 3.5  # Halt trading at 3.5% daily loss
+    daily_loss_emergency_pct: float = 4.5  # FLASH CRASH PROTECTION: Emergency stop at 4.5%
     total_dd_warning_pct: float = 5.0  # Warning at 5% total DD
     total_dd_emergency_pct: float = 7.0  # Emergency mode at 7% total DD
+    
+    # === WEEKEND GAP PROTECTION ===
+    weekend_close_ddd_threshold_pct: float = 2.0  # Close all positions Friday if DDD >= 2.0%
+    friday_close_hour: int = 22  # Close positions at 22:00 server time on Friday
+    
+    # === NEWS EVENT PROTECTION ===
+    block_trading_around_news: bool = True  # Block trades during major news
+    news_blackout_minutes_before: int = 60  # No trades 60min before news
+    news_blackout_minutes_after: int = 30  # No trades 30min after news
 
     # === POSITION SIZING (Match /backtest command) ===
     risk_per_trade_pct: float = 0.6  # 0.6% risk per trade ($360 per R on 60K account)
@@ -133,6 +143,20 @@ class Fiveers60KConfig:
     equity_reduce_threshold_pct: float = 2.0  # Reduce size after 2% loss
     equity_reduce_multiplier: float = 1.0  # DISABLED - not in simulator
 
+    # === MAJOR NEWS EVENTS (UTC Times) ===
+    # News events that trigger trading blackout periods
+    # Format: (day_of_week, hour, minute) where day_of_week: 0=Monday, 4=Friday
+    major_news_events: List[Tuple[int, int, int]] = field(default_factory=lambda: [
+        # US NFP (First Friday of month, 13:30 UTC)
+        (4, 13, 30),  # Friday NFP
+        # FOMC Rate Decision (8x per year, typically 19:00 UTC Wednesday)
+        (2, 19, 0),   # Wednesday FOMC
+        # US CPI (Monthly, typically Tuesday 13:30 UTC)
+        (1, 13, 30),  # Tuesday CPI
+        # ECB Rate Decision (8x per year, typically Thursday 12:45 UTC)
+        (3, 12, 45),  # Thursday ECB
+    ])
+    
     # === ASSET WHITELIST (Top 10 Performers from Backtest) ===
     # Based on Jan-Nov 2024 backtest with 5/7 confluence filter
     # Performance metrics: Win Rate (WR%) and average R-multiple
