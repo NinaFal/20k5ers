@@ -108,11 +108,13 @@ class ChallengeRiskManager:
         self,
         config: ChallengeConfig,
         mt5_client: Any = None,
-        state_file: str = "challenge_risk_state.json"
+        state_file: str = "challenge_risk_state.json",
+        trading_days_file: str = "trading_days.json"
     ):
         self.config = config
         self.mt5 = mt5_client
         self.state_file = Path(state_file)
+        self.trading_days_file = Path(trading_days_file)
         
         # State tracking
         self.starting_balance: float = config.account_size
@@ -132,8 +134,26 @@ class ChallengeRiskManager:
         self.halted: bool = False  # Trading halted flag
         self.halt_reason: str = ""  # Reason for halt
         
+        # Trading days for 5ers minimum requirement
+        self.trading_days: set = set()
+        
         # Load persisted state
         self._load_state()
+        self._load_trading_days()
+    
+    def _load_trading_days(self):
+        """Load trading days from file."""
+        if self.trading_days_file.exists():
+            try:
+                with open(self.trading_days_file, 'r') as f:
+                    data = json.load(f)
+                self.trading_days = set(data.get('trading_days', []))
+                log.info(f"Loaded {len(self.trading_days)} profitable trading days")
+            except Exception as e:
+                log.warning(f"Could not load trading days: {e}")
+                self.trading_days = set()
+        else:
+            self.trading_days = set()
     
     def _load_state(self):
         """Load persisted state from file."""
@@ -145,6 +165,7 @@ class ChallengeRiskManager:
                 self.starting_balance = state.get('starting_balance', self.config.account_size)
                 self.peak_equity = state.get('peak_equity', self.config.account_size)
                 self.day_start_balance = state.get('day_start_balance', self.config.account_size)
+                self.day_start_equity = state.get('day_start_equity', self.config.account_size)  # Load equity start
                 self.trades_today = state.get('trades_today', 0)
                 
                 saved_date = state.get('current_date')
@@ -161,6 +182,7 @@ class ChallengeRiskManager:
             'starting_balance': self.starting_balance,
             'peak_equity': self.peak_equity,
             'day_start_balance': self.day_start_balance,
+            'day_start_equity': self.day_start_equity,  # Save equity start for DDD
             'current_date': self.current_date.isoformat(),
             'trades_today': self.trades_today,
             'last_update': datetime.now().isoformat()
@@ -182,6 +204,7 @@ class ChallengeRiskManager:
         if today != self.current_date:
             log.info(f"New trading day detected: {today}")
             self.day_start_balance = balance
+            self.day_start_equity = equity  # BUGFIX: Store equity at day start for correct DDD
             self.trades_today = 0
             self.current_date = today
         
@@ -195,8 +218,10 @@ class ChallengeRiskManager:
             log.info(f"New peak equity: ${self.peak_equity:,.2f}")
         
         # Calculate metrics
-        self.daily_pnl = balance - self.day_start_balance
-        self.daily_loss_pct = abs(min(0, self.daily_pnl)) / self.day_start_balance * 100
+        # BUGFIX: DDD must use EQUITY (balance + open P&L), not just balance
+        # This matches 5ers rules: Equity = Balance + Open P&L (closed + open positions)
+        self.daily_pnl = equity - self.day_start_equity
+        self.daily_loss_pct = abs(min(0, self.daily_pnl)) / self.day_start_equity * 100 if self.day_start_equity > 0 else 0
         
         self.total_drawdown = self.peak_equity - equity
         self.total_drawdown_pct = self.total_drawdown / self.peak_equity * 100 if self.peak_equity > 0 else 0
@@ -293,6 +318,22 @@ class ChallengeRiskManager:
     
     def get_status(self) -> Dict[str, Any]:
         """Get current status summary."""
+        # Calculate profit percentage
+        profit_pct = (self.current_balance - self.starting_balance) / self.starting_balance * 100 if self.starting_balance > 0 else 0.0
+        
+        # Determine phase and target based on profit
+        # 5ers 20K: Phase 1 = 8% target ($1,600), Phase 2 = 5% target ($1,000)
+        phase = 1
+        target_pct = 8.0  # Phase 1 default
+        
+        if profit_pct >= 8.0:
+            phase = 2
+            target_pct = 5.0  # Phase 2 target (additional 5% after Phase 1)
+        
+        # Get trading days count
+        profitable_days = len(self.trading_days)
+        min_profitable_days = 3  # 5ers requirement
+        
         return {
             'risk_mode': self.risk_mode.name,
             'balance': self.current_balance,
@@ -301,8 +342,13 @@ class ChallengeRiskManager:
             'daily_pnl': self.daily_pnl,
             'daily_loss_pct': self.daily_loss_pct,
             'total_dd_pct': self.total_drawdown_pct,
+            'drawdown_pct': self.total_drawdown_pct,  # Alias for compatibility
             'trades_today': self.trades_today,
-            'profit_pct': (self.current_balance - self.starting_balance) / self.starting_balance * 100
+            'profit_pct': profit_pct,
+            'phase': phase,
+            'target_pct': target_pct,
+            'profitable_days': profitable_days,
+            'min_profitable_days': min_profitable_days,
         }
     
     def run_protection_check(self) -> list:
