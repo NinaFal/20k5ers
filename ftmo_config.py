@@ -115,7 +115,7 @@ class Fiveers60KConfig:
     ultra_safe_risk_pct: float = 0.25  # Use 0.25% risk in ultra-safe mode
 
     # === DYNAMIC LOT SIZING SETTINGS ===
-    use_dynamic_lot_sizing: bool = True  # Enable dynamic position sizing
+    use_dynamic_lot_sizing: bool = False  # DISABLED: Match simulator (simple confluence scaling only)
     
     # Confluence-based scaling (higher confluence = larger position)
     confluence_base_score: int = 4  # Base confluence score for 1.0x multiplier
