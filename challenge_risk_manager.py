@@ -508,7 +508,7 @@ class ChallengeRiskManager:
             f"ChallengeRiskManager:\n"
             f"  Mode: {status['risk_mode']}\n"
             f"  Balance: ${status['balance']:,.2f}\n"
-            f"  Daily P&L: ${status['daily_pnl']:+,.2f} ({status['daily_loss_pct']:.1f}% loss)\n"
+            state_file: str = "challenge_risk_state.json",
             f"  Total DD: {status['total_dd_pct']:.1f}%\n"
             f"  Profit: {status['profit_pct']:+.1f}%\n"
             f"  Trades today: {status['trades_today']}"
@@ -521,6 +521,7 @@ def create_challenge_manager(
     **kwargs
 ) -> ChallengeRiskManager:
     """
+            self.day_start_equity: float = config.account_size  # Init voor DDD-bewaking
     Factory function to create a ChallengeRiskManager with custom config.
     """
     config = ChallengeConfig(account_size=account_size, **kwargs)
