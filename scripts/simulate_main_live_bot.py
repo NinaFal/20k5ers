@@ -614,10 +614,13 @@ class MainLiveBotSimulator:
             
             entry_distance_r = abs(current_price - signal.entry) / signal.risk if signal.risk > 0 else 999
             
-            # Check if too far now
-            if entry_distance_r > self.config.max_entry_distance_r:
-                to_remove.append(symbol)
-                continue
+            # NOTE: Don't cancel based on distance - setup was valid at placement
+            # Price can temporarily move away and come back
+            # Only cancel via: time expiry (120h) or other criteria
+            # This matches main_live_bot.py behavior (Line 673-675)
+            # if entry_distance_r > self.config.max_entry_distance_r:
+            #     to_remove.append(symbol)
+            #     continue
             
             # Check if close enough for limit order
             if entry_distance_r <= self.config.limit_order_proximity_r:
