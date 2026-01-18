@@ -36,8 +36,8 @@ class Fiveers60KConfig:
     # === SAFETY BUFFERS (Ultra-Conservative) ===
     daily_loss_warning_pct: float = 2.0  # Warning at 2.0% daily loss
     daily_loss_reduce_pct: float = 3.0  # Reduce risk at 3.0% daily loss
-    daily_loss_halt_pct: float = 3.5  # Halt trading at 3.5% daily loss
-    daily_loss_emergency_pct: float = 4.5  # FLASH CRASH PROTECTION: Emergency stop at 4.5%
+    daily_loss_halt_pct: float = 3.0  # Halt new trades at 3.0% daily loss
+    daily_loss_emergency_pct: float = 3.5  # EMERGENCY: Close all trades at 3.5% daily loss
     total_dd_warning_pct: float = 5.0  # Warning at 5% total DD
     total_dd_emergency_pct: float = 7.0  # Emergency mode at 7% total DD
     

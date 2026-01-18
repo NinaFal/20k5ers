@@ -262,13 +262,10 @@ class ChallengeRiskManager:
         if self.total_drawdown_pct >= self.config.total_dd_emergency_pct:
             self.risk_mode = RiskMode.EMERGENCY
             log.critical(f"🚨 EMERGENCY: Total DD {self.total_drawdown_pct:.1f}% >= {self.config.total_dd_emergency_pct}%! CLOSING ALL POSITIONS!")
-        elif self.daily_loss_pct >= getattr(self.config, 'daily_loss_emergency_pct', 4.5):
-            # FLASH CRASH PROTECTION: Emergency stop at 4.5% (before 5% breach)
+        elif self.daily_loss_pct >= self.config.daily_loss_emergency_pct:
+            # EMERGENCY: Close all trades at 3.5% daily loss
             self.risk_mode = RiskMode.EMERGENCY
-            log.critical(f"🚨 FLASH CRASH PROTECTION: Daily loss {self.daily_loss_pct:.1f}% >= 4.5%! CLOSING ALL POSITIONS IMMEDIATELY!")
-        elif self.daily_loss_pct >= self.config.daily_loss_halt_pct:
-            self.risk_mode = RiskMode.HALTED
-            log.error(f"🛑 HALT: Daily loss {self.daily_loss_pct:.1f}% >= {self.config.daily_loss_halt_pct}%! NO NEW TRADES!")
+            log.critical(f"🚨 EMERGENCY: Daily loss {self.daily_loss_pct:.1f}% >= {self.config.daily_loss_emergency_pct}%! CLOSING ALL POSITIONS IMMEDIATELY!")
         elif self.daily_loss_pct >= self.config.daily_loss_reduce_pct:
             self.risk_mode = RiskMode.CONSERVATIVE
             log.warning(f"⚠️ DE-RISKING: Daily loss {self.daily_loss_pct:.1f}% >= {self.config.daily_loss_reduce_pct}%! Reducing risk to {self.config.conservative_risk_pct}%")
