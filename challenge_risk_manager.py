@@ -195,6 +195,10 @@ class ChallengeRiskManager:
     
     def _save_state(self):
         """Persist state to file."""
+        # Calculate DDD limit for transparency (5% max daily loss from day start equity)
+        ddd_limit = self.day_start_equity * 0.95 if self.day_start_equity > 0 else 0.0
+        tdd_limit = self.starting_balance * 0.90  # 10% max total drawdown from initial balance
+
         state = {
             'starting_balance': self.starting_balance,
             'peak_equity': self.peak_equity,
@@ -202,6 +206,13 @@ class ChallengeRiskManager:
             'day_start_equity': self.day_start_equity,  # Save equity start for DDD
             'current_date': self.current_date.isoformat(),
             'trades_today': self.trades_today,
+            # TRANSPARENCY: Add DDD/TDD metrics for comparison with 5ers dashboard
+            'current_equity': self.current_equity,
+            'daily_pnl': self.daily_pnl,
+            'daily_loss_pct': self.daily_loss_pct,
+            'ddd_limit': ddd_limit,  # 5% below day_start_equity
+            'total_dd_pct': self.total_drawdown_pct,
+            'tdd_limit': tdd_limit,  # 10% below starting_balance
             'last_update': datetime.now().isoformat()
         }
         try:
@@ -237,36 +248,58 @@ class ChallengeRiskManager:
         Call this at startup and periodically.
         """
         today = date.today()
-        
+
         # Check for new day
         if today != self.current_date:
-            log.info(f"New trading day detected: {today}")
+            log.info("=" * 70)
+            log.info(f"🌅 NEW TRADING DAY: {today}")
+            log.info(f"  Previous day start equity: ${self.day_start_equity:,.2f}")
+            log.info(f"  New day start balance: ${balance:,.2f}")
+            log.info(f"  New day start equity: ${equity:,.2f}")
+            log.info("=" * 70)
             self.day_start_balance = balance
             self.day_start_equity = equity  # BUGFIX: Store equity at day start for correct DDD
             self.trades_today = 0
             self.current_date = today
-        
+
         # Update current state
         self.current_balance = balance
         self.current_equity = equity
-        
+
         # Update peak equity (high water mark)
         if equity > self.peak_equity:
             self.peak_equity = equity
-            log.info(f"New peak equity: ${self.peak_equity:,.2f}")
-        
+            log.info(f"🎯 New peak equity: ${self.peak_equity:,.2f}")
+
         # Calculate metrics
         # BUGFIX: DDD must use EQUITY (balance + open P&L), not just balance
         # This matches 5ers rules: Equity = Balance + Open P&L (closed + open positions)
         self.daily_pnl = equity - self.day_start_equity
         self.daily_loss_pct = abs(min(0, self.daily_pnl)) / self.day_start_equity * 100 if self.day_start_equity > 0 else 0
-        
+
         self.total_drawdown = self.peak_equity - equity
         self.total_drawdown_pct = self.total_drawdown / self.peak_equity * 100 if self.peak_equity > 0 else 0
-        
+
+        # Calculate limits for transparency
+        ddd_limit = self.day_start_equity * 0.95  # 5% max daily loss
+        tdd_limit = self.starting_balance * 0.90  # 10% max total drawdown
+
+        # TRANSPARENCY: Log DDD/TDD every sync for comparison with 5ers dashboard
+        log.info("=" * 70)
+        log.info("📊 RISK METRICS (Compare with 5ers Dashboard)")
+        log.info(f"  Initial Balance: ${self.starting_balance:,.2f}")
+        log.info(f"  Day Start Equity: ${self.day_start_equity:,.2f}")
+        log.info(f"  Current Equity: ${equity:,.2f}")
+        log.info(f"  Peak Equity: ${self.peak_equity:,.2f}")
+        log.info("---")
+        log.info(f"  Daily P&L: ${self.daily_pnl:,.2f}")
+        log.info(f"  DDD: {self.daily_loss_pct:.2f}% (Limit: ${ddd_limit:,.2f})")
+        log.info(f"  TDD: {self.total_drawdown_pct:.2f}% (Limit: ${tdd_limit:,.2f})")
+        log.info("=" * 70)
+
         # Determine risk mode
         self._update_risk_mode()
-        
+
         # Persist state
         self._save_state()
     
