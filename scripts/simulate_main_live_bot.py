@@ -614,13 +614,10 @@ class MainLiveBotSimulator:
             
             entry_distance_r = abs(current_price - signal.entry) / signal.risk if signal.risk > 0 else 999
             
-            # NOTE: Don't cancel based on distance - setup was valid at placement
-            # Price can temporarily move away and come back
-            # Only cancel via: time expiry (120h) or other criteria
-            # This matches main_live_bot.py behavior (Line 673-675)
-            # if entry_distance_r > self.config.max_entry_distance_r:
-            #     to_remove.append(symbol)
-            #     continue
+            # 1.5R distance check AAN: verwijder signalen die >1.5R van entry zijn
+            if entry_distance_r > self.config.max_entry_distance_r:
+                to_remove.append(symbol)
+                continue
             
             # Check if close enough for limit order
             if entry_distance_r <= self.config.limit_order_proximity_r:
@@ -871,16 +868,7 @@ class MainLiveBotSimulator:
             if current_time.weekday() >= 5:
                 continue
             
-            # OPTIMIZATION: Skip if nothing to do
-            has_work = (
-                self.open_positions or 
-                self.pending_orders or 
-                self.awaiting_entry or 
-                date_str in self.signal_dates
-            )
-            
-            if not has_work:
-                continue
+            # Altijd elke dag verwerken, ook zonder activiteit (voor volledige account history)
             
             # Calculate equity only when we have positions
             if self.open_positions:

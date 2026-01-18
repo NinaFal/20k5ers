@@ -3453,7 +3453,7 @@ def run_validation_mode(start_date_str: str, end_date_str: str, params_file: str
             total_r = sum(getattr(t, 'rr', 0) for t in trades)
             wins = sum(1 for t in trades if getattr(t, 'rr', 0) > 0)
             win_rate = (wins / len(trades) * 100) if trades else 0
-            profit_usd = total_r * (risk_pct / 100) * 60000  # 5ers 60K
+            profit_usd = total_r * (risk_pct / 100) * ACCOUNT_SIZE  # Gebruik juiste accountgrootte
             print(f"\n{period_name_str} ({start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}):")
             print(f"   Trades: {len(trades)}")
             print(f"   Total R: {total_r:+.2f}")

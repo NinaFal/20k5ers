@@ -1,0 +1,18 @@
+{
+  "initial_balance": 20000.0,
+  "final_balance": 262027.03454648206,
+  "net_pnl": 242027.03454648206,
+  "return_pct": 1210.1351727324102,
+  "total_trades": 825,
+  "winners": 549,
+  "losers": 276,
+  "win_rate": 66.54545454545455,
+  "total_r": 79.24608621274292,
+  "gross_pnl": 65647.60660217212,
+  "total_commissions": 2546.4000000000015,
+  "max_tdd_pct": 1.6765898580841714,
+  "max_ddd_pct": 4.189605770891574,
+  "safety_events": 1,
+  "trades_in_entry_queue": 0,
+  "pending_orders": 0
+}
