@@ -1,8 +1,15 @@
 {
-  "starting_balance": 19999.73,
-  "peak_equity": 20508.51,
-  "day_start_balance": 20415.22,
-  "current_date": "2026-01-16",
+  "starting_balance": 20000.0,
+  "peak_equity": 20204.05,
+  "day_start_balance": 20193.68,
+  "day_start_equity": 20193.68,
+  "current_date": "2026-01-18",
   "trades_today": 0,
-  "last_update": "2026-01-16T04:22:12.612622"
+  "current_equity": 19961.67,
+  "daily_pnl": -232.01,
+  "daily_loss_pct": 1.15,
+  "ddd_limit": 19184.0,
+  "total_dd_pct": 1.2,
+  "tdd_limit": 18000.0,
+  "last_update": "2026-01-18T16:00:00"
 }
