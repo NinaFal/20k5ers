@@ -508,7 +508,6 @@ class ChallengeRiskManager:
             f"ChallengeRiskManager:\n"
             f"  Mode: {status['risk_mode']}\n"
             f"  Balance: ${status['balance']:,.2f}\n"
-            state_file: str = "challenge_risk_state.json",
             f"  Total DD: {status['total_dd_pct']:.1f}%\n"
             f"  Profit: {status['profit_pct']:+.1f}%\n"
             f"  Trades today: {status['trades_today']}"
