@@ -1,8 +1,8 @@
 {
-  "starting_balance": 19999.73,
-  "peak_equity": 20508.51,
-  "day_start_balance": 20415.22,
-  "current_date": "2026-01-16",
+  "starting_balance": 20000.0,
+  "peak_equity": 20204.05,
+  "day_start_balance": 20193.68,
+  "current_date": "2026-01-18",
   "trades_today": 0,
-  "last_update": "2026-01-16T04:22:12.612622"
+  "last_update": "2026-01-18T15:30:00"
 }
