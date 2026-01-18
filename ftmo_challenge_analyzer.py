@@ -980,7 +980,9 @@ def load_ohlcv_data(symbol: str, timeframe: str, start_date: datetime, end_date:
                     break
             
             if date_col:
-                df[date_col] = pd.to_datetime(df[date_col], utc=True)
+                # Support both 'YYYY-MM-DD HH:MM:SS' and 'YYYY-MM-DD' formats
+                # Forex monthly data often uses date-only format
+                df[date_col] = pd.to_datetime(df[date_col], utc=True, errors='coerce')
             
             col_map = {}
             for target, options in [
