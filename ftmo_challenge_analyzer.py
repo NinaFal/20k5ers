@@ -1280,6 +1280,11 @@ def run_full_period_backtest(
                     all_trades.append(trade)
                     
         except Exception as e:
+            # DEBUG: Log exceptions to identify why symbols fail
+            import traceback
+            print(f"\n❌ {symbol} FAILED: {str(e)}")
+            if 'EUR' in symbol or 'GBP' in symbol or 'USD' in symbol:  # Log forex failures
+                print(f"   Traceback: {traceback.format_exc()[:200]}")
             continue
     
     all_trades.sort(key=lambda t: str(t.entry_date))
