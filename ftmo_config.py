@@ -243,6 +243,9 @@ class Fiveers60KConfig:
         Get risk percentage based on current account state.
         Dynamic risk adjustment based on drawdown levels.
 
+        BUGFIX: When dynamic lot sizing is disabled, always use base risk_per_trade_pct
+        as the maximum. The config specifies 0.6% risk per trade, not 1.5%.
+
         Args:
             daily_loss_pct: Daily loss as positive percentage (e.g., 2.5 means 2.5% loss)
             total_dd_pct: Total drawdown as positive percentage
@@ -258,12 +261,13 @@ class Fiveers60KConfig:
         if daily_loss_pct >= self.daily_loss_warning_pct or total_dd_pct >= self.total_dd_warning_pct:
             return self.max_risk_conservative_pct
 
-        # Moderate loss/DD - use normal risk
+        # Moderate loss/DD - use normal risk (capped at base risk)
         if daily_loss_pct >= 2.0 or total_dd_pct >= 3.0:
-            return self.max_risk_normal_pct
+            return min(self.max_risk_normal_pct, self.risk_per_trade_pct)
 
-        # Low or no loss - use aggressive/full risk
-        return self.max_risk_aggressive_pct
+        # Low or no loss - use base risk (0.6%), NOT aggressive risk (1.5%)
+        # BUGFIX: When dynamic lot sizing is disabled, respect the base risk_per_trade_pct
+        return self.risk_per_trade_pct
 
     def get_max_trades(self, profit_pct: float, total_dd_pct: float = 0.0) -> int:
         """

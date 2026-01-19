@@ -1341,19 +1341,22 @@ class LiveTradingBot:
     ) -> float:
         """
         BUGFIX P0: Calculate lot size at FILL MOMENT (not signal moment).
-        
+
         This ensures:
         1. Lot size uses CURRENT balance (proper compounding)
         2. DDD/TDD checks use current equity
         3. Risk percentage reflects current account state
-        
+
+        IMPORTANT: NO position count reduction - must match simulate_main_live_bot.py
+        The simulator uses fixed 0.6% risk per trade regardless of position count.
+
         Args:
             symbol: OANDA format symbol
             broker_symbol: Broker format symbol
             entry: Entry price
             sl: Stop loss price
             confluence: Confluence score
-            
+
         Returns:
             Lot size (float), or 0.0 if cannot calculate
         """
@@ -1421,6 +1424,7 @@ class LiveTradingBot:
         min_lot = symbol_info.get('min_lot', 0.01) if symbol_info else 0.01
 
         # Calculate lot size using CURRENT balance
+        # IMPORTANT: NO position count reduction - must match simulate_main_live_bot.py
         lot_result = calculate_lot_size(
             symbol=broker_symbol,
             account_balance=current_balance,  # CURRENT balance!
@@ -2142,15 +2146,16 @@ class LiveTradingBot:
             broker_symbol = self.symbol_map.get(symbol, symbol)
             if broker_symbol in position_symbols:
                 log.info(f"[{symbol}] Pending order FILLED! Position now open (broker: {broker_symbol})")
-                
+
                 # BUGFIX P0: Calculate lot size at FILL MOMENT (not signal moment)
                 # Find the actual position to get filled volume
                 filled_position = next((p for p in my_positions if p.symbol == broker_symbol), None)
-                
+
                 if filled_position:
                     # CRITICAL: Recalculate lot size with CURRENT balance
                     # The pending order was placed with min_lot as placeholder
                     # Now we need to modify the position to correct lot size
+
                     correct_lot_size = self._calculate_lot_size_at_fill(
                         symbol=symbol,
                         broker_symbol=broker_symbol,
