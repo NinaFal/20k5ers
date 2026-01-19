@@ -2963,6 +2963,13 @@ class LiveTradingBot:
                         log.info(f"📊 DAILY SCAN - {get_server_time().strftime('%Y-%m-%d %H:%M')} Server Time")
                         log.info("=" * 70)
                         self.scan_all_symbols()
+                        
+                        # Update day_start_equity for next day's DDD calculation
+                        # This should be the equity at the end of the current trading day
+                        account = self.mt5.get_account_info()
+                        if account and self.challenge_manager:
+                            current_equity = account.get("equity", 0)
+                            self.challenge_manager.update_day_start_equity(current_equity)
                     else:
                         log.info("Market closed (weekend), skipping scan")
                         # Move last_scan_time forward to avoid repeated checks
@@ -3069,10 +3076,10 @@ def main():
             
             if bot.challenge_manager:
                 print(f"Old day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
-                bot.challenge_manager.day_start_equity = current_equity
-                bot.challenge_manager._save_state()
+                # Use the new method to properly update day_start_equity
+                bot.challenge_manager.update_day_start_equity(current_equity)
                 print(f"New day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
-                print("✓ Day start equity reset to current equity")
+                print("✓ Day start equity updated to current equity (end of previous day)")
             else:
                 print("ERROR: Challenge manager not initialized")
                 sys.exit(1)

@@ -263,21 +263,22 @@ class ChallengeRiskManager:
             if days_difference > 1:
                 log.info("=" * 70)
                 log.info(f"🌅 NEW TRADING WEEK: {today} (missed {days_difference} days)")
-                log.info(f"  Previous day start equity: ${self.day_start_equity:,.2f}")
-                log.info(f"  New day start balance: ${balance:,.2f}")
-                log.info(f"  New day start equity: ${equity:,.2f}")
-                log.info("  ⚠️  Resetting day_start_equity due to missed days")
+                log.info(f"  Previous day equity (end of last trading day): ${self.day_start_equity:,.2f}")
+                log.info(f"  Current equity: ${equity:,.2f}")
+                log.info("  ⚠️  Keeping previous day_start_equity for DDD calculation")
                 log.info("=" * 70)
             else:
                 log.info("=" * 70)
                 log.info(f"🌅 NEW TRADING DAY: {today}")
-                log.info(f"  Previous day start equity: ${self.day_start_equity:,.2f}")
-                log.info(f"  New day start balance: ${balance:,.2f}")
-                log.info(f"  New day start equity: ${equity:,.2f}")
+                log.info(f"  Previous day equity (end of last trading day): ${self.day_start_equity:,.2f}")
+                log.info(f"  Current equity: ${equity:,.2f}")
+                log.info("  ✓ Using previous day equity for DDD baseline")
                 log.info("=" * 70)
             
-            self.day_start_balance = balance
-            self.day_start_equity = equity  # BUGFIX: Store equity at day start for correct DDD
+            # IMPORTANT: day_start_equity stays as previous day's END equity for DDD calculation
+            # Per 5ers rules: DDD is calculated from previous day's closing equity
+            # It does NOT get updated to current equity at start of day
+            self.day_start_balance = balance  # This can be updated
             self.trades_today = 0
             self.current_date = today
 
@@ -291,8 +292,9 @@ class ChallengeRiskManager:
             log.info(f"🎯 New peak equity: ${self.peak_equity:,.2f}")
 
         # Calculate metrics
-        # BUGFIX: DDD must use EQUITY (balance + open P&L), not just balance
-        # This matches 5ers rules: Equity = Balance + Open P&L (closed + open positions)
+        # CRITICAL: DDD calculation per 5ers rules
+        # DDD is calculated from PREVIOUS DAY'S CLOSING EQUITY, not current day start
+        # day_start_equity represents the equity at end of previous trading day
         self.daily_pnl = equity - self.day_start_equity
         self.daily_loss_pct = abs(min(0, self.daily_pnl)) / self.day_start_equity * 100 if self.day_start_equity > 0 else 0
 
@@ -567,6 +569,16 @@ class ChallengeRiskManager:
         tp3_vol = max(min_lot, tp3_vol) if tp3_vol > 0 else 0
         
         return tp1_vol, tp2_vol, tp3_vol
+    
+    def update_day_start_equity(self, equity: float):
+        """
+        Update day_start_equity to current equity (call at end of trading day).
+        This sets the baseline for next day's DDD calculation.
+        According to 5ers rules, DDD is calculated from previous day's closing equity.
+        """
+        log.info(f"📅 END OF DAY: Updating day_start_equity from ${self.day_start_equity:,.2f} to ${equity:,.2f}")
+        self.day_start_equity = equity
+        self._save_state()
     
     def __str__(self) -> str:
         status = self.get_status()
