@@ -394,6 +394,60 @@ sig_module.signal(sig_module.SIGTERM, signal_handler)
 
 
 class LiveTradingBot:
+        def start_ddd_protection_loop(self):
+            """
+            Start a background thread that checks DDD every 5 seconds and closes all trades if DDD >= 3.5%.
+            Strictly compares current equity to fixed day_start_equity from challenge_risk_state.json.
+            """
+            import threading
+            def ddd_protection_worker():
+                from time import sleep
+                while running:
+                    try:
+                        # Get current account info
+                        account = self.mt5.get_account_info()
+                        if not account:
+                            sleep(5)
+                            continue
+                        current_equity = account.get("equity", 0)
+                        # Get fixed day_start_equity from challenge_manager (never updated during day)
+                        if not self.challenge_manager:
+                            sleep(5)
+                            continue
+                        day_start_equity = self.challenge_manager.day_start_equity
+                        if day_start_equity <= 0:
+                            sleep(5)
+                            continue
+                        daily_pnl = current_equity - day_start_equity
+                        daily_loss_pct = abs(min(0, daily_pnl)) / day_start_equity * 100
+                        halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.5)
+                        if daily_loss_pct >= halt_pct:
+                            log.error("=" * 70)
+                            log.error(f"🚨 DDD HALT: Equity ${current_equity:,.2f} is {daily_loss_pct:.2f}% below day start (${day_start_equity:,.2f})")
+                            log.error(f"  DDD {daily_loss_pct:.2f}% >= {halt_pct:.2f}%! CLOSING ALL TRADES IMMEDIATELY!")
+                            log.error("=" * 70)
+                            # Close all positions
+                            positions = self.mt5.get_my_positions()
+                            for pos in positions:
+                                result = self.mt5.close_position(pos.ticket)
+                                if hasattr(result, 'success') and result.success:
+                                    log.info(f"  ✓ Closed {pos.symbol}")
+                                else:
+                                    log.error(f"  ✗ Failed to close {pos.symbol}: {getattr(result, 'error', 'unknown')}")
+                            # Set a flag to halt trading until next day
+                            self.ddd_halted = True
+                            self.ddd_halt_reason = f"DDD {daily_loss_pct:.2f}% >= {halt_pct:.2f}%"
+                            # Sleep longer to avoid repeated closes
+                            sleep(30)
+                        else:
+                            self.ddd_halted = False
+                            self.ddd_halt_reason = ""
+                        sleep(5)
+                    except Exception as e:
+                        log.error(f"[DDD Protection] Exception: {e}")
+                        sleep(5)
+            t = threading.Thread(target=ddd_protection_worker, daemon=True)
+            t.start()
     """
     Main live trading bot for 5ers 60K High Stakes Challenge.
     
@@ -423,6 +477,8 @@ class LiveTradingBot:
     WEEKEND_GAP_THRESHOLD_PCT = 1.0  # 1% gap threshold
     
     def __init__(self, immediate_scan: bool = False):
+            self.ddd_halted = False
+            self.ddd_halt_reason = ""
         self.mt5 = MT5Client(
             server=MT5_SERVER,
             login=MT5_LOGIN,
@@ -1312,31 +1368,40 @@ class LiveTradingBot:
         if not CHALLENGE_MODE or not self.challenge_manager:
             log.error(f"[{symbol}] Cannot calculate lot size - challenge manager not available")
             return 0.0
-        
+
         # Get CURRENT account snapshot (not stale snapshot from signal moment)
         snapshot = self.challenge_manager.get_account_snapshot()
         if snapshot is None:
             log.error(f"[{symbol}] Cannot get account snapshot")
             return 0.0
-        
-        # Get current DDD/TDD state
-        daily_loss_pct = getattr(snapshot, "daily_loss_pct", 0)
-        total_dd_pct = getattr(snapshot, "total_dd_pct", 0)
-        profit_pct = (snapshot.equity - self.challenge_manager.initial_balance) / self.challenge_manager.initial_balance * 100
-        
+
+        # Always use fixed day_start_equity and starting_balance from JSON (not updated during the day)
+        day_start_equity = self.challenge_manager.day_start_equity
+        starting_balance = self.challenge_manager.initial_balance
+        current_equity = snapshot.equity
+        current_balance = snapshot.balance
+
+        # Calculate DDD and TDD using fixed values
+        daily_pnl = current_equity - day_start_equity
+        daily_loss_pct = abs(min(0, daily_pnl)) / day_start_equity * 100 if day_start_equity > 0 else 0
+        total_dd_pct = (starting_balance - current_equity) / starting_balance * 100 if starting_balance > 0 and current_equity < starting_balance else 0
+        profit_pct = (current_equity - starting_balance) / starting_balance * 100 if starting_balance > 0 else 0
+
+        log.info(f"[{symbol}] DDD/TDD check at fill: day_start_equity=${day_start_equity:.2f}, starting_balance=${starting_balance:.2f}, current_equity=${current_equity:.2f}, daily_loss_pct={daily_loss_pct:.2f}%, total_dd_pct={total_dd_pct:.2f}%")
+
         # Check if trading is halted
         if daily_loss_pct >= FIVEERS_CONFIG.daily_loss_halt_pct:
-            log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {FIVEERS_CONFIG.daily_loss_halt_pct}%")
+            log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {FIVEERS_CONFIG.daily_loss_halt_pct}% (NO TRADE)")
             return 0.0
-        
+
         if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
-            log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}%")
+            log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}% (NO TRADE)")
             return 0.0
-        
+
         # Get win/loss streaks
         win_streak = getattr(self.risk_manager.state, 'win_streak', 0) if hasattr(self.risk_manager, 'state') else 0
         loss_streak = getattr(self.risk_manager.state, 'loss_streak', 0) if hasattr(self.risk_manager, 'state') else 0
-        
+
         # Calculate risk percentage (dynamic or static)
         if FIVEERS_CONFIG.use_dynamic_lot_sizing:
             risk_pct = FIVEERS_CONFIG.get_dynamic_risk_pct(
@@ -1347,23 +1412,23 @@ class LiveTradingBot:
                 daily_loss_pct=daily_loss_pct,
                 total_dd_pct=total_dd_pct,
             )
-            log.info(f"[{symbol}] Dynamic risk: {risk_pct:.3f}% (confluence: {confluence}, streaks: +{win_streak}/-{loss_streak})\"")
+            log.info(f"[{symbol}] Dynamic risk: {risk_pct:.3f}% (confluence: {confluence}, streaks: +{win_streak}/-{loss_streak})")
         else:
             risk_pct = FIVEERS_CONFIG.get_risk_pct(daily_loss_pct, total_dd_pct)
-        
+
         if risk_pct <= 0:
-            log.warning(f"[{symbol}] Risk percentage is 0 - trading halted")
+            log.warning(f"[{symbol}] Risk percentage is 0 - trading halted (NO TRADE)")
             return 0.0
-        
+
         # Get symbol info
         symbol_info = self.mt5.get_symbol_info(broker_symbol)
         max_lot = symbol_info.get('max_lot', 100.0) if symbol_info else 100.0
         min_lot = symbol_info.get('min_lot', 0.01) if symbol_info else 0.01
-        
+
         # Calculate lot size using CURRENT balance
         lot_result = calculate_lot_size(
             symbol=broker_symbol,
-            account_balance=snapshot.balance,  # CURRENT balance!
+            account_balance=current_balance,  # CURRENT balance!
             risk_percent=risk_pct / 100,
             entry_price=entry,
             stop_loss_price=sl,
@@ -1371,28 +1436,28 @@ class LiveTradingBot:
             min_lot=min_lot,
             broker="5ers",  # CRITICAL: Use 5ers contract specs
         )
-        
-        if lot_result.get("error") or lot_result["lot_size"] <= 0:
-            log.warning(f"[{symbol}] Cannot calculate lot size: {lot_result.get('error', 'unknown error')}")
+
+        if lot_result.get("error") or lot_result["lot_size"] <= min_lot:
+            log.warning(f"[{symbol}] Cannot calculate lot size: {lot_result.get('error', 'unknown error')} (NO TRADE)")
             return 0.0
-        
+
         lot_size = lot_result["lot_size"]
         risk_usd = lot_result["risk_usd"]
         risk_pips = lot_result["stop_pips"]
-        
+
         # Round to lot step
         if symbol_info:
             lot_step = symbol_info.get('lot_step', 0.01)
             lot_size = max(min_lot, round(lot_size / lot_step) * lot_step)
             lot_size = min(lot_size, max_lot)
-        
+
         log.info(f"[{symbol}] Lot size calculated at FILL MOMENT:")
-        log.info(f"  Balance: ${snapshot.balance:.2f}")
+        log.info(f"  Balance: ${current_balance:.2f}")
         log.info(f"  Risk %: {risk_pct:.2f}% (daily loss: {daily_loss_pct:.1f}%, DD: {total_dd_pct:.1f}%)")
         log.info(f"  Risk $: ${risk_usd:.2f}")
         log.info(f"  Stop pips: {risk_pips:.1f}")
         log.info(f"  Lot size: {lot_size}")
-        
+
         return lot_size
     
     def _calculate_atr(self, candles: List[Dict], period: int = 14) -> float:
@@ -2741,6 +2806,8 @@ class LiveTradingBot:
         self.last_scan_time = datetime.now(timezone.utc)
     
     def run(self):
+            # Start DDD protection loop
+            self.start_ddd_protection_loop()
         """
         Main trading loop - runs 24/7 for 5ers 60K High Stakes Challenge.
         
@@ -2814,6 +2881,11 @@ class LiveTradingBot:
         emergency_triggered = False
         
         while running:
+            # If DDD halt is active, skip trading actions
+            if getattr(self, 'ddd_halted', False):
+                log.warning(f"🚨 DDD HALT ACTIVE: {getattr(self, 'ddd_halt_reason', '')} - Trading paused until next day.")
+                time.sleep(10)
+                continue
             try:
                 now = datetime.now(timezone.utc)
                 
