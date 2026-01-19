@@ -3016,7 +3016,7 @@ def main():
     parser.add_argument('--reset-state', action='store_true',
                         help='Reset challenge state files (challenge_risk_state.json, trading_days.json)')
     parser.add_argument('--reset-day-start', action='store_true',
-                        help='Reset only day_start_equity to current equity (useful after weekend/crash)')
+                        help='Reset day_start_equity to current MT5 equity (use if bot missed trading days or MT5 traded without bot)')
     
     args = parser.parse_args()
     

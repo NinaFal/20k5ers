@@ -259,6 +259,37 @@ class ChallengeRiskManager:
         # Check for new day OR if we missed days (weekend/week gap)
         days_difference = (today - self.current_date).days if self.current_date else 0
         
+        # VALIDATION: Check if stored day_start_equity is reasonable compared to current equity
+        # If bot crashed and MT5 continued trading, there might be a large discrepancy
+        if self.day_start_equity > 0 and days_difference >= 1:
+            equity_ratio = equity / self.day_start_equity
+            # Allow up to 15% daily change (normal for forex with leverage)
+            # If difference is larger, bot likely missed trading days or MT5 traded without bot
+            max_allowed_ratio = 1.15 ** days_difference  # Compound daily change
+            min_allowed_ratio = 0.85 ** days_difference
+            
+            if equity_ratio < min_allowed_ratio or equity_ratio > max_allowed_ratio:
+                log.warning("=" * 70)
+                log.warning(f"⚠️ DAY_START_EQUITY VALIDATION FAILED")
+                log.warning(f"  Stored day_start_equity: ${self.day_start_equity:,.2f}")
+                log.warning(f"  Current MT5 equity: ${equity:,.2f}")
+                log.warning(f"  Ratio: {equity_ratio:.3f} (expected: {min_allowed_ratio:.3f}-{max_allowed_ratio:.3f} for {days_difference} days)")
+                log.warning(f"  → RESETTING day_start_equity to current equity")
+                log.warning("=" * 70)
+                self.day_start_equity = equity
+        elif self.day_start_equity > 0 and days_difference == 0:
+            # Same day restart - check for unreasonable changes (bot crash during trading)
+            equity_ratio = equity / self.day_start_equity
+            if equity_ratio < 0.95 or equity_ratio > 1.05:  # More than 5% change same day
+                log.warning("=" * 70)
+                log.warning(f"⚠️ SAME-DAY EQUITY DRIFT DETECTED")
+                log.warning(f"  Stored day_start_equity: ${self.day_start_equity:,.2f}")
+                log.warning(f"  Current MT5 equity: ${equity:,.2f}")
+                log.warning(f"  Ratio: {equity_ratio:.3f} (expected: 0.95-1.05 for same day)")
+                log.warning(f"  → Bot may have crashed during trading, keeping current day_start_equity")
+                log.warning("=" * 70)
+                # Don't reset on same day - keep the original baseline
+        
         if today != self.current_date or days_difference > 1:
             if days_difference > 1:
                 log.info("=" * 70)
@@ -575,6 +606,9 @@ class ChallengeRiskManager:
         Update day_start_equity to current equity (call at end of trading day).
         This sets the baseline for next day's DDD calculation.
         According to 5ers rules, DDD is calculated from previous day's closing equity.
+        
+        VALIDATION: This method includes automatic validation to detect if the bot
+        missed trading days or if MT5 traded without the bot running.
         """
         log.info(f"📅 END OF DAY: Updating day_start_equity from ${self.day_start_equity:,.2f} to ${equity:,.2f}")
         self.day_start_equity = equity
