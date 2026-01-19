@@ -3006,6 +3006,8 @@ def main():
     parser.add_argument('--validate-symbols', action='store_true', help='Validate symbol mapping only')
     parser.add_argument('--first-run', action='store_true', 
                         help='Force immediate market scan (use after weekend/restart)')
+    parser.add_argument('--reset-state', action='store_true',
+                        help='Reset challenge state files (challenge_risk_state.json, trading_days.json)')
     
     args = parser.parse_args()
     
@@ -3025,6 +3027,25 @@ def main():
         print("  MT5_PASSWORD=YourPassword")
         print("")
         sys.exit(1)
+    
+    # Handle reset-state before initializing bot
+    if args.reset_state:
+        print("=" * 70)
+        print("🔄 RESETTING CHALLENGE STATE")
+        print("=" * 70)
+        import os
+        from pathlib import Path
+        
+        state_files = ["challenge_risk_state.json", "trading_days.json"]
+        for file in state_files:
+            if os.path.exists(file):
+                os.remove(file)
+                print(f"✓ Removed {file}")
+            else:
+                print(f"⚠ {file} not found")
+        
+        print("State files reset. Bot will start with fresh state.")
+        print("=" * 70)
     
     bot = LiveTradingBot(immediate_scan=args.first_run)
     bot.run()

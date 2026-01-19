@@ -177,6 +177,12 @@ class ChallengeRiskManager:
                 self.peak_equity = state.get('peak_equity', self.config.account_size)
                 self.day_start_balance = state.get('day_start_balance', self.config.account_size)
                 self.day_start_equity = state.get('day_start_equity', self.config.account_size)  # Load equity start
+                
+                # VALIDATION: Check if day_start_equity seems reasonable
+                if self.day_start_equity <= 0 or self.day_start_equity > self.config.account_size * 2:
+                    log.warning(f"⚠️ day_start_equity in JSON ({self.day_start_equity:,.2f}) seems incorrect. Resetting to ${self.config.account_size:,.2f}")
+                    self.day_start_equity = self.config.account_size
+                
                 self.trades_today = state.get('trades_today', 0)
 
                 saved_date = state.get('current_date')
