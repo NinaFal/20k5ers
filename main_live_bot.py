@@ -117,6 +117,9 @@ from challenge_risk_manager import ChallengeRiskManager, ChallengeConfig, RiskMo
 from broker_config import get_broker_config, BrokerType, BrokerConfig
 from symbol_mapping import get_broker_symbol, get_internal_symbol
 
+# Import weekend gap risk management
+import weekend_gap_manager as wgm
+
 CHALLENGE_MODE = True
 
 
@@ -506,7 +509,12 @@ class LiveTradingBot:
         self.trading_days: set = set()
         self.challenge_start_date: Optional[datetime] = None
         self.challenge_end_date: Optional[datetime] = None
-        
+
+        # Weekend gap risk management
+        self.friday_closing_done: bool = False  # Track if we've done Friday closing this week
+        self.friday_close_prices: dict = {}  # Store Friday close prices for gap detection
+        self.last_friday_close_check: Optional[datetime] = None  # When we last did Friday check
+
         self._load_pending_setups()
         self._load_trading_days()
         self._load_awaiting_spread()
@@ -994,7 +1002,159 @@ class LiveTradingBot:
                 log.info(f"  Friday close: {gap_info['friday_close']:.5f}")
                 log.info(f"  Monday open: {gap_info['monday_open']:.5f}")
                 log.info(f"  Position P/L: ${pos.profit:.2f}")
-    
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # WEEKEND GAP RISK MANAGEMENT - Tier 1 Conservative Strategy
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def handle_friday_position_closing(self):
+        """
+        TIER 1: Correlation-aware Friday position closing
+        Runs Friday 16:00+ UTC to reduce weekend gap exposure
+
+        Actions:
+        - Close losing positions (< 0R)
+        - Close positions > 1.6R (take profit)
+        - Reduce 50% of positions 0-0.5R (new positions)
+        - Hold positions 0.5R-1.6R in sweet spot (max 2 per correlation group, max 5 total)
+        - Hold ALL crypto (BTC/ETH - no weekend gap risk)
+        """
+        now = datetime.now(timezone.utc)
+
+        # Only run Friday 16:00+ UTC
+        if now.weekday() != 4 or now.hour < 16:
+            # Reset flag on non-Friday or before 16:00
+            if now.weekday() != 4:
+                self.friday_closing_done = False
+            return
+
+        # Only run once per Friday
+        if self.friday_closing_done:
+            return
+
+        log.info("=" * 70)
+        log.info("🔒 FRIDAY POSITION CLOSING - Weekend Gap Risk Management (Tier 1)")
+        log.info("=" * 70)
+
+        positions = self.mt5.get_my_positions()
+        if not positions:
+            log.info("No positions to manage for weekend")
+            self.friday_closing_done = True
+            return
+
+        # Use weekend_gap_manager to select positions
+        result = wgm.select_positions_for_weekend_tier1(
+            positions=positions,
+            current_time=now,
+            max_per_group=2,  # Max 2 positions per correlation group
+            max_total_non_crypto=5,  # Max 5 non-crypto positions total
+        )
+
+        # Execute closures
+        for pos in result['CLOSE']:
+            symbol = get_internal_symbol(pos.symbol)
+            log.info(f"🔒 Closing {symbol} for weekend (ticket {pos.ticket})")
+            close_result = self.mt5.close_position(pos.ticket)
+            if hasattr(close_result, 'success') and close_result.success:
+                log.info(f"  ✓ Closed successfully")
+            else:
+                log.error(f"  ✗ Failed to close: {getattr(close_result, 'error', 'unknown')}")
+
+        # Execute 50% reductions
+        for pos in result['REDUCE_50']:
+            symbol = get_internal_symbol(pos.symbol)
+            current_volume = pos.volume
+            reduce_volume = current_volume / 2
+
+            log.info(f"⚠️ Reducing {symbol} by 50% (ticket {pos.ticket})")
+            log.info(f"  Current volume: {current_volume:.2f} → New volume: {reduce_volume:.2f}")
+
+            # Close 50% by volume
+            close_result = self.mt5.close_position(pos.ticket, volume=reduce_volume)
+            if hasattr(close_result, 'success') and close_result.success:
+                log.info(f"  ✓ Reduced successfully")
+            else:
+                log.error(f"  ✗ Failed to reduce: {getattr(close_result, 'error', 'unknown')}")
+
+        # Store Friday close prices for gap detection
+        remaining_positions = self.mt5.get_my_positions()
+        if remaining_positions:
+            self.friday_close_prices = wgm.store_friday_close_prices(
+                remaining_positions,
+                self.mt5
+            )
+
+        # Mark Friday closing as done
+        self.friday_closing_done = True
+        self.last_friday_close_check = now
+
+        log.info("=" * 70)
+        log.info(f"✅ Friday closing complete - {len(result['HOLD'])} positions held for weekend")
+        log.info(f"   Max gap risk: {result['stats']['max_gap_risk_pct']:.1f}% of account")
+        log.info("=" * 70)
+
+    def handle_sunday_gap_detection(self):
+        """
+        SUNDAY EVENING GAP DETECTION
+        Runs Sunday 22:00-23:59 UTC when forex markets reopen
+
+        Actions:
+        - Detect significant gaps (> 1%)
+        - Close positions where SL was gapped through
+        - Close positions with catastrophic gaps (> 2% adverse)
+        """
+        now = datetime.now(timezone.utc)
+
+        day_of_week = now.weekday()
+        hour = now.hour
+
+        # Sunday = 6, Monday = 0
+        is_sunday_open = (day_of_week == 6 and hour >= 22)
+        is_monday_morning = (day_of_week == 0 and hour < 2)
+
+        if not (is_sunday_open or is_monday_morning):
+            return
+
+        if not self.friday_close_prices:
+            log.warning("⚠️ No Friday close prices stored, skipping Sunday gap detection")
+            return
+
+        positions = self.mt5.get_my_positions()
+        if not positions:
+            return
+
+        log.info("=" * 70)
+        log.info("🚨 SUNDAY GAP DETECTION - Forex Markets Reopening")
+        log.info("=" * 70)
+
+        # Detect gaps using weekend_gap_manager
+        gap_result = wgm.detect_sunday_gaps(
+            positions=positions,
+            friday_prices=self.friday_close_prices,
+            current_time=now,
+            gap_threshold_pct=1.0,  # Log warning if gap > 1%
+            catastrophic_gap_pct=2.0,  # Close if adverse gap > 2%
+        )
+
+        # Execute immediate closures for gapped positions
+        for pos in gap_result['CLOSE_IMMEDIATELY']:
+            symbol = get_internal_symbol(pos.symbol)
+            log.critical(f"🚨 EMERGENCY CLOSE: {symbol} (ticket {pos.ticket})")
+            close_result = self.mt5.close_position(pos.ticket)
+            if hasattr(close_result, 'success') and close_result.success:
+                log.info(f"  ✓ Closed successfully at market")
+            else:
+                log.error(f"  ✗ Failed to close: {getattr(close_result, 'error', 'unknown')}")
+
+        # Log warnings
+        for pos, gap_pct in gap_result['WARNINGS']:
+            symbol = get_internal_symbol(pos.symbol)
+            log.warning(f"⚠️ {symbol}: {gap_pct:.2f}% gap detected")
+
+        log.info("=" * 70)
+        log.info(f"✅ Sunday gap detection complete - {len(gap_result['CLOSE_IMMEDIATELY'])} positions closed")
+        log.info("=" * 70)
+
     # ═══════════════════════════════════════════════════════════════════════════
     # 5ERS DRAWDOWN MONITORING (No daily DD limit!)
     # ═══════════════════════════════════════════════════════════════════════════
@@ -2920,8 +3080,13 @@ class LiveTradingBot:
                         
                         # 5-TP partial close management
                         self.manage_partial_takes()
+
+                        # Weekend gap risk management
+                        self.handle_friday_position_closing()  # Friday 16:00+ UTC
+                        self.handle_sunday_gap_detection()  # Sunday 22:00+ UTC
+
                         last_protection_check = now
-                
+
                 if emergency_triggered:
                     time.sleep(60)
                     continue
