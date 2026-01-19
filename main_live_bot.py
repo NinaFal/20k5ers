@@ -3008,6 +3008,8 @@ def main():
                         help='Force immediate market scan (use after weekend/restart)')
     parser.add_argument('--reset-state', action='store_true',
                         help='Reset challenge state files (challenge_risk_state.json, trading_days.json)')
+    parser.add_argument('--reset-day-start', action='store_true',
+                        help='Reset only day_start_equity to current equity (useful after weekend/crash)')
     
     args = parser.parse_args()
     
@@ -3048,6 +3050,41 @@ def main():
         print("=" * 70)
     
     bot = LiveTradingBot(immediate_scan=args.first_run)
+    
+    # Handle reset-day-start after bot initialization but before run
+    if args.reset_day_start:
+        print("=" * 70)
+        print("🔄 RESETTING DAY START EQUITY")
+        print("=" * 70)
+        
+        if not bot.connect():
+            print("ERROR: Could not connect to MT5 for day start reset")
+            sys.exit(1)
+        
+        # Get current account info
+        account = bot.mt5.get_account_info()
+        if account:
+            current_equity = account.get("equity", 0)
+            print(f"Current MT5 equity: ${current_equity:,.2f}")
+            
+            if bot.challenge_manager:
+                print(f"Old day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
+                bot.challenge_manager.day_start_equity = current_equity
+                bot.challenge_manager._save_state()
+                print(f"New day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
+                print("✓ Day start equity reset to current equity")
+            else:
+                print("ERROR: Challenge manager not initialized")
+                sys.exit(1)
+        else:
+            print("ERROR: Could not get MT5 account info")
+            sys.exit(1)
+        
+        print("Day start equity reset complete.")
+        print("=" * 70)
+        bot.disconnect()
+        sys.exit(0)
+    
     bot.run()
 
 

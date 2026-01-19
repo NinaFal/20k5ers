@@ -253,16 +253,29 @@ class ChallengeRiskManager:
         Sync state with MT5 account data.
         Call this at startup and periodically.
         """
+        from datetime import timedelta
         today = date.today()
 
-        # Check for new day
-        if today != self.current_date:
-            log.info("=" * 70)
-            log.info(f"🌅 NEW TRADING DAY: {today}")
-            log.info(f"  Previous day start equity: ${self.day_start_equity:,.2f}")
-            log.info(f"  New day start balance: ${balance:,.2f}")
-            log.info(f"  New day start equity: ${equity:,.2f}")
-            log.info("=" * 70)
+        # Check for new day OR if we missed days (weekend/week gap)
+        days_difference = (today - self.current_date).days if self.current_date else 0
+        
+        if today != self.current_date or days_difference > 1:
+            if days_difference > 1:
+                log.info("=" * 70)
+                log.info(f"🌅 NEW TRADING WEEK: {today} (missed {days_difference} days)")
+                log.info(f"  Previous day start equity: ${self.day_start_equity:,.2f}")
+                log.info(f"  New day start balance: ${balance:,.2f}")
+                log.info(f"  New day start equity: ${equity:,.2f}")
+                log.info("  ⚠️  Resetting day_start_equity due to missed days")
+                log.info("=" * 70)
+            else:
+                log.info("=" * 70)
+                log.info(f"🌅 NEW TRADING DAY: {today}")
+                log.info(f"  Previous day start equity: ${self.day_start_equity:,.2f}")
+                log.info(f"  New day start balance: ${balance:,.2f}")
+                log.info(f"  New day start equity: ${equity:,.2f}")
+                log.info("=" * 70)
+            
             self.day_start_balance = balance
             self.day_start_equity = equity  # BUGFIX: Store equity at day start for correct DDD
             self.trades_today = 0
