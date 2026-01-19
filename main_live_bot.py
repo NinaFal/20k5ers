@@ -496,8 +496,6 @@ class LiveTradingBot:
         """Check if currently in news event blackout period."""
         if not FIVEERS_CONFIG.block_trading_around_news:
             return False
-        
-        from ftmo_config import FIVEERS_CONFIG
         now = datetime.now(timezone.utc)
         
         # Check each major news event
