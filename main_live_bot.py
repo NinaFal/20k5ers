@@ -1338,22 +1338,25 @@ class LiveTradingBot:
         entry: float,
         sl: float,
         confluence: int,
+        existing_positions: int = 0,
     ) -> float:
         """
         BUGFIX P0: Calculate lot size at FILL MOMENT (not signal moment).
-        
+
         This ensures:
         1. Lot size uses CURRENT balance (proper compounding)
         2. DDD/TDD checks use current equity
         3. Risk percentage reflects current account state
-        
+        4. Lot size is reduced based on number of existing open positions
+
         Args:
             symbol: OANDA format symbol
             broker_symbol: Broker format symbol
             entry: Entry price
             sl: Stop loss price
             confluence: Confluence score
-            
+            existing_positions: Number of open positions (excluding current fill)
+
         Returns:
             Lot size (float), or 0.0 if cannot calculate
         """
@@ -1429,6 +1432,7 @@ class LiveTradingBot:
             stop_loss_price=sl,
             max_lot=max_lot,
             min_lot=min_lot,
+            existing_positions=existing_positions,  # BUGFIX: Apply lot reduction for multiple positions
             broker="5ers",  # CRITICAL: Use 5ers contract specs
         )
 
@@ -1451,6 +1455,7 @@ class LiveTradingBot:
         log.info(f"  Risk %: {risk_pct:.2f}% (daily loss: {daily_loss_pct:.1f}%, DD: {total_dd_pct:.1f}%)")
         log.info(f"  Risk $: ${risk_usd:.2f}")
         log.info(f"  Stop pips: {risk_pips:.1f}")
+        log.info(f"  Existing positions: {existing_positions}")
         log.info(f"  Lot size: {lot_size}")
 
         return lot_size
@@ -2142,21 +2147,28 @@ class LiveTradingBot:
             broker_symbol = self.symbol_map.get(symbol, symbol)
             if broker_symbol in position_symbols:
                 log.info(f"[{symbol}] Pending order FILLED! Position now open (broker: {broker_symbol})")
-                
+
                 # BUGFIX P0: Calculate lot size at FILL MOMENT (not signal moment)
                 # Find the actual position to get filled volume
                 filled_position = next((p for p in my_positions if p.symbol == broker_symbol), None)
-                
+
                 if filled_position:
                     # CRITICAL: Recalculate lot size with CURRENT balance
                     # The pending order was placed with min_lot as placeholder
                     # Now we need to modify the position to correct lot size
+
+                    # BUGFIX: Count existing positions (excluding the current filled position)
+                    # to apply proper lot size reduction for multiple open positions
+                    existing_positions_count = len(my_positions) - 1
+                    log.info(f"[{symbol}] Total positions: {len(my_positions)}, existing before fill: {existing_positions_count}")
+
                     correct_lot_size = self._calculate_lot_size_at_fill(
                         symbol=symbol,
                         broker_symbol=broker_symbol,
                         entry=setup.entry_price,
                         sl=setup.stop_loss,
                         confluence=setup.confluence,
+                        existing_positions=existing_positions_count,
                     )
                     
                     if correct_lot_size > 0 and abs(filled_position.volume - correct_lot_size) > 0.01:
