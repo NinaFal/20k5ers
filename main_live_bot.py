@@ -394,7 +394,7 @@ sig_module.signal(sig_module.SIGTERM, signal_handler)
 
 
 class LiveTradingBot:
-        def start_ddd_protection_loop(self):
+    def start_ddd_protection_loop(self):
             """
             Start a background thread that checks DDD every 5 seconds and closes all trades if DDD >= 3.5%.
             Strictly compares current equity to fixed day_start_equity from challenge_risk_state.json.
@@ -478,19 +478,17 @@ class LiveTradingBot:
     WEEKEND_GAP_THRESHOLD_PCT = 1.0  # 1% gap threshold
     
     def __init__(self, immediate_scan: bool = False):
-            self.ddd_halted = False
-            self.ddd_halt_reason = ""
+        self.ddd_halted = False
+        self.ddd_halt_reason = ""
         self.mt5 = MT5Client(
             server=MT5_SERVER,
             login=MT5_LOGIN,
             password=MT5_PASSWORD,
         )
         self.risk_manager = RiskManager(state_file="challenge_state.json")
-        
         # STRICT: Load params (merged with defaults) - no fallback to dataclass defaults
         # load_best_params_from_file() returns StrategyParams with defaults merged
         self.params = load_best_params_from_file()
-        
         self.last_scan_time: Optional[datetime] = None
         self.last_validate_time: Optional[datetime] = None
         self.last_spread_check_time: Optional[datetime] = None
@@ -498,13 +496,10 @@ class LiveTradingBot:
         self.scan_count = 0
         self.pending_setups: Dict[str, PendingSetup] = {}
         self.symbol_map: Dict[str, str] = {}  # our_symbol -> broker_symbol
-        
         self.challenge_manager: Optional[ChallengeRiskManager] = None
-        
         # First run detection
         self.immediate_scan_requested = immediate_scan
         self.first_run_complete = self._check_first_run_complete()
-        
         # 5ers DD Monitor (no daily DD, only total DD from start balance!)
         self.dd_monitor = DrawdownMonitor(initial_balance=ACCOUNT_SIZE)
         
