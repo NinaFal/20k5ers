@@ -3044,8 +3044,6 @@ def main():
         print("=" * 70)
         print("🔄 RESETTING CHALLENGE STATE")
         print("=" * 70)
-        import os
-        from pathlib import Path
         
         state_files = ["challenge_risk_state.json", "trading_days.json"]
         for file in state_files:
