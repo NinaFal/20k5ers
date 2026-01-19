@@ -394,6 +394,20 @@ sig_module.signal(sig_module.SIGTERM, signal_handler)
 
 
 class LiveTradingBot:
+    """
+    Main live trading bot for 5ers 60K High Stakes Challenge.
+
+    Uses the EXACT SAME strategy logic as backtest.py for perfect parity.
+    Now uses pending orders to match backtest entry behavior exactly.
+
+    KEY FEATURES (5ers Compliant):
+    - 5-TP Exit System: 5 take profit levels (0.6R to 3.5R)
+    - Immediate scan on first run after restart/weekend
+    - Daily scan 10 min after daily close (00:10 server time)
+    - Spread & volume checks before entry
+    - Weekend gap protection
+    - Total DD monitoring (no daily DD for 5ers!)
+    """
     def start_ddd_protection_loop(self):
         """
         Start a background thread that checks DDD every 5 seconds and closes all trades if DDD >= 3.5%.
@@ -448,20 +462,6 @@ class LiveTradingBot:
                     sleep(5)
         t = threading.Thread(target=ddd_protection_worker, daemon=True)
         t.start()
-            """
-            Main live trading bot for 5ers 60K High Stakes Challenge.
-    
-            Uses the EXACT SAME strategy logic as backtest.py for perfect parity.
-            Now uses pending orders to match backtest entry behavior exactly.
-    
-            KEY FEATURES (5ers Compliant):
-            - 5-TP Exit System: 5 take profit levels (0.6R to 3.5R)
-            - Immediate scan on first run after restart/weekend
-            - Daily scan 10 min after daily close (00:10 server time)
-            - Spread & volume checks before entry
-            - Weekend gap protection
-            - Total DD monitoring (no daily DD for 5ers!)
-            """
     
     PENDING_SETUPS_FILE = "pending_setups.json"
     TRADING_DAYS_FILE = "trading_days.json"
