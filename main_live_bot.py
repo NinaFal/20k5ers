@@ -3017,6 +3017,8 @@ def main():
                         help='Reset challenge state files (challenge_risk_state.json, trading_days.json)')
     parser.add_argument('--reset-day-start', action='store_true',
                         help='Reset day_start_equity to current MT5 equity (use if bot missed trading days or MT5 traded without bot)')
+    parser.add_argument('--set-day-start-equity', type=float,
+                        help='Manually set day_start_equity to a specific value (e.g. from 5ers dashboard)')
     
     args = parser.parse_args()
     
@@ -3088,6 +3090,65 @@ def main():
             sys.exit(1)
         
         print("Day start equity reset complete.")
+        print("=" * 70)
+        bot.disconnect()
+        sys.exit(0)
+    
+    # Handle set-day-start-equity
+    if args.set_day_start_equity is not None:
+        print("=" * 70)
+        print("🔧 MANUALLY SETTING DAY START EQUITY")
+        print("=" * 70)
+        
+        manual_value = args.set_day_start_equity
+        print(f"Requested value: ${manual_value:,.2f}")
+        
+        if manual_value <= 0:
+            print("ERROR: Day start equity must be greater than 0")
+            sys.exit(1)
+        
+        if not bot.connect():
+            print("ERROR: Could not connect to MT5")
+            sys.exit(1)
+        
+        # Get current account info for validation
+        account = bot.mt5.get_account_info()
+        if account:
+            current_equity = account.get("equity", 0)
+            print(f"Current MT5 equity: ${current_equity:,.2f}")
+            
+            if bot.challenge_manager:
+                print(f"Old day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
+                
+                # Validate the manual value is reasonable
+                if manual_value > current_equity * 1.5:
+                    print(f"WARNING: Manual value (${manual_value:,.2f}) is much higher than current equity (${current_equity:,.2f})")
+                    response = input("Continue anyway? (y/N): ")
+                    if response.lower() != 'y':
+                        print("Aborted.")
+                        bot.disconnect()
+                        sys.exit(0)
+                elif manual_value < current_equity * 0.5:
+                    print(f"WARNING: Manual value (${manual_value:,.2f}) is much lower than current equity (${current_equity:,.2f})")
+                    response = input("Continue anyway? (y/N): ")
+                    if response.lower() != 'y':
+                        print("Aborted.")
+                        bot.disconnect()
+                        sys.exit(0)
+                
+                # Set the manual value
+                bot.challenge_manager.day_start_equity = manual_value
+                bot.challenge_manager._save_state()
+                print(f"New day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
+                print("✓ Day start equity manually set")
+            else:
+                print("ERROR: Challenge manager not initialized")
+                sys.exit(1)
+        else:
+            print("ERROR: Could not get MT5 account info")
+            sys.exit(1)
+        
+        print("Manual day start equity setting complete.")
         print("=" * 70)
         bot.disconnect()
         sys.exit(0)
