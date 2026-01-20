@@ -345,8 +345,10 @@ class ChallengeRiskManager:
         self.daily_pnl = equity - self.day_start_equity
         self.daily_loss_pct = abs(min(0, self.daily_pnl)) / self.day_start_equity * 100 if self.day_start_equity > 0 else 0
 
-        self.total_drawdown = self.peak_equity - equity
-        self.total_drawdown_pct = self.total_drawdown / self.peak_equity * 100 if self.peak_equity > 0 else 0
+        # CRITICAL FIX: 5ers uses STATIC TDD from starting_balance, NOT trailing from peak
+        # TDD = (starting_balance - current_equity) / starting_balance
+        self.total_drawdown = self.starting_balance - equity
+        self.total_drawdown_pct = max(0, self.total_drawdown / self.starting_balance * 100) if self.starting_balance > 0 else 0
 
         # Calculate limits for transparency
         ddd_limit = self.day_start_equity * 0.95  # 5% max daily loss

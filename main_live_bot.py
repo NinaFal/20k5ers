@@ -3088,6 +3088,48 @@ class LiveTradingBot:
                         )
                 return
         
+        # DDD/TDD CHECK BEFORE SCAN - Block new orders if in danger zone
+        if CHALLENGE_MODE and self.challenge_manager:
+            # Sync with MT5 to get current equity
+            try:
+                current_equity = self.mt5.get_account_equity()
+                current_balance = self.mt5.get_account_balance()
+                self.challenge_manager.sync_with_mt5(current_balance, current_equity)
+            except Exception as e:
+                log.error(f"Failed to sync risk manager: {e}")
+            
+            # Get current DDD/TDD percentages
+            day_start = self.challenge_manager.day_start_equity
+            starting = self.challenge_manager.starting_balance
+            equity = self.challenge_manager.current_equity
+            
+            daily_loss_pct = abs(min(0, equity - day_start)) / day_start * 100 if day_start > 0 else 0
+            total_dd_pct = max(0, (starting - equity) / starting * 100) if starting > 0 else 0
+            
+            log.info("=" * 70)
+            log.info(f"📊 PRE-SCAN RISK CHECK")
+            log.info(f"  Day Start Equity: ${day_start:,.2f}")
+            log.info(f"  Current Equity: ${equity:,.2f}")
+            log.info(f"  DDD: {daily_loss_pct:.2f}% (halt at 3.5%, reduce at 3.0%)")
+            log.info(f"  TDD: {total_dd_pct:.2f}% (halt at 10%)")
+            log.info("=" * 70)
+            
+            # Block scan entirely if DDD >= 3.5% (HALT tier)
+            if daily_loss_pct >= 3.5:
+                log.error("=" * 70)
+                log.error(f"🚫 SCAN BLOCKED: DDD {daily_loss_pct:.2f}% >= 3.5%")
+                log.error("  No new orders will be placed until next trading day")
+                log.error("=" * 70)
+                return
+            
+            # Block scan if TDD >= 7% (emergency zone)
+            if total_dd_pct >= 7.0:
+                log.error("=" * 70)
+                log.error(f"🚫 SCAN BLOCKED: TDD {total_dd_pct:.2f}% >= 7%")
+                log.error("  No new orders will be placed - approaching 10% limit!")
+                log.error("=" * 70)
+                return
+        
         log.info("=" * 70)
         log.info(f"MARKET SCAN - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
         log.info(f"Strategy Mode: {SIGNAL_MODE} (Min Confluence: {MIN_CONFLUENCE}/7)")
@@ -3143,13 +3185,34 @@ class LiveTradingBot:
         log.info(f"  Pending orders: {len(pending_orders)}")
         log.info(f"  Tracked setups: {len(self.pending_setups)}")
         
-        status = self.risk_manager.get_status()
-        log.info(f"  Challenge Phase: {status['phase']}")
-        log.info(f"  Balance: ${status['balance']:,.2f}")
-        log.info(f"  Profit: {status['profit_pct']:+.2f}% (Target: {status['target_pct']}%)")
-        log.info(f"  Daily DD: {status['daily_loss_pct']:.2f}%/5%")
-        log.info(f"  Max DD: {status['drawdown_pct']:.2f}%/10%")
-        log.info(f"  Profitable Days: {status['profitable_days']}/{status['min_profitable_days']}")
+        # Get status from CHALLENGE manager (not risk_manager) for accurate DDD/TDD
+        if CHALLENGE_MODE and self.challenge_manager:
+            day_start = self.challenge_manager.day_start_equity
+            starting = self.challenge_manager.starting_balance
+            equity = self.challenge_manager.current_equity
+            balance = self.challenge_manager.current_balance
+            
+            daily_loss_pct = abs(min(0, equity - day_start)) / day_start * 100 if day_start > 0 else 0
+            total_dd_pct = max(0, (starting - equity) / starting * 100) if starting > 0 else 0
+            profit_pct = (balance - starting) / starting * 100 if starting > 0 else 0
+            
+            phase = 1 if profit_pct < 8.0 else 2
+            target_pct = 8.0 if phase == 1 else 5.0
+            
+            log.info(f"  Challenge Phase: {phase}")
+            log.info(f"  Balance: ${balance:,.2f}")
+            log.info(f"  Profit: {profit_pct:+.2f}% (Target: {target_pct}%)")
+            log.info(f"  📊 DDD: {daily_loss_pct:.2f}%/5% (Day Start: ${day_start:,.2f})")
+            log.info(f"  📊 TDD: {total_dd_pct:.2f}%/10% (Starting: ${starting:,.2f})")
+            log.info(f"  Profitable Days: {len(self.challenge_manager.trading_days)}/3")
+        else:
+            status = self.risk_manager.get_status()
+            log.info(f"  Challenge Phase: {status['phase']}")
+            log.info(f"  Balance: ${status['balance']:,.2f}")
+            log.info(f"  Profit: {status['profit_pct']:+.2f}% (Target: {status['target_pct']}%)")
+            log.info(f"  Daily DD: {status['daily_loss_pct']:.2f}%/5%")
+            log.info(f"  Max DD: {status['drawdown_pct']:.2f}%/10%")
+            log.info(f"  Profitable Days: {status['profitable_days']}/{status['min_profitable_days']}")
         log.info("=" * 70)
         
         self.last_scan_time = datetime.now(timezone.utc)
