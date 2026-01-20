@@ -86,18 +86,27 @@ def load_strategy_params():
 def get_min_confluence() -> int:
     """Get minimum confluence score from params."""
     data = load_params_dict()
+    # Handle nested 'parameters' key structure
+    if 'parameters' in data:
+        return data['parameters'].get("min_confluence", 5)
     return data.get("min_confluence", 5)
 
 
 def get_max_concurrent_trades() -> int:
     """Get maximum concurrent trades from params."""
     data = load_params_dict()
+    # Handle nested 'parameters' key structure
+    if 'parameters' in data:
+        return data['parameters'].get("max_concurrent_trades", 7)
     return data.get("max_concurrent_trades", 7)
 
 
 def get_risk_per_trade_pct() -> float:
     """Get risk per trade percentage from params."""
     data = load_params_dict()
+    # Handle nested 'parameters' key structure
+    if 'parameters' in data:
+        return data['parameters'].get("risk_per_trade_pct", 0.5)
     return data.get("risk_per_trade_pct", 0.5)
 
 

@@ -5,6 +5,7 @@
   "parameters": {
     "risk_per_trade_pct": 0.6,
     "min_confluence": 2,
+    "max_open_trades": 1,
     "min_quality_factors": 3,
     "adx_trend_threshold": 21.0,
     "adx_range_threshold": 14.0,

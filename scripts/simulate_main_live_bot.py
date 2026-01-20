@@ -582,6 +582,11 @@ class MainLiveBotSimulator:
             )
             
             # Check proximity - add to appropriate queue
+            # ALIGNED WITH main_live_bot.py: Reject signals > 1.5R at scan time
+            if entry_distance_r > self.config.max_entry_distance_r:
+                # Entry too far - skip this signal (matches main_live_bot scan_symbol line 1799)
+                continue
+
             if entry_distance_r <= self.config.immediate_entry_r:
                 # Market order - fill immediately
                 self._fill_order(signal, current_time, current_price)
