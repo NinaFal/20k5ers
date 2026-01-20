@@ -492,6 +492,7 @@ class LiveTradingBot:
         # load_best_params_from_file() returns StrategyParams with defaults merged
         self.params = load_best_params_from_file()
         self.last_scan_time: Optional[datetime] = None
+        self.next_scan_time: Optional[datetime] = None  # Store next scheduled scan time
         self.last_validate_time: Optional[datetime] = None
         self.last_spread_check_time: Optional[datetime] = None
         self.last_entry_check_time: Optional[datetime] = None  # Track entry proximity checks
@@ -3027,9 +3028,12 @@ class LiveTradingBot:
             log.info("=" * 70)
             self.scan_all_symbols()
             self._mark_first_run_complete()
+            # Calculate next scan time after immediate scan
+            self.next_scan_time = get_next_scan_time()
         else:
-            next_scan = get_next_scan_time()
-            log.info(f"Skipping immediate scan - next scheduled: {next_scan.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+            # Store the next scan time so it doesn't keep recalculating
+            self.next_scan_time = get_next_scan_time()
+            log.info(f"Skipping immediate scan - next scheduled: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
             self.last_scan_time = datetime.now(timezone.utc)
         
         # Weekend gap check (only on Monday morning)
@@ -3126,24 +3130,32 @@ class LiveTradingBot:
                 # ═══════════════════════════════════════════════════════════════
                 # DAILY SCAN - 10 min after daily close (00:10 server time)
                 # ═══════════════════════════════════════════════════════════════
-                next_scan = get_next_scan_time()
-                if self.last_scan_time and now >= next_scan:
+                if self.next_scan_time and now >= self.next_scan_time:
                     if is_market_open():
                         log.info("=" * 70)
                         log.info(f"📊 DAILY SCAN - {get_server_time().strftime('%Y-%m-%d %H:%M')} Server Time")
                         log.info("=" * 70)
+
+                        # Update daily tracking and reset for new day
+                        self.risk_manager._check_new_day()
+
                         self.scan_all_symbols()
-                        
+
                         # Update day_start_equity for next day's DDD calculation
                         # This should be the equity at the end of the current trading day
                         account = self.mt5.get_account_info()
                         if account and self.challenge_manager:
                             current_equity = account.get("equity", 0)
                             self.challenge_manager.update_day_start_equity(current_equity)
+
+                        # Calculate next scan time after successful scan
+                        self.next_scan_time = get_next_scan_time()
+                        log.info(f"Next scan scheduled: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
                     else:
                         log.info("Market closed (weekend), skipping scan")
-                        # Move last_scan_time forward to avoid repeated checks
-                        self.last_scan_time = now
+                        # Calculate next scan time (will skip to Monday)
+                        self.next_scan_time = get_next_scan_time()
+                        log.info(f"Next scan scheduled: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
                 
                 # Reconnection handling
                 if not self.mt5.connected:
