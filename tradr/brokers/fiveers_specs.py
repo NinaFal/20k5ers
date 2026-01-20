@@ -24,7 +24,7 @@ FIVEERS_CONTRACT_SPECS = {
     },
     "UK100": {
         "pip_size": 1.0,
-        "pip_value_per_lot": 1.0,     # $1 per point per lot (MINI contract)
+        "pip_value_per_lot": 1.40,    # £1/point * GBPUSD(~1.40) = $1.40/point (GBP-denominated index)
         "min_lot": 0.01,
         "max_lot": 100.0,
         "lot_step": 0.01,
