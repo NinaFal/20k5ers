@@ -44,6 +44,18 @@ _archive/
 # ftmo_analysis_output/
 # Note: VALIDATE folder IS tracked for validation results history
 
+# ===========================================
+# Runtime State Files (differ per machine)
+# ===========================================
+challenge_risk_state.json
+challenge_state.json
+ddd_halt_state.json
+pending_setups.json
+awaiting_entry.json
+awaiting_spread.json
+trading_days.json
+first_run_complete.flag
+
 # S/R cache (runtime computed)
 data/sr_cache/
 data/sr_levels/
