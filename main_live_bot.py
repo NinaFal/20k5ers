@@ -514,6 +514,8 @@ class LiveTradingBot:
                         
                         self.ddd_halted = True
                         self.ddd_halt_reason = f"TDD {total_dd_pct:.2f}% >= {tdd_halt_pct:.2f}% - ACCOUNT BREACHED"
+                        self.ddd_halt_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                        self._save_ddd_halt_state()  # Persist halt state
                         log.error(f"  🛑 TRADING PERMANENTLY HALTED. {self.ddd_halt_reason}")
                         sleep(60)  # Sleep longer - this is permanent
                         continue
@@ -531,6 +533,8 @@ class LiveTradingBot:
                         # Set a flag to halt trading until next day
                         self.ddd_halted = True
                         self.ddd_halt_reason = f"DDD {daily_loss_pct:.2f}% >= {halt_pct:.2f}%"
+                        self.ddd_halt_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                        self._save_ddd_halt_state()  # Persist halt state for restart survival
                         log.error(f"  🛑 Trading halted until next day. Reason: {self.ddd_halt_reason}")
                         # Sleep longer to avoid repeated closes
                         sleep(30)
@@ -676,6 +680,7 @@ class LiveTradingBot:
     def __init__(self, immediate_scan: bool = False):
         self.ddd_halted = False
         self.ddd_halt_reason = ""
+        self.ddd_halt_date: Optional[str] = None  # Track which day the halt occurred
         self.mt5 = MT5Client(
             server=MT5_SERVER,
             login=MT5_LOGIN,
@@ -714,7 +719,57 @@ class LiveTradingBot:
         self._load_trading_days()
         self._load_awaiting_spread()
         self._load_awaiting_entry()  # Signals waiting for price proximity
+        self._load_ddd_halt_state()  # Load DDD halt state (survives restarts)
         self._auto_start_challenge()
+    
+    # ═══════════════════════════════════════════════════════════════════════════
+    # DDD HALT STATE PERSISTENCE - Survives bot restarts within same day
+    # ═══════════════════════════════════════════════════════════════════════════
+    
+    DDD_HALT_STATE_FILE = "ddd_halt_state.json"
+    
+    def _load_ddd_halt_state(self):
+        """Load DDD halt state from file. Halt persists for same day only."""
+        try:
+            if Path(self.DDD_HALT_STATE_FILE).exists():
+                with open(self.DDD_HALT_STATE_FILE, 'r') as f:
+                    state = json.load(f)
+                
+                halt_date = state.get("halt_date", "")
+                today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                
+                if halt_date == today:
+                    # Same day - restore halt state
+                    self.ddd_halted = state.get("halted", False)
+                    self.ddd_halt_reason = state.get("reason", "")
+                    self.ddd_halt_date = halt_date
+                    if self.ddd_halted:
+                        log.warning(f"🚨 RESTORED DDD HALT STATE from earlier today: {self.ddd_halt_reason}")
+                else:
+                    # New day - clear old halt
+                    log.info(f"DDD halt from {halt_date} expired (new day: {today})")
+                    self.ddd_halted = False
+                    self.ddd_halt_reason = ""
+                    self.ddd_halt_date = None
+                    self._save_ddd_halt_state()  # Clear the file
+        except Exception as e:
+            log.error(f"Error loading DDD halt state: {e}")
+            self.ddd_halted = False
+            self.ddd_halt_reason = ""
+    
+    def _save_ddd_halt_state(self):
+        """Save DDD halt state to file."""
+        try:
+            state = {
+                "halted": self.ddd_halted,
+                "reason": self.ddd_halt_reason,
+                "halt_date": self.ddd_halt_date or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                "saved_at": datetime.now(timezone.utc).isoformat(),
+            }
+            with open(self.DDD_HALT_STATE_FILE, 'w') as f:
+                json.dump(state, f, indent=2)
+        except Exception as e:
+            log.error(f"Error saving DDD halt state: {e}")
     
     # ═══════════════════════════════════════════════════════════════════════════
     # FIRST RUN DETECTION - Scan immediately after restart/weekend
@@ -1664,7 +1719,125 @@ class LiveTradingBot:
                 self.challenge_manager.sync_with_mt5(balance, equity)
                 log.info("Challenge Risk Manager initialized with ELITE PROTECTION")
         
+        # CRITICAL: Sync pending_setups and queues with actual MT5 state
+        self._startup_sync_with_mt5()
+        
         return True
+    
+    def _startup_sync_with_mt5(self):
+        """
+        CRITICAL STARTUP SYNC: Validate all pending_setups and queues against MT5 reality.
+        
+        This prevents:
+        1. Orphaned pending_setups blocking new signals
+        2. Stale queue entries after bot restart
+        3. Mismatch between JSON state and actual MT5 positions/orders
+        
+        Called immediately after connect() to ensure clean state.
+        """
+        log.info("=" * 70)
+        log.info("🔄 STARTUP SYNC - Validating state against MT5")
+        log.info("=" * 70)
+        
+        # Get actual MT5 state
+        my_positions = self.mt5.get_my_positions()
+        my_pending_orders = self.mt5.get_my_pending_orders()
+        
+        position_symbols = {p.symbol for p in my_positions}
+        pending_order_tickets = {o.ticket for o in my_pending_orders}
+        
+        log.info(f"MT5 Reality: {len(my_positions)} positions, {len(my_pending_orders)} pending orders")
+        log.info(f"Loaded State: {len(self.pending_setups)} pending_setups, {len(self.awaiting_entry)} awaiting_entry, {len(self.awaiting_spread)} awaiting_spread")
+        
+        # 1. Clean up pending_setups that no longer exist in MT5
+        orphaned_setups = []
+        for symbol, setup in list(self.pending_setups.items()):
+            broker_symbol = self.symbol_map.get(symbol, symbol)
+            
+            if setup.status == "pending":
+                # Check if pending order still exists
+                if setup.order_ticket and setup.order_ticket not in pending_order_tickets:
+                    log.warning(f"[{symbol}] Orphaned pending setup (order {setup.order_ticket} not in MT5) - removing")
+                    orphaned_setups.append(symbol)
+            
+            elif setup.status == "filled":
+                # Check if position still exists
+                if broker_symbol not in position_symbols:
+                    log.warning(f"[{symbol}] Orphaned filled setup (position not in MT5) - removing")
+                    orphaned_setups.append(symbol)
+            
+            elif setup.status == "halted":
+                # Halted setups from DDD halt - check if new day
+                # If same day as halt, keep blocking. If new day, remove.
+                if setup.created_at:
+                    try:
+                        created_date = datetime.fromisoformat(setup.created_at.replace("Z", "+00:00")).date()
+                        today = datetime.now(timezone.utc).date()
+                        if created_date < today:
+                            log.info(f"[{symbol}] Halted setup from {created_date} - new day, removing block")
+                            orphaned_setups.append(symbol)
+                        else:
+                            log.info(f"[{symbol}] Halted setup from today - keeping block")
+                    except:
+                        orphaned_setups.append(symbol)
+        
+        for symbol in orphaned_setups:
+            del self.pending_setups[symbol]
+        
+        if orphaned_setups:
+            self._save_pending_setups()
+            log.info(f"Cleaned up {len(orphaned_setups)} orphaned setups")
+        
+        # 2. Clean up expired signals in awaiting_entry
+        now = datetime.now(timezone.utc)
+        expired_entry = []
+        for symbol, setup in list(self.awaiting_entry.items()):
+            created_at_str = setup.get("created_at", "")
+            if created_at_str:
+                try:
+                    created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                    age_hours = (now - created_at).total_seconds() / 3600
+                    if age_hours > self.MAX_ENTRY_WAIT_HOURS:
+                        log.warning(f"[{symbol}] Entry signal expired ({age_hours:.1f}h old) - removing")
+                        expired_entry.append(symbol)
+                except:
+                    pass
+        
+        for symbol in expired_entry:
+            del self.awaiting_entry[symbol]
+        
+        if expired_entry:
+            self._save_awaiting_entry()
+            log.info(f"Cleaned up {len(expired_entry)} expired entry signals")
+        
+        # 3. Clean up expired signals in awaiting_spread
+        expired_spread = []
+        for symbol, setup in list(self.awaiting_spread.items()):
+            created_at_str = setup.get("created_at", "")
+            if created_at_str:
+                try:
+                    created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                    age_hours = (now - created_at).total_seconds() / 3600
+                    if age_hours > self.MAX_SPREAD_WAIT_HOURS:
+                        log.warning(f"[{symbol}] Spread signal expired ({age_hours:.1f}h old) - removing")
+                        expired_spread.append(symbol)
+                except:
+                    pass
+        
+        for symbol in expired_spread:
+            del self.awaiting_spread[symbol]
+        
+        if expired_spread:
+            self._save_awaiting_spread()
+            log.info(f"Cleaned up {len(expired_spread)} expired spread signals")
+        
+        # 4. Log final state
+        log.info("=" * 70)
+        log.info(f"✅ STARTUP SYNC COMPLETE")
+        log.info(f"  Active pending_setups: {len(self.pending_setups)}")
+        log.info(f"  Active awaiting_entry: {len(self.awaiting_entry)}")
+        log.info(f"  Active awaiting_spread: {len(self.awaiting_spread)}")
+        log.info("=" * 70)
     
     def disconnect(self):
         """Disconnect from MT5."""
