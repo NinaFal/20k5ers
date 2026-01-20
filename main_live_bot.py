@@ -992,6 +992,20 @@ class LiveTradingBot:
         log.info(f"Checking {len(self.awaiting_entry)} signals awaiting price proximity...")
         
         for symbol, setup in list(self.awaiting_entry.items()):
+            # BUGFIX: Check if we already have a pending order or position for this symbol
+            if symbol in self.pending_setups:
+                existing = self.pending_setups[symbol]
+                if existing.status in ("pending", "filled"):
+                    log.debug(f"[{symbol}] Already have {existing.status} setup - removing from entry queue")
+                    signals_to_remove.append(symbol)
+                    continue
+            
+            broker_symbol = self.symbol_map.get(symbol, symbol)
+            if self.check_existing_position(broker_symbol):
+                log.debug(f"[{symbol}] Already have open position - removing from entry queue")
+                signals_to_remove.append(symbol)
+                continue
+            
             # Check age - expire after MAX_ENTRY_WAIT_HOURS
             created_at_str = setup.get("created_at", "")
             if created_at_str:
@@ -1007,7 +1021,7 @@ class LiveTradingBot:
                     pass
             
             # Get current price
-            broker_symbol = self.symbol_map.get(symbol, symbol)
+            # broker_symbol already defined above
             tick = self.mt5.get_tick(broker_symbol)
             if not tick:
                 log.debug(f"[{symbol}] Cannot get tick, will retry later")
@@ -1144,6 +1158,20 @@ class LiveTradingBot:
                     log.info(f"[{symbol}] Entry too far now ({entry_distance_r:.2f}R), removing")
                     signals_to_remove.append(symbol)
                     continue
+            
+            # Check if we already have a pending order or position for this symbol
+            if symbol in self.pending_setups:
+                existing = self.pending_setups[symbol]
+                if existing.status in ("pending", "filled"):
+                    log.debug(f"[{symbol}] Already have {existing.status} setup - removing from spread queue")
+                    signals_to_remove.append(symbol)
+                    continue
+            
+            broker_symbol = self.symbol_map.get(symbol, symbol)
+            if self.check_existing_position(broker_symbol):
+                log.debug(f"[{symbol}] Already have open position - removing from spread queue")
+                signals_to_remove.append(symbol)
+                continue
             
             # Check market conditions
             conditions = self.check_market_conditions(symbol)
