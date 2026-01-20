@@ -33,11 +33,14 @@ class Fiveers60KConfig:
     min_profitable_days: int = 3  # Minimum 3 profitable trading days required
     min_trading_days: int = 3  # Alias for min_profitable_days (backwards compatibility)
 
-    # === SAFETY BUFFERS (Ultra-Conservative) ===
+    # === DDD SAFETY TIERS (3-Tier System) ===
+    # Tier 1: WARNING at 2.0% - Log warning, continue trading
     daily_loss_warning_pct: float = 2.0  # Warning at 2.0% daily loss
+    # Tier 2: REDUCE at 3.0% - Reduce risk from 0.6% to 0.4% per trade
     daily_loss_reduce_pct: float = 3.0  # Reduce risk at 3.0% daily loss
-    daily_loss_halt_pct: float = 3.0  # Halt new trades at 3.0% daily loss
-    # daily_loss_emergency_pct verwijderd; gebruik alleen daily_loss_halt_pct
+    # Tier 3: HALT at 3.5% - CLOSE ALL positions AND pending orders!
+    daily_loss_halt_pct: float = 3.5  # CLOSE ALL at 3.5% daily loss
+    
     total_dd_warning_pct: float = 5.0  # Warning at 5% total DD
     total_dd_emergency_pct: float = 7.0  # Emergency mode at 7% total DD
     

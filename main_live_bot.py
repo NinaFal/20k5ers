@@ -111,7 +111,7 @@ except ImportError:
 from tradr.mt5.client import MT5Client, PendingOrder
 from tradr.risk.manager import RiskManager
 from tradr.utils.logger import setup_logger
-from challenge_risk_manager import ChallengeRiskManager, ChallengeConfig, RiskMode, ActionType, create_challenge_manager
+from challenge_risk_manager import ChallengeRiskManager, ChallengeConfig, RiskMode, ActionType, ProtectionAction, create_challenge_manager
 
 # Import broker config for multi-broker support
 from broker_config import get_broker_config, BrokerType, BrokerConfig
@@ -430,59 +430,206 @@ class LiveTradingBot:
     """
     def start_ddd_protection_loop(self):
         """
-        Start a background thread that checks DDD every 5 seconds and closes all trades if DDD >= 3.5%.
+        Start a background thread that checks DDD every 5 seconds and closes all trades if DDD >= halt%.
+        
+        CRITICAL FIX JAN 20, 2026:
+        1. Also cancels ALL pending/limit orders (not just positions)
+        2. Syncs day_start_equity on new day to prevent stale baseline
+        3. Logs every check for debugging
+        
         Strictly compares current equity to fixed day_start_equity from challenge_risk_state.json.
         """
         import threading
+        from datetime import date
+        
         def ddd_protection_worker():
             from time import sleep
+            last_log_time = 0
+            
             while running:
                 try:
                     # Get current account info
                     account = self.mt5.get_account_info()
                     if not account:
+                        log.warning("[DDD Protection] Could not get MT5 account info - connection lost?")
                         sleep(5)
                         continue
                     current_equity = account.get("equity", 0)
+                    current_balance = account.get("balance", 0)
+                    
                     # Get fixed day_start_equity from challenge_manager (never updated during day)
                     if not self.challenge_manager:
+                        log.error("[DDD Protection] CRITICAL: challenge_manager is None! Protection NOT active!")
                         sleep(5)
                         continue
+                    
+                    # CRITICAL FIX: Check if new day and sync
+                    today = date.today()
+                    if today != self.challenge_manager.current_date:
+                        log.warning(f"[DDD Protection] New day detected! {self.challenge_manager.current_date} -> {today}")
+                        log.warning(f"[DDD Protection] Syncing with MT5 to update day_start_equity...")
+                        self.challenge_manager.sync_with_mt5(current_balance, current_equity)
+                    
                     day_start_equity = self.challenge_manager.day_start_equity
                     if day_start_equity <= 0:
-                        sleep(5)
-                        continue
+                        log.error(f"[DDD Protection] day_start_equity is {day_start_equity}! Using current equity as fallback.")
+                        day_start_equity = current_equity
+                        self.challenge_manager.day_start_equity = current_equity
+                        self.challenge_manager._save_state()
+                    
                     daily_pnl = current_equity - day_start_equity
                     daily_loss_pct = abs(min(0, daily_pnl)) / day_start_equity * 100
+                    
+                    # Get all DDD thresholds from config
+                    warning_pct = getattr(FIVEERS_CONFIG, "daily_loss_warning_pct", 2.0)
+                    reduce_pct = getattr(FIVEERS_CONFIG, "daily_loss_reduce_pct", 3.0)
                     halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.5)
+                    
+                    # === ALSO CHECK TDD (Total DrawDown) ===
+                    # TDD is calculated from INITIAL balance (not day start)
+                    starting_balance = self.challenge_manager.starting_balance
+                    if starting_balance > 0:
+                        total_dd_pct = max(0, (starting_balance - current_equity) / starting_balance * 100)
+                    else:
+                        total_dd_pct = 0.0
+                    tdd_halt_pct = 10.0  # 5ers: 10% max total drawdown
+                    
+                    # Log status every 60 seconds for debugging
+                    import time as time_module
+                    now = time_module.time()
+                    if now - last_log_time >= 60:
+                        log.info(f"[DDD/TDD Protection] Equity: ${current_equity:,.2f} | Day Start: ${day_start_equity:,.2f} | Starting: ${starting_balance:,.2f}")
+                        log.info(f"[DDD/TDD Protection] DDD: {daily_loss_pct:.2f}% (warn: {warning_pct}%, reduce: {reduce_pct}%, halt: {halt_pct}%) | TDD: {total_dd_pct:.2f}% (halt at {tdd_halt_pct:.2f}%)")
+                        last_log_time = now
+                    
+                    # === CHECK TDD FIRST (most critical - 10% = account breached) ===
+                    if total_dd_pct >= tdd_halt_pct:
+                        log.error("=" * 70)
+                        log.error(f"🚨 TDD HALT: Equity ${current_equity:,.2f} is {total_dd_pct:.2f}% below starting balance (${starting_balance:,.2f})")
+                        log.error(f"  TDD {total_dd_pct:.2f}% >= {tdd_halt_pct:.2f}%! ACCOUNT BREACHED - CLOSING ALL!")
+                        log.error("=" * 70)
+                        
+                        # Cancel ALL pending/limit orders
+                        self._emergency_close_all()
+                        
+                        self.ddd_halted = True
+                        self.ddd_halt_reason = f"TDD {total_dd_pct:.2f}% >= {tdd_halt_pct:.2f}% - ACCOUNT BREACHED"
+                        log.error(f"  🛑 TRADING PERMANENTLY HALTED. {self.ddd_halt_reason}")
+                        sleep(60)  # Sleep longer - this is permanent
+                        continue
+                    
+                    # === TIER 3: DDD >= 3.5% → CLOSE ALL ===
                     if daily_loss_pct >= halt_pct:
                         log.error("=" * 70)
-                        log.error(f"🚨 DDD HALT: Equity ${current_equity:,.2f} is {daily_loss_pct:.2f}% below day start (${day_start_equity:,.2f})")
-                        log.error(f"  DDD {daily_loss_pct:.2f}% >= {halt_pct:.2f}%! CLOSING ALL TRADES IMMEDIATELY!")
+                        log.error(f"🚨 DDD TIER 3 HALT: Equity ${current_equity:,.2f} is {daily_loss_pct:.2f}% below day start (${day_start_equity:,.2f})")
+                        log.error(f"  DDD {daily_loss_pct:.2f}% >= {halt_pct:.2f}%! CLOSING ALL TRADES AND ORDERS!")
                         log.error("=" * 70)
-                        # Close all positions
-                        positions = self.mt5.get_my_positions()
-                        for pos in positions:
-                            result = self.mt5.close_position(pos.ticket)
-                            if hasattr(result, 'success') and result.success:
-                                log.info(f"  ✓ Closed {pos.symbol}")
-                            else:
-                                log.error(f"  ✗ Failed to close {pos.symbol}: {getattr(result, 'error', 'unknown')}")
+                        
+                        # Cancel ALL pending/limit orders and close all positions
+                        self._emergency_close_all()
+                        
                         # Set a flag to halt trading until next day
                         self.ddd_halted = True
                         self.ddd_halt_reason = f"DDD {daily_loss_pct:.2f}% >= {halt_pct:.2f}%"
+                        log.error(f"  🛑 Trading halted until next day. Reason: {self.ddd_halt_reason}")
                         # Sleep longer to avoid repeated closes
                         sleep(30)
+                    
+                    # === TIER 2: DDD >= 3.0% → REDUCE RISK (cancel pending orders only) ===
+                    elif daily_loss_pct >= reduce_pct:
+                        if not getattr(self, '_ddd_reduce_logged', False):
+                            log.warning("=" * 70)
+                            log.warning(f"⚠️ DDD TIER 2 REDUCE: Equity ${current_equity:,.2f} is {daily_loss_pct:.2f}% below day start")
+                            log.warning(f"  DDD {daily_loss_pct:.2f}% >= {reduce_pct:.2f}%! Reducing risk, cancelling pending orders...")
+                            log.warning("=" * 70)
+                            
+                            # Cancel pending orders to reduce exposure
+                            try:
+                                pending_orders = self.mt5.get_pending_orders()
+                                if pending_orders:
+                                    log.warning(f"  Cancelling {len(pending_orders)} pending orders...")
+                                    for order in pending_orders:
+                                        try:
+                                            self.mt5.cancel_pending_order(order.ticket)
+                                            log.info(f"  ✓ Cancelled pending order {order.symbol}")
+                                        except Exception as e:
+                                            log.error(f"  ✗ Failed to cancel {order.symbol}: {e}")
+                            except Exception as e:
+                                log.error(f"  ✗ Failed to get pending orders: {e}")
+                            
+                            self._ddd_reduce_logged = True
+                        self.ddd_halted = False  # Don't halt, just reduce
+                        self.ddd_halt_reason = ""
+                    
+                    # === TIER 1: DDD >= 2.0% → WARNING ===
+                    elif daily_loss_pct >= warning_pct:
+                        if not getattr(self, '_ddd_warning_logged', False):
+                            log.warning("=" * 70)
+                            log.warning(f"⚠️ DDD TIER 1 WARNING: Equity ${current_equity:,.2f} is {daily_loss_pct:.2f}% below day start")
+                            log.warning(f"  DDD {daily_loss_pct:.2f}% >= {warning_pct:.2f}%! Monitoring closely...")
+                            log.warning("=" * 70)
+                            self._ddd_warning_logged = True
+                        self.ddd_halted = False
+                        self.ddd_halt_reason = ""
+                    
+                    # === NORMAL: Reset flags ===
                     else:
                         self.ddd_halted = False
                         self.ddd_halt_reason = ""
+                        self._ddd_warning_logged = False
+                        self._ddd_reduce_logged = False
+                    
                     sleep(5)
                 except Exception as e:
                     log.error(f"[DDD Protection] Exception: {e}")
+                    import traceback
+                    log.error(traceback.format_exc())
                     sleep(5)
         t = threading.Thread(target=ddd_protection_worker, daemon=True)
         t.start()
     
+    def _emergency_close_all(self):
+        """
+        Emergency close all positions and cancel all pending orders.
+        Called when DDD or TDD limits are breached.
+        
+        CRITICAL FIX JAN 20, 2026: Also cancels pending/limit orders.
+        """
+        # Cancel ALL pending/limit orders FIRST
+        try:
+            pending_orders = self.mt5.get_pending_orders()
+            if pending_orders:
+                log.error(f"  Cancelling {len(pending_orders)} pending orders...")
+                for order in pending_orders:
+                    try:
+                        result = self.mt5.cancel_pending_order(order.ticket)
+                        if result:
+                            log.info(f"  ✓ Cancelled pending order {order.symbol} (ticket: {order.ticket})")
+                        else:
+                            log.error(f"  ✗ Failed to cancel pending order {order.symbol}: {order.ticket}")
+                    except Exception as e:
+                        log.error(f"  ✗ Exception cancelling order {order.ticket}: {e}")
+            else:
+                log.info(f"  No pending orders to cancel")
+        except Exception as e:
+            log.error(f"  ✗ Failed to get/cancel pending orders: {e}")
+        
+        # Close all positions
+        try:
+            positions = self.mt5.get_my_positions()
+            if positions:
+                log.error(f"  Closing {len(positions)} open positions...")
+                for pos in positions:
+                    result = self.mt5.close_position(pos.ticket)
+                    if hasattr(result, 'success') and result.success:
+                        log.info(f"  ✓ Closed {pos.symbol}")
+                    else:
+                        log.error(f"  ✗ Failed to close {pos.symbol}: {getattr(result, 'error', 'unknown')}")
+            else:
+                log.info(f"  No open positions to close")
+        except Exception as e:
+            log.error(f"  ✗ Failed to get/close positions: {e}")
+
     PENDING_SETUPS_FILE = "pending_setups.json"
     TRADING_DAYS_FILE = "trading_days.json"
     FIRST_RUN_FLAG_FILE = "first_run_complete.flag"
@@ -3001,8 +3148,6 @@ class LiveTradingBot:
         - 00:10 server time: Daily market scan
         - Monday 00:00-02:00: Weekend gap protection
         """
-        # Start DDD protection loop
-        self.start_ddd_protection_loop()
         log.info("=" * 70)
         log.info("TRADR BOT - 5ERS 60K HIGH STAKES CHALLENGE")
         log.info("=" * 70)
@@ -3030,6 +3175,11 @@ class LiveTradingBot:
         if not self.connect():
             log.error("Failed to connect to MT5. Exiting.")
             return
+        
+        # CRITICAL FIX JAN 20, 2026: Start DDD protection loop AFTER connect()
+        # Otherwise challenge_manager is None and the protection never works!
+        self.start_ddd_protection_loop()
+        log.info("🛡️ DDD/TDD Protection loop started")
         
         log.info("Starting trading loop...")
         log.info("Press Ctrl+C to stop")

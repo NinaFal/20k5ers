@@ -29,8 +29,24 @@ class ActionType(Enum):
     CONTINUE = auto()        # Continue normal trading
     REDUCE_RISK = auto()     # Reduce position sizes
     HALT_NEW_TRADES = auto() # Stop opening new positions
+    HALT_TRADING = auto()    # Halt all trading (same as HALT_NEW_TRADES but more explicit)
     CLOSE_PENDING = auto()   # Close all pending orders
     CLOSE_ALL = auto()       # Emergency close all positions
+    MOVE_SL_BREAKEVEN = auto()  # Move SL to entry price
+    CLOSE_WORST = auto()     # Close worst performing position
+
+@dataclass
+class ProtectionAction:
+    """Action returned by protection check."""
+    action: ActionType
+    priority: int = 0
+    reason: str = ""
+    positions_affected: list = None
+    executed: bool = False
+    
+    def __post_init__(self):
+        if self.positions_affected is None:
+            self.positions_affected = []
 
 
 @dataclass
@@ -477,10 +493,13 @@ class ChallengeRiskManager:
     
     def run_protection_check(self) -> list:
         """
-        Run protection checks and return list of actions to take.
+        Run protection checks and return list of ProtectionAction objects.
+        
+        CRITICAL FIX JAN 20, 2026: Now returns ProtectionAction objects
+        with priority, reason, and positions_affected attributes.
         
         Returns:
-            List of ActionType enums
+            List of ProtectionAction objects
         """
         actions = []
         
@@ -493,21 +512,33 @@ class ChallengeRiskManager:
             except:
                 pass
         
-        # Check for emergency
+        # Check for emergency (TDD >= 10% or DDD >= halt%)
         if self.risk_mode == RiskMode.EMERGENCY:
-            actions.append(ActionType.CLOSE_ALL)
+            actions.append(ProtectionAction(
+                action=ActionType.CLOSE_ALL,
+                priority=100,
+                reason=f"Emergency: Total DD {self.total_drawdown_pct:.1f}% >= {self.config.total_dd_emergency_pct}% OR Daily loss {self.daily_loss_pct:.1f}% >= {self.config.daily_loss_halt_pct}%",
+            ))
             self.halted = True
             self.halt_reason = f"Emergency: Total DD {self.total_drawdown_pct:.1f}% >= {self.config.total_dd_emergency_pct}%"
         
-        # Check for halt
+        # Check for halt (trading stopped but positions not closed)
         elif self.risk_mode == RiskMode.HALTED:
-            actions.append(ActionType.HALT_NEW_TRADES)
+            actions.append(ProtectionAction(
+                action=ActionType.HALT_NEW_TRADES,
+                priority=80,
+                reason=f"Daily loss {self.daily_loss_pct:.1f}% >= {self.config.daily_loss_halt_pct}%",
+            ))
             self.halted = True
             self.halt_reason = f"Daily loss {self.daily_loss_pct:.1f}% >= {self.config.daily_loss_halt_pct}%"
         
-        # Check for conservative
+        # Check for conservative (reduce risk)
         elif self.risk_mode == RiskMode.CONSERVATIVE:
-            actions.append(ActionType.REDUCE_RISK)
+            actions.append(ProtectionAction(
+                action=ActionType.REDUCE_RISK,
+                priority=50,
+                reason=f"Daily loss {self.daily_loss_pct:.1f}% >= {self.config.daily_loss_reduce_pct}%",
+            ))
         
         return actions
     
