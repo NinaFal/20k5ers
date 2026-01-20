@@ -762,6 +762,9 @@ class MT5Client:
             "max_lot": info.volume_max,
             "lot_step": info.volume_step,
             "contract_size": info.trade_contract_size,
+            # CRITICAL: tick_value = profit per 1 point move per 1 lot (in account currency USD)
+            "tick_value": info.trade_tick_value,
+            "tick_size": info.trade_tick_size,
         }
     
     def place_pending_order(
