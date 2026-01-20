@@ -2988,13 +2988,15 @@ class LiveTradingBot:
                     action.executed = True
                     emergency_triggered = True
                     
-                elif action.action == ActionType.CANCEL_PENDING:
-                    for ticket in action.positions_affected:
-                        result = self.mt5.cancel_pending_order(ticket)
+                elif action.action == ActionType.CLOSE_PENDING:
+                    # Cancel all pending orders
+                    pending_orders = self.mt5.get_my_pending_orders()
+                    for order in pending_orders:
+                        result = self.mt5.cancel_pending_order(order.ticket)
                         if result:
-                            log.info(f"  ✓ Cancelled pending order {ticket}")
+                            log.info(f"  ✓ Cancelled pending order {order.ticket}")
                         else:
-                            log.error(f"  ✗ Failed to cancel pending order {ticket}")
+                            log.error(f"  ✗ Failed to cancel pending order {order.ticket}")
                     action.executed = True
                     
                 elif action.action == ActionType.MOVE_SL_BREAKEVEN:
@@ -3029,6 +3031,28 @@ class LiveTradingBot:
                     log.error(f"[RISK] Trading HALTED: {action.reason}")
                     action.executed = True
                     emergency_triggered = True
+                
+                elif action.action == ActionType.HALT_NEW_TRADES:
+                    # Just log - don't open new trades, but don't close existing ones
+                    log.warning(f"[RISK] New trades HALTED (existing positions remain): {action.reason}")
+                    action.executed = True
+                
+                elif action.action == ActionType.REDUCE_RISK:
+                    # Risk is already reduced in challenge_risk_manager via risk_mode
+                    # Just log and cancel pending orders to reduce exposure
+                    log.warning(f"[RISK] Risk REDUCED (risk mode: conservative): {action.reason}")
+                    
+                    # Cancel pending orders to reduce exposure
+                    pending_orders = self.mt5.get_my_pending_orders()
+                    if pending_orders:
+                        log.warning(f"  Cancelling {len(pending_orders)} pending orders to reduce exposure...")
+                        for order in pending_orders:
+                            try:
+                                self.mt5.cancel_pending_order(order.ticket)
+                                log.info(f"  ✓ Cancelled pending order {order.ticket} ({order.symbol})")
+                            except Exception as e:
+                                log.error(f"  ✗ Failed to cancel {order.ticket}: {e}")
+                    action.executed = True
                     
             except Exception as e:
                 log.error(f"[RISK] Error executing action {action.action.value}: {e}")
