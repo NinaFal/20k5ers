@@ -1784,7 +1784,7 @@ class LiveTradingBot:
                             orphaned_setups.append(symbol)
                         else:
                             log.info(f"[{symbol}] Halted setup from today - keeping block")
-                    except:
+                    except Exception:
                         orphaned_setups.append(symbol)
         
         for symbol in orphaned_setups:
@@ -1806,7 +1806,7 @@ class LiveTradingBot:
                     if age_hours > self.MAX_ENTRY_WAIT_HOURS:
                         log.warning(f"[{symbol}] Entry signal expired ({age_hours:.1f}h old) - removing")
                         expired_entry.append(symbol)
-                except:
+                except Exception:
                     pass
         
         for symbol in expired_entry:
@@ -1827,7 +1827,7 @@ class LiveTradingBot:
                     if age_hours > self.MAX_SPREAD_WAIT_HOURS:
                         log.warning(f"[{symbol}] Spread signal expired ({age_hours:.1f}h old) - removing")
                         expired_spread.append(symbol)
-                except:
+                except Exception:
                     pass
         
         for symbol in expired_spread:
@@ -3083,8 +3083,17 @@ class LiveTradingBot:
                 
                 log.info(f"[{broker_symbol}] TP1 HIT at {current_r:.2f}R! Closing {close_pct*100:.0f}%")
                 
-                result = self.mt5.partial_close(pos.ticket, close_volume)
-                if result.success:
+                # Retry logic for partial close (up to 3 attempts)
+                result = None
+                for attempt in range(3):
+                    result = self.mt5.partial_close(pos.ticket, close_volume)
+                    if result.success:
+                        break
+                    if attempt < 2:
+                        log.warning(f"[{broker_symbol}] Partial close attempt {attempt+1} failed, retrying...")
+                        time.sleep(0.5 * (attempt + 1))
+                
+                if result and result.success:
                     log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
                     setup.partial_closes = 1
                     setup.tp1_hit = True
@@ -3108,8 +3117,17 @@ class LiveTradingBot:
                 
                 log.info(f"[{broker_symbol}] TP2 HIT at {current_r:.2f}R! Closing {close_pct*100:.0f}%")
                 
-                result = self.mt5.partial_close(pos.ticket, close_volume)
-                if result.success:
+                # Retry logic for partial close (up to 3 attempts)
+                result = None
+                for attempt in range(3):
+                    result = self.mt5.partial_close(pos.ticket, close_volume)
+                    if result.success:
+                        break
+                    if attempt < 2:
+                        log.warning(f"[{broker_symbol}] Partial close attempt {attempt+1} failed, retrying...")
+                        time.sleep(0.5 * (attempt + 1))
+                
+                if result and result.success:
                     log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
                     setup.partial_closes = 2
                     setup.tp2_hit = True
@@ -3133,8 +3151,17 @@ class LiveTradingBot:
             elif current_r >= tp3_r and partial_state == 2:
                 log.info(f"[{broker_symbol}] TP3 HIT at {current_r:.2f}R! Closing ALL remaining")
                 
-                result = self.mt5.close_position(pos.ticket)
-                if result.success:
+                # Retry logic for position close (up to 3 attempts)
+                result = None
+                for attempt in range(3):
+                    result = self.mt5.close_position(pos.ticket)
+                    if result.success:
+                        break
+                    if attempt < 2:
+                        log.warning(f"[{broker_symbol}] Close position attempt {attempt+1} failed, retrying...")
+                        time.sleep(0.5 * (attempt + 1))
+                
+                if result and result.success:
                     log.info(f"[{broker_symbol}] ✅ Position FULLY CLOSED at {result.price}")
                     setup.partial_closes = 3
                     setup.tp3_hit = True
