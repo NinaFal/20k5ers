@@ -142,6 +142,7 @@ def calculate_lot_size(
     max_confluence_multiplier: float = 1.5,
     min_confluence_multiplier: float = 0.6,
     broker: str = None,
+    pip_value_override: float = None,
 ) -> Dict:
     """
     Calculate position size for a trade.
@@ -164,6 +165,7 @@ def calculate_lot_size(
         max_confluence_multiplier: Maximum risk multiplier
         min_confluence_multiplier: Minimum risk multiplier
         broker: Broker name (e.g., "5ers") for broker-specific specs
+        pip_value_override: Override pip value per lot (for dynamic currency conversion)
         
     Returns:
         Dict with lot_size, risk_usd, stop_pips, actual_risk_pct
@@ -179,7 +181,7 @@ def calculate_lot_size(
     
     specs = get_contract_specs(symbol, broker=broker)
     pip_size = specs.get("pip_size", 0.0001)
-    pip_value_per_lot = specs.get("pip_value_per_lot", 10.0)
+    pip_value_per_lot = pip_value_override if pip_value_override is not None else specs.get("pip_value_per_lot", 10.0)
     
     stop_distance = abs(entry_price - stop_loss_price)
     

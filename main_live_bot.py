@@ -1943,6 +1943,130 @@ class LiveTradingBot:
                 return True
         return False
     
+    def _get_dynamic_pip_value(self, symbol: str, broker_symbol: str) -> float:
+        """
+        Calculate dynamic pip value for non-USD quote currencies.
+        
+        For XXX/USD pairs: pip value is always $10/lot (standard)
+        For USD/XXX pairs: pip value = $10 / XXX_USD rate
+        For XXX/YYY crosses: pip value = $10 / YYY_USD rate (or * USD_YYY)
+        For indices: UK100 = £1/point * GBPUSD, others = $1/point
+        
+        Returns:
+            Pip value per standard lot in USD
+        """
+        from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
+        
+        # Get base specs
+        specs = get_fiveers_contract_specs(symbol)
+        base_pip_value = specs.get("pip_value_per_lot", 10.0)
+        
+        # Normalize symbol
+        sym_upper = symbol.upper().replace("_", "")
+        
+        # Indices with non-USD denomination
+        if "UK100" in sym_upper or "FTSE" in sym_upper:
+            # UK100 is GBP-denominated, need GBPUSD rate
+            gbpusd_tick = self.mt5.get_tick("GBPUSD")
+            if gbpusd_tick:
+                gbpusd_rate = (gbpusd_tick.bid + gbpusd_tick.ask) / 2
+                pip_value = 1.0 * gbpusd_rate  # £1/point * GBPUSD
+                log.debug(f"[{symbol}] Dynamic pip value: £1 × GBPUSD({gbpusd_rate:.4f}) = ${pip_value:.4f}/point")
+                return pip_value
+            else:
+                log.warning(f"[{symbol}] Cannot get GBPUSD rate, using estimate 1.40")
+                return 1.40
+        
+        # US indices - already in USD
+        if any(x in sym_upper for x in ["NAS100", "SPX500", "SP500", "US100", "US500", "US30"]):
+            return base_pip_value  # Already $1/point
+        
+        # Metals and Crypto - already in USD
+        if any(x in sym_upper for x in ["XAU", "XAG", "BTC", "ETH"]):
+            return base_pip_value
+        
+        # FOREX pairs
+        # Extract quote currency (last 3 chars)
+        if len(sym_upper) >= 6:
+            quote_currency = sym_upper[-3:]
+            
+            # XXX/USD pairs - pip value is always $10
+            if quote_currency == "USD":
+                return 10.0
+            
+            # USD/XXX or XXX/YYY pairs - need conversion
+            # JPY pairs: pip value = (pip_size * contract_size) / USDJPY
+            if quote_currency == "JPY":
+                usdjpy_tick = self.mt5.get_tick("USDJPY")
+                if usdjpy_tick:
+                    usdjpy_rate = (usdjpy_tick.bid + usdjpy_tick.ask) / 2
+                    # For JPY pairs: 1 pip = 0.01, contract = 100,000
+                    # Pip value = (0.01 * 100,000) / USDJPY = 1000 / USDJPY
+                    pip_value = 1000.0 / usdjpy_rate
+                    log.debug(f"[{symbol}] Dynamic pip value (JPY): 1000/USDJPY({usdjpy_rate:.2f}) = ${pip_value:.2f}/pip")
+                    return pip_value
+                else:
+                    log.warning(f"[{symbol}] Cannot get USDJPY rate, using estimate 6.67")
+                    return 6.67
+            
+            # CHF pairs
+            if quote_currency == "CHF":
+                usdchf_tick = self.mt5.get_tick("USDCHF")
+                if usdchf_tick:
+                    usdchf_rate = (usdchf_tick.bid + usdchf_tick.ask) / 2
+                    pip_value = 10.0 / usdchf_rate
+                    log.debug(f"[{symbol}] Dynamic pip value (CHF): 10/USDCHF({usdchf_rate:.4f}) = ${pip_value:.2f}/pip")
+                    return pip_value
+                else:
+                    return 11.0  # Estimate
+            
+            # CAD pairs
+            if quote_currency == "CAD":
+                usdcad_tick = self.mt5.get_tick("USDCAD")
+                if usdcad_tick:
+                    usdcad_rate = (usdcad_tick.bid + usdcad_tick.ask) / 2
+                    pip_value = 10.0 / usdcad_rate
+                    log.debug(f"[{symbol}] Dynamic pip value (CAD): 10/USDCAD({usdcad_rate:.4f}) = ${pip_value:.2f}/pip")
+                    return pip_value
+                else:
+                    return 7.5  # Estimate
+            
+            # GBP quote (rare, e.g., EUR/GBP)
+            if quote_currency == "GBP":
+                gbpusd_tick = self.mt5.get_tick("GBPUSD")
+                if gbpusd_tick:
+                    gbpusd_rate = (gbpusd_tick.bid + gbpusd_tick.ask) / 2
+                    pip_value = 10.0 * gbpusd_rate
+                    log.debug(f"[{symbol}] Dynamic pip value (GBP): 10*GBPUSD({gbpusd_rate:.4f}) = ${pip_value:.2f}/pip")
+                    return pip_value
+                else:
+                    return 12.5  # Estimate
+            
+            # AUD quote
+            if quote_currency == "AUD":
+                audusd_tick = self.mt5.get_tick("AUDUSD")
+                if audusd_tick:
+                    audusd_rate = (audusd_tick.bid + audusd_tick.ask) / 2
+                    pip_value = 10.0 * audusd_rate
+                    log.debug(f"[{symbol}] Dynamic pip value (AUD): 10*AUDUSD({audusd_rate:.4f}) = ${pip_value:.2f}/pip")
+                    return pip_value
+                else:
+                    return 6.5  # Estimate
+            
+            # NZD quote
+            if quote_currency == "NZD":
+                nzdusd_tick = self.mt5.get_tick("NZDUSD")
+                if nzdusd_tick:
+                    nzdusd_rate = (nzdusd_tick.bid + nzdusd_tick.ask) / 2
+                    pip_value = 10.0 * nzdusd_rate
+                    log.debug(f"[{symbol}] Dynamic pip value (NZD): 10*NZDUSD({nzdusd_rate:.4f}) = ${pip_value:.2f}/pip")
+                    return pip_value
+                else:
+                    return 6.0  # Estimate
+        
+        # Fallback to base specs
+        return base_pip_value
+    
     def _calculate_lot_size_at_fill(
         self,
         symbol: str,
@@ -2035,6 +2159,10 @@ class LiveTradingBot:
         max_lot = symbol_info.get('max_lot', 100.0) if symbol_info else 100.0
         min_lot = symbol_info.get('min_lot', 0.01) if symbol_info else 0.01
 
+        # Get DYNAMIC pip value based on current exchange rates
+        dynamic_pip_value = self._get_dynamic_pip_value(symbol, broker_symbol)
+        log.info(f"[{symbol}] Dynamic pip value: ${dynamic_pip_value:.4f}/pip")
+
         # Calculate lot size using CURRENT balance
         # IMPORTANT: NO position count reduction - must match simulate_main_live_bot.py
         lot_result = calculate_lot_size(
@@ -2046,6 +2174,7 @@ class LiveTradingBot:
             max_lot=max_lot,
             min_lot=min_lot,
             broker="5ers",  # CRITICAL: Use 5ers contract specs
+            pip_value_override=dynamic_pip_value,  # Use dynamic pip value!
         )
 
         if lot_result.get("error") or lot_result["lot_size"] <= min_lot:
