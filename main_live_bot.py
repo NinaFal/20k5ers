@@ -1953,46 +1953,65 @@ class LiveTradingBot:
         Fallback: Calculate based on exchange rates if MT5 doesn't provide it.
         
         Returns:
-            Pip value per standard lot in USD
+            Pip value per standard lot in USD (always > 0)
         """
         from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
         
-        # FIRST: Try to get tick_value directly from MT5 (most reliable!)
-        symbol_info = self.mt5.get_symbol_info(broker_symbol)
-        if symbol_info and symbol_info.get("tick_value") and symbol_info.get("tick_size"):
-            tick_value = symbol_info["tick_value"]  # USD per tick per lot
-            tick_size = symbol_info["tick_size"]    # Size of 1 tick (e.g., 0.00001 for forex)
-            point = symbol_info.get("point", tick_size)
-            
-            # Get pip size from specs (0.0001 for forex, 1.0 for indices)
+        # Get fallback specs first (always needed)
+        try:
             specs = get_fiveers_contract_specs(symbol)
-            pip_size = specs.get("pip_size", 0.0001)
-            
-            # Calculate pip value from tick value
-            # pip_value = tick_value * (pip_size / tick_size)
-            if tick_size > 0:
-                pip_value = tick_value * (pip_size / tick_size)
-                log.info(f"[{symbol}] MT5 tick_value=${tick_value:.4f}/tick, tick_size={tick_size}, pip_size={pip_size} -> pip_value=${pip_value:.4f}/pip")
-                return pip_value
+        except Exception:
+            specs = {"pip_size": 0.0001, "pip_value_per_lot": 10.0}
+        
+        base_pip_value = specs.get("pip_value_per_lot", 10.0)
+        pip_size = specs.get("pip_size", 0.0001)
+        
+        # Ensure we always return a valid positive value
+        if base_pip_value <= 0:
+            base_pip_value = 10.0
+        if pip_size <= 0:
+            pip_size = 0.0001
+        
+        # FIRST: Try to get tick_value directly from MT5 (most reliable!)
+        try:
+            symbol_info = self.mt5.get_symbol_info(broker_symbol)
+            if symbol_info:
+                tick_value = symbol_info.get("tick_value", 0)
+                tick_size = symbol_info.get("tick_size", 0)
+                
+                # Only use MT5 values if they are valid positive numbers
+                if tick_value and tick_value > 0 and tick_size and tick_size > 0:
+                    # Calculate pip value from tick value
+                    # pip_value = tick_value * (pip_size / tick_size)
+                    pip_value = tick_value * (pip_size / tick_size)
+                    
+                    # Sanity check - pip value should be reasonable
+                    if pip_value > 0 and pip_value < 10000:
+                        log.info(f"[{symbol}] MT5 tick_value=${tick_value:.4f}/tick, tick_size={tick_size}, pip_size={pip_size} -> pip_value=${pip_value:.4f}/pip")
+                        return pip_value
+                    else:
+                        log.warning(f"[{symbol}] MT5 pip_value ${pip_value:.4f} seems invalid, using fallback")
+        except Exception as e:
+            log.warning(f"[{symbol}] Error getting MT5 tick_value: {e}")
         
         # FALLBACK: Calculate based on exchange rates
-        log.warning(f"[{symbol}] MT5 tick_value not available, using exchange rate calculation")
-        
-        specs = get_fiveers_contract_specs(symbol)
-        base_pip_value = specs.get("pip_value_per_lot", 10.0)
+        log.debug(f"[{symbol}] Using exchange rate calculation for pip value")
         
         # Normalize symbol
         sym_upper = symbol.upper().replace("_", "")
         
         # UK100 is GBP-denominated
         if "UK100" in sym_upper or "FTSE" in sym_upper:
-            gbpusd_tick = self.mt5.get_tick("GBPUSD")
-            if gbpusd_tick:
-                gbpusd_rate = (gbpusd_tick.bid + gbpusd_tick.ask) / 2
-                pip_value = 1.0 * gbpusd_rate
-                log.debug(f"[{symbol}] Fallback pip value: £1 × GBPUSD({gbpusd_rate:.4f}) = ${pip_value:.4f}/point")
-                return pip_value
-            return 1.40  # Estimate
+            try:
+                gbpusd_tick = self.mt5.get_tick("GBPUSD")
+                if gbpusd_tick and gbpusd_tick.bid > 0:
+                    gbpusd_rate = (gbpusd_tick.bid + gbpusd_tick.ask) / 2
+                    pip_value = 1.0 * gbpusd_rate
+                    log.debug(f"[{symbol}] Fallback pip value: £1 × GBPUSD({gbpusd_rate:.4f}) = ${pip_value:.4f}/point")
+                    return pip_value
+            except Exception:
+                pass
+            return 1.40  # Safe estimate
         
         # US indices - already in USD
         if any(x in sym_upper for x in ["NAS100", "SPX500", "SP500", "US100", "US500", "US30"]):
@@ -2009,48 +2028,56 @@ class LiveTradingBot:
             if quote_currency == "USD":
                 return 10.0
             
-            if quote_currency == "JPY":
-                usdjpy_tick = self.mt5.get_tick("USDJPY")
-                if usdjpy_tick:
-                    usdjpy_rate = (usdjpy_tick.bid + usdjpy_tick.ask) / 2
-                    return 1000.0 / usdjpy_rate
-                return 6.67
-            
-            if quote_currency == "CHF":
-                usdchf_tick = self.mt5.get_tick("USDCHF")
-                if usdchf_tick:
-                    usdchf_rate = (usdchf_tick.bid + usdchf_tick.ask) / 2
-                    return 10.0 / usdchf_rate
-                return 11.0
-            
-            if quote_currency == "CAD":
-                usdcad_tick = self.mt5.get_tick("USDCAD")
-                if usdcad_tick:
-                    usdcad_rate = (usdcad_tick.bid + usdcad_tick.ask) / 2
-                    return 10.0 / usdcad_rate
-                return 7.5
-            
-            if quote_currency == "GBP":
-                gbpusd_tick = self.mt5.get_tick("GBPUSD")
-                if gbpusd_tick:
-                    gbpusd_rate = (gbpusd_tick.bid + gbpusd_tick.ask) / 2
-                    return 10.0 * gbpusd_rate
-                return 12.5
-            
-            if quote_currency == "AUD":
-                audusd_tick = self.mt5.get_tick("AUDUSD")
-                if audusd_tick:
-                    audusd_rate = (audusd_tick.bid + audusd_tick.ask) / 2
-                    return 10.0 * audusd_rate
-                return 6.5
-            
-            if quote_currency == "NZD":
-                nzdusd_tick = self.mt5.get_tick("NZDUSD")
-                if nzdusd_tick:
-                    nzdusd_rate = (nzdusd_tick.bid + nzdusd_tick.ask) / 2
-                    return 10.0 * nzdusd_rate
-                return 6.0
+            try:
+                if quote_currency == "JPY":
+                    usdjpy_tick = self.mt5.get_tick("USDJPY")
+                    if usdjpy_tick and usdjpy_tick.bid > 0:
+                        usdjpy_rate = (usdjpy_tick.bid + usdjpy_tick.ask) / 2
+                        if usdjpy_rate > 0:
+                            return 1000.0 / usdjpy_rate
+                    return 6.67
+                
+                if quote_currency == "CHF":
+                    usdchf_tick = self.mt5.get_tick("USDCHF")
+                    if usdchf_tick and usdchf_tick.bid > 0:
+                        usdchf_rate = (usdchf_tick.bid + usdchf_tick.ask) / 2
+                        if usdchf_rate > 0:
+                            return 10.0 / usdchf_rate
+                    return 11.0
+                
+                if quote_currency == "CAD":
+                    usdcad_tick = self.mt5.get_tick("USDCAD")
+                    if usdcad_tick and usdcad_tick.bid > 0:
+                        usdcad_rate = (usdcad_tick.bid + usdcad_tick.ask) / 2
+                        if usdcad_rate > 0:
+                            return 10.0 / usdcad_rate
+                    return 7.5
+                
+                if quote_currency == "GBP":
+                    gbpusd_tick = self.mt5.get_tick("GBPUSD")
+                    if gbpusd_tick and gbpusd_tick.bid > 0:
+                        gbpusd_rate = (gbpusd_tick.bid + gbpusd_tick.ask) / 2
+                        return 10.0 * gbpusd_rate
+                    return 12.5
+                
+                if quote_currency == "AUD":
+                    audusd_tick = self.mt5.get_tick("AUDUSD")
+                    if audusd_tick and audusd_tick.bid > 0:
+                        audusd_rate = (audusd_tick.bid + audusd_tick.ask) / 2
+                        return 10.0 * audusd_rate
+                    return 6.5
+                
+                if quote_currency == "NZD":
+                    nzdusd_tick = self.mt5.get_tick("NZDUSD")
+                    if nzdusd_tick and nzdusd_tick.bid > 0:
+                        nzdusd_rate = (nzdusd_tick.bid + nzdusd_tick.ask) / 2
+                        return 10.0 * nzdusd_rate
+                    return 6.0
+            except Exception as e:
+                log.warning(f"[{symbol}] Error calculating pip value for {quote_currency}: {e}")
         
+        # Final fallback - always return a valid positive value
+        log.debug(f"[{symbol}] Using base pip value: ${base_pip_value:.2f}")
         return base_pip_value
     
     def _calculate_lot_size_at_fill(
@@ -2145,36 +2172,62 @@ class LiveTradingBot:
         max_lot = symbol_info.get('max_lot', 100.0) if symbol_info else 100.0
         min_lot = symbol_info.get('min_lot', 0.01) if symbol_info else 0.01
 
+        # Ensure min_lot and max_lot are valid
+        if min_lot <= 0:
+            min_lot = 0.01
+        if max_lot <= 0:
+            max_lot = 100.0
+
         # Get DYNAMIC pip value based on current exchange rates
-        dynamic_pip_value = self._get_dynamic_pip_value(symbol, broker_symbol)
+        try:
+            dynamic_pip_value = self._get_dynamic_pip_value(symbol, broker_symbol)
+        except Exception as e:
+            log.error(f"[{symbol}] Error getting dynamic pip value: {e}, using fallback $10/pip")
+            dynamic_pip_value = 10.0
+        
+        # Sanity check pip value
+        if dynamic_pip_value <= 0:
+            log.warning(f"[{symbol}] Invalid pip value {dynamic_pip_value}, using $10/pip")
+            dynamic_pip_value = 10.0
+        
         log.info(f"[{symbol}] Dynamic pip value: ${dynamic_pip_value:.4f}/pip")
 
         # Calculate lot size using CURRENT balance
         # IMPORTANT: NO position count reduction - must match simulate_main_live_bot.py
-        lot_result = calculate_lot_size(
-            symbol=broker_symbol,
-            account_balance=current_balance,  # CURRENT balance!
-            risk_percent=risk_pct / 100,
-            entry_price=entry,
-            stop_loss_price=sl,
-            max_lot=max_lot,
-            min_lot=min_lot,
-            broker="5ers",  # CRITICAL: Use 5ers contract specs
-            pip_value_override=dynamic_pip_value,  # Use dynamic pip value!
-        )
-
-        if lot_result.get("error") or lot_result["lot_size"] <= min_lot:
-            log.warning(f"[{symbol}] Cannot calculate lot size: {lot_result.get('error', 'unknown error')} (NO TRADE)")
+        try:
+            lot_result = calculate_lot_size(
+                symbol=broker_symbol,
+                account_balance=current_balance,  # CURRENT balance!
+                risk_percent=risk_pct / 100,
+                entry_price=entry,
+                stop_loss_price=sl,
+                max_lot=max_lot,
+                min_lot=min_lot,
+                broker="5ers",  # CRITICAL: Use 5ers contract specs
+                pip_value_override=dynamic_pip_value,  # Use dynamic pip value!
+            )
+        except Exception as e:
+            log.error(f"[{symbol}] Error calculating lot size: {e}")
             return 0.0
 
-        lot_size = lot_result["lot_size"]
-        risk_usd = lot_result["risk_usd"]
-        risk_pips = lot_result["stop_pips"]
+        if lot_result.get("error"):
+            log.warning(f"[{symbol}] Cannot calculate lot size: {lot_result.get('error')} (NO TRADE)")
+            return 0.0
+
+        lot_size = lot_result.get("lot_size", 0.0)
+        risk_usd = lot_result.get("risk_usd", 0.0)
+        risk_pips = lot_result.get("stop_pips", 0.0)
+
+        # Validate lot size
+        if lot_size <= 0 or lot_size < min_lot:
+            log.warning(f"[{symbol}] Lot size {lot_size} too small (min: {min_lot}) (NO TRADE)")
+            return 0.0
 
         # Round to lot step
         if symbol_info:
             lot_step = symbol_info.get('lot_step', 0.01)
-            lot_size = max(min_lot, round(lot_size / lot_step) * lot_step)
+            if lot_step > 0:
+                lot_size = max(min_lot, round(lot_size / lot_step) * lot_step)
             lot_size = min(lot_size, max_lot)
 
         log.info(f"[{symbol}] Lot size calculated at FILL MOMENT:")
