@@ -463,21 +463,52 @@ class LiveTradingBot:
                         sleep(5)
                         continue
                     
-                    # CRITICAL FIX: Check if new day and sync
+                    # AUTOMATIC RESET: Check if DDD halt is from a PREVIOUS day and auto-reset
                     today = date.today()
+                    today_str = today.strftime("%Y-%m-%d")
+                    if self.ddd_halted and self.ddd_halt_date and self.ddd_halt_date != today_str:
+                        log.warning("=" * 70)
+                        log.warning(f"[DDD Protection] 🌅 AUTO-RESET: DDD halt was from {self.ddd_halt_date}, today is {today_str}")
+                        log.warning(f"[DDD Protection] Resetting day_start_equity from ${self.challenge_manager.day_start_equity:,.2f} to ${current_equity:,.2f}")
+                        log.warning("=" * 70)
+                        # Update challenge manager state
+                        self.challenge_manager.day_start_equity = current_equity
+                        self.challenge_manager.day_start_balance = current_balance
+                        self.challenge_manager.current_date = today
+                        self.challenge_manager.daily_pnl = 0.0
+                        self.challenge_manager.daily_loss_pct = 0.0
+                        self.challenge_manager._save_state()
+                        # Clear halt
+                        self.ddd_halted = False
+                        self.ddd_halt_reason = ""
+                        self.ddd_halt_date = None
+                        self._save_ddd_halt_state()
+                        log.info(f"[DDD Protection] ✅ Trading re-enabled for new day with fresh DDD baseline: ${current_equity:,.2f}")
+                        sleep(5)
+                        continue
+                    
+                    # CRITICAL FIX: Check if new day and sync
                     if today != self.challenge_manager.current_date:
                         log.warning(f"[DDD Protection] New day detected! {self.challenge_manager.current_date} -> {today}")
                         log.warning(f"[DDD Protection] Syncing with MT5 to update day_start_equity...")
-                        self.challenge_manager.sync_with_mt5(current_balance, current_equity)
                         
-                        # CRITICAL: Reset DDD halt on new day
+                        # CRITICAL: If DDD halt was active from yesterday, reset day_start_equity to CURRENT equity
+                        # This is essential because DDD from yesterday should NOT carry over to new day
                         if self.ddd_halted:
                             log.info(f"[DDD Protection] ✅ NEW DAY - Resetting DDD halt from yesterday")
+                            log.info(f"[DDD Protection] Updating day_start_equity from ${self.challenge_manager.day_start_equity:,.2f} to ${current_equity:,.2f}")
+                            self.challenge_manager.day_start_equity = current_equity
+                            self.challenge_manager.day_start_balance = current_balance
+                            self.challenge_manager.current_date = today
+                            self.challenge_manager._save_state()
                             self.ddd_halted = False
                             self.ddd_halt_reason = ""
                             self.ddd_halt_date = None
                             self._save_ddd_halt_state()
-                            log.info(f"[DDD Protection] ✅ Trading re-enabled for new day")
+                            log.info(f"[DDD Protection] ✅ Trading re-enabled for new day with fresh DDD baseline")
+                        else:
+                            # Normal new day transition - sync with MT5
+                            self.challenge_manager.sync_with_mt5(current_balance, current_equity)
                     
                     day_start_equity = self.challenge_manager.day_start_equity
                     if day_start_equity <= 0:

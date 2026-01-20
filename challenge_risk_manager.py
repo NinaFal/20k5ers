@@ -215,6 +215,19 @@ class ChallengeRiskManager:
             log.info(f"No state file found. Using protected initial balance: ${PROTECTED_INITIAL_BALANCE:,.2f}")
             self.starting_balance = PROTECTED_INITIAL_BALANCE
     
+    def reload_state_from_file(self):
+        """
+        Hot-reload state from file. Call this to pick up external state changes.
+        Returns True if state was successfully reloaded.
+        """
+        try:
+            self._load_state()
+            log.info(f"[HOT-RELOAD] State reloaded: date={self.current_date}, day_start_equity=${self.day_start_equity:,.2f}")
+            return True
+        except Exception as e:
+            log.error(f"[HOT-RELOAD] Failed to reload state: {e}")
+            return False
+    
     def _save_state(self):
         """Persist state to file."""
         # Calculate DDD limit for transparency (5% max daily loss from day start equity)
