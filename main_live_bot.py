@@ -469,6 +469,15 @@ class LiveTradingBot:
                         log.warning(f"[DDD Protection] New day detected! {self.challenge_manager.current_date} -> {today}")
                         log.warning(f"[DDD Protection] Syncing with MT5 to update day_start_equity...")
                         self.challenge_manager.sync_with_mt5(current_balance, current_equity)
+                        
+                        # CRITICAL: Reset DDD halt on new day
+                        if self.ddd_halted:
+                            log.info(f"[DDD Protection] ✅ NEW DAY - Resetting DDD halt from yesterday")
+                            self.ddd_halted = False
+                            self.ddd_halt_reason = ""
+                            self.ddd_halt_date = None
+                            self._save_ddd_halt_state()
+                            log.info(f"[DDD Protection] ✅ Trading re-enabled for new day")
                     
                     day_start_equity = self.challenge_manager.day_start_equity
                     if day_start_equity <= 0:
@@ -3614,18 +3623,29 @@ class LiveTradingBot:
                         log.info("=" * 70)
                         log.info(f"📊 DAILY SCAN - {get_server_time().strftime('%Y-%m-%d %H:%M')} Server Time")
                         log.info("=" * 70)
+                        
+                        # CRITICAL: Reset DDD halt at daily scan time (new trading day)
+                        if self.ddd_halted:
+                            log.info("✅ NEW TRADING DAY - Resetting DDD halt from previous day")
+                            self.ddd_halted = False
+                            self.ddd_halt_reason = ""
+                            self.ddd_halt_date = None
+                            self._save_ddd_halt_state()
+                            log.info("✅ Trading re-enabled!")
 
                         # Update daily tracking and reset for new day
                         self.risk_manager._check_new_day()
-
-                        self.scan_all_symbols()
-
-                        # Update day_start_equity for next day's DDD calculation
-                        # This should be the equity at the end of the current trading day
+                        
+                        # Update day_start_equity BEFORE scan (use current equity as new day start)
+                        # This is the equity at daily close which becomes the new day's starting point
                         account = self.mt5.get_account_info()
                         if account and self.challenge_manager:
                             current_equity = account.get("equity", 0)
+                            old_day_start = self.challenge_manager.day_start_equity
                             self.challenge_manager.update_day_start_equity(current_equity)
+                            log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${current_equity:,.2f}")
+
+                        self.scan_all_symbols()
 
                         # Calculate next scan time after successful scan
                         self.next_scan_time = get_next_scan_time()
@@ -3800,6 +3820,40 @@ def main():
                 bot.challenge_manager._save_state()
                 print(f"New day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
                 print("✓ Day start equity manually set")
+                
+                # Calculate current DDD with new value
+                daily_loss = manual_value - current_equity
+                daily_loss_pct = (daily_loss / manual_value) * 100 if manual_value > 0 else 0
+                
+                print("")
+                print(f"📊 DDD STATUS WITH NEW VALUE:")
+                print(f"  Day Start (previous close): ${manual_value:,.2f}")
+                print(f"  Current Equity: ${current_equity:,.2f}")
+                print(f"  Daily P&L: ${current_equity - manual_value:+,.2f}")
+                print(f"  DDD: {daily_loss_pct:.2f}%")
+                
+                # Check if halt should be active
+                halt_threshold = 3.5
+                if daily_loss_pct >= halt_threshold:
+                    print("")
+                    print(f"🚨 DDD {daily_loss_pct:.2f}% >= {halt_threshold}% - HALT WILL BE ACTIVE!")
+                    print(f"   Bot will NOT trade until next daily close (00:00 server time)")
+                    print(f"   At 00:10 server time the scan will execute for new day")
+                    # Set halt state
+                    bot.ddd_halted = True
+                    bot.ddd_halt_reason = f"DDD {daily_loss_pct:.2f}% (manual equity set)"
+                    bot.ddd_halt_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                    bot._save_ddd_halt_state()
+                    print("   ✓ DDD halt state saved")
+                else:
+                    print("")
+                    print(f"✅ DDD {daily_loss_pct:.2f}% < {halt_threshold}% - Trading allowed")
+                    # Clear any previous halt
+                    if bot.ddd_halted:
+                        bot.ddd_halted = False
+                        bot.ddd_halt_reason = ""
+                        bot._save_ddd_halt_state()
+                        print("   ✓ Previous DDD halt cleared")
             else:
                 print("ERROR: Challenge manager not initialized")
                 sys.exit(1)
@@ -3807,6 +3861,7 @@ def main():
             print("ERROR: Could not get MT5 account info")
             sys.exit(1)
         
+        print("")
         print("Manual day start equity setting complete.")
         print("=" * 70)
         bot.disconnect()
