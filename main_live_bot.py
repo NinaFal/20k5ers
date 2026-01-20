@@ -594,6 +594,7 @@ class LiveTradingBot:
         Called when DDD or TDD limits are breached.
         
         CRITICAL FIX JAN 20, 2026: Also cancels pending/limit orders.
+        CRITICAL FIX JAN 20, 2026 #2: Also clears all queues to prevent re-entry.
         """
         # Cancel ALL pending/limit orders FIRST
         try:
@@ -629,6 +630,35 @@ class LiveTradingBot:
                 log.info(f"  No open positions to close")
         except Exception as e:
             log.error(f"  ✗ Failed to get/close positions: {e}")
+        
+        # CRITICAL: Clear ALL queues to prevent signals from re-entering next day
+        # This prevents duplicate trades after DDD halt reset
+        try:
+            # Clear awaiting_entry queue
+            if hasattr(self, 'awaiting_entry') and self.awaiting_entry:
+                cleared_entry = len(self.awaiting_entry)
+                self.awaiting_entry.clear()
+                self._save_awaiting_entry()
+                log.info(f"  ✓ Cleared {cleared_entry} signals from awaiting_entry queue")
+            
+            # Clear awaiting_spread queue
+            if hasattr(self, 'awaiting_spread') and self.awaiting_spread:
+                cleared_spread = len(self.awaiting_spread)
+                self.awaiting_spread.clear()
+                self._save_awaiting_spread()
+                log.info(f"  ✓ Cleared {cleared_spread} signals from awaiting_spread queue")
+            
+            # Mark all pending_setups as "halted" to prevent re-scanning
+            if hasattr(self, 'pending_setups') and self.pending_setups:
+                for symbol, setup in self.pending_setups.items():
+                    if setup.status in ("pending", "filled"):
+                        setup.status = "halted"
+                        log.info(f"  ✓ Marked {symbol} setup as halted")
+                self._save_pending_setups()
+            
+            log.info(f"  ✓ All queues cleared - no signals will re-enter after halt reset")
+        except Exception as e:
+            log.error(f"  ✗ Failed to clear queues: {e}")
 
     PENDING_SETUPS_FILE = "pending_setups.json"
     TRADING_DAYS_FILE = "trading_days.json"
@@ -842,10 +872,16 @@ class LiveTradingBot:
         Called every ENTRY_CHECK_INTERVAL_MINUTES (default: 30 min).
         
         Logic:
+        - If DDD halt active: skip (don't place new orders)
         - If price is within limit_order_proximity_r (0.3R) of entry: place limit order
         - If signal too old (MAX_ENTRY_WAIT_HOURS): remove
         - If entry is beyond max_entry_distance_r: remove
         """
+        # CRITICAL: Don't place orders during DDD halt
+        if getattr(self, 'ddd_halted', False):
+            log.debug("Skipping entry queue check - DDD halt active")
+            return
+        
         if not self.awaiting_entry:
             return
         
@@ -962,6 +998,11 @@ class LiveTradingBot:
         Check signals waiting for better spread.
         Called every SPREAD_CHECK_INTERVAL_MINUTES.
         """
+        # CRITICAL: Don't place orders during DDD halt
+        if getattr(self, 'ddd_halted', False):
+            log.debug("Skipping spread queue check - DDD halt active")
+            return
+        
         if not self.awaiting_spread:
             return
         
@@ -1850,9 +1891,10 @@ class LiveTradingBot:
             return None
         
         # BUGFIX: Block ALL existing setups, not just "pending" status
+        # Also block "halted" setups to prevent re-entry after DDD halt
         if symbol in self.pending_setups:
             existing = self.pending_setups[symbol]
-            if existing.status in ("pending", "filled"):
+            if existing.status in ("pending", "filled", "halted"):
                 log.info(f"[{symbol}] Already have {existing.status} setup, skipping")
                 return None
         
