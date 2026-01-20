@@ -534,13 +534,21 @@ class LiveTradingBot:
                         total_dd_pct = 0.0
                     tdd_halt_pct = 10.0  # 5ers: 10% max total drawdown
                     
-                    # Log status every 60 seconds for debugging
+                    # Log status only every 5 min OR when DDD/TDD changes significantly
                     import time as time_module
                     now = time_module.time()
-                    if now - last_log_time >= 60:
+                    last_ddd = getattr(self, '_last_logged_ddd', -1)
+                    last_tdd = getattr(self, '_last_logged_tdd', -1)
+                    ddd_changed = abs(daily_loss_pct - last_ddd) >= 0.5  # Log if DDD changed by 0.5%+
+                    tdd_changed = abs(total_dd_pct - last_tdd) >= 0.25   # Log if TDD changed by 0.25%+
+                    time_elapsed = now - last_log_time >= 300  # Or every 5 minutes
+                    
+                    if ddd_changed or tdd_changed or time_elapsed:
                         log.info(f"[DDD/TDD Protection] Equity: ${current_equity:,.2f} | Day Start: ${day_start_equity:,.2f} | Starting: ${starting_balance:,.2f}")
                         log.info(f"[DDD/TDD Protection] DDD: {daily_loss_pct:.2f}% (warn: {warning_pct}%, reduce: {reduce_pct}%, halt: {halt_pct}%) | TDD: {total_dd_pct:.2f}% (halt at {tdd_halt_pct:.2f}%)")
                         last_log_time = now
+                        self._last_logged_ddd = daily_loss_pct
+                        self._last_logged_tdd = total_dd_pct
                     
                     # === CHECK TDD FIRST (most critical - 10% = account breached) ===
                     if total_dd_pct >= tdd_halt_pct:
