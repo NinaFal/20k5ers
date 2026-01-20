@@ -225,19 +225,36 @@ def get_next_daily_close() -> datetime:
     return next_close
 
 
-def get_next_scan_time() -> datetime:
+def get_next_scan_time(include_today: bool = False) -> datetime:
     """
     Get next scheduled scan time (10 min after daily close).
     Returns datetime in UTC for comparison.
+
+    Args:
+        include_today: If True, returns today's scan time even if it's in the past.
+                      Useful for initial setup to catch missed scans.
     """
-    next_close = get_next_daily_close()
-    scan_time = next_close + timedelta(minutes=10)  # 00:10 server time
-    
-    # Skip weekends (Saturday = 5, Sunday = 6)
-    while scan_time.weekday() >= 5:
-        scan_time += timedelta(days=1)
-    
-    return scan_time.astimezone(timezone.utc)
+    server_now = get_server_time()
+
+    # Daily close is at 00:00 server time, scan at 00:10 server time
+    today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
+
+    # If include_today is True and we haven't passed today's scan yet, return it
+    if include_today and server_now < today_scan:
+        # Skip weekends
+        if today_scan.weekday() < 5:  # Monday-Friday
+            return today_scan.astimezone(timezone.utc)
+
+    # If we're past today's scan (or it's weekend), get tomorrow's
+    if server_now >= today_scan or today_scan.weekday() >= 5:
+        tomorrow_scan = today_scan + timedelta(days=1)
+        # Skip weekends
+        while tomorrow_scan.weekday() >= 5:
+            tomorrow_scan += timedelta(days=1)
+        return tomorrow_scan.astimezone(timezone.utc)
+
+    # Return today's scan (handles case where include_today=False but it's before scan time)
+    return today_scan.astimezone(timezone.utc)
 
 
 def is_market_open() -> bool:
@@ -492,6 +509,7 @@ class LiveTradingBot:
         # load_best_params_from_file() returns StrategyParams with defaults merged
         self.params = load_best_params_from_file()
         self.last_scan_time: Optional[datetime] = None
+        self.next_scan_time: Optional[datetime] = None  # Store next scheduled scan time
         self.last_validate_time: Optional[datetime] = None
         self.last_spread_check_time: Optional[datetime] = None
         self.last_entry_check_time: Optional[datetime] = None  # Track entry proximity checks
@@ -3027,10 +3045,23 @@ class LiveTradingBot:
             log.info("=" * 70)
             self.scan_all_symbols()
             self._mark_first_run_complete()
+            # Calculate next scan time after immediate scan
+            self.next_scan_time = get_next_scan_time()
         else:
-            next_scan = get_next_scan_time()
-            log.info(f"Skipping immediate scan - next scheduled: {next_scan.strftime('%Y-%m-%d %H:%M:%S UTC')}")
-            self.last_scan_time = datetime.now(timezone.utc)
+            # Get today's scan time (00:10 server time)
+            server_now = get_server_time()
+            today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
+            today_scan_utc = today_scan.astimezone(timezone.utc)
+
+            # If today's scan time has passed and it's a weekday, use today (will trigger immediately)
+            # Otherwise use next future scan time
+            if server_now >= today_scan and today_scan.weekday() < 5:
+                self.next_scan_time = today_scan_utc
+                log.info(f"Missed today's scan - will scan immediately")
+                log.info(f"Scheduled scan time was: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+            else:
+                self.next_scan_time = get_next_scan_time()
+                log.info(f"Skipping immediate scan - next scheduled: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
         
         # Weekend gap check (only on Monday morning)
         self.handle_weekend_gap_positions()
@@ -3126,24 +3157,32 @@ class LiveTradingBot:
                 # ═══════════════════════════════════════════════════════════════
                 # DAILY SCAN - 10 min after daily close (00:10 server time)
                 # ═══════════════════════════════════════════════════════════════
-                next_scan = get_next_scan_time()
-                if self.last_scan_time and now >= next_scan:
+                if self.next_scan_time and now >= self.next_scan_time:
                     if is_market_open():
                         log.info("=" * 70)
                         log.info(f"📊 DAILY SCAN - {get_server_time().strftime('%Y-%m-%d %H:%M')} Server Time")
                         log.info("=" * 70)
+
+                        # Update daily tracking and reset for new day
+                        self.risk_manager._check_new_day()
+
                         self.scan_all_symbols()
-                        
+
                         # Update day_start_equity for next day's DDD calculation
                         # This should be the equity at the end of the current trading day
                         account = self.mt5.get_account_info()
                         if account and self.challenge_manager:
                             current_equity = account.get("equity", 0)
                             self.challenge_manager.update_day_start_equity(current_equity)
+
+                        # Calculate next scan time after successful scan
+                        self.next_scan_time = get_next_scan_time()
+                        log.info(f"Next scan scheduled: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
                     else:
                         log.info("Market closed (weekend), skipping scan")
-                        # Move last_scan_time forward to avoid repeated checks
-                        self.last_scan_time = now
+                        # Calculate next scan time (will skip to Monday)
+                        self.next_scan_time = get_next_scan_time()
+                        log.info(f"Next scan scheduled: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
                 
                 # Reconnection handling
                 if not self.mt5.connected:
