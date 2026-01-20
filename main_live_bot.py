@@ -644,34 +644,31 @@ class LiveTradingBot:
         except Exception as e:
             log.error(f"  ✗ Failed to get/close positions: {e}")
         
-        # CRITICAL: Clear ALL queues to prevent signals from re-entering next day
-        # This prevents duplicate trades after DDD halt reset
+        # CRITICAL: Only clear ACTIVE setups (pending orders, filled positions)
+        # KEEP awaiting_entry and awaiting_spread - these are untriggered signals that should persist!
+        # Signals in queues are still valid and can trigger after halt resets (within 120h expiry)
         try:
-            # Clear awaiting_entry queue
-            if hasattr(self, 'awaiting_entry') and self.awaiting_entry:
-                cleared_entry = len(self.awaiting_entry)
-                self.awaiting_entry.clear()
-                self._save_awaiting_entry()
-                log.info(f"  ✓ Cleared {cleared_entry} signals from awaiting_entry queue")
-            
-            # Clear awaiting_spread queue
-            if hasattr(self, 'awaiting_spread') and self.awaiting_spread:
-                cleared_spread = len(self.awaiting_spread)
-                self.awaiting_spread.clear()
-                self._save_awaiting_spread()
-                log.info(f"  ✓ Cleared {cleared_spread} signals from awaiting_spread queue")
-            
-            # Mark all pending_setups as "halted" to prevent re-scanning
+            # Mark pending_setups with active orders/positions as "halted"
+            # This prevents them from re-triggering but doesn't affect untriggered signals in queues
             if hasattr(self, 'pending_setups') and self.pending_setups:
+                halted_count = 0
                 for symbol, setup in self.pending_setups.items():
                     if setup.status in ("pending", "filled"):
                         setup.status = "halted"
-                        log.info(f"  ✓ Marked {symbol} setup as halted")
-                self._save_pending_setups()
+                        halted_count += 1
+                        log.info(f"  ✓ Marked {symbol} setup as halted (was {setup.status})")
+                if halted_count > 0:
+                    self._save_pending_setups()
+                    log.info(f"  ✓ Halted {halted_count} active setups")
             
-            log.info(f"  ✓ All queues cleared - no signals will re-enter after halt reset")
+            # Log what we're KEEPING (not clearing)
+            if hasattr(self, 'awaiting_entry') and self.awaiting_entry:
+                log.info(f"  ℹ️ Keeping {len(self.awaiting_entry)} signals in awaiting_entry (untriggered, still valid)")
+            if hasattr(self, 'awaiting_spread') and self.awaiting_spread:
+                log.info(f"  ℹ️ Keeping {len(self.awaiting_spread)} signals in awaiting_spread (untriggered, still valid)")
+            
         except Exception as e:
-            log.error(f"  ✗ Failed to clear queues: {e}")
+            log.error(f"  ✗ Failed to update setups: {e}")
 
     PENDING_SETUPS_FILE = "pending_setups.json"
     TRADING_DAYS_FILE = "trading_days.json"
