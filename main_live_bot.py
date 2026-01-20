@@ -225,19 +225,36 @@ def get_next_daily_close() -> datetime:
     return next_close
 
 
-def get_next_scan_time() -> datetime:
+def get_next_scan_time(include_today: bool = False) -> datetime:
     """
     Get next scheduled scan time (10 min after daily close).
     Returns datetime in UTC for comparison.
+
+    Args:
+        include_today: If True, returns today's scan time even if it's in the past.
+                      Useful for initial setup to catch missed scans.
     """
-    next_close = get_next_daily_close()
-    scan_time = next_close + timedelta(minutes=10)  # 00:10 server time
-    
-    # Skip weekends (Saturday = 5, Sunday = 6)
-    while scan_time.weekday() >= 5:
-        scan_time += timedelta(days=1)
-    
-    return scan_time.astimezone(timezone.utc)
+    server_now = get_server_time()
+
+    # Daily close is at 00:00 server time, scan at 00:10 server time
+    today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
+
+    # If include_today is True and we haven't passed today's scan yet, return it
+    if include_today and server_now < today_scan:
+        # Skip weekends
+        if today_scan.weekday() < 5:  # Monday-Friday
+            return today_scan.astimezone(timezone.utc)
+
+    # If we're past today's scan (or it's weekend), get tomorrow's
+    if server_now >= today_scan or today_scan.weekday() >= 5:
+        tomorrow_scan = today_scan + timedelta(days=1)
+        # Skip weekends
+        while tomorrow_scan.weekday() >= 5:
+            tomorrow_scan += timedelta(days=1)
+        return tomorrow_scan.astimezone(timezone.utc)
+
+    # Return today's scan (handles case where include_today=False but it's before scan time)
+    return today_scan.astimezone(timezone.utc)
 
 
 def is_market_open() -> bool:
@@ -3031,10 +3048,20 @@ class LiveTradingBot:
             # Calculate next scan time after immediate scan
             self.next_scan_time = get_next_scan_time()
         else:
-            # Store the next scan time so it doesn't keep recalculating
-            self.next_scan_time = get_next_scan_time()
-            log.info(f"Skipping immediate scan - next scheduled: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
-            self.last_scan_time = datetime.now(timezone.utc)
+            # Get today's scan time (00:10 server time)
+            server_now = get_server_time()
+            today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
+            today_scan_utc = today_scan.astimezone(timezone.utc)
+
+            # If today's scan time has passed and it's a weekday, use today (will trigger immediately)
+            # Otherwise use next future scan time
+            if server_now >= today_scan and today_scan.weekday() < 5:
+                self.next_scan_time = today_scan_utc
+                log.info(f"Missed today's scan - will scan immediately")
+                log.info(f"Scheduled scan time was: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+            else:
+                self.next_scan_time = get_next_scan_time()
+                log.info(f"Skipping immediate scan - next scheduled: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
         
         # Weekend gap check (only on Monday morning)
         self.handle_weekend_gap_positions()
