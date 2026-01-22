@@ -3104,10 +3104,10 @@ class LiveTradingBot:
                     # Move SL to breakeven (matches simulator)
                     new_sl = entry
                     modify_result = self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
-                    if modify_result.success:
+                    if modify_result:  # modify_sl_tp returns bool
                         log.info(f"[{broker_symbol}] SL moved to breakeven: {new_sl:.5f}")
                     else:
-                        log.error(f"[{broker_symbol}] Failed to move SL to breakeven: {modify_result.error}")
+                        log.error(f"[{broker_symbol}] Failed to move SL to breakeven")
                     
                     self._save_pending_setups()
                 else:
@@ -3147,10 +3147,10 @@ class LiveTradingBot:
                         new_sl = entry - (risk * tp1_r) - (0.5 * risk)
                     
                     modify_result = self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
-                    if modify_result.success:
+                    if modify_result:  # modify_sl_tp returns bool
                         log.info(f"[{broker_symbol}] SL trailed to TP1+0.5R: {new_sl:.5f}")
                     else:
-                        log.error(f"[{broker_symbol}] Failed to trail SL: {modify_result.error}")
+                        log.error(f"[{broker_symbol}] Failed to trail SL to TP1+0.5R")
                     
                     self._save_pending_setups()
                 else:
