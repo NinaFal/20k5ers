@@ -33,6 +33,7 @@ import time
 import json
 import argparse
 import signal as sig_module
+import math
 from datetime import datetime, timezone, timedelta, date
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -3064,6 +3065,11 @@ class LiveTradingBot:
             if not tick:
                 continue
             
+            # Get symbol info for lot_step (important for indices with step=1.0)
+            symbol_info = self.mt5.get_symbol_info(broker_symbol)
+            lot_step = symbol_info.get('lot_step', 0.01) if symbol_info else 0.01
+            min_lot = symbol_info.get('min_lot', 0.01) if symbol_info else 0.01
+            
             current_price = tick.bid if setup.direction == "bullish" else tick.ask
             entry = setup.entry_price
             risk = abs(entry - setup.stop_loss)
@@ -3093,10 +3099,28 @@ class LiveTradingBot:
             # TP levels can be checked in same cycle (prevents missing TP2/TP3)
             if current_r >= tp1_r and partial_state == 0:
                 close_pct = self.params.tp1_close_pct
-                close_volume = max(0.01, round(original_volume * close_pct, 2))
+                # Use floor to avoid closing MORE than intended % (critical for indices with lot_step=1.0)
+                raw_volume = original_volume * close_pct
+                close_volume = math.floor(raw_volume / lot_step) * lot_step
+                close_volume = max(min_lot, close_volume)  # Ensure at least min_lot
                 close_volume = min(close_volume, current_volume)
                 
-                log.info(f"[{broker_symbol}] TP1 HIT at {current_r:.2f}R! Closing {close_pct*100:.0f}%")
+                # Skip if close_volume would be >= current volume (would close entire position)
+                if close_volume >= current_volume * 0.95:
+                    log.warning(f"[{broker_symbol}] TP1: Skipping partial (close_volume {close_volume:.2f} ~= current {current_volume:.2f})")
+                    log.info(f"[{broker_symbol}] lot_step={lot_step} is too large for partial closes on this position")
+                    # Still mark TP1 hit and move SL to breakeven
+                    setup.tp1_hit = True
+                    setup.partial_closes = 1
+                    partial_state = 1
+                    new_sl = entry
+                    modify_result = self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
+                    if modify_result:
+                        log.info(f"[{broker_symbol}] SL moved to breakeven: {new_sl:.5f}")
+                    self._save_pending_setups()
+                    continue
+                
+                log.info(f"[{broker_symbol}] TP1 HIT at {current_r:.2f}R! Closing {close_pct*100:.0f}% ({close_volume:.2f} lots)")
                 
                 # Retry logic for partial close (up to 3 attempts)
                 result = None
@@ -3132,10 +3156,31 @@ class LiveTradingBot:
             # FIXED: Changed elif to if so TP2 can be checked in same cycle as TP1
             if current_r >= tp2_r and partial_state == 1:
                 close_pct = self.params.tp2_close_pct
-                close_volume = max(0.01, round(original_volume * close_pct, 2))
+                # Use floor to avoid closing MORE than intended % (critical for indices with lot_step=1.0)
+                raw_volume = original_volume * close_pct
+                close_volume = math.floor(raw_volume / lot_step) * lot_step
+                close_volume = max(min_lot, close_volume)  # Ensure at least min_lot
                 close_volume = min(close_volume, current_volume)
                 
-                log.info(f"[{broker_symbol}] TP2 HIT at {current_r:.2f}R! Closing {close_pct*100:.0f}%")
+                # Skip if close_volume would be >= current volume (would close entire position)
+                if close_volume >= current_volume * 0.95:
+                    log.warning(f"[{broker_symbol}] TP2: Skipping partial (close_volume {close_volume:.2f} ~= current {current_volume:.2f})")
+                    log.info(f"[{broker_symbol}] lot_step={lot_step} is too large for partial closes on this position")
+                    # Still mark TP2 hit and trail SL
+                    setup.tp2_hit = True
+                    setup.partial_closes = 2
+                    partial_state = 2
+                    if setup.direction == "bullish":
+                        new_sl = entry + (risk * tp1_r) + (0.5 * risk)
+                    else:
+                        new_sl = entry - (risk * tp1_r) - (0.5 * risk)
+                    modify_result = self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
+                    if modify_result:
+                        log.info(f"[{broker_symbol}] SL trailed to TP1+0.5R: {new_sl:.5f}")
+                    self._save_pending_setups()
+                    continue
+                
+                log.info(f"[{broker_symbol}] TP2 HIT at {current_r:.2f}R! Closing {close_pct*100:.0f}% ({close_volume:.2f} lots)")
                 
                 # Retry logic for partial close (up to 3 attempts)
                 result = None
