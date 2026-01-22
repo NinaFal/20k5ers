@@ -1611,8 +1611,14 @@ class LiveTradingBot:
             phase = self.risk_manager.state.phase
             log.info(f"Challenge already active (Phase {phase}) - continuing...")
     
-    def connect(self) -> bool:
-        """Connect to MT5."""
+    def connect(self, skip_day_start_sync: bool = False) -> bool:
+        """
+        Connect to MT5.
+        
+        Args:
+            skip_day_start_sync: If True, skip the sync_with_mt5 call that updates day_start_equity.
+                                 Used by --set-day-start-equity command to prevent overwriting.
+        """
         log.info("=" * 70)
         log.info("CONNECTING TO MT5")
         log.info("=" * 70)
@@ -1626,6 +1632,9 @@ class LiveTradingBot:
         log.info(f"Balance: ${account.get('balance', 0):,.2f}")
         log.info(f"Equity: ${account.get('equity', 0):,.2f}")
         log.info(f"Leverage: 1:{account.get('leverage', 0)}")
+        
+        # Store skip flag for later use in connect
+        self._skip_day_start_sync = skip_day_start_sync
         
         # Discover available symbols
         log.info("\n" + "=" * 70)
@@ -1722,7 +1731,11 @@ class LiveTradingBot:
                     state_file="challenge_risk_state.json",
                     trading_days_file=self.TRADING_DAYS_FILE,
                 )
-                self.challenge_manager.sync_with_mt5(balance, equity)
+                # Only sync if not skipping (used by --set-day-start-equity command)
+                if not getattr(self, '_skip_day_start_sync', False):
+                    self.challenge_manager.sync_with_mt5(balance, equity)
+                else:
+                    log.info("Skipping sync_with_mt5 (manual day_start_equity will be set)")
                 log.info("Challenge Risk Manager initialized with ELITE PROTECTION")
         
         # CRITICAL: Sync pending_setups and queues with actual MT5 state
@@ -3822,7 +3835,8 @@ def main():
             print("ERROR: Day start equity must be greater than 0")
             sys.exit(1)
         
-        if not bot.connect():
+        # Connect with skip_day_start_sync=True to prevent overwriting the manual value
+        if not bot.connect(skip_day_start_sync=True):
             print("ERROR: Could not connect to MT5")
             sys.exit(1)
         
