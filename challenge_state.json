@@ -2,27 +2,1334 @@
   "phase": 1,
   "live_flag": false,
   "initial_balance": 20000.0,
-  "current_balance": 19961.67,
-  "highest_balance": 20204.05,
-  "day_start_balance": 20193.68,
-  "current_day": "2026-01-18",
-  "total_trades": 0,
+  "current_balance": 20000.0,
+  "highest_balance": 20000.0,
+  "day_start_balance": 20000.0,
+  "current_day": "2026-01-22",
+  "total_trades": 146,
   "winning_trades": 0,
   "losing_trades": 0,
-  "profitable_days": 2,
-  "daily_records": [
+  "profitable_days": 0,
+  "daily_records": [],
+  "trades_history": [],
+  "open_positions": [
     {
-      "date": "2026-01-17",
-      "starting_balance": 20000.0,
-      "ending_balance": 20171.13,
-      "trades_count": 0,
-      "pnl_usd": 171.13
+      "symbol": "EUR_JPY",
+      "direction": "bearish",
+      "entry_price": 140.03824999999998,
+      "stop_loss": 143.0675940944555,
+      "lot_size": 0.05,
+      "order_id": 1000002,
+      "entry_time": "2026-01-22 22:48:14.000493+00:00"
+    },
+    {
+      "symbol": "GBP_NZD",
+      "direction": "bearish",
+      "entry_price": 1.91264836,
+      "stop_loss": 1.9313090742857142,
+      "lot_size": 0.1,
+      "order_id": 1000007,
+      "entry_time": "2026-01-22 22:48:14.225678+00:00"
+    },
+    {
+      "symbol": "NZD_USD",
+      "direction": "bearish",
+      "entry_price": 0.6382179,
+      "stop_loss": 0.6506898350138751,
+      "lot_size": 0.1,
+      "order_id": 1000001,
+      "entry_time": "2026-01-22 22:48:14.578173+00:00"
+    },
+    {
+      "symbol": "AUD_CHF",
+      "direction": "bearish",
+      "entry_price": 0.62921,
+      "stop_loss": 0.6396827431972778,
+      "lot_size": 0.11,
+      "order_id": 1000004,
+      "entry_time": "2026-01-22 22:48:14.918674+00:00"
+    },
+    {
+      "symbol": "EUR_AUD",
+      "direction": "bullish",
+      "entry_price": 1.56759,
+      "stop_loss": 1.545596153065576,
+      "lot_size": 0.08,
+      "order_id": 1000003,
+      "entry_time": "2026-01-22 22:48:15.782426+00:00"
+    },
+    {
+      "symbol": "EUR_CHF",
+      "direction": "bearish",
+      "entry_price": 0.98617,
+      "stop_loss": 0.9953572101337353,
+      "lot_size": 0.12,
+      "order_id": 1000008,
+      "entry_time": "2026-01-22 22:48:15.783600+00:00"
+    },
+    {
+      "symbol": "CAD_JPY",
+      "direction": "bullish",
+      "entry_price": 96.283422,
+      "stop_loss": 94.41417821218404,
+      "lot_size": 0.08,
+      "order_id": 1000006,
+      "entry_time": "2026-01-22 22:48:16.989273+00:00"
+    },
+    {
+      "symbol": "USD_CAD",
+      "direction": "bullish",
+      "entry_price": 1.35786192,
+      "stop_loss": 1.3469184285291422,
+      "lot_size": 0.15,
+      "order_id": 1000012,
+      "entry_time": "2026-01-22 22:48:38.843531+00:00"
+    },
+    {
+      "symbol": "AUD_JPY",
+      "direction": "bearish",
+      "entry_price": 88.569432,
+      "stop_loss": 90.81531839725325,
+      "lot_size": 0.07,
+      "order_id": 1000013,
+      "entry_time": "2026-01-22 22:48:38.844875+00:00"
+    },
+    {
+      "symbol": "EUR_CAD",
+      "direction": "bullish",
+      "entry_price": 1.44192,
+      "stop_loss": 1.4322885714285716,
+      "lot_size": 0.14,
+      "order_id": 1000017,
+      "entry_time": "2026-01-22 22:48:38.899976+00:00"
+    },
+    {
+      "symbol": "EUR_USD",
+      "direction": "bearish",
+      "entry_price": 1.06447282,
+      "stop_loss": 1.0750528154461922,
+      "lot_size": 0.14,
+      "order_id": 1000015,
+      "entry_time": "2026-01-22 22:48:38.907274+00:00"
+    },
+    {
+      "symbol": "AUD_USD",
+      "direction": "bullish",
+      "entry_price": 0.67278,
+      "stop_loss": 0.663392938861301,
+      "lot_size": 0.13,
+      "order_id": 1000018,
+      "entry_time": "2026-01-22 22:48:38.933144+00:00"
+    },
+    {
+      "symbol": "AUD_CAD",
+      "direction": "bullish",
+      "entry_price": 0.91455754,
+      "stop_loss": 0.9045885069779193,
+      "lot_size": 0.16,
+      "order_id": 1000019,
+      "entry_time": "2026-01-22 22:48:38.934654+00:00"
+    },
+    {
+      "symbol": "GBP_CHF",
+      "direction": "bearish",
+      "entry_price": 1.1258235,
+      "stop_loss": 1.1387266386239439,
+      "lot_size": 0.09,
+      "order_id": 1000020,
+      "entry_time": "2026-01-22 22:48:38.999960+00:00"
+    },
+    {
+      "symbol": "GBP_NZD",
+      "direction": "bearish",
+      "entry_price": 1.91529,
+      "stop_loss": 1.9367900618391312,
+      "lot_size": 0.09,
+      "order_id": 1000023,
+      "entry_time": "2026-01-22 22:48:58.777444+00:00"
+    },
+    {
+      "symbol": "NZD_USD",
+      "direction": "bearish",
+      "entry_price": 0.62946,
+      "stop_loss": 0.6439072943565097,
+      "lot_size": 0.08,
+      "order_id": 1000024,
+      "entry_time": "2026-01-22 22:48:58.836919+00:00"
+    },
+    {
+      "symbol": "USD_CAD",
+      "direction": "bearish",
+      "entry_price": 1.35971774,
+      "stop_loss": 1.372870387794368,
+      "lot_size": 0.13,
+      "order_id": 1000025,
+      "entry_time": "2026-01-22 22:48:58.858849+00:00"
+    },
+    {
+      "symbol": "USD_JPY",
+      "direction": "bearish",
+      "entry_price": 131.763984,
+      "stop_loss": 133.70162685714286,
+      "lot_size": 0.05,
+      "order_id": 1000030,
+      "entry_time": "2026-01-22 22:48:58.927011+00:00"
+    },
+    {
+      "symbol": "CHF_JPY",
+      "direction": "bearish",
+      "entry_price": 141.782886,
+      "stop_loss": 143.906386,
+      "lot_size": 0.07,
+      "order_id": 1000029,
+      "entry_time": "2026-01-22 22:48:58.931487+00:00"
+    },
+    {
+      "symbol": "GBP_NZD",
+      "direction": "bearish",
+      "entry_price": 1.91252,
+      "stop_loss": 1.9323867717077647,
+      "lot_size": 0.1,
+      "order_id": 1000031,
+      "entry_time": "2026-01-22 22:49:18.836470+00:00"
+    },
+    {
+      "symbol": "AUD_CAD",
+      "direction": "bullish",
+      "entry_price": 0.9162,
+      "stop_loss": 0.9043682534656549,
+      "lot_size": 0.14,
+      "order_id": 1000035,
+      "entry_time": "2026-01-22 22:49:18.900904+00:00"
+    },
+    {
+      "symbol": "AUD_USD",
+      "direction": "bullish",
+      "entry_price": 0.67511,
+      "stop_loss": 0.6623036819773462,
+      "lot_size": 0.09,
+      "order_id": 1000036,
+      "entry_time": "2026-01-22 22:49:18.906145+00:00"
+    },
+    {
+      "symbol": "USD_CAD",
+      "direction": "bearish",
+      "entry_price": 1.35849152,
+      "stop_loss": 1.3734858593357069,
+      "lot_size": 0.11,
+      "order_id": 1000038,
+      "entry_time": "2026-01-22 22:49:38.741359+00:00"
+    },
+    {
+      "symbol": "EUR_USD",
+      "direction": "bullish",
+      "entry_price": 1.06444,
+      "stop_loss": 1.0479557632888903,
+      "lot_size": 0.11,
+      "order_id": 1000042,
+      "entry_time": "2026-01-22 22:49:38.853554+00:00"
+    },
+    {
+      "symbol": "GBP_USD",
+      "direction": "bearish",
+      "entry_price": 1.20926,
+      "stop_loss": 1.2257681213615057,
+      "lot_size": 0.07,
+      "order_id": 1000043,
+      "entry_time": "2026-01-22 22:49:38.855393+00:00"
+    },
+    {
+      "symbol": "GBP_NZD",
+      "direction": "bearish",
+      "entry_price": 1.90741,
+      "stop_loss": 1.9301788399425834,
+      "lot_size": 0.08,
+      "order_id": 1000058,
+      "entry_time": "2026-01-22 22:50:18.370877+00:00"
+    },
+    {
+      "symbol": "USD_CHF",
+      "direction": "bearish",
+      "entry_price": 0.92294,
+      "stop_loss": 0.9446838619141824,
+      "lot_size": 0.05,
+      "order_id": 1000054,
+      "entry_time": "2026-01-22 22:50:18.425633+00:00"
+    },
+    {
+      "symbol": "EUR_CAD",
+      "direction": "bullish",
+      "entry_price": 1.44135,
+      "stop_loss": 1.4193128809820887,
+      "lot_size": 0.07,
+      "order_id": 1000055,
+      "entry_time": "2026-01-22 22:50:18.450620+00:00"
+    },
+    {
+      "symbol": "NZD_CHF",
+      "direction": "bullish",
+      "entry_price": 0.58781532,
+      "stop_loss": 0.5796393809603443,
+      "lot_size": 0.13,
+      "order_id": 1000065,
+      "entry_time": "2026-01-22 22:50:38.157055+00:00"
+    },
+    {
+      "symbol": "NZD_USD",
+      "direction": "bullish",
+      "entry_price": 0.63662,
+      "stop_loss": 0.6155397024946607,
+      "lot_size": 0.06,
+      "order_id": 1000062,
+      "entry_time": "2026-01-22 22:50:38.161978+00:00"
+    },
+    {
+      "symbol": "NAS100_USD",
+      "direction": "bearish",
+      "entry_price": 11499.3635,
+      "stop_loss": 12094.745851153393,
+      "lot_size": 0.2,
+      "order_id": 1000068,
+      "entry_time": "2026-01-22 22:50:57.972374+00:00"
+    },
+    {
+      "symbol": "CAD_CHF",
+      "direction": "bearish",
+      "entry_price": 0.69375,
+      "stop_loss": 0.7030145100524493,
+      "lot_size": 0.12,
+      "order_id": 1000076,
+      "entry_time": "2026-01-22 22:50:57.987703+00:00"
+    },
+    {
+      "symbol": "NZD_JPY",
+      "direction": "bearish",
+      "entry_price": 83.713712,
+      "stop_loss": 85.15249155460168,
+      "lot_size": 0.11,
+      "order_id": 1000073,
+      "entry_time": "2026-01-22 22:50:58.026520+00:00"
+    },
+    {
+      "symbol": "GBP_JPY",
+      "direction": "bearish",
+      "entry_price": 159.823732,
+      "stop_loss": 162.0382667714732,
+      "lot_size": 0.07,
+      "order_id": 1000072,
+      "entry_time": "2026-01-22 22:50:58.054551+00:00"
+    },
+    {
+      "symbol": "CAD_JPY",
+      "direction": "bearish",
+      "entry_price": 97.818916,
+      "stop_loss": 99.61429827994183,
+      "lot_size": 0.09,
+      "order_id": 1000075,
+      "entry_time": "2026-01-22 22:50:58.062004+00:00"
+    },
+    {
+      "symbol": "AUD_JPY",
+      "direction": "bullish",
+      "entry_price": 89.193,
+      "stop_loss": 87.50059667042893,
+      "lot_size": 0.09,
+      "order_id": 1000080,
+      "entry_time": "2026-01-22 22:51:17.882823+00:00"
+    },
+    {
+      "symbol": "GBP_CAD",
+      "direction": "bearish",
+      "entry_price": 1.63808,
+      "stop_loss": 1.6565191667726853,
+      "lot_size": 0.08,
+      "order_id": 1000079,
+      "entry_time": "2026-01-22 22:51:17.907661+00:00"
+    },
+    {
+      "symbol": "EUR_GBP",
+      "direction": "bullish",
+      "entry_price": 0.88129446,
+      "stop_loss": 0.8738458352240831,
+      "lot_size": 0.13,
+      "order_id": 1000085,
+      "entry_time": "2026-01-22 22:51:57.693613+00:00"
+    },
+    {
+      "symbol": "EUR_CHF",
+      "direction": "bullish",
+      "entry_price": 0.99472,
+      "stop_loss": 0.9830954684936152,
+      "lot_size": 0.1,
+      "order_id": 1000083,
+      "entry_time": "2026-01-22 22:51:57.700025+00:00"
+    },
+    {
+      "symbol": "NZD_JPY",
+      "direction": "bearish",
+      "entry_price": 83.071,
+      "stop_loss": 84.98317051784994,
+      "lot_size": 0.08,
+      "order_id": 1000088,
+      "entry_time": "2026-01-22 22:52:17.379423+00:00"
+    },
+    {
+      "symbol": "GBP_JPY",
+      "direction": "bearish",
+      "entry_price": 159.12,
+      "stop_loss": 162.04064603485676,
+      "lot_size": 0.05,
+      "order_id": 1000090,
+      "entry_time": "2026-01-22 22:52:17.382403+00:00"
+    },
+    {
+      "symbol": "USD_JPY",
+      "direction": "bearish",
+      "entry_price": 130.56260400000002,
+      "stop_loss": 133.2426825413132,
+      "lot_size": 0.06,
+      "order_id": 1000091,
+      "entry_time": "2026-01-22 22:52:17.388011+00:00"
+    },
+    {
+      "symbol": "CAD_JPY",
+      "direction": "bearish",
+      "entry_price": 97.331102,
+      "stop_loss": 99.18555838626544,
+      "lot_size": 0.09,
+      "order_id": 1000092,
+      "entry_time": "2026-01-22 22:52:17.390831+00:00"
+    },
+    {
+      "symbol": "SPX500_USD",
+      "direction": "bullish",
+      "entry_price": 3898.85019766,
+      "stop_loss": 3759.5773125357737,
+      "lot_size": 0.81,
+      "order_id": 1000098,
+      "entry_time": "2026-01-22 22:52:35.817204+00:00"
+    },
+    {
+      "symbol": "NZD_USD",
+      "direction": "bullish",
+      "entry_price": 0.63936,
+      "stop_loss": 0.6290646992733934,
+      "lot_size": 0.12,
+      "order_id": 1000099,
+      "entry_time": "2026-01-22 22:52:37.126633+00:00"
+    },
+    {
+      "symbol": "XAG_USD",
+      "direction": "bullish",
+      "entry_price": 23.530000686645508,
+      "stop_loss": 22.93616798030984,
+      "lot_size": 0.01,
+      "order_id": 1000097,
+      "entry_time": "2026-01-22 22:52:37.139044+00:00"
+    },
+    {
+      "symbol": "EUR_CHF",
+      "direction": "bullish",
+      "entry_price": 0.99212,
+      "stop_loss": 0.9830349192623519,
+      "lot_size": 0.12,
+      "order_id": 1000100,
+      "entry_time": "2026-01-22 22:52:37.157261+00:00"
+    },
+    {
+      "symbol": "AUD_NZD",
+      "direction": "bullish",
+      "entry_price": 1.08078,
+      "stop_loss": 1.0722001145054683,
+      "lot_size": 0.22,
+      "order_id": 1000101,
+      "entry_time": "2026-01-22 22:52:37.204879+00:00"
+    },
+    {
+      "symbol": "GBP_JPY",
+      "direction": "bearish",
+      "entry_price": 159.159,
+      "stop_loss": 162.35565134017932,
+      "lot_size": 0.05,
+      "order_id": 1000094,
+      "entry_time": "2026-01-22 22:52:37.270991+00:00"
+    },
+    {
+      "symbol": "NZD_CHF",
+      "direction": "bullish",
+      "entry_price": 0.58781532,
+      "stop_loss": 0.5810782811172243,
+      "lot_size": 0.16,
+      "order_id": 1000107,
+      "entry_time": "2026-01-22 22:52:57.020608+00:00"
+    },
+    {
+      "symbol": "NZD_JPY",
+      "direction": "bullish",
+      "entry_price": 82.68433399999999,
+      "stop_loss": 81.21980450246612,
+      "lot_size": 0.11,
+      "order_id": 1000110,
+      "entry_time": "2026-01-22 22:52:57.023254+00:00"
+    },
+    {
+      "symbol": "AUD_JPY",
+      "direction": "bullish",
+      "entry_price": 89.284044,
+      "stop_loss": 87.47305040227577,
+      "lot_size": 0.08,
+      "order_id": 1000105,
+      "entry_time": "2026-01-22 22:52:57.026605+00:00"
+    },
+    {
+      "symbol": "EUR_JPY",
+      "direction": "bullish",
+      "entry_price": 139.84886799999998,
+      "stop_loss": 137.19601174143983,
+      "lot_size": 0.06,
+      "order_id": 1000104,
+      "entry_time": "2026-01-22 22:52:57.052169+00:00"
+    },
+    {
+      "symbol": "CHF_JPY",
+      "direction": "bearish",
+      "entry_price": 140.81,
+      "stop_loss": 144.2165136334169,
+      "lot_size": 0.05,
+      "order_id": 1000108,
+      "entry_time": "2026-01-22 22:52:57.054728+00:00"
+    },
+    {
+      "symbol": "XAG_USD",
+      "direction": "bearish",
+      "entry_price": 24.04409620285034,
+      "stop_loss": 24.780395491670046,
+      "lot_size": 0.01,
+      "order_id": 1000109,
+      "entry_time": "2026-01-22 22:52:57.086763+00:00"
+    },
+    {
+      "symbol": "AUD_CHF",
+      "direction": "bullish",
+      "entry_price": 0.63596176,
+      "stop_loss": 0.6260994284807785,
+      "lot_size": 0.11,
+      "order_id": 1000106,
+      "entry_time": "2026-01-22 22:52:57.090286+00:00"
+    },
+    {
+      "symbol": "USD_JPY",
+      "direction": "bearish",
+      "entry_price": 130.56260400000002,
+      "stop_loss": 133.22267015041803,
+      "lot_size": 0.06,
+      "order_id": 1000115,
+      "entry_time": "2026-01-22 22:52:57.167337+00:00"
+    },
+    {
+      "symbol": "EUR_AUD",
+      "direction": "bullish",
+      "entry_price": 1.55786,
+      "stop_loss": 1.531992526186764,
+      "lot_size": 0.07,
+      "order_id": 1000111,
+      "entry_time": "2026-01-22 22:52:57.204250+00:00"
+    },
+    {
+      "symbol": "CAD_CHF",
+      "direction": "bearish",
+      "entry_price": 0.68771,
+      "stop_loss": 0.6975551965289432,
+      "lot_size": 0.11,
+      "order_id": 1000117,
+      "entry_time": "2026-01-22 22:52:57.229095+00:00"
+    },
+    {
+      "symbol": "GBP_NZD",
+      "direction": "bearish",
+      "entry_price": 1.90732,
+      "stop_loss": 1.9477141968270306,
+      "lot_size": 0.05,
+      "order_id": 1000119,
+      "entry_time": "2026-01-22 22:53:16.797089+00:00"
+    },
+    {
+      "symbol": "EUR_GBP",
+      "direction": "bullish",
+      "entry_price": 0.88129446,
+      "stop_loss": 0.8697617251111004,
+      "lot_size": 0.09,
+      "order_id": 1000120,
+      "entry_time": "2026-01-22 22:53:16.803695+00:00"
+    },
+    {
+      "symbol": "USD_CHF",
+      "direction": "bearish",
+      "entry_price": 0.9218,
+      "stop_loss": 0.9324228405875337,
+      "lot_size": 0.1,
+      "order_id": 1000118,
+      "entry_time": "2026-01-22 22:53:16.812662+00:00"
+    },
+    {
+      "symbol": "XAG_USD",
+      "direction": "bullish",
+      "entry_price": 23.64900016784668,
+      "stop_loss": 22.943744085881235,
+      "lot_size": 0.01,
+      "order_id": 1000122,
+      "entry_time": "2026-01-22 22:53:56.422969+00:00"
+    },
+    {
+      "symbol": "XAG_USD",
+      "direction": "bullish",
+      "entry_price": 23.629685985565185,
+      "stop_loss": 22.656274289320407,
+      "lot_size": 0.01,
+      "order_id": 1000124,
+      "entry_time": "2026-01-22 22:54:36.311200+00:00"
+    },
+    {
+      "symbol": "EUR_NZD",
+      "direction": "bullish",
+      "entry_price": 1.6823038,
+      "stop_loss": 1.65933156258692,
+      "lot_size": 0.09,
+      "order_id": 1000127,
+      "entry_time": "2026-01-22 22:55:16.076044+00:00"
+    },
+    {
+      "symbol": "NZD_CAD",
+      "direction": "bearish",
+      "entry_price": 0.86480388,
+      "stop_loss": 0.8737555001368684,
+      "lot_size": 0.19,
+      "order_id": 1000129,
+      "entry_time": "2026-01-22 22:55:16.079032+00:00"
+    },
+    {
+      "symbol": "GBP_CAD",
+      "direction": "bearish",
+      "entry_price": 1.65799348,
+      "stop_loss": 1.676364675886485,
+      "lot_size": 0.09,
+      "order_id": 1000128,
+      "entry_time": "2026-01-22 22:55:16.117637+00:00"
+    },
+    {
+      "symbol": "USD_CAD",
+      "direction": "bearish",
+      "entry_price": 1.34446584,
+      "stop_loss": 1.3572112500383329,
+      "lot_size": 0.13,
+      "order_id": 1000130,
+      "entry_time": "2026-01-22 22:55:16.136222+00:00"
+    },
+    {
+      "symbol": "AUD_USD",
+      "direction": "bullish",
+      "entry_price": 0.69840496,
+      "stop_loss": 0.6869204759066182,
+      "lot_size": 0.11,
+      "order_id": 1000131,
+      "entry_time": "2026-01-22 22:55:16.172118+00:00"
+    },
+    {
+      "symbol": "GBP_CHF",
+      "direction": "bearish",
+      "entry_price": 1.1372584000000001,
+      "stop_loss": 1.146821928760022,
+      "lot_size": 0.12,
+      "order_id": 1000135,
+      "entry_time": "2026-01-22 22:55:16.197694+00:00"
+    },
+    {
+      "symbol": "AUD_CAD",
+      "direction": "bullish",
+      "entry_price": 0.93869,
+      "stop_loss": 0.92706639250679,
+      "lot_size": 0.14,
+      "order_id": 1000133,
+      "entry_time": "2026-01-22 22:55:16.253898+00:00"
+    },
+    {
+      "symbol": "EUR_CHF",
+      "direction": "bullish",
+      "entry_price": 0.99528,
+      "stop_loss": 0.9848993835568768,
+      "lot_size": 0.11,
+      "order_id": 1000136,
+      "entry_time": "2026-01-22 22:55:16.261268+00:00"
+    },
+    {
+      "symbol": "NZD_CHF",
+      "direction": "bullish",
+      "entry_price": 0.58996,
+      "stop_loss": 0.5826052214172783,
+      "lot_size": 0.16,
+      "order_id": 1000137,
+      "entry_time": "2026-01-22 22:55:16.293427+00:00"
+    },
+    {
+      "symbol": "GBP_USD",
+      "direction": "bearish",
+      "entry_price": 1.23330534,
+      "stop_loss": 1.2466319212626675,
+      "lot_size": 0.1,
+      "order_id": 1000138,
+      "entry_time": "2026-01-22 22:55:56.211528+00:00"
+    },
+    {
+      "symbol": "NZD_USD",
+      "direction": "bearish",
+      "entry_price": 0.64573688,
+      "stop_loss": 0.657944131862838,
+      "lot_size": 0.11,
+      "order_id": 1000141,
+      "entry_time": "2026-01-22 22:56:15.946245+00:00"
+    },
+    {
+      "symbol": "EUR_USD",
+      "direction": "bearish",
+      "entry_price": 1.0941663799999999,
+      "stop_loss": 1.108105195671733,
+      "lot_size": 0.11,
+      "order_id": 1000144,
+      "entry_time": "2026-01-22 22:56:15.995667+00:00"
+    },
+    {
+      "symbol": "AUD_USD",
+      "direction": "bullish",
+      "entry_price": 0.69840496,
+      "stop_loss": 0.6868116603480534,
+      "lot_size": 0.12,
+      "order_id": 1000146,
+      "entry_time": "2026-01-22 22:56:16.001105+00:00"
+    },
+    {
+      "symbol": "EUR_AUD",
+      "direction": "bullish",
+      "entry_price": 1.5403465,
+      "stop_loss": 1.52152993720773,
+      "lot_size": 0.05,
+      "order_id": 1000142,
+      "entry_time": "2026-01-22 22:56:16.027265+00:00"
+    },
+    {
+      "symbol": "NZD_CAD",
+      "direction": "bullish",
+      "entry_price": 0.85418382,
+      "stop_loss": 0.8401621104953717,
+      "lot_size": 0.13,
+      "order_id": 1000147,
+      "entry_time": "2026-01-22 22:56:16.030836+00:00"
+    },
+    {
+      "symbol": "EUR_AUD",
+      "direction": "bearish",
+      "entry_price": 1.55587844,
+      "stop_loss": 1.57472615108109,
+      "lot_size": 0.1,
+      "order_id": 1000151,
+      "entry_time": "2026-01-22 22:56:55.649132+00:00"
+    },
+    {
+      "symbol": "AUD_NZD",
+      "direction": "bullish",
+      "entry_price": 1.09697236,
+      "stop_loss": 1.0844044402430881,
+      "lot_size": 0.17,
+      "order_id": 1000155,
+      "entry_time": "2026-01-22 22:56:55.682956+00:00"
+    },
+    {
+      "symbol": "EUR_CAD",
+      "direction": "bullish",
+      "entry_price": 1.43734,
+      "stop_loss": 1.4181469293240745,
+      "lot_size": 0.09,
+      "order_id": 1000152,
+      "entry_time": "2026-01-22 22:56:55.725033+00:00"
+    },
+    {
+      "symbol": "AUD_USD",
+      "direction": "bullish",
+      "entry_price": 0.69588,
+      "stop_loss": 0.6818997223862021,
+      "lot_size": 0.1,
+      "order_id": 1000154,
+      "entry_time": "2026-01-22 22:56:55.779178+00:00"
+    },
+    {
+      "symbol": "GBP_JPY",
+      "direction": "bullish",
+      "entry_price": 158.31538,
+      "stop_loss": 155.27654796973968,
+      "lot_size": 0.06,
+      "order_id": 1000161,
+      "entry_time": "2026-01-22 22:57:35.886189+00:00"
+    },
+    {
+      "symbol": "SPX500_USD",
+      "direction": "bullish",
+      "entry_price": 4065.119,
+      "stop_loss": 3873.956624483829,
+      "lot_size": 0.7000000000000001,
+      "order_id": 1000163,
+      "entry_time": "2026-01-22 22:57:56.121444+00:00"
+    },
+    {
+      "symbol": "USD_JPY",
+      "direction": "bullish",
+      "entry_price": 130.188428,
+      "stop_loss": 127.8151542096586,
+      "lot_size": 0.06,
+      "order_id": 1000169,
+      "entry_time": "2026-01-22 22:57:56.291405+00:00"
+    },
+    {
+      "symbol": "AUD_JPY",
+      "direction": "bullish",
+      "entry_price": 91.412936,
+      "stop_loss": 89.77371822407154,
+      "lot_size": 0.11,
+      "order_id": 1000173,
+      "entry_time": "2026-01-22 22:58:16.114444+00:00"
+    },
+    {
+      "symbol": "EUR_NZD",
+      "direction": "bullish",
+      "entry_price": 1.68624,
+      "stop_loss": 1.666712751366611,
+      "lot_size": 0.11,
+      "order_id": 1000174,
+      "entry_time": "2026-01-22 22:58:16.153347+00:00"
+    },
+    {
+      "symbol": "GBP_USD",
+      "direction": "bearish",
+      "entry_price": 1.22629526,
+      "stop_loss": 1.247374547459206,
+      "lot_size": 0.06,
+      "order_id": 1000178,
+      "entry_time": "2026-01-22 22:58:36.213360+00:00"
+    },
+    {
+      "symbol": "GBP_CAD",
+      "direction": "bullish",
+      "entry_price": 1.62088224,
+      "stop_loss": 1.6022649773517246,
+      "lot_size": 0.1,
+      "order_id": 1000187,
+      "entry_time": "2026-01-22 23:00:16.526639+00:00"
+    },
+    {
+      "symbol": "GBP_AUD",
+      "direction": "bullish",
+      "entry_price": 1.7516044,
+      "stop_loss": 1.7329543676124888,
+      "lot_size": 0.11,
+      "order_id": 1000188,
+      "entry_time": "2026-01-22 23:00:16.578569+00:00"
+    },
+    {
+      "symbol": "GBP_USD",
+      "direction": "bearish",
+      "entry_price": 1.21115,
+      "stop_loss": 1.2241407142857144,
+      "lot_size": 0.06,
+      "order_id": 1000189,
+      "entry_time": "2026-01-22 23:00:16.590870+00:00"
+    },
+    {
+      "symbol": "AUD_NZD",
+      "direction": "bullish",
+      "entry_price": 1.09971216,
+      "stop_loss": 1.0928374167506472,
+      "lot_size": 0.32,
+      "order_id": 1000190,
+      "entry_time": "2026-01-22 23:00:36.499531+00:00"
+    },
+    {
+      "symbol": "AUD_JPY",
+      "direction": "bullish",
+      "entry_price": 91.821,
+      "stop_loss": 90.3895271209484,
+      "lot_size": 0.13,
+      "order_id": 1000192,
+      "entry_time": "2026-01-22 23:00:36.701420+00:00"
+    },
+    {
+      "symbol": "NZD_CHF",
+      "direction": "bearish",
+      "entry_price": 0.58164,
+      "stop_loss": 0.5860735714285714,
+      "lot_size": 0.22,
+      "order_id": 1000194,
+      "entry_time": "2026-01-22 23:00:56.725479+00:00"
+    },
+    {
+      "symbol": "CAD_JPY",
+      "direction": "bullish",
+      "entry_price": 99.11826,
+      "stop_loss": 97.88255143455736,
+      "lot_size": 0.15,
+      "order_id": 1000197,
+      "entry_time": "2026-01-22 23:01:16.723483+00:00"
+    },
+    {
+      "symbol": "GBP_CHF",
+      "direction": "bearish",
+      "entry_price": 1.12866,
+      "stop_loss": 1.1463962838115842,
+      "lot_size": 0.07,
+      "order_id": 1000203,
+      "entry_time": "2026-01-22 23:01:36.730874+00:00"
+    },
+    {
+      "symbol": "NZD_CAD",
+      "direction": "bullish",
+      "entry_price": 0.84220532,
+      "stop_loss": 0.8308536705493826,
+      "lot_size": 0.17,
+      "order_id": 1000212,
+      "entry_time": "2026-01-22 23:02:17.792688+00:00"
+    },
+    {
+      "symbol": "CAD_JPY",
+      "direction": "bullish",
+      "entry_price": 99.844476,
+      "stop_loss": 98.95976171428572,
+      "lot_size": 0.21,
+      "order_id": 1000213,
+      "entry_time": "2026-01-22 23:02:17.796613+00:00"
+    },
+    {
+      "symbol": "GBP_NZD",
+      "direction": "bullish",
+      "entry_price": 1.9311087599999999,
+      "stop_loss": 1.906681991993969,
+      "lot_size": 0.09,
+      "order_id": 1000214,
+      "entry_time": "2026-01-22 23:02:17.911472+00:00"
+    },
+    {
+      "symbol": "EUR_USD",
+      "direction": "bearish",
+      "entry_price": 1.06696,
+      "stop_loss": 1.077892848765245,
+      "lot_size": 0.12,
+      "order_id": 1000216,
+      "entry_time": "2026-01-22 23:02:17.940638+00:00"
+    },
+    {
+      "symbol": "CAD_JPY",
+      "direction": "bullish",
+      "entry_price": 99.852,
+      "stop_loss": 99.08158853510818,
+      "lot_size": 0.25,
+      "order_id": 1000222,
+      "entry_time": "2026-01-22 23:03:17.624681+00:00"
+    },
+    {
+      "symbol": "AUD_CHF",
+      "direction": "bearish",
+      "entry_price": 0.63225886,
+      "stop_loss": 0.6384171510553791,
+      "lot_size": 0.21,
+      "order_id": 1000220,
+      "entry_time": "2026-01-22 23:03:17.632055+00:00"
+    },
+    {
+      "symbol": "NZD_CHF",
+      "direction": "bearish",
+      "entry_price": 0.58097408,
+      "stop_loss": 0.5906032988040127,
+      "lot_size": 0.14,
+      "order_id": 1000221,
+      "entry_time": "2026-01-22 23:03:17.709331+00:00"
+    },
+    {
+      "symbol": "AUD_USD",
+      "direction": "bearish",
+      "entry_price": 0.67222432,
+      "stop_loss": 0.6848371152673651,
+      "lot_size": 0.11,
+      "order_id": 1000224,
+      "entry_time": "2026-01-22 23:03:37.562530+00:00"
+    },
+    {
+      "symbol": "GBP_JPY",
+      "direction": "bullish",
+      "entry_price": 162.215,
+      "stop_loss": 159.79715735501105,
+      "lot_size": 0.08,
+      "order_id": 1000226,
+      "entry_time": "2026-01-22 23:03:37.748020+00:00"
+    },
+    {
+      "symbol": "EUR_JPY",
+      "direction": "bullish",
+      "entry_price": 143.738,
+      "stop_loss": 142.29452816807236,
+      "lot_size": 0.13,
+      "order_id": 1000230,
+      "entry_time": "2026-01-22 23:04:37.042312+00:00"
+    },
+    {
+      "symbol": "GBP_JPY",
+      "direction": "bullish",
+      "entry_price": 162.343,
+      "stop_loss": 159.73877811892103,
+      "lot_size": 0.07,
+      "order_id": 1000234,
+      "entry_time": "2026-01-22 23:04:56.507296+00:00"
+    },
+    {
+      "symbol": "NZD_USD",
+      "direction": "bullish",
+      "entry_price": 0.61790792,
+      "stop_loss": 0.6061896577638611,
+      "lot_size": 0.12,
+      "order_id": 1000233,
+      "entry_time": "2026-01-22 23:04:56.519729+00:00"
+    },
+    {
+      "symbol": "EUR_NZD",
+      "direction": "bullish",
+      "entry_price": 1.72106,
+      "stop_loss": 1.7025830281889776,
+      "lot_size": 0.13,
+      "order_id": 1000240,
+      "entry_time": "2026-01-22 23:05:16.345762+00:00"
+    },
+    {
+      "symbol": "EUR_JPY",
+      "direction": "bullish",
+      "entry_price": 143.533402,
+      "stop_loss": 140.80409698124174,
+      "lot_size": 0.07,
+      "order_id": 1000239,
+      "entry_time": "2026-01-22 23:05:16.386217+00:00"
+    },
+    {
+      "symbol": "USD_CAD",
+      "direction": "bullish",
+      "entry_price": 1.36862,
+      "stop_loss": 1.3527199885715357,
+      "lot_size": 0.13,
+      "order_id": 1000242,
+      "entry_time": "2026-01-22 23:05:16.429838+00:00"
+    },
+    {
+      "symbol": "EUR_GBP",
+      "direction": "bullish",
+      "entry_price": 0.8828,
+      "stop_loss": 0.8727294742267956,
+      "lot_size": 0.12,
+      "order_id": 1000238,
+      "entry_time": "2026-01-22 23:05:16.478110+00:00"
+    },
+    {
+      "symbol": "GBP_NZD",
+      "direction": "bullish",
+      "entry_price": 1.94958,
+      "stop_loss": 1.9272547724725488,
+      "lot_size": 0.11,
+      "order_id": 1000243,
+      "entry_time": "2026-01-22 23:05:16.482759+00:00"
+    },
+    {
+      "symbol": "NAS100_USD",
+      "direction": "bearish",
+      "entry_price": 12138.8985,
+      "stop_loss": 12903.44800132129,
+      "lot_size": 0.19,
+      "order_id": 1000241,
+      "entry_time": "2026-01-22 23:05:36.400734+00:00"
+    },
+    {
+      "symbol": "GBP_JPY",
+      "direction": "bearish",
+      "entry_price": 163.23099200000001,
+      "stop_loss": 165.12434914285717,
+      "lot_size": 0.11,
+      "order_id": 1000246,
+      "entry_time": "2026-01-22 23:05:36.452749+00:00"
+    },
+    {
+      "symbol": "CHF_JPY",
+      "direction": "bearish",
+      "entry_price": 145.22477999999998,
+      "stop_loss": 148.23476438195144,
+      "lot_size": 0.07,
+      "order_id": 1000251,
+      "entry_time": "2026-01-22 23:05:36.584190+00:00"
+    },
+    {
+      "symbol": "USD_CHF",
+      "direction": "bullish",
+      "entry_price": 0.92420972,
+      "stop_loss": 0.9033025858001629,
+      "lot_size": 0.07,
+      "order_id": 1000252,
+      "entry_time": "2026-01-22 23:05:36.595738+00:00"
+    },
+    {
+      "symbol": "EUR_USD",
+      "direction": "bearish",
+      "entry_price": 1.05756,
+      "stop_loss": 1.0787083733235423,
+      "lot_size": 0.07,
+      "order_id": 1000253,
+      "entry_time": "2026-01-22 23:05:36.615840+00:00"
+    },
+    {
+      "symbol": "EUR_AUD",
+      "direction": "bullish",
+      "entry_price": 1.5882891000000001,
+      "stop_loss": 1.5637893693505533,
+      "lot_size": 0.09,
+      "order_id": 1000254,
+      "entry_time": "2026-01-22 23:05:36.636810+00:00"
+    },
+    {
+      "symbol": "NZD_USD",
+      "direction": "bearish",
+      "entry_price": 0.6188,
+      "stop_loss": 0.6294683052954463,
+      "lot_size": 0.14,
+      "order_id": 1000250,
+      "entry_time": "2026-01-22 23:05:36.653646+00:00"
+    },
+    {
+      "symbol": "GBP_CHF",
+      "direction": "bearish",
+      "entry_price": 1.12201386,
+      "stop_loss": 1.1347020680580542,
+      "lot_size": 0.11,
+      "order_id": 1000257,
+      "entry_time": "2026-01-22 23:05:36.730062+00:00"
+    },
+    {
+      "symbol": "NZD_CHF",
+      "direction": "bearish",
+      "entry_price": 0.57766,
+      "stop_loss": 0.5908780378685363,
+      "lot_size": 0.1,
+      "order_id": 1000256,
+      "entry_time": "2026-01-22 23:05:36.752213+00:00"
+    },
+    {
+      "symbol": "NZD_CAD",
+      "direction": "bullish",
+      "entry_price": 0.84772966,
+      "stop_loss": 0.8402627963529954,
+      "lot_size": 0.27,
+      "order_id": 1000259,
+      "entry_time": "2026-01-22 23:05:37.016771+00:00"
+    },
+    {
+      "symbol": "EUR_NZD",
+      "direction": "bullish",
+      "entry_price": 1.71933652,
+      "stop_loss": 1.7018717947139654,
+      "lot_size": 0.14,
+      "order_id": 1000261,
+      "entry_time": "2026-01-22 23:05:56.618034+00:00"
+    },
+    {
+      "symbol": "AUD_USD",
+      "direction": "bearish",
+      "entry_price": 0.67008,
+      "stop_loss": 0.684829795299646,
+      "lot_size": 0.1,
+      "order_id": 1000264,
+      "entry_time": "2026-01-22 23:06:16.958969+00:00"
+    },
+    {
+      "symbol": "AUD_CAD",
+      "direction": "bearish",
+      "entry_price": 0.92012356,
+      "stop_loss": 0.9328177605957384,
+      "lot_size": 0.16,
+      "order_id": 1000267,
+      "entry_time": "2026-01-22 23:06:17.005041+00:00"
+    },
+    {
+      "symbol": "GBP_NZD",
+      "direction": "bullish",
+      "entry_price": 1.94374,
+      "stop_loss": 1.9261635714285714,
+      "lot_size": 0.14,
+      "order_id": 1000268,
+      "entry_time": "2026-01-22 23:06:17.024788+00:00"
+    },
+    {
+      "symbol": "USD_CAD",
+      "direction": "bullish",
+      "entry_price": 1.3664,
+      "stop_loss": 1.3526201734587577,
+      "lot_size": 0.15,
+      "order_id": 1000270,
+      "entry_time": "2026-01-22 23:06:36.983425+00:00"
+    },
+    {
+      "symbol": "EUR_NZD",
+      "direction": "bullish",
+      "entry_price": 1.71698,
+      "stop_loss": 1.690669401251674,
+      "lot_size": 0.09,
+      "order_id": 1000273,
+      "entry_time": "2026-01-22 23:06:37.007752+00:00"
+    },
+    {
+      "symbol": "AUD_CHF",
+      "direction": "bearish",
+      "entry_price": 0.62434,
+      "stop_loss": 0.6382952431032081,
+      "lot_size": 0.1,
+      "order_id": 1000271,
+      "entry_time": "2026-01-22 23:06:37.088745+00:00"
+    },
+    {
+      "symbol": "SPX500_USD",
+      "direction": "bearish",
+      "entry_price": 3980.788,
+      "stop_loss": 4112.361643126377,
+      "lot_size": 1.12,
+      "order_id": 1000272,
+      "entry_time": "2026-01-22 23:06:56.906143+00:00"
+    },
+    {
+      "symbol": "NZD_CAD",
+      "direction": "bullish",
+      "entry_price": 0.8466895999999999,
+      "stop_loss": 0.8340468512244351,
+      "lot_size": 0.16,
+      "order_id": 1000276,
+      "entry_time": "2026-01-22 23:06:57.048737+00:00"
+    },
+    {
+      "symbol": "EUR_GBP",
+      "direction": "bullish",
+      "entry_price": 0.88146,
+      "stop_loss": 0.8703428243798561,
+      "lot_size": 0.11,
+      "order_id": 1000278,
+      "entry_time": "2026-01-22 23:06:57.148073+00:00"
+    },
+    {
+      "symbol": "GBP_JPY",
+      "direction": "bearish",
+      "entry_price": 163.23099200000001,
+      "stop_loss": 165.40892057142858,
+      "lot_size": 0.09,
+      "order_id": 1000284,
+      "entry_time": "2026-01-22 23:07:17.242529+00:00"
+    },
+    {
+      "symbol": "GBP_AUD",
+      "direction": "bullish",
+      "entry_price": 1.82649476,
+      "stop_loss": 1.811521902857143,
+      "lot_size": 0.15,
+      "order_id": 1000286,
+      "entry_time": "2026-01-22 23:07:37.977618+00:00"
+    },
+    {
+      "symbol": "GBP_CHF",
+      "direction": "bearish",
+      "entry_price": 1.12201386,
+      "stop_loss": 1.1452683196970739,
+      "lot_size": 0.06,
+      "order_id": 1000288,
+      "entry_time": "2026-01-22 23:07:58.448295+00:00"
+    },
+    {
+      "symbol": "GBP_JPY",
+      "direction": "bullish",
+      "entry_price": 161.683,
+      "stop_loss": 157.41870332000428,
+      "lot_size": 0.05,
+      "order_id": 1000290,
+      "entry_time": "2026-01-22 23:08:18.995797+00:00"
+    },
+    {
+      "symbol": "USD_CAD",
+      "direction": "bullish",
+      "entry_price": 1.36717078,
+      "stop_loss": 1.3526171032866159,
+      "lot_size": 0.14,
+      "order_id": 1000293,
+      "entry_time": "2026-01-22 23:08:39.170056+00:00"
+    },
+    {
+      "symbol": "NZD_CAD",
+      "direction": "bearish",
+      "entry_price": 0.85055552,
+      "stop_loss": 0.8590962342857142,
+      "lot_size": 0.25,
+      "order_id": 1000300,
+      "entry_time": "2026-01-22 23:08:59.105414+00:00"
+    },
+    {
+      "symbol": "AUD_JPY",
+      "direction": "bearish",
+      "entry_price": 88.201712,
+      "stop_loss": 89.71035485714286,
+      "lot_size": 0.13,
+      "order_id": 1000298,
+      "entry_time": "2026-01-22 23:08:59.132651+00:00"
+    },
+    {
+      "symbol": "NZD_CHF",
+      "direction": "bearish",
+      "entry_price": 0.5770596800000001,
+      "stop_loss": 0.586207816243074,
+      "lot_size": 0.16,
+      "order_id": 1000299,
+      "entry_time": "2026-01-22 23:08:59.178730+00:00"
+    },
+    {
+      "symbol": "EUR_JPY",
+      "direction": "bullish",
+      "entry_price": 142.031588,
+      "stop_loss": 138.30892930459368,
+      "lot_size": 0.08,
+      "order_id": 1000296,
+      "entry_time": "2026-01-22 23:08:59.444269+00:00"
+    },
+    {
+      "symbol": "EUR_CAD",
+      "direction": "bullish",
+      "entry_price": 1.47034,
+      "stop_loss": 1.4499185588628805,
+      "lot_size": 0.1,
+      "order_id": 1000297,
+      "entry_time": "2026-01-22 23:08:59.494903+00:00"
+    },
+    {
+      "symbol": "CHF_JPY",
+      "direction": "bullish",
+      "entry_price": 145.33184,
+      "stop_loss": 140.13835484559735,
+      "lot_size": 0.07,
+      "order_id": 1000303,
+      "entry_time": "2026-01-22 23:08:59.568637+00:00"
+    },
+    {
+      "symbol": "NZD_JPY",
+      "direction": "bearish",
+      "entry_price": 82.709,
+      "stop_loss": 84.22323949757858,
+      "lot_size": 0.13,
+      "order_id": 1000302,
+      "entry_time": "2026-01-22 23:08:59.576452+00:00"
     }
   ],
-  "trades_history": [],
-  "open_positions": [],
-  "start_time": "2026-01-16T00:00:00+00:00",
-  "last_update": "2026-01-18T15:30:00+00:00",
+  "start_time": "2026-01-22T22:47:25.980296+00:00",
+  "last_update": "2026-01-22T23:08:59.576492+00:00",
   "max_daily_loss_pct": 0.0,
   "max_drawdown_pct": 0.0,
   "failed": false,

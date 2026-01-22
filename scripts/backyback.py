@@ -49,6 +49,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from params.params_loader import load_strategy_params
 from strategy_core import StrategyParams, compute_confluence, _infer_trend, _pick_direction_from_bias
+from tradr.risk.position_sizing import calculate_lot_size
 
 # ═══════════════════════════════════════════════════════════════════════════
 # LOGGING SETUP (matching main_live_bot.py)
@@ -87,6 +88,10 @@ class FiveersConfig:
     # TDD Threshold (Total DrawDown from INITIAL balance - STATIC!)
     max_total_dd_pct: float = 10.0        # Account blown if exceeded
     total_dd_emergency_pct: float = 9.5   # Emergency close at 9.5%
+    
+    # Position Sizing (EXACT 5ers MT5 limits)
+    max_lot_size: float = 100.0           # 5ers MT5 max lot size
+    min_lot_size: float = 0.01            # 5ers MT5 min lot size
     
     # Entry Queue (matching main_live_bot.py)
     limit_order_proximity_r: float = 0.3   # Place limit order when within 0.3R
@@ -297,10 +302,11 @@ class CSVDataProvider:
     Replaces MT5 API calls in main_live_bot.py.
     """
     
-    def __init__(self, data_dir: Path = None):
+    def __init__(self, data_dir: Path = None, intraday_tf: str = "H1"):
         self.data_dir = data_dir or Path(__file__).parent.parent / "data" / "ohlcv"
         self.cache: Dict[str, pd.DataFrame] = {}
-        self.h1_cache: Dict[str, Dict[datetime, Dict]] = {}
+        self.intraday_cache: Dict[str, Dict[datetime, Dict]] = {}
+        self.intraday_tf = intraday_tf  # "H1" or "M15"
         
     def load_timeframe(self, symbol: str, timeframe: str) -> pd.DataFrame:
         """Load data for a specific timeframe."""
@@ -321,12 +327,20 @@ class CSVDataProvider:
             self.data_dir / f"{symbol}_{timeframe}_2003_2025.csv",
             # Pattern: EURUSD_D1_2003_2025.csv (ACTUAL FORMAT IN data/ohlcv/)
             self.data_dir / f"{symbol_no_underscore}_{timeframe}_2003_2025.csv",
+            # Pattern: EUR_USD_M15_2020_2025.csv (M15 data)
+            self.data_dir / f"{symbol}_{timeframe}_2020_2025.csv",
+            # Pattern: EURUSD_M15_2020_2025.csv
+            self.data_dir / f"{symbol_no_underscore}_{timeframe}_2020_2025.csv",
         ]
         
         for path in patterns:
             if path.exists():
                 df = pd.read_csv(path, parse_dates=['time'])
                 df = df.sort_values('time').reset_index(drop=True)
+                
+                # Normalize column names to lowercase for consistency
+                df.columns = [c.lower() if c != 'time' else c for c in df.columns]
+                
                 self.cache[cache_key] = df
                 return df
         
@@ -393,13 +407,13 @@ class CSVDataProvider:
         return df_filtered.tail(lookback).reset_index(drop=True)
     
     def build_h1_index(self, symbol: str) -> Dict[datetime, Dict]:
-        """Build fast lookup index for H1 data."""
-        if symbol in self.h1_cache:
-            return self.h1_cache[symbol]
+        """Build fast lookup index for intraday data (H1 or M15)."""
+        if symbol in self.intraday_cache:
+            return self.intraday_cache[symbol]
         
-        df = self.load_timeframe(symbol, "H1")
+        df = self.load_timeframe(symbol, self.intraday_tf)
         if df.empty:
-            self.h1_cache[symbol] = {}
+            self.intraday_cache[symbol] = {}
             return {}
         
         index = {}
@@ -417,22 +431,29 @@ class CSVDataProvider:
                 'time': t,
             }
         
-        self.h1_cache[symbol] = index
+        self.intraday_cache[symbol] = index
         return index
     
     def get_h1_bar(self, symbol: str, time: datetime) -> Optional[Dict]:
-        """Get H1 bar for specific time."""
+        """Get intraday bar for specific time (H1 or M15)."""
         index = self.build_h1_index(symbol)
         
-        # Normalize time to hour
-        t = time.replace(minute=0, second=0, microsecond=0)
+        # Normalize time based on timeframe
+        if self.intraday_tf == "M15":
+            # Round to nearest 15-min
+            minutes = (time.minute // 15) * 15
+            t = time.replace(minute=minutes, second=0, microsecond=0)
+        else:
+            # Round to hour
+            t = time.replace(minute=0, second=0, microsecond=0)
+        
         if t.tzinfo is None:
             t = t.replace(tzinfo=timezone.utc)
         
         return index.get(t)
     
     def get_h1_timeline(self, start: datetime, end: datetime) -> List[datetime]:
-        """Get all H1 timestamps in range across all symbols."""
+        """Get all intraday timestamps (H1 or M15) in range across all symbols."""
         all_times = set()
         
         for symbol in self.get_available_symbols():
@@ -446,63 +467,22 @@ class CSVDataProvider:
     def get_available_symbols(self) -> List[str]:
         """Get list of available symbols."""
         symbols = set()
-        for f in self.data_dir.glob("*_H1.csv"):
-            symbol = f.stem.replace("_H1", "")
-            symbols.add(symbol)
+        
+        # Check for both H1 and M15 files
+        for pattern in [f"*_{self.intraday_tf}.csv", f"*_{self.intraday_tf}_*.csv"]:
+            for f in self.data_dir.glob(pattern):
+                # Remove timeframe suffix and date suffix
+                symbol = f.stem.replace(f"_{self.intraday_tf}", "")
+                symbol = symbol.replace("_2003_2025", "").replace("_2020_2025", "")
+                symbols.add(symbol)
+        
         return sorted(symbols)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# LOT SIZE CALCULATION (EXACT COPY from main_live_bot.py)
+# NOTE: calculate_lot_size() is now imported from tradr.risk.position_sizing
+# This is the EXACT function used by main_live_bot.py
 # ═══════════════════════════════════════════════════════════════════════════
-
-def calculate_lot_size(
-    symbol: str,
-    balance: float,
-    risk_pct: float,
-    entry: float,
-    stop_loss: float,
-    confluence: int,
-) -> Tuple[float, float]:
-    """
-    Calculate lot size - EXACT COPY from main_live_bot.py.
-    
-    Returns: (lot_size, risk_usd)
-    """
-    specs = get_specs(symbol)
-    
-    # Risk in USD
-    risk_usd = balance * (risk_pct / 100)
-    
-    # Apply confluence multiplier
-    multiplier = CONFIG.get_confluence_multiplier(confluence)
-    risk_usd *= multiplier
-    
-    # SL distance in price
-    sl_distance = abs(entry - stop_loss)
-    if sl_distance <= 0:
-        return 0.0, 0.0
-    
-    # SL distance in pips
-    pip_size = specs["pip_size"]
-    sl_pips = sl_distance / pip_size
-    
-    if sl_pips <= 0:
-        return 0.0, 0.0
-    
-    # Value per pip per lot
-    pip_value = specs["pip_value_per_lot"]
-    
-    # Lot size = risk / (sl_pips * pip_value)
-    lot_size = risk_usd / (sl_pips * pip_value)
-    
-    # Round to 2 decimal places
-    lot_size = round(lot_size, 2)
-    
-    # Minimum lot size
-    lot_size = max(0.01, lot_size)
-    
-    return lot_size, risk_usd
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -525,6 +505,9 @@ class BacktestMainLiveBot:
         start_date: datetime = None,
         end_date: datetime = None,
         use_progressive_trailing: bool = False,
+        progressive_trigger_r: float = 0.8,
+        progressive_trail_to_r: float = 0.6,
+        intraday_tf: str = "H1",
     ):
         """Initialize bot with same structure as main_live_bot.py."""
         # Account state
@@ -534,7 +517,8 @@ class BacktestMainLiveBot:
         
         # Progressive trailing stop toggle
         self.use_progressive_trailing = use_progressive_trailing
-        self.progressive_trigger_r = 0.9  # At 0.9R, move SL to TP1 (0.6R)
+        self.progressive_trigger_r = progressive_trigger_r  # Configurable trigger R
+        self.progressive_trail_to_r = progressive_trail_to_r  # SL level to trail to (0.6R=TP1, 0.4R=aggressive)
         
         # Dates
         self.start_date = start_date or datetime(2023, 1, 1, tzinfo=timezone.utc)
@@ -544,7 +528,8 @@ class BacktestMainLiveBot:
         self.params = load_strategy_params()
         
         # Data provider (replaces MT5)
-        self.data_provider = CSVDataProvider()
+        self.data_provider = CSVDataProvider(intraday_tf=intraday_tf)
+        self.intraday_tf = intraday_tf
         
         # State tracking (matching main_live_bot.py)
         self.pending_setups: Dict[str, PendingSetup] = {}  # Entry queue
@@ -556,6 +541,9 @@ class BacktestMainLiveBot:
         self.ddd_halt_reason = ""
         self.ddd_halt_date: Optional[date] = None
         self.current_date: Optional[date] = None
+        
+        # Track last scan date to prevent duplicates (CRITICAL for M15)
+        self.last_scan_date: Optional[date] = None
         
         # Tracking
         self.daily_snapshots: List[DailySnapshot] = []
@@ -825,11 +813,18 @@ class BacktestMainLiveBot:
             has_htf_bias = flags.get("htf_bias", False)
             quality_factors = sum([has_location, has_fib, has_liquidity, has_structure, has_htf_bias])
             
-            # Check minimum thresholds (from params)
-            min_confluence = self.params.min_confluence if hasattr(self.params, 'min_confluence') else 4
-            min_quality = CONFIG.min_quality_factors if hasattr(CONFIG, 'min_quality_factors') else 2
+            # CRITICAL: Use trend/range-specific min_confluence (like VALIDATE does!)
+            # This is the key filter that prevents too many trades
+            trend_min = self.params.trend_min_confluence if hasattr(self.params, 'trend_min_confluence') else 6
+            range_min = self.params.range_min_confluence if hasattr(self.params, 'range_min_confluence') else 4
+            min_quality = self.params.min_quality_factors if hasattr(self.params, 'min_quality_factors') else 2
             
-            if confluence_score < min_confluence:
+            # Detect market regime (simple ADX-based check)
+            # VALIDATE uses ADX to determine trend vs range, then applies appropriate threshold
+            is_trending = flags.get("atr_regime_ok", True)  # Simplified - proper check would use ADX
+            effective_min_confluence = trend_min if is_trending else range_min
+            
+            if confluence_score < effective_min_confluence:
                 continue
             if quality_factors < min_quality:
                 continue
@@ -919,18 +914,31 @@ class BacktestMainLiveBot:
         signal = setup.signal
         symbol = signal.symbol
         
-        # Calculate lot size at fill moment (compounding!)
+        # Calculate lot size at fill moment (compounding!) - EXACT copy from main_live_bot.py
         ddd_pct, _ = self.check_ddd(self.calculate_equity(current_time))
         risk_pct = CONFIG.get_risk_pct(ddd_pct)
         
-        lot_size, risk_usd = calculate_lot_size(
+        specs = get_specs(symbol)
+        
+        lot_result = calculate_lot_size(
             symbol=symbol,
-            balance=self.balance,  # Current balance for compounding
-            risk_pct=risk_pct,
-            entry=fill_price,
-            stop_loss=signal.stop_loss,
-            confluence=signal.confluence_score,
+            account_balance=self.balance,  # Current balance for compounding
+            risk_percent=risk_pct / 100,  # Convert to decimal
+            entry_price=fill_price,
+            stop_loss_price=signal.stop_loss,
+            max_lot=CONFIG.max_lot_size,  # REALISTIC max for 20K account
+            min_lot=CONFIG.min_lot_size,
+            broker="5ers",  # CRITICAL: Use 5ers contract specs
         )
+        
+        if lot_result.get("error"):
+            log.warning(f"  [{symbol}] Cannot calculate lot size: {lot_result.get('error')} (NO TRADE)")
+            setup.status = OrderStatus.CANCELLED
+            del self.pending_setups[symbol]
+            return
+        
+        lot_size = lot_result.get("lot_size", 0.0)
+        risk_usd = lot_result.get("risk_usd", 0.0)
         
         if lot_size <= 0:
             log.warning(f"  [{symbol}] Invalid lot size, skipping")
@@ -1007,19 +1015,26 @@ class BacktestMainLiveBot:
         ddd_pct, _ = self.check_ddd(self.calculate_equity(current_time))
         risk_pct = CONFIG.get_risk_pct(ddd_pct)
         
-        lot_size, risk_usd = calculate_lot_size(
+        specs = get_specs(symbol)
+        
+        lot_result = calculate_lot_size(
             symbol=symbol,
-            balance=self.balance,
-            risk_pct=risk_pct,
-            entry=fill_price,
-            stop_loss=signal.stop_loss,
-            confluence=signal.confluence_score,
+            account_balance=self.balance,
+            risk_percent=risk_pct / 100,
+            entry_price=fill_price,
+            stop_loss_price=signal.stop_loss,
+            max_lot=CONFIG.max_lot_size,  # REALISTIC max for 20K account
+            min_lot=CONFIG.min_lot_size,
+            broker="5ers",
         )
         
-        if lot_size <= 0:
+        if lot_result.get("error") or lot_result.get("lot_size", 0.0) <= 0:
             setup.status = OrderStatus.CANCELLED
             del self.pending_setups[symbol]
             return
+        
+        lot_size = lot_result.get("lot_size", 0.0)
+        risk_usd = lot_result.get("risk_usd", 0.0)
         
         specs = get_specs(symbol)
         commission = lot_size * specs['commission_per_lot']
@@ -1111,24 +1126,23 @@ class BacktestMainLiveBot:
                 pos.trailing_sl = pos.fill_price
                 log.debug(f"  [{signal.symbol}] TP1 hit: +${partial_profit:.2f}, SL→BE")
         
-        # PROGRESSIVE TRAILING: Between TP1 and TP2, at 0.9R move SL to TP1
-        elif pos.tp1_hit and not pos.tp2_hit and self.use_progressive_trailing:
+        # PROGRESSIVE TRAILING: Between TP1 and TP2, at trigger R move SL to trail level
+        # Check BEFORE TP1 if trail_to_r < tp1_r, otherwise progressive trail gets skipped
+        if not pos.tp2_hit and self.use_progressive_trailing and not getattr(pos, 'progressive_trail_applied', False):
             # Calculate current R
             if signal.direction == 'bullish':
                 current_r = (high - signal.entry) / risk if risk > 0 else 0
             else:
                 current_r = (signal.entry - low) / risk if risk > 0 else 0
             
-            # If we've reached 0.9R and SL is still at breakeven, trail to TP1
+            # If we've reached trigger R, set SL to trail level
             if current_r >= self.progressive_trigger_r:
-                tp1_sl = signal.entry + (risk * self.params.tp1_r_multiple) if signal.direction == 'bullish' else signal.entry - (risk * self.params.tp1_r_multiple)
+                trail_r_level = signal.entry + (risk * self.progressive_trail_to_r) if signal.direction == 'bullish' else signal.entry - (risk * self.progressive_trail_to_r)
                 
-                # Only update if current SL is less protective than TP1
-                if pos.trailing_sl is None or \
-                   (signal.direction == 'bullish' and tp1_sl > pos.trailing_sl) or \
-                   (signal.direction == 'bearish' and tp1_sl < pos.trailing_sl):
-                    pos.trailing_sl = tp1_sl
-                    log.debug(f"  [{signal.symbol}] Progressive trail: {current_r:.2f}R → SL to TP1 ({tp1_sl:.5f})")
+                # Update SL to trail level (only once)
+                pos.trailing_sl = trail_r_level
+                pos.progressive_trail_applied = True
+                log.debug(f"  [{signal.symbol}] Progressive trail: {current_r:.2f}R → SL to {self.progressive_trail_to_r}R ({trail_r_level:.5f})")
         
         # TP2: 1.2R -> Close 30%, trail SL to TP1 + 0.5R
         if pos.tp1_hit and not pos.tp2_hit:  # Changed from elif to if
@@ -1184,8 +1198,11 @@ class BacktestMainLiveBot:
         log.info(f"  Symbols: {len(symbols)}")
         
         # Pre-build H1 indices
-        for symbol in symbols:
+        print(f"Loading {self.intraday_tf} data for {len(symbols)} symbols...")
+        for i, symbol in enumerate(symbols, 1):
+            print(f"  [{i}/{len(symbols)}] {symbol}...", end='\r', flush=True)
             self.data_provider.build_h1_index(symbol)
+        print(f"  ✓ Loaded H1 data for {len(symbols)} symbols            ")
         
         timeline = self.data_provider.get_h1_timeline(self.start_date, self.end_date)
         log.info(f"  H1 Bars: {len(timeline)}")
@@ -1300,14 +1317,16 @@ class BacktestMainLiveBot:
                 continue
             
             # ═══════════════════════════════════════════════════════════════
-            # DAILY SCAN (at 00:00-01:00 bar, matching 00:10 server time scan)
+            # DAILY SCAN (at 00:10 server time, simulated as first bar of new day)
             # ═══════════════════════════════════════════════════════════════
-            # Now using compute_confluence() - scan EVERY day, not just signal dates
-            if current_time.hour == 0:
+            # CRITICAL: Only scan ONCE per day (not on every M15 candle!)
+            current_date = current_time.date()
+            if current_time.hour == 0 and current_time.minute == 0 and self.last_scan_date != current_date:
                 log.info(f"\n[{date_str}] Daily scan...")
                 trades_before = len(self.pending_setups)
                 self.process_daily_signals(current_time)
                 day_trades_opened += len(self.pending_setups) - trades_before
+                self.last_scan_date = current_date
             
             # ═══════════════════════════════════════════════════════════════
             # ENTRY QUEUE PROCESSING (matching main_live_bot.py)
@@ -1459,21 +1478,39 @@ def main():
     parser.add_argument("--start", type=str, default="2023-01-01", help="Start date")
     parser.add_argument("--end", type=str, default="2025-12-31", help="End date")
     parser.add_argument("--output", type=str, default=None, help="Output directory")
-    parser.add_argument("--progressive-trailing", action="store_true", help="Enable progressive trailing stop (0.9R → TP1)")
+    parser.add_argument("--timeframe", type=str, default="H1", choices=["H1", "M15"], help="Intraday timeframe for execution simulation (default: H1)")
+    parser.add_argument("--progressive-trailing", action="store_true", help="Enable progressive trailing stop (0.8R → configurable SL)")
+    parser.add_argument("--trigger-r", type=float, default=0.8, help="Progressive trailing trigger R-multiple (default: 0.8)")
+    parser.add_argument("--trail-to", type=float, default=0.6, help="SL level to trail to at trigger (default: 0.6R = TP1, use 0.4R for aggressive)")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     
     args = parser.parse_args()
     
+    # Setup logging to console
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(message)s')
+    handler.setFormatter(formatter)
+    log.addHandler(handler)
+    log.setLevel(logging.INFO)
+    
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
+        handler.setLevel(logging.DEBUG)
     
     # Parse dates
     start_date = datetime.strptime(args.start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     end_date = datetime.strptime(args.end, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     
     # Log configuration
-    trailing_mode = "PROGRESSIVE (0.9R→TP1)" if args.progressive_trailing else "STANDARD (BE until TP2)"
+    trailing_mode = f"PROGRESSIVE ({args.trigger_r}R→{args.trail_to}R)" if args.progressive_trailing else "STANDARD (BE until TP2)"
+    print(f"\n🚀 Starting Backtest: {trailing_mode}")
+    print(f"   Period: {args.start} to {args.end}")
+    print(f"   Initial Balance: ${args.balance:,.0f}")
+    print(f"   Timeframe: {args.timeframe} (intraday execution)")
+    print()
     log.info(f"Trailing Stop Mode: {trailing_mode}")
+    log.info(f"Intraday Timeframe: {args.timeframe}")
     
     # Create bot - now generates signals using compute_confluence() like main_live_bot.py
     bot = BacktestMainLiveBot(
@@ -1481,6 +1518,9 @@ def main():
         start_date=start_date,
         end_date=end_date,
         use_progressive_trailing=args.progressive_trailing,
+        progressive_trigger_r=args.trigger_r,
+        progressive_trail_to_r=args.trail_to,
+        intraday_tf=args.timeframe,
     )
     
     # Run simulation

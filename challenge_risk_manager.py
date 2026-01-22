@@ -215,6 +215,19 @@ class ChallengeRiskManager:
             log.info(f"No state file found. Using protected initial balance: ${PROTECTED_INITIAL_BALANCE:,.2f}")
             self.starting_balance = PROTECTED_INITIAL_BALANCE
     
+    def reload_state_from_file(self):
+        """
+        Hot-reload state from file. Call this to pick up external state changes.
+        Returns True if state was successfully reloaded.
+        """
+        try:
+            self._load_state()
+            log.info(f"[HOT-RELOAD] State reloaded: date={self.current_date}, day_start_equity=${self.day_start_equity:,.2f}")
+            return True
+        except Exception as e:
+            log.error(f"[HOT-RELOAD] Failed to reload state: {e}")
+            return False
+    
     def _save_state(self):
         """Persist state to file."""
         # Calculate DDD limit for transparency (5% max daily loss from day start equity)
@@ -264,13 +277,18 @@ class ChallengeRiskManager:
         
         return False
     
-    def sync_with_mt5(self, balance: float, equity: float):
+    def sync_with_mt5(self, balance: float, equity: float, sim_date: date = None):
         """
         Sync state with MT5 account data.
         Call this at startup and periodically.
+        
+        Args:
+            balance: Current account balance
+            equity: Current account equity
+            sim_date: Optional simulated date for backtesting (if None, uses real date)
         """
         from datetime import timedelta
-        today = date.today()
+        today = sim_date if sim_date else date.today()
 
         # Check for new day OR if we missed days (weekend/week gap)
         days_difference = (today - self.current_date).days if self.current_date else 0
@@ -310,25 +328,24 @@ class ChallengeRiskManager:
             if days_difference > 1:
                 log.info("=" * 70)
                 log.info(f"🌅 NEW TRADING WEEK: {today} (missed {days_difference} days)")
-                log.info(f"  Old day_start_equity: ${self.day_start_equity:,.2f}")
-                log.info(f"  Current equity (new baseline): ${equity:,.2f}")
+                log.info(f"  Previous day equity (end of last trading day): ${self.day_start_equity:,.2f}")
+                log.info(f"  Current equity: ${equity:,.2f}")
+                log.info("  ⚠️  Keeping previous day_start_equity for DDD calculation")
                 log.info("=" * 70)
             else:
                 log.info("=" * 70)
                 log.info(f"🌅 NEW TRADING DAY: {today}")
-                log.info(f"  Old day_start_equity: ${self.day_start_equity:,.2f}")
-                log.info(f"  Current equity (new baseline): ${equity:,.2f}")
+                log.info(f"  Previous day equity (end of last trading day): ${self.day_start_equity:,.2f}")
+                log.info(f"  Current equity: ${equity:,.2f}")
+                log.info("  ✓ Using previous day equity for DDD baseline")
                 log.info("=" * 70)
             
-            # CRITICAL FIX: Update day_start_equity to current equity at start of new day
-            # Per 5ers rules: DDD is calculated from TODAY's starting equity
-            # (which is yesterday's closing equity, i.e., current equity at day flip)
-            self.day_start_equity = equity  # FIXED: Must update for correct DDD calculation
-            self.day_start_balance = balance
+            # IMPORTANT: day_start_equity stays as previous day's END equity for DDD calculation
+            # Per 5ers rules: DDD is calculated from previous day's closing equity
+            # It does NOT get updated to current equity at start of day
+            self.day_start_balance = balance  # This can be updated
             self.trades_today = 0
             self.current_date = today
-            
-            log.info(f"  ✓ New day_start_equity set to: ${self.day_start_equity:,.2f}")
 
         # Update current state
         self.current_balance = balance
