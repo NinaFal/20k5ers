@@ -463,52 +463,21 @@ class LiveTradingBot:
                         sleep(5)
                         continue
                     
-                    # AUTOMATIC RESET: Check if DDD halt is from a PREVIOUS day and auto-reset
-                    today = date.today()
-                    today_str = today.strftime("%Y-%m-%d")
-                    if self.ddd_halted and self.ddd_halt_date and self.ddd_halt_date != today_str:
-                        log.warning("=" * 70)
-                        log.warning(f"[DDD Protection] 🌅 AUTO-RESET: DDD halt was from {self.ddd_halt_date}, today is {today_str}")
-                        log.warning(f"[DDD Protection] Resetting day_start_equity from ${self.challenge_manager.day_start_equity:,.2f} to ${current_equity:,.2f}")
-                        log.warning("=" * 70)
-                        # Update challenge manager state
-                        self.challenge_manager.day_start_equity = current_equity
-                        self.challenge_manager.day_start_balance = current_balance
-                        self.challenge_manager.current_date = today
-                        self.challenge_manager.daily_pnl = 0.0
-                        self.challenge_manager.daily_loss_pct = 0.0
-                        self.challenge_manager._save_state()
-                        # Clear halt
-                        self.ddd_halted = False
-                        self.ddd_halt_reason = ""
-                        self.ddd_halt_date = None
-                        self._save_ddd_halt_state()
-                        log.info(f"[DDD Protection] ✅ Trading re-enabled for new day with fresh DDD baseline: ${current_equity:,.2f}")
-                        sleep(5)
-                        continue
-                    
                     # CRITICAL FIX: Check if new day and sync
+                    today = date.today()
                     if today != self.challenge_manager.current_date:
                         log.warning(f"[DDD Protection] New day detected! {self.challenge_manager.current_date} -> {today}")
                         log.warning(f"[DDD Protection] Syncing with MT5 to update day_start_equity...")
+                        self.challenge_manager.sync_with_mt5(current_balance, current_equity)
                         
-                        # CRITICAL: If DDD halt was active from yesterday, reset day_start_equity to CURRENT equity
-                        # This is essential because DDD from yesterday should NOT carry over to new day
+                        # CRITICAL: Reset DDD halt on new day
                         if self.ddd_halted:
                             log.info(f"[DDD Protection] ✅ NEW DAY - Resetting DDD halt from yesterday")
-                            log.info(f"[DDD Protection] Updating day_start_equity from ${self.challenge_manager.day_start_equity:,.2f} to ${current_equity:,.2f}")
-                            self.challenge_manager.day_start_equity = current_equity
-                            self.challenge_manager.day_start_balance = current_balance
-                            self.challenge_manager.current_date = today
-                            self.challenge_manager._save_state()
                             self.ddd_halted = False
                             self.ddd_halt_reason = ""
                             self.ddd_halt_date = None
                             self._save_ddd_halt_state()
-                            log.info(f"[DDD Protection] ✅ Trading re-enabled for new day with fresh DDD baseline")
-                        else:
-                            # Normal new day transition - sync with MT5
-                            self.challenge_manager.sync_with_mt5(current_balance, current_equity)
+                            log.info(f"[DDD Protection] ✅ Trading re-enabled for new day")
                     
                     day_start_equity = self.challenge_manager.day_start_equity
                     if day_start_equity <= 0:
@@ -534,21 +503,13 @@ class LiveTradingBot:
                         total_dd_pct = 0.0
                     tdd_halt_pct = 10.0  # 5ers: 10% max total drawdown
                     
-                    # Log status only every 5 min OR when DDD/TDD changes significantly
+                    # Log status every 60 seconds for debugging
                     import time as time_module
                     now = time_module.time()
-                    last_ddd = getattr(self, '_last_logged_ddd', -1)
-                    last_tdd = getattr(self, '_last_logged_tdd', -1)
-                    ddd_changed = abs(daily_loss_pct - last_ddd) >= 0.5  # Log if DDD changed by 0.5%+
-                    tdd_changed = abs(total_dd_pct - last_tdd) >= 0.25   # Log if TDD changed by 0.25%+
-                    time_elapsed = now - last_log_time >= 300  # Or every 5 minutes
-                    
-                    if ddd_changed or tdd_changed or time_elapsed:
+                    if now - last_log_time >= 60:
                         log.info(f"[DDD/TDD Protection] Equity: ${current_equity:,.2f} | Day Start: ${day_start_equity:,.2f} | Starting: ${starting_balance:,.2f}")
                         log.info(f"[DDD/TDD Protection] DDD: {daily_loss_pct:.2f}% (warn: {warning_pct}%, reduce: {reduce_pct}%, halt: {halt_pct}%) | TDD: {total_dd_pct:.2f}% (halt at {tdd_halt_pct:.2f}%)")
                         last_log_time = now
-                        self._last_logged_ddd = daily_loss_pct
-                        self._last_logged_tdd = total_dd_pct
                     
                     # === CHECK TDD FIRST (most critical - 10% = account breached) ===
                     if total_dd_pct >= tdd_halt_pct:
@@ -992,20 +953,6 @@ class LiveTradingBot:
         log.info(f"Checking {len(self.awaiting_entry)} signals awaiting price proximity...")
         
         for symbol, setup in list(self.awaiting_entry.items()):
-            # BUGFIX: Check if we already have a pending order or position for this symbol
-            if symbol in self.pending_setups:
-                existing = self.pending_setups[symbol]
-                if existing.status in ("pending", "filled"):
-                    log.debug(f"[{symbol}] Already have {existing.status} setup - removing from entry queue")
-                    signals_to_remove.append(symbol)
-                    continue
-            
-            broker_symbol = self.symbol_map.get(symbol, symbol)
-            if self.check_existing_position(broker_symbol):
-                log.debug(f"[{symbol}] Already have open position - removing from entry queue")
-                signals_to_remove.append(symbol)
-                continue
-            
             # Check age - expire after MAX_ENTRY_WAIT_HOURS
             created_at_str = setup.get("created_at", "")
             if created_at_str:
@@ -1021,7 +968,7 @@ class LiveTradingBot:
                     pass
             
             # Get current price
-            # broker_symbol already defined above
+            broker_symbol = self.symbol_map.get(symbol, symbol)
             tick = self.mt5.get_tick(broker_symbol)
             if not tick:
                 log.debug(f"[{symbol}] Cannot get tick, will retry later")
@@ -1158,20 +1105,6 @@ class LiveTradingBot:
                     log.info(f"[{symbol}] Entry too far now ({entry_distance_r:.2f}R), removing")
                     signals_to_remove.append(symbol)
                     continue
-            
-            # Check if we already have a pending order or position for this symbol
-            if symbol in self.pending_setups:
-                existing = self.pending_setups[symbol]
-                if existing.status in ("pending", "filled"):
-                    log.debug(f"[{symbol}] Already have {existing.status} setup - removing from spread queue")
-                    signals_to_remove.append(symbol)
-                    continue
-            
-            broker_symbol = self.symbol_map.get(symbol, symbol)
-            if self.check_existing_position(broker_symbol):
-                log.debug(f"[{symbol}] Already have open position - removing from spread queue")
-                signals_to_remove.append(symbol)
-                continue
             
             # Check market conditions
             conditions = self.check_market_conditions(symbol)
@@ -1943,143 +1876,6 @@ class LiveTradingBot:
                 return True
         return False
     
-    def _get_dynamic_pip_value(self, symbol: str, broker_symbol: str) -> float:
-        """
-        Get pip value using MT5's tick_value (most accurate source).
-        
-        MT5's trade_tick_value gives the profit/loss per tick movement per lot
-        in account currency (USD). This is the ONLY 100% reliable source.
-        
-        Fallback: Calculate based on exchange rates if MT5 doesn't provide it.
-        
-        Returns:
-            Pip value per standard lot in USD (always > 0)
-        """
-        from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
-        
-        # Get fallback specs first (always needed)
-        try:
-            specs = get_fiveers_contract_specs(symbol)
-        except Exception:
-            specs = {"pip_size": 0.0001, "pip_value_per_lot": 10.0}
-        
-        base_pip_value = specs.get("pip_value_per_lot", 10.0)
-        pip_size = specs.get("pip_size", 0.0001)
-        
-        # Ensure we always return a valid positive value
-        if base_pip_value <= 0:
-            base_pip_value = 10.0
-        if pip_size <= 0:
-            pip_size = 0.0001
-        
-        # FIRST: Try to get tick_value directly from MT5 (most reliable!)
-        try:
-            symbol_info = self.mt5.get_symbol_info(broker_symbol)
-            if symbol_info:
-                tick_value = symbol_info.get("tick_value", 0)
-                tick_size = symbol_info.get("tick_size", 0)
-                
-                # Only use MT5 values if they are valid positive numbers
-                if tick_value and tick_value > 0 and tick_size and tick_size > 0:
-                    # Calculate pip value from tick value
-                    # pip_value = tick_value * (pip_size / tick_size)
-                    pip_value = tick_value * (pip_size / tick_size)
-                    
-                    # Sanity check - pip value should be reasonable
-                    if pip_value > 0 and pip_value < 10000:
-                        log.info(f"[{symbol}] MT5 tick_value=${tick_value:.4f}/tick, tick_size={tick_size}, pip_size={pip_size} -> pip_value=${pip_value:.4f}/pip")
-                        return pip_value
-                    else:
-                        log.warning(f"[{symbol}] MT5 pip_value ${pip_value:.4f} seems invalid, using fallback")
-        except Exception as e:
-            log.warning(f"[{symbol}] Error getting MT5 tick_value: {e}")
-        
-        # FALLBACK: Calculate based on exchange rates
-        log.debug(f"[{symbol}] Using exchange rate calculation for pip value")
-        
-        # Normalize symbol
-        sym_upper = symbol.upper().replace("_", "")
-        
-        # UK100 is GBP-denominated
-        if "UK100" in sym_upper or "FTSE" in sym_upper:
-            try:
-                gbpusd_tick = self.mt5.get_tick("GBPUSD")
-                if gbpusd_tick and gbpusd_tick.bid > 0:
-                    gbpusd_rate = (gbpusd_tick.bid + gbpusd_tick.ask) / 2
-                    pip_value = 1.0 * gbpusd_rate
-                    log.debug(f"[{symbol}] Fallback pip value: £1 × GBPUSD({gbpusd_rate:.4f}) = ${pip_value:.4f}/point")
-                    return pip_value
-            except Exception:
-                pass
-            return 1.40  # Safe estimate
-        
-        # US indices - already in USD
-        if any(x in sym_upper for x in ["NAS100", "SPX500", "SP500", "US100", "US500", "US30"]):
-            return base_pip_value
-        
-        # Metals and Crypto - already in USD
-        if any(x in sym_upper for x in ["XAU", "XAG", "BTC", "ETH"]):
-            return base_pip_value
-        
-        # FOREX - check quote currency
-        if len(sym_upper) >= 6:
-            quote_currency = sym_upper[-3:]
-            
-            if quote_currency == "USD":
-                return 10.0
-            
-            try:
-                if quote_currency == "JPY":
-                    usdjpy_tick = self.mt5.get_tick("USDJPY")
-                    if usdjpy_tick and usdjpy_tick.bid > 0:
-                        usdjpy_rate = (usdjpy_tick.bid + usdjpy_tick.ask) / 2
-                        if usdjpy_rate > 0:
-                            return 1000.0 / usdjpy_rate
-                    return 6.67
-                
-                if quote_currency == "CHF":
-                    usdchf_tick = self.mt5.get_tick("USDCHF")
-                    if usdchf_tick and usdchf_tick.bid > 0:
-                        usdchf_rate = (usdchf_tick.bid + usdchf_tick.ask) / 2
-                        if usdchf_rate > 0:
-                            return 10.0 / usdchf_rate
-                    return 11.0
-                
-                if quote_currency == "CAD":
-                    usdcad_tick = self.mt5.get_tick("USDCAD")
-                    if usdcad_tick and usdcad_tick.bid > 0:
-                        usdcad_rate = (usdcad_tick.bid + usdcad_tick.ask) / 2
-                        if usdcad_rate > 0:
-                            return 10.0 / usdcad_rate
-                    return 7.5
-                
-                if quote_currency == "GBP":
-                    gbpusd_tick = self.mt5.get_tick("GBPUSD")
-                    if gbpusd_tick and gbpusd_tick.bid > 0:
-                        gbpusd_rate = (gbpusd_tick.bid + gbpusd_tick.ask) / 2
-                        return 10.0 * gbpusd_rate
-                    return 12.5
-                
-                if quote_currency == "AUD":
-                    audusd_tick = self.mt5.get_tick("AUDUSD")
-                    if audusd_tick and audusd_tick.bid > 0:
-                        audusd_rate = (audusd_tick.bid + audusd_tick.ask) / 2
-                        return 10.0 * audusd_rate
-                    return 6.5
-                
-                if quote_currency == "NZD":
-                    nzdusd_tick = self.mt5.get_tick("NZDUSD")
-                    if nzdusd_tick and nzdusd_tick.bid > 0:
-                        nzdusd_rate = (nzdusd_tick.bid + nzdusd_tick.ask) / 2
-                        return 10.0 * nzdusd_rate
-                    return 6.0
-            except Exception as e:
-                log.warning(f"[{symbol}] Error calculating pip value for {quote_currency}: {e}")
-        
-        # Final fallback - always return a valid positive value
-        log.debug(f"[{symbol}] Using base pip value: ${base_pip_value:.2f}")
-        return base_pip_value
-    
     def _calculate_lot_size_at_fill(
         self,
         symbol: str,
@@ -2172,62 +1968,31 @@ class LiveTradingBot:
         max_lot = symbol_info.get('max_lot', 100.0) if symbol_info else 100.0
         min_lot = symbol_info.get('min_lot', 0.01) if symbol_info else 0.01
 
-        # Ensure min_lot and max_lot are valid
-        if min_lot <= 0:
-            min_lot = 0.01
-        if max_lot <= 0:
-            max_lot = 100.0
-
-        # Get DYNAMIC pip value based on current exchange rates
-        try:
-            dynamic_pip_value = self._get_dynamic_pip_value(symbol, broker_symbol)
-        except Exception as e:
-            log.error(f"[{symbol}] Error getting dynamic pip value: {e}, using fallback $10/pip")
-            dynamic_pip_value = 10.0
-        
-        # Sanity check pip value
-        if dynamic_pip_value <= 0:
-            log.warning(f"[{symbol}] Invalid pip value {dynamic_pip_value}, using $10/pip")
-            dynamic_pip_value = 10.0
-        
-        log.info(f"[{symbol}] Dynamic pip value: ${dynamic_pip_value:.4f}/pip")
-
         # Calculate lot size using CURRENT balance
         # IMPORTANT: NO position count reduction - must match simulate_main_live_bot.py
-        try:
-            lot_result = calculate_lot_size(
-                symbol=broker_symbol,
-                account_balance=current_balance,  # CURRENT balance!
-                risk_percent=risk_pct / 100,
-                entry_price=entry,
-                stop_loss_price=sl,
-                max_lot=max_lot,
-                min_lot=min_lot,
-                broker="5ers",  # CRITICAL: Use 5ers contract specs
-                pip_value_override=dynamic_pip_value,  # Use dynamic pip value!
-            )
-        except Exception as e:
-            log.error(f"[{symbol}] Error calculating lot size: {e}")
+        lot_result = calculate_lot_size(
+            symbol=broker_symbol,
+            account_balance=current_balance,  # CURRENT balance!
+            risk_percent=risk_pct / 100,
+            entry_price=entry,
+            stop_loss_price=sl,
+            max_lot=max_lot,
+            min_lot=min_lot,
+            broker="5ers",  # CRITICAL: Use 5ers contract specs
+        )
+
+        if lot_result.get("error") or lot_result["lot_size"] <= min_lot:
+            log.warning(f"[{symbol}] Cannot calculate lot size: {lot_result.get('error', 'unknown error')} (NO TRADE)")
             return 0.0
 
-        if lot_result.get("error"):
-            log.warning(f"[{symbol}] Cannot calculate lot size: {lot_result.get('error')} (NO TRADE)")
-            return 0.0
-
-        lot_size = lot_result.get("lot_size", 0.0)
-        risk_usd = lot_result.get("risk_usd", 0.0)
-        risk_pips = lot_result.get("stop_pips", 0.0)
-
-        # Validate lot size
-        if lot_size <= 0 or lot_size < min_lot:
-            log.warning(f"[{symbol}] Lot size {lot_size} too small (min: {min_lot}) (NO TRADE)")
-            return 0.0
+        lot_size = lot_result["lot_size"]
+        risk_usd = lot_result["risk_usd"]
+        risk_pips = lot_result["stop_pips"]
 
         # Round to lot step
         if symbol_info:
             lot_step = symbol_info.get('lot_step', 0.01)
-            if lot_step > 0:
-                lot_size = max(min_lot, round(lot_size / lot_step) * lot_step)
+            lot_size = max(min_lot, round(lot_size / lot_step) * lot_step)
             lot_size = min(lot_size, max_lot)
 
         log.info(f"[{symbol}] Lot size calculated at FILL MOMENT:")
@@ -3311,6 +3076,8 @@ class LiveTradingBot:
             # ═══════════════════════════════════════════════════════════════
             # TP1 HIT - Close tp1_close_pct, move SL to breakeven
             # ═══════════════════════════════════════════════════════════════
+            # FIX: Changed from elif chain to separate if statements so multiple
+            # TP levels can be checked in same cycle (prevents missing TP2/TP3)
             if current_r >= tp1_r and partial_state == 0:
                 close_pct = self.params.tp1_close_pct
                 close_volume = max(0.01, round(original_volume * close_pct, 2))
@@ -3332,11 +3099,15 @@ class LiveTradingBot:
                     log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
                     setup.partial_closes = 1
                     setup.tp1_hit = True
+                    partial_state = 1  # Update local state for same-cycle TP2/TP3 check
                     
                     # Move SL to breakeven (matches simulator)
                     new_sl = entry
-                    self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
-                    log.info(f"[{broker_symbol}] SL moved to breakeven: {new_sl:.5f}")
+                    modify_result = self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
+                    if modify_result.success:
+                        log.info(f"[{broker_symbol}] SL moved to breakeven: {new_sl:.5f}")
+                    else:
+                        log.error(f"[{broker_symbol}] Failed to move SL to breakeven: {modify_result.error}")
                     
                     self._save_pending_setups()
                 else:
@@ -3345,7 +3116,8 @@ class LiveTradingBot:
             # ═══════════════════════════════════════════════════════════════
             # TP2 HIT - Close tp2_close_pct, trail SL to TP1 + 0.5R
             # ═══════════════════════════════════════════════════════════════
-            elif current_r >= tp2_r and partial_state == 1:
+            # FIXED: Changed elif to if so TP2 can be checked in same cycle as TP1
+            if current_r >= tp2_r and partial_state == 1:
                 close_pct = self.params.tp2_close_pct
                 close_volume = max(0.01, round(original_volume * close_pct, 2))
                 close_volume = min(close_volume, current_volume)
@@ -3366,6 +3138,7 @@ class LiveTradingBot:
                     log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
                     setup.partial_closes = 2
                     setup.tp2_hit = True
+                    partial_state = 2  # Update local state for same-cycle TP3 check
                     
                     # Trail SL to TP1 + 0.5R (matches simulator)
                     if setup.direction == "bullish":
@@ -3373,8 +3146,11 @@ class LiveTradingBot:
                     else:
                         new_sl = entry - (risk * tp1_r) - (0.5 * risk)
                     
-                    self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
-                    log.info(f"[{broker_symbol}] SL trailed to TP1+0.5R: {new_sl:.5f}")
+                    modify_result = self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
+                    if modify_result.success:
+                        log.info(f"[{broker_symbol}] SL trailed to TP1+0.5R: {new_sl:.5f}")
+                    else:
+                        log.error(f"[{broker_symbol}] Failed to trail SL: {modify_result.error}")
                     
                     self._save_pending_setups()
                 else:
@@ -3383,7 +3159,8 @@ class LiveTradingBot:
             # ═══════════════════════════════════════════════════════════════
             # TP3 HIT - Close ALL REMAINING (matches simulator exactly)
             # ═══════════════════════════════════════════════════════════════
-            elif current_r >= tp3_r and partial_state == 2:
+            # FIXED: Changed elif to if so TP3 can be checked in same cycle as TP1/TP2
+            if current_r >= tp3_r and partial_state == 2:
                 log.info(f"[{broker_symbol}] TP3 HIT at {current_r:.2f}R! Closing ALL remaining")
                 
                 # Retry logic for position close (up to 3 attempts)
