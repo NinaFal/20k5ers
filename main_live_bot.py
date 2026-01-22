@@ -3687,12 +3687,19 @@ class LiveTradingBot:
                         
                         # Update day_start_equity BEFORE scan (use current equity as new day start)
                         # This is the equity at daily close which becomes the new day's starting point
+                        # SKIP if we already set day_start_equity manually for today
                         account = self.mt5.get_account_info()
                         if account and self.challenge_manager:
-                            current_equity = account.get("equity", 0)
-                            old_day_start = self.challenge_manager.day_start_equity
-                            self.challenge_manager.update_day_start_equity(current_equity)
-                            log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${current_equity:,.2f}")
+                            today = date.today()
+                            if self.challenge_manager.current_date == today:
+                                # Already set for today (e.g., via --set-day-start-equity)
+                                log.info(f"Day start equity already set for today: ${self.challenge_manager.day_start_equity:,.2f} (keeping manual value)")
+                            else:
+                                current_equity = account.get("equity", 0)
+                                old_day_start = self.challenge_manager.day_start_equity
+                                self.challenge_manager.update_day_start_equity(current_equity)
+                                self.challenge_manager.current_date = today
+                                log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${current_equity:,.2f}")
 
                         self.scan_all_symbols()
 
