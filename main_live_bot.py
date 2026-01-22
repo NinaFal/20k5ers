@@ -3851,11 +3851,13 @@ def main():
                         bot.disconnect()
                         sys.exit(0)
                 
-                # Set the manual value
+                # Set the manual value AND update current_date to prevent overwrite on restart
                 bot.challenge_manager.day_start_equity = manual_value
+                bot.challenge_manager.current_date = date.today()  # CRITICAL: Prevent sync_with_mt5 from overwriting
                 bot.challenge_manager._save_state()
                 print(f"New day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
-                print("✓ Day start equity manually set")
+                print(f"Current date set to: {bot.challenge_manager.current_date}")
+                print("✓ Day start equity manually set (will persist through restarts)")
                 
                 # Calculate current DDD with new value
                 daily_loss = manual_value - current_equity
