@@ -396,16 +396,19 @@ log.info(f"Tradable Symbols: {len(TRADABLE_SYMBOLS)}")
 log.info("=" * 70)
 
 
-def load_best_params_from_file():
+def load_best_params_from_file(custom_params: dict = None):
     """
     Load best parameters from params/current_params.json (single source of truth).
     - No fallback to StrategyParams defaults.
     - Merges with PARAMETER_DEFAULTS (same as optimizer) to guarantee 77 params.
     - Warns if the file is missing params (so you know to re-save from a run).
+    - If custom_params is provided (from optimizer), overlay those on top.
     """
     from pathlib import Path
     from params.params_loader import load_strategy_params, load_params_dict
     from params.defaults import PARAMETER_DEFAULTS
+    from strategy_core import StrategyParams
+    import dataclasses
     
     # BACKTEST FIX: Go to project root (backtest/src/ -> backtest/ -> /workspaces/20k5ers/)
     current_file = Path(__file__)  # backtest/src/main_live_bot_backtest.py
@@ -435,6 +438,17 @@ def load_best_params_from_file():
     
     # Use the same merge logic as optimizer
     params_obj = load_strategy_params()
+    
+    # If custom_params provided (from optimizer), overlay them
+    if custom_params:
+        log.info("[OPTIMIZER] Applying %d custom parameters", len(custom_params))
+        valid_fields = {f.name for f in dataclasses.fields(StrategyParams)}
+        params_dict = dataclasses.asdict(params_obj)
+        for key, value in custom_params.items():
+            if key in valid_fields:
+                params_dict[key] = value
+        params_obj = StrategyParams(**params_dict)
+    
     log.info("✓ Loaded %d parameters (post-merge) from params/current_params.json", len(vars(params_obj)))
     return params_obj
 
@@ -764,7 +778,8 @@ class LiveTradingBot:
                  data_dir: str = "data/ohlcv",
                  initial_balance: float = 20000.0,
                  start_date: datetime = None,
-                 end_date: datetime = None):
+                 end_date: datetime = None,
+                 custom_params: dict = None):
         """
         Initialize backtest bot.
         
@@ -774,6 +789,7 @@ class LiveTradingBot:
             initial_balance: Starting balance for backtest
             start_date: Backtest start date
             end_date: Backtest end date
+            custom_params: Optional custom parameters (for optimizer)
         """
         self.ddd_halted = False
         self.ddd_halt_reason = ""
@@ -799,7 +815,8 @@ class LiveTradingBot:
         self.risk_manager = RiskManager(state_file="challenge_state.json")
         # STRICT: Load params (merged with defaults) - no fallback to dataclass defaults
         # load_best_params_from_file() returns StrategyParams with defaults merged
-        self.params = load_best_params_from_file()
+        # If custom_params provided (from optimizer), overlay those on top
+        self.params = load_best_params_from_file(custom_params)
         self.last_scan_time: Optional[datetime] = None
         self.next_scan_time: Optional[datetime] = None  # Store next scheduled scan time
         self.last_validate_time: Optional[datetime] = None
@@ -4473,8 +4490,22 @@ def main():
     parser.add_argument('--balance', type=float, default=20000, help='Initial balance')
     parser.add_argument('--data-dir', type=str, default='data/ohlcv', help='Data directory')
     parser.add_argument('--output', type=str, default='ftmo_analysis_output/main_live_bot_backtest', help='Output directory')
+    parser.add_argument('--params-file', type=str, default=None, help='Custom params JSON file (for optimizer)')
+    parser.add_argument('--quiet', action='store_true', help='Suppress verbose output (for optimizer)')
     
     args = parser.parse_args()
+    
+    # Load custom params if provided (for optimizer)
+    custom_params = None
+    if args.params_file:
+        try:
+            with open(args.params_file, 'r') as f:
+                data = json.load(f)
+                custom_params = data.get('parameters', data)
+            if not args.quiet:
+                print(f"[OPTIMIZER] Loaded custom params from {args.params_file}")
+        except Exception as e:
+            print(f"[OPTIMIZER] Warning: Could not load params file: {e}")
     
     # Parse dates
     start_date = datetime.strptime(args.start, '%Y-%m-%d').replace(tzinfo=timezone.utc)
@@ -4496,6 +4527,7 @@ def main():
         initial_balance=args.balance,
         start_date=start_date,
         end_date=end_date,
+        custom_params=custom_params,
     )
     
     # Run backtest
