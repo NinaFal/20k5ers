@@ -3532,9 +3532,9 @@ class LiveTradingBot:
                     setup.tp3_hit = True
                     setup.status = "closed"
                     
-                    # Mark as closed today - prevents re-entry until tomorrow
-                    oanda_symbol = self._broker_to_oanda(broker_symbol)
-                    self.mark_symbol_closed_today(oanda_symbol, reason="TP3 hit")
+                    # NOTE: NOT marking as closed_today for TP3 hit
+                    # Re-entry same day is allowed after natural exit (TP3/SL)
+                    # closed_today is ONLY for manually closed positions
                     
                     # Calculate total R for this trade (matches simulator)
                     total_r = (tp1_r * self.params.tp1_close_pct +
