@@ -765,6 +765,7 @@ class LiveTradingBot:
         self._load_awaiting_spread()
         self._load_awaiting_entry()  # Signals waiting for price proximity
         self._load_ddd_halt_state()  # Load DDD halt state (survives restarts)
+        self._load_closed_today()  # Track symbols closed today (no re-entry same day)
         self._auto_start_challenge()
     
     # ═══════════════════════════════════════════════════════════════════════════
@@ -772,6 +773,69 @@ class LiveTradingBot:
     # ═══════════════════════════════════════════════════════════════════════════
     
     DDD_HALT_STATE_FILE = "ddd_halt_state.json"
+    CLOSED_TODAY_FILE = "closed_today.json"
+    
+    # ═══════════════════════════════════════════════════════════════════════════
+    # CLOSED TODAY TRACKING - Prevent re-entry on same day after manual/SL close
+    # ═══════════════════════════════════════════════════════════════════════════
+    
+    def _load_closed_today(self):
+        """Load symbols that were closed today. Reset on new day."""
+        self.closed_today: set = set()
+        self.closed_today_date: Optional[str] = None
+        
+        try:
+            if Path(self.CLOSED_TODAY_FILE).exists():
+                with open(self.CLOSED_TODAY_FILE, 'r') as f:
+                    state = json.load(f)
+                
+                saved_date = state.get("date", "")
+                today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                
+                if saved_date == today:
+                    self.closed_today = set(state.get("symbols", []))
+                    self.closed_today_date = saved_date
+                    if self.closed_today:
+                        log.info(f"📋 Loaded {len(self.closed_today)} symbols closed today: {', '.join(sorted(self.closed_today))}")
+                else:
+                    log.info(f"Closed-today list from {saved_date} expired (new day: {today})")
+                    self._save_closed_today()  # Clear the file
+        except Exception as e:
+            log.error(f"Error loading closed_today: {e}")
+    
+    def _save_closed_today(self):
+        """Save symbols closed today to file."""
+        try:
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            state = {
+                "date": today,
+                "symbols": list(self.closed_today),
+                "last_update": datetime.now(timezone.utc).isoformat()
+            }
+            with open(self.CLOSED_TODAY_FILE, 'w') as f:
+                json.dump(state, f, indent=2)
+        except Exception as e:
+            log.error(f"Error saving closed_today: {e}")
+    
+    def mark_symbol_closed_today(self, symbol: str, reason: str = "unknown"):
+        """Mark a symbol as closed today. Prevents re-entry until next day."""
+        # Use OANDA format for internal tracking
+        if symbol not in self.closed_today:
+            self.closed_today.add(symbol)
+            self._save_closed_today()
+            log.info(f"🚫 [{symbol}] Marked as closed today ({reason}) - no re-entry until tomorrow")
+    
+    def is_symbol_closed_today(self, symbol: str) -> bool:
+        """Check if symbol was closed today (blocked from re-entry)."""
+        # Check if we need to reset for new day
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if self.closed_today_date != today:
+            log.info(f"📋 New day detected - clearing closed_today list")
+            self.closed_today.clear()
+            self.closed_today_date = today
+            self._save_closed_today()
+        
+        return symbol in self.closed_today
     
     def _load_ddd_halt_state(self):
         """Load DDD halt state from file. Halt persists for same day only."""
@@ -1842,6 +1906,8 @@ class LiveTradingBot:
                 if broker_symbol not in position_symbols:
                     log.warning(f"[{symbol}] Orphaned filled setup (position not in MT5) - removing")
                     orphaned_setups.append(symbol)
+                    # Mark as closed today - prevents re-entry until tomorrow
+                    self.mark_symbol_closed_today(symbol, reason="position closed externally/manually")
             
             elif setup.status == "halted":
                 # Halted setups from DDD halt - check if new day
@@ -1946,6 +2012,18 @@ class LiveTradingBot:
             if pos.symbol == broker_symbol:
                 return True
         return False
+    
+    def _broker_to_oanda(self, broker_symbol: str) -> str:
+        """Convert broker symbol back to OANDA format.
+        
+        Example: UK100 -> UK100_GBP, EURUSD -> EUR_USD
+        """
+        # Reverse lookup in symbol_map
+        for oanda_sym, broker_sym in self.symbol_map.items():
+            if broker_sym == broker_symbol:
+                return oanda_sym
+        # Fallback: return as-is if not found
+        return broker_symbol
     
     def _get_dynamic_pip_value(self, symbol: str, broker_symbol: str) -> float:
         """
@@ -2303,6 +2381,11 @@ class LiveTradingBot:
         
         broker_symbol = self.symbol_map[symbol]
         log.info(f"[{symbol}] Scanning (OANDA: {symbol}, FTMO: {broker_symbol})...")
+        
+        # Check if symbol was closed today (manual close or SL hit) - no re-entry until tomorrow
+        if self.is_symbol_closed_today(symbol):
+            log.info(f"[{symbol}] Was closed today - no re-entry until tomorrow, skipping")
+            return None
         
         if self.check_existing_position(broker_symbol):
             log.info(f"[{symbol}] Already in position, skipping")
@@ -3448,6 +3531,10 @@ class LiveTradingBot:
                     setup.partial_closes = 3
                     setup.tp3_hit = True
                     setup.status = "closed"
+                    
+                    # Mark as closed today - prevents re-entry until tomorrow
+                    oanda_symbol = self._broker_to_oanda(broker_symbol)
+                    self.mark_symbol_closed_today(oanda_symbol, reason="TP3 hit")
                     
                     # Calculate total R for this trade (matches simulator)
                     total_r = (tp1_r * self.params.tp1_close_pct +
