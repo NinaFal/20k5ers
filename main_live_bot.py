@@ -3944,12 +3944,20 @@ class LiveTradingBot:
                         
                         # Update day_start_equity BEFORE scan (use current equity as new day start)
                         # This is the equity at daily close which becomes the new day's starting point
+                        # SKIP if day_start_equity was manually set via --set-day-start-equity
                         account = self.mt5.get_account_info()
                         if account and self.challenge_manager:
                             current_equity = account.get("equity", 0)
                             old_day_start = self.challenge_manager.day_start_equity
-                            self.challenge_manager.update_day_start_equity(current_equity)
-                            log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${current_equity:,.2f}")
+                            
+                            if self.challenge_manager.day_start_equity_manually_set:
+                                log.info(f"Day start equity PRESERVED (manually set): ${old_day_start:,.2f} (current equity: ${current_equity:,.2f})")
+                                # Clear the flag for the NEXT day - manual override is one-time per day
+                                self.challenge_manager.day_start_equity_manually_set = False
+                                self.challenge_manager._save_state()
+                            else:
+                                self.challenge_manager.update_day_start_equity(current_equity)
+                                log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${current_equity:,.2f}")
 
                         self.scan_all_symbols()
 
@@ -4123,9 +4131,10 @@ def main():
                 
                 # Set the manual value
                 bot.challenge_manager.day_start_equity = manual_value
+                bot.challenge_manager.day_start_equity_manually_set = True  # Mark as manually set
                 bot.challenge_manager._save_state()
                 print(f"New day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
-                print("✓ Day start equity manually set")
+                print("✓ Day start equity manually set (will NOT be overridden by daily scan)")
                 
                 # Calculate current DDD with new value
                 daily_loss = manual_value - current_equity

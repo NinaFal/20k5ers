@@ -140,6 +140,7 @@ class ChallengeRiskManager:
 
         self.day_start_balance: float = config.account_size
         self.day_start_equity: float = config.account_size  # BUGFIX: Init voor DDD-bewaking
+        self.day_start_equity_manually_set: bool = False  # Flag: True if manually set via --set-day-start-equity
         self.daily_pnl: float = 0.0
         self.total_drawdown: float = 0.0
         self.total_drawdown_pct: float = 0.0
@@ -193,6 +194,7 @@ class ChallengeRiskManager:
                 self.peak_equity = state.get('peak_equity', self.config.account_size)
                 self.day_start_balance = state.get('day_start_balance', self.config.account_size)
                 self.day_start_equity = state.get('day_start_equity', self.config.account_size)  # Load equity start
+                self.day_start_equity_manually_set = state.get('day_start_equity_manually_set', False)  # Load manual flag
                 
                 # VALIDATION: Check if day_start_equity seems reasonable
                 if self.day_start_equity <= 0 or self.day_start_equity > self.config.account_size * 2:
@@ -239,6 +241,7 @@ class ChallengeRiskManager:
             'peak_equity': self.peak_equity,
             'day_start_balance': self.day_start_balance,
             'day_start_equity': self.day_start_equity,  # Save equity start for DDD
+            'day_start_equity_manually_set': self.day_start_equity_manually_set,  # Save manual flag
             'current_date': self.current_date.isoformat(),
             'trades_today': self.trades_today,
             # TRANSPARENCY: Add DDD/TDD metrics for comparison with 5ers dashboard
