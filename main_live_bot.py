@@ -1906,8 +1906,32 @@ class LiveTradingBot:
                 if broker_symbol not in position_symbols:
                     log.warning(f"[{symbol}] Orphaned filled setup (position not in MT5) - removing")
                     orphaned_setups.append(symbol)
-                    # Mark as closed today - prevents re-entry until tomorrow
-                    self.mark_symbol_closed_today(symbol, reason="position closed externally/manually")
+                    
+                    # Determine if this was SL hit or manual close
+                    # If SL hit: price reached SL level (bot-controlled exit, allow re-entry)
+                    # If manual: price did NOT reach SL (user closed, block re-entry)
+                    was_sl_hit = False
+                    try:
+                        tick = self.mt5.get_symbol_tick(broker_symbol)
+                        if tick and setup.stop_loss:
+                            current_price = tick.get("bid", 0) if setup.direction == "buy" else tick.get("ask", 0)
+                            sl = setup.stop_loss
+                            
+                            # Check if price went past SL
+                            if setup.direction == "buy":
+                                was_sl_hit = current_price <= sl
+                            else:  # sell
+                                was_sl_hit = current_price >= sl
+                            
+                            log.info(f"[{symbol}] Close detection: price={current_price:.5f}, SL={sl:.5f}, SL hit={was_sl_hit}")
+                    except Exception as e:
+                        log.warning(f"[{symbol}] Could not determine close reason: {e}")
+                    
+                    if not was_sl_hit:
+                        # Manual close detected - block re-entry for today
+                        self.mark_symbol_closed_today(symbol, reason="manually closed by user")
+                    else:
+                        log.info(f"[{symbol}] SL was hit - re-entry allowed same day")
             
             elif setup.status == "halted":
                 # Halted setups from DDD halt - check if new day
