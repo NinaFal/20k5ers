@@ -3350,6 +3350,16 @@ class LiveTradingBot:
             tp2_r = self.params.tp2_r_multiple
             tp3_r = self.params.tp3_r_multiple
             
+            # Calculate actual TP prices for accurate P&L calculation
+            if setup.direction == "bullish":
+                tp1_price = entry + (risk * tp1_r)
+                tp2_price = entry + (risk * tp2_r)
+                tp3_price = entry + (risk * tp3_r)
+            else:
+                tp1_price = entry - (risk * tp1_r)
+                tp2_price = entry - (risk * tp2_r)
+                tp3_price = entry - (risk * tp3_r)
+            
             original_volume = setup.lot_size
             current_volume = pos.volume
             partial_state = setup.partial_closes if hasattr(setup, 'partial_closes') else 0
@@ -3367,7 +3377,7 @@ class LiveTradingBot:
                 # Retry logic for partial close (up to 3 attempts)
                 result = None
                 for attempt in range(3):
-                    result = self.mt5.partial_close(pos.ticket, close_volume)
+                    result = self.mt5.partial_close(pos.ticket, close_volume, close_price=tp1_price)
                     if result.success:
                         break
                     if attempt < 2:
@@ -3432,7 +3442,7 @@ class LiveTradingBot:
                 # Retry logic for partial close (up to 3 attempts)
                 result = None
                 for attempt in range(3):
-                    result = self.mt5.partial_close(pos.ticket, close_volume)
+                    result = self.mt5.partial_close(pos.ticket, close_volume, close_price=tp2_price)
                     if result.success:
                         break
                     if attempt < 2:
@@ -3466,7 +3476,7 @@ class LiveTradingBot:
                 # Retry logic for position close (up to 3 attempts)
                 result = None
                 for attempt in range(3):
-                    result = self.mt5.close_position(pos.ticket)
+                    result = self.mt5.close_position(pos.ticket, close_price=tp3_price)
                     if result.success:
                         break
                     if attempt < 2:
@@ -4162,10 +4172,11 @@ class LiveTradingBot:
             # ═══════════════════════════════════════════════════════════════
             sl_tp_hits = self.mt5.check_sl_tp_hits()
             for hit in sl_tp_hits:
-                # Close at hit price
+                # Close at HIT PRICE (not current bar close!)
                 pos = self.mt5._positions.get(hit['ticket'])
                 if pos:
-                    self.mt5.close_position(hit['ticket'])
+                    # Pass the exact hit price for accurate P&L calculation
+                    self.mt5.close_position(hit['ticket'], close_price=hit['price'])
                     log.info(f"[{pos.symbol}] {hit['type'].upper()} HIT at {hit['price']:.5f}")
             
             # ═══════════════════════════════════════════════════════════════

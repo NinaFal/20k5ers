@@ -605,30 +605,36 @@ class CSVMT5Simulator:
         """Get positions for this bot (by magic number)."""
         return [p for p in self._positions.values() if p.magic == self.MAGIC_NUMBER]
     
-    def close_position(self, ticket: int, volume: float = None) -> TradeResult:
-        """Close a position (partial or full)."""
+    def close_position(self, ticket: int, volume: float = None, close_price: float = None) -> TradeResult:
+        """Close a position (partial or full).
+        
+        Args:
+            ticket: Position ticket to close
+            volume: Volume to close (None = full close)
+            close_price: Exact close price (e.g. SL/TP hit price). If None, uses current bar close.
+        """
         if ticket not in self._positions:
             return TradeResult(success=False, error="Position not found")
         
         pos = self._positions[ticket]
-        bar = self.get_m15_bar(pos.symbol, self._current_time)
         
-        if bar is None:
-            # Try to get tick instead
-            tick = self.get_tick(pos.symbol)
-            if tick:
-                close_price = tick.bid if pos.type == 0 else tick.ask
+        # Use provided close_price (for SL/TP hits) or get current bar close
+        if close_price is None:
+            bar = self.get_m15_bar(pos.symbol, self._current_time)
+            if bar is None:
+                # Try to get tick instead
+                tick = self.get_tick(pos.symbol)
+                if tick:
+                    close_price = tick.bid if pos.type == 0 else tick.ask
+                else:
+                    return TradeResult(success=False, error="No price data")
             else:
-                return TradeResult(success=False, error="No price data")
-        else:
-            close_price = bar['close']
+                close_price = bar['close']
         
         close_volume = volume if volume else pos.volume
         
-        # Calculate P&L
-        pnl = self._calculate_position_pnl(pos)
-        if volume and volume < pos.volume:
-            pnl = pnl * (close_volume / pos.volume)
+        # Calculate P&L using the ACTUAL close price (not current bar price)
+        pnl = self._calculate_pnl_at_price(pos, close_price, close_volume)
         
         if close_volume >= pos.volume:
             # Full close
@@ -662,6 +668,29 @@ class CSVMT5Simulator:
             volume=close_volume,
         )
     
+    def _calculate_pnl_at_price(self, pos: Position, close_price: float, volume: float = None) -> float:
+        """Calculate P&L for closing a position at a specific price.
+        
+        This is used for SL/TP hits where we know the exact exit price.
+        """
+        from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
+        fiveers_specs = get_fiveers_contract_specs(pos.symbol)
+        pip_size = fiveers_specs.get('pip_size', 0.0001)
+        pip_value_per_lot = fiveers_specs.get('pip_value_per_lot', 10.0)
+        
+        if pos.type == 0:  # Buy
+            price_diff = close_price - pos.price_open
+        else:  # Sell
+            price_diff = pos.price_open - close_price
+        
+        pips = price_diff / pip_size
+        vol = volume if volume else pos.volume
+        
+        # P&L = pips × pip_value × volume
+        pnl = pips * pip_value_per_lot * vol
+        
+        return pnl
+    
     def modify_sl_tp(
         self,
         ticket: int,
@@ -680,9 +709,9 @@ class CSVMT5Simulator:
         
         return TradeResult(success=True, order_id=ticket)
     
-    def partial_close(self, ticket: int, volume: float) -> TradeResult:
+    def partial_close(self, ticket: int, volume: float, close_price: float = None) -> TradeResult:
         """Partially close a position (alias for close_position with volume)."""
-        return self.close_position(ticket, volume)
+        return self.close_position(ticket, volume, close_price)
     
     # ═══════════════════════════════════════════════════════════════════════
     # MT5Client INTERFACE - ORDERS
