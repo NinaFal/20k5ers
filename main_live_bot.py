@@ -3760,16 +3760,16 @@ class LiveTradingBot:
         # ═══════════════════════════════════════════════════════════════════════════════
         # WEEKEND CRYPTO SCANNING - Detect if it's weekend and filter accordingly
         # ═══════════════════════════════════════════════════════════════════════════════
-        current_day = datetime.now(timezone.utc).weekday()  # 0=Monday, 6=Sunday
-        is_weekend = current_day in [5, 6]  # Saturday=5, Sunday=6
+        # Use is_market_open() which correctly handles Sunday 22:00 UTC open
+        forex_market_open = is_market_open()
         
         for symbol in available_symbols:
             try:
                 # ═══════════════════════════════════════════════════════════
-                # WEEKEND LOGIC - Skip forex on weekends, ALWAYS scan crypto
+                # WEEKEND LOGIC - Skip forex when market closed, ALWAYS scan crypto
                 # ═══════════════════════════════════════════════════════════
-                if is_weekend and not is_crypto_pair(symbol):
-                    log.debug(f"[{symbol}] Skipping weekend scan - forex market closed")
+                if not forex_market_open and not is_crypto_pair(symbol):
+                    log.debug(f"[{symbol}] Skipping - forex market closed")
                     continue
                 
                 setup = self.scan_symbol(symbol)
