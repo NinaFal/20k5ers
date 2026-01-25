@@ -2459,7 +2459,11 @@ class LiveTradingBot:
                 log.info(f"[{symbol}] Already have filled position, skipping")
                 return None
             elif existing.status in ("pending", "halted"):
-                # Replace old pending with new signal (will happen after this returns)
+                # Replace old pending with new signal
+                # IMPORTANT: Cancel the old MT5 pending order first!
+                if existing.order_ticket:
+                    log.debug(f"[{symbol}] Cancelling old pending order (ticket {existing.order_ticket}) before replacing")
+                    self.mt5.cancel_pending_order(existing.order_ticket)
                 log.info(f"[{symbol}] Replacing old {existing.status} setup with new signal")
                 del self.pending_setups[symbol]
         

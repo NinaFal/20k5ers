@@ -1518,7 +1518,10 @@ class LiveTradingBot:
             return
 
         if not self.friday_close_prices:
-            log.warning("⚠️ No Friday close prices stored, skipping Sunday gap detection")
+            # Only log this once per session to avoid spam
+            if not getattr(self, '_friday_close_warning_logged', False):
+                log.warning("⚠️ No Friday close prices stored, skipping Sunday gap detection")
+                self._friday_close_warning_logged = True
             return
 
         positions = self.mt5.get_my_positions()
@@ -2425,7 +2428,13 @@ class LiveTradingBot:
                 log.info(f"[{symbol}] Already have filled position, skipping")
                 return None
             elif existing.status in ("pending", "halted"):
-                # Replace old pending with new signal (will happen after this returns)
+                # Replace old pending with new signal
+                # IMPORTANT: Cancel the old MT5 pending order first!
+                if existing.order_ticket:
+                    log.info(f"[{symbol}] Cancelling old pending order (ticket {existing.order_ticket}) before replacing")
+                    cancel_result = self.mt5.cancel_pending_order(existing.order_ticket)
+                    if hasattr(cancel_result, 'success') and not cancel_result.success:
+                        log.warning(f"[{symbol}] Failed to cancel old order: {getattr(cancel_result, 'error', 'unknown')}")
                 log.info(f"[{symbol}] Replacing old {existing.status} setup with new signal")
                 del self.pending_setups[symbol]
         

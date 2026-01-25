@@ -262,6 +262,16 @@ class MT5Client:
             "currency": info.currency,
         }
     
+    def get_account_equity(self) -> float:
+        """Get current account equity."""
+        info = self.get_account_info()
+        return info.get("equity", 0.0)
+    
+    def get_account_balance(self) -> float:
+        """Get current account balance."""
+        info = self.get_account_info()
+        return info.get("balance", 0.0)
+    
     def _get_filling_mode(self, symbol: str) -> int:
         """
         Get the appropriate filling mode for a symbol based on broker support.
