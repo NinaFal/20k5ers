@@ -212,6 +212,7 @@ class Position:
     
     # Trailing
     trailing_sl: float = 0.0
+    progressive_trail_applied: bool = False  # Progressive trail: SL moved to BE+0.xR
     
     # Result
     closed: bool = False
@@ -783,6 +784,26 @@ class MainLiveBotSimulator:
                 
                 # Move SL to breakeven
                 pos.trailing_sl = pos.fill_price
+        
+        # PROGRESSIVE TRAILING: Between TP1 and TP2
+        # After TP1 hit, if price reaches progressive_trigger_r, move SL to BE + progressive_trail_target_r
+        elif pos.tp1_hit and not pos.tp2_hit and not getattr(pos, 'progressive_trail_applied', False):
+            # Calculate current R
+            if signal.direction == 'bullish':
+                current_r = (close_price - pos.fill_price) / risk
+            else:
+                current_r = (pos.fill_price - close_price) / risk
+            
+            progressive_trigger_r = getattr(self.params, 'progressive_trigger_r', 0.8)
+            progressive_trail_target_r = getattr(self.params, 'progressive_trail_target_r', 0.4)
+            
+            if current_r >= progressive_trigger_r:
+                # Move SL to BE + progressive_trail_target_r
+                if signal.direction == 'bullish':
+                    pos.trailing_sl = pos.fill_price + risk * progressive_trail_target_r
+                else:
+                    pos.trailing_sl = pos.fill_price - risk * progressive_trail_target_r
+                pos.progressive_trail_applied = True
         
         # TP2
         elif not pos.tp2_hit:

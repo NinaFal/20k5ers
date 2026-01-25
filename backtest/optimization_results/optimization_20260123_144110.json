@@ -1,0 +1,118 @@
+{
+  "optimization_mode": "TPE",
+  "timestamp": "2026-01-23T14:41:10.640251",
+  "config": {
+    "trials": 3,
+    "start": "2024-04-01",
+    "end": "2024-04-30",
+    "balance": 20000,
+    "num_tps": 3
+  },
+  "best_score": -7.639999999999999,
+  "best_metrics": {
+    "net_return_pct": 13.15,
+    "total_trades": 105,
+    "win_rate": 52.4,
+    "max_tdd_pct": 1.57,
+    "max_ddd_pct": 3.58,
+    "valid": true
+  },
+  "best_parameters": {
+    "tp1_r_multiple": 0.5,
+    "tp2_r_multiple": 1.2,
+    "tp3_r_multiple": 1.9,
+    "tp1_close_pct_weight": 0.35000000000000003,
+    "tp2_close_pct_weight": 0.25,
+    "tp3_close_pct_weight": 0.2,
+    "trail_activation_r": 1.1,
+    "atr_trail_multiplier": 1.2,
+    "use_atr_trailing": false,
+    "trend_min_confluence": 6,
+    "range_min_confluence": 6,
+    "min_quality_factors": 2,
+    "risk_per_trade_pct": 0.7000000000000001
+  },
+  "all_trials": [
+    {
+      "trial": 0,
+      "score": -11.889999999999999,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 2.0,
+        "tp3_r_multiple": 2.8000000000000003,
+        "tp1_close_pct_weight": 0.4,
+        "tp2_close_pct_weight": 0.15,
+        "tp3_close_pct_weight": 0.15,
+        "trail_activation_r": 0.5,
+        "atr_trail_multiplier": 2.8,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 6,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 0.5
+      },
+      "metrics": {
+        "net_return_pct": 9.66,
+        "total_trades": 96,
+        "win_rate": 55.2,
+        "max_tdd_pct": 1.8,
+        "max_ddd_pct": 3.61,
+        "valid": true
+      }
+    },
+    {
+      "trial": 1,
+      "score": -7.639999999999999,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 1.2,
+        "tp3_r_multiple": 1.9,
+        "tp1_close_pct_weight": 0.35000000000000003,
+        "tp2_close_pct_weight": 0.25,
+        "tp3_close_pct_weight": 0.2,
+        "trail_activation_r": 1.1,
+        "atr_trail_multiplier": 1.2,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 6,
+        "range_min_confluence": 6,
+        "min_quality_factors": 2,
+        "risk_per_trade_pct": 0.7000000000000001
+      },
+      "metrics": {
+        "net_return_pct": 13.15,
+        "total_trades": 105,
+        "win_rate": 52.4,
+        "max_tdd_pct": 1.57,
+        "max_ddd_pct": 3.58,
+        "valid": true
+      }
+    },
+    {
+      "trial": 2,
+      "score": -11.899999999999999,
+      "params": {
+        "tp1_r_multiple": 0.8,
+        "tp2_r_multiple": 1.0,
+        "tp3_r_multiple": 2.4,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.15,
+        "tp3_close_pct_weight": 0.4,
+        "trail_activation_r": 1.5,
+        "atr_trail_multiplier": 2.6,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 7,
+        "range_min_confluence": 4,
+        "min_quality_factors": 2,
+        "risk_per_trade_pct": 0.7000000000000001
+      },
+      "metrics": {
+        "net_return_pct": 11.87,
+        "total_trades": 87,
+        "win_rate": 46.0,
+        "max_tdd_pct": 0.71,
+        "max_ddd_pct": 4.47,
+        "valid": true
+      }
+    }
+  ]
+}

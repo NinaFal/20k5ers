@@ -71,7 +71,7 @@ class Fiveers60KConfig:
     # === ENTRY OPTIMIZATION (ALIGNED WITH SIMULATOR) ===
     max_entry_distance_r: float = 1.5  # ALIGNED: Max 1.5R distance (was 1.0)
     immediate_entry_r: float = 0.05  # ALIGNED: Execute immediately if within 0.05R (was 0.4)
-    limit_order_proximity_r: float = 0.3  # Place limit order when price is within 0.3R of entry
+    limit_order_proximity_r: float = 1.5  # CHANGED: Place limit order immediately (was 0.3R - now matches max_entry_distance)
     entry_check_interval_minutes: int = 30  # Check entry proximity every 30 minutes
 
     # === PENDING ORDER SETTINGS ===

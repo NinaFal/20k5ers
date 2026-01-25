@@ -235,6 +235,10 @@ class StrategyParams:
     december_atr_multiplier: float = 1.5  # Extra strict ATR threshold only in December
     volatile_asset_boost: float = 1.5  # Boost scoring for high-ATR assets
     
+    # Progressive Trailing Parameters (between TP1 and TP2)
+    progressive_trigger_r: float = 0.8  # Trigger progressive trail at this R (between TP1 and TP2)
+    progressive_trail_target_r: float = 0.4  # Trail SL to BE + this R value
+    
     # ============================================================================
     # REGIME-ADAPTIVE V2 PARAMETERS
     # These control the dual-mode trading system: Trend Mode + Conservative Range Mode
@@ -359,6 +363,8 @@ class StrategyParams:
             "trail_activation_r": self.trail_activation_r,
             "december_atr_multiplier": self.december_atr_multiplier,
             "volatile_asset_boost": self.volatile_asset_boost,
+            "progressive_trigger_r": self.progressive_trigger_r,
+            "progressive_trail_target_r": self.progressive_trail_target_r,
             "adx_trend_threshold": self.adx_trend_threshold,
             "adx_range_threshold": self.adx_range_threshold,
             "range_min_confluence": self.range_min_confluence,
@@ -2477,13 +2483,19 @@ def generate_signals(
         is_active = False
         is_watching = False
         
-        # Use boosted scores for threshold comparison
-        # BUGFIX: Reduce quality threshold by 1 since confluence_score now includes many new filters
-        # This ensures signals that pass confluence threshold also pass quality threshold
-        min_quality_for_active = max(1, params.min_quality_factors - 1)
-        if boosted_confluence >= params.min_confluence and boosted_quality >= min_quality_for_active:
+        # ALIGNED WITH main_live_bot: Use regime-based confluence thresholds
+        # TREND regime (high volatility) = stricter, RANGE regime = more lenient
+        atr_regime_ok = flags.get("atr_regime_ok", True)
+        trend_conf = getattr(params, 'trend_min_confluence', 6)
+        range_conf = getattr(params, 'range_min_confluence', 4)
+        min_confluence = trend_conf if atr_regime_ok else range_conf
+        
+        # Use min_quality_factors from params
+        min_quality_for_active = getattr(params, 'min_quality_factors', 3)
+        
+        if boosted_confluence >= min_confluence and boosted_quality >= min_quality_for_active:
             is_active = True
-        elif boosted_confluence >= params.min_confluence - 1:
+        elif boosted_confluence >= min_confluence - 1:
             is_watching = True
         
         if is_active or is_watching:

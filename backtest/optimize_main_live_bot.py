@@ -46,41 +46,47 @@ except ImportError:
 # OPTIMIZATION PARAMETER RANGES
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Take Profit R-Multiples (where to place each TP level)
+# Take Profit R-Multiples (where to place each TP level) - EXPANDED RANGES
 TP_R_RANGES = {
-    'tp1_r_multiple': (0.4, 1.0),      # TP1 at 0.4R - 1.0R
-    'tp2_r_multiple': (1.0, 2.0),      # TP2 at 1.0R - 2.0R
-    'tp3_r_multiple': (1.5, 3.0),      # TP3 at 1.5R - 3.0R
-    'tp4_r_multiple': (2.0, 4.0),      # TP4 at 2.0R - 4.0R (optional)
-    'tp5_r_multiple': (3.0, 6.0),      # TP5 at 3.0R - 6.0R (optional)
+    'tp1_r_multiple': (0.3, 1.5),      # TP1 at 0.3R - 1.5R (was 0.4-1.0)
+    'tp2_r_multiple': (0.8, 3.0),      # TP2 at 0.8R - 3.0R (was 1.0-2.0)
+    'tp3_r_multiple': (1.2, 5.0),      # TP3 at 1.2R - 5.0R (was 1.5-3.0)
+    'tp4_r_multiple': (2.0, 6.0),      # TP4 at 2.0R - 6.0R (optional)
+    'tp5_r_multiple': (3.0, 8.0),      # TP5 at 3.0R - 8.0R (optional)
 }
 
-# Take Profit Close Percentages (must sum to ~1.0)
+# Take Profit Close Percentages (must sum to ~1.0) - EXPANDED
 TP_CLOSE_RANGES = {
-    'tp1_close_pct': (0.20, 0.50),     # Close 20-50% at TP1
-    'tp2_close_pct': (0.15, 0.40),     # Close 15-40% at TP2
-    'tp3_close_pct': (0.15, 0.40),     # Close 15-40% at TP3
-    'tp4_close_pct': (0.05, 0.25),     # Close 5-25% at TP4
-    'tp5_close_pct': (0.05, 0.30),     # Close 5-30% at TP5 (remainder)
+    'tp1_close_pct': (0.10, 0.60),     # Close 10-60% at TP1 (was 20-50)
+    'tp2_close_pct': (0.10, 0.50),     # Close 10-50% at TP2 (was 15-40)
+    'tp3_close_pct': (0.10, 0.60),     # Close 10-60% at TP3 (was 15-40)
+    'tp4_close_pct': (0.05, 0.30),     # Close 5-30% at TP4
+    'tp5_close_pct': (0.05, 0.40),     # Close 5-40% at TP5 (remainder)
 }
 
-# Trailing Stop Parameters
+# Trailing Stop Parameters - EXPANDED
 TRAIL_RANGES = {
-    'trail_activation_r': (0.5, 1.5),          # Activate after 0.5R - 1.5R profit
-    'atr_trail_multiplier': (1.0, 3.0),        # Trail distance: 1.0-3.0 ATR
+    'trail_activation_r': (0.3, 2.0),          # Activate after 0.3R - 2.0R profit (was 0.5-1.5)
+    'atr_trail_multiplier': (0.5, 4.0),        # Trail distance: 0.5-4.0 ATR (was 1.0-3.0)
     'use_atr_trailing': [True, False],         # Enable/disable trailing
 }
 
-# Confluence / Entry Parameters
-ENTRY_RANGES = {
-    'trend_min_confluence': (4, 8),            # Min confluence in trend mode
-    'range_min_confluence': (3, 6),            # Min confluence in range mode
-    'min_quality_factors': (2, 5),             # Min quality factors
+# Progressive Trailing Parameters (between TP1 and TP2) - EXPANDED
+PROGRESSIVE_TRAIL_RANGES = {
+    'progressive_trigger_r': (0.4, 1.2),       # When to trigger progressive trail (was 0.6-1.0)
+    'progressive_trail_target_r': (0.2, 0.8),  # Trail SL to BE + this R (was 0.3-0.6)
 }
 
-# Risk Parameters
+# Confluence / Entry Parameters - EXPANDED
+ENTRY_RANGES = {
+    'trend_min_confluence': (3, 9),            # Min confluence in trend mode (was 4-8)
+    'range_min_confluence': (2, 7),            # Min confluence in range mode (was 3-6)
+    'min_quality_factors': (1, 6),             # Min quality factors (was 2-5)
+}
+
+# Risk Parameters - AGGRESSIVE RANGE
 RISK_RANGES = {
-    'risk_per_trade_pct': (0.4, 1.0),          # 0.4% - 1.0% risk per trade
+    'risk_per_trade_pct': (0.3, 1.5),          # 0.3% - 1.5% risk per trade (was 0.4-1.0)
 }
 
 
@@ -140,13 +146,14 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 
             "--balance", str(balance),
             "--output", str(output_dir),
             "--params-file", str(temp_params),
+            "--quiet",  # Suppress verbose output for optimizer
         ]
         
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=600,  # 10 minute timeout per backtest
+            timeout=1800,  # 30 minute timeout per backtest (was 15 min)
             cwd=str(Path(__file__).parent.parent)
         )
         
@@ -305,6 +312,20 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
         TRAIL_RANGES['use_atr_trailing']
     )
     
+    # Sample progressive trailing parameters (between TP1 and TP2)
+    params['progressive_trigger_r'] = trial.suggest_float(
+        'progressive_trigger_r',
+        PROGRESSIVE_TRAIL_RANGES['progressive_trigger_r'][0],
+        PROGRESSIVE_TRAIL_RANGES['progressive_trigger_r'][1],
+        step=0.1
+    )
+    params['progressive_trail_target_r'] = trial.suggest_float(
+        'progressive_trail_target_r',
+        PROGRESSIVE_TRAIL_RANGES['progressive_trail_target_r'][0],
+        PROGRESSIVE_TRAIL_RANGES['progressive_trail_target_r'][1],
+        step=0.1
+    )
+    
     # Sample confluence parameters
     params['trend_min_confluence'] = trial.suggest_int(
         'trend_min_confluence',
@@ -349,22 +370,44 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
     print(f"    → Return: {result.net_return_pct:+.1f}%, Trades: {result.total_trades}, Win: {result.win_rate:.1f}%")
     print(f"    → TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%, Valid: {result.valid}")
     
-    # Calculate score
+    # Calculate score - balanced multi-factor approach
     # Penalize heavily if not within 5ers limits
     if not result.valid:
         return -1000 - result.max_ddd_pct * 10
     
-    # Reward return, penalize drawdown
-    # Score = return - (max_ddd * 5) - (max_tdd * 2)
-    score = result.net_return_pct - (result.max_ddd_pct * 5) - (result.max_tdd_pct * 2)
+    # Minimum trades required for statistical significance
+    if result.total_trades < 10:
+        return -500 + result.total_trades  # Encourage more trades
     
-    # Bonus for higher win rate
-    if result.win_rate > 55:
-        score += (result.win_rate - 55) * 0.5
+    # === CORE METRIC: Risk-Adjusted Return (like Calmar Ratio) ===
+    # Return per unit of max drawdown - rewards consistent growth
+    max_dd = max(result.max_ddd_pct, 0.5)  # Floor at 0.5% to avoid division issues
+    risk_adjusted_return = result.net_return_pct / max_dd
     
-    # Bonus for more trades (more statistical significance)
-    if result.total_trades > 100:
-        score += min((result.total_trades - 100) * 0.05, 10)
+    # === PROFIT FACTOR PROXY ===
+    # Win rate * avg win estimate vs loss rate * avg loss
+    # Higher win rate with positive returns = better profit factor
+    win_rate_factor = result.win_rate / 100.0
+    profit_quality = result.net_return_pct * win_rate_factor if result.net_return_pct > 0 else result.net_return_pct
+    
+    # === COMBINED SCORE ===
+    # Primary: Risk-adjusted return (weight: 40%)
+    # Secondary: Raw return (weight: 30%) 
+    # Tertiary: Profit quality (weight: 20%)
+    # Bonus: Trade frequency (weight: 10%)
+    
+    score = (
+        risk_adjusted_return * 2.0 +           # ~40% weight - reward return/drawdown ratio
+        result.net_return_pct * 0.5 +           # ~30% weight - raw return matters
+        profit_quality * 0.3 +                  # ~20% weight - profitable + high win rate
+        min(result.total_trades / 20, 5)        # ~10% weight - cap at 100 trades bonus
+    )
+    
+    # Penalty for excessive drawdowns (soft cap)
+    if result.max_ddd_pct > 4.0:
+        score -= (result.max_ddd_pct - 4.0) * 3  # Penalize above 4% DDD
+    if result.max_tdd_pct > 8.0:
+        score -= (result.max_tdd_pct - 8.0) * 2  # Penalize above 8% TDD
     
     return score
 
@@ -376,7 +419,8 @@ def run_optimization(
     balance: float = 20000,
     num_tps: int = 3,
     sampler: str = 'tpe',
-    output_dir: str = 'backtest/optimization_results'
+    output_dir: str = 'backtest/optimization_results',
+    n_jobs: int = 1
 ) -> Dict[str, Any]:
     """Run the optimization study."""
     
@@ -388,6 +432,7 @@ def run_optimization(
     print(f"  Balance: ${balance:,.0f}")
     print(f"  TP Levels: {num_tps}")
     print(f"  Sampler: {sampler.upper()}")
+    print(f"  Parallel Workers: {n_jobs}")
     print("=" * 70)
     
     # Create study
@@ -406,6 +451,7 @@ def run_optimization(
     study.optimize(
         lambda trial: objective(trial, start, end, balance, num_tps),
         n_trials=trials,
+        n_jobs=n_jobs,
         show_progress_bar=True,
         catch=(Exception,)
     )
@@ -522,6 +568,7 @@ if __name__ == "__main__":
     parser.add_argument('--sampler', type=str, default='tpe', choices=['tpe', 'nsga'], help='Optuna sampler')
     parser.add_argument('--output', type=str, default='backtest/optimization_results', help='Output directory')
     parser.add_argument('--apply', type=str, help='Apply parameters from results file')
+    parser.add_argument('--parallel', '-j', type=int, default=1, help='Number of parallel workers (default: 1)')
     
     args = parser.parse_args()
     
@@ -535,5 +582,6 @@ if __name__ == "__main__":
             balance=args.balance,
             num_tps=args.num_tps,
             sampler=args.sampler,
-            output_dir=args.output
+            output_dir=args.output,
+            n_jobs=args.parallel
         )

@@ -932,7 +932,8 @@ class LiveTradingBot:
         """Check if currently in news event blackout period."""
         if not FIVEERS_CONFIG.block_trading_around_news:
             return False
-        now = datetime.now(timezone.utc)
+        # BACKTEST FIX: Use simulator time, not real time
+        now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
         
         # Check each major news event
         for day_of_week, hour, minute in FIVEERS_CONFIG.major_news_events:
@@ -1848,15 +1849,34 @@ class LiveTradingBot:
                     profit_ultra_safe_threshold_pct=FIVEERS_CONFIG.profit_ultra_safe_threshold_pct,
                     ultra_safe_risk_pct=FIVEERS_CONFIG.ultra_safe_risk_pct,
                 )
+                # BACKTEST: Use a temp state file to avoid conflicts with live state
+                import tempfile
+                backtest_state_file = Path(tempfile.gettempdir()) / "backtest_challenge_state.json"
+                # Remove old backtest state to ensure fresh start
+                if backtest_state_file.exists():
+                    backtest_state_file.unlink()
+                
                 self.challenge_manager = ChallengeRiskManager(
                     config=config,
                     mt5_client=self.mt5,
-                    state_file="challenge_risk_state.json",
+                    state_file=str(backtest_state_file),
                     trading_days_file=self.TRADING_DAYS_FILE,
                 )
+                # CRITICAL: Force reset the state to initial_balance for backtest
+                self.challenge_manager.starting_balance = self.initial_balance
+                self.challenge_manager.day_start_equity = self.initial_balance
+                self.challenge_manager.day_start_balance = self.initial_balance
+                self.challenge_manager.current_equity = self.initial_balance
+                self.challenge_manager.current_balance = self.initial_balance
+                self.challenge_manager.peak_equity = self.initial_balance
+                self.challenge_manager.daily_pnl = 0.0
+                self.challenge_manager.daily_loss_pct = 0.0
+                self.challenge_manager.total_drawdown_pct = 0.0
+                self.challenge_manager.halted = False
+                
                 sim_date = self.mt5.get_current_time().date() if hasattr(self.mt5, 'get_current_time') else None
                 self.challenge_manager.sync_with_mt5(balance, equity, sim_date=sim_date)
-                log.info("Challenge Risk Manager initialized with ELITE PROTECTION")
+                log.info("Challenge Risk Manager initialized with ELITE PROTECTION (BACKTEST MODE - fresh state)")
         
         # CRITICAL: Sync pending_setups and queues with actual MT5 state
         self._startup_sync_with_mt5()
@@ -2430,17 +2450,23 @@ class LiveTradingBot:
         has_structure = flags.get("structure", False)
         has_htf_bias = flags.get("htf_bias", False)
         
-        # EXACT same quality factor calculation as backtest_live_bot.py
-        quality_factors = sum([has_location, has_fib, has_liquidity, has_structure, has_htf_bias])
+        # ALIGNED WITH strategy_core.py generate_signals() - quality derived from confluence
+        # This ensures backtest signals match ftmo_challenge_analyzer signals
+        quality_factors = max(1, confluence_score // 3)
         
-        # Regime-based MIN_CONFLUENCE (same as main_live_bot.py)
+        # Regime-based MIN_CONFLUENCE (use params from optimizer if available)
         # TREND regime (high volatility) = stricter, RANGE regime = more lenient
         atr_regime_ok = flags.get("atr_regime_ok", True)
-        min_confluence = TREND_MIN_CONFLUENCE if atr_regime_ok else RANGE_MIN_CONFLUENCE
+        trend_conf = getattr(self.params, 'trend_min_confluence', TREND_MIN_CONFLUENCE)
+        range_conf = getattr(self.params, 'range_min_confluence', RANGE_MIN_CONFLUENCE)
+        min_confluence = trend_conf if atr_regime_ok else range_conf
+        
+        # Use min_quality_factors from params if available
+        min_quality = getattr(self.params, 'min_quality_factors', FIVEERS_CONFIG.min_quality_factors)
         
         # BUGFIX: Removed has_rr gate - it was preventing all trades from being active
         # If confluence and quality are sufficient, R:R is implicitly validated
-        if confluence_score >= min_confluence and quality_factors >= FIVEERS_CONFIG.min_quality_factors:
+        if confluence_score >= min_confluence and quality_factors >= min_quality:
             status = "active"
         elif confluence_score >= min_confluence:
             status = "watching"
@@ -3399,21 +3425,20 @@ class LiveTradingBot:
                     log.error(f"[{broker_symbol}] Partial close failed: {result.error}")
             
             # ═══════════════════════════════════════════════════════════════
-            # PROGRESSIVE TRAILING: Between TP1 and TP2, at 0.8R move SL to TP1
+            # PROGRESSIVE TRAILING: Between TP1 and TP2, at progressive_trigger_r move SL
             # This locks in more profit earlier, improving risk-adjusted returns
             # Backtested: +$103K improvement (+25%) over standard trailing
-            # 0.8R trigger performs 7% better than 0.9R (+$35K extra)
-            # UPDATED: At 0.8R trigger, move SL to breakeven + 0.4R (more protection)
+            # Now parameterized for optimization
             # ═══════════════════════════════════════════════════════════════
-            progressive_trigger_r = 0.8  # Trigger progressive trail at 0.8R
-            progressive_trail_target_r = 0.4  # Trail SL to BE + 0.4R (was TP1 @ 0.6R)
+            progressive_trigger_r = getattr(self.params, 'progressive_trigger_r', 0.8)
+            progressive_trail_target_r = getattr(self.params, 'progressive_trail_target_r', 0.4)
             
             if (partial_state == 1 and 
                 current_r >= progressive_trigger_r and 
                 current_r < tp2_r and
                 not getattr(setup, 'progressive_trail_applied', False)):
                 
-                # Calculate BE + 0.4R for trailing SL
+                # Calculate BE + progressive_trail_target_r for trailing SL
                 if setup.direction == "bullish":
                     new_sl = entry + (risk * progressive_trail_target_r)
                 else:
@@ -3423,7 +3448,7 @@ class LiveTradingBot:
                 
                 modify_result = self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
                 if modify_result:
-                    log.info(f"[{broker_symbol}] ✅ SL trailed to TP1: {new_sl:.5f}")
+                    log.info(f"[{broker_symbol}] ✅ SL trailed to BE+{progressive_trail_target_r}R: {new_sl:.5f}")
                     setup.progressive_trail_applied = True
                     self._save_pending_setups()
                 else:
@@ -3719,7 +3744,9 @@ class LiveTradingBot:
         # ═══════════════════════════════════════════════════════════════════════════════
         # WEEKEND CRYPTO SCANNING - Detect if it's weekend and filter accordingly
         # ═══════════════════════════════════════════════════════════════════════════════
-        current_day = datetime.now(timezone.utc).weekday()  # 0=Monday, 6=Sunday
+        # BACKTEST FIX: Use simulator time, not real time!
+        sim_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
+        current_day = sim_time.weekday()  # 0=Monday, 6=Sunday
         is_weekend = current_day in [5, 6]  # Saturday=5, Sunday=6
         
         for symbol in available_symbols:
@@ -4512,7 +4539,8 @@ def main():
         try:
             with open(args.params_file, 'r') as f:
                 data = json.load(f)
-                custom_params = data.get('parameters', data)
+                # Support both optimizer output format and direct params format
+                custom_params = data.get('best_parameters', data.get('parameters', data))
             if not args.quiet:
                 print(f"[OPTIMIZER] Loaded custom params from {args.params_file}")
         except Exception as e:
@@ -4546,8 +4574,8 @@ def main():
     
     # Save results
     from pathlib import Path
-    import json
     import pandas as pd
+    # Note: json already imported at top of file
     
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
