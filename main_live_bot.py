@@ -2905,24 +2905,34 @@ class LiveTradingBot:
         else:
             order_type = "PENDING"
             log.info(f"[{symbol}] Price {entry_distance_r:.2f}R from entry - using PENDING ORDER")
+            
+            # FIX: Calculate lot size NOW at order placement time
+            # This is more reliable than close/reopen on fill
+            lot_size = self._calculate_lot_size_at_fill(
+                symbol=symbol,
+                broker_symbol=broker_symbol,
+                entry=entry,
+                sl=sl,
+                confluence=confluence,
+            )
+            
+            if lot_size <= 0:
+                log.error(f"[{symbol}] Invalid lot size calculation: {lot_size}")
+                return False
+            
             log.info(f"[{symbol}] Placing PENDING ORDER:")
             log.info(f"  Direction: {direction.upper()}")
             log.info(f"  Entry Level: {entry:.5f}")
             log.info(f"  SL: {sl:.5f}")
             log.info(f"  TP1: {tp1:.5f}")
             log.info(f"  TP3: {tp3:.5f} (closes ALL remaining)" if tp3 else "  TP3: N/A")
-            log.info(f"  Lot Size: Will be calculated when order fills")
+            log.info(f"  Lot Size: {lot_size} (calculated at signal time)")
             log.info(f"  Expiration: {FIVEERS_CONFIG.pending_order_expiry_hours} hours")
-            
-            # BUGFIX P0: Use minimal lot size for pending order placement
-            # Real lot size will be calculated when order actually fills
-            symbol_info = self.mt5.get_symbol_info(broker_symbol)
-            min_lot = symbol_info.get('min_lot', 0.01) if symbol_info else 0.01
             
             result = self.mt5.place_pending_order(
                 symbol=broker_symbol,
                 direction=direction,
-                volume=min_lot,  # Placeholder - will be adjusted on fill
+                volume=lot_size,  # Correct lot size at order placement
                 entry_price=entry,
                 sl=sl,
                 tp=0,  # No auto-TP - bot manages partial closes at TP1/TP2/TP3 manually
@@ -2953,7 +2963,7 @@ class LiveTradingBot:
                 created_at=datetime.now(timezone.utc).isoformat(),
                 order_ticket=result.order_id,
                 status="pending",
-                lot_size=0.0,  # Will be calculated when order fills
+                lot_size=lot_size,  # Lot size calculated at order placement
             )
         
         self.pending_setups[symbol] = pending_setup
@@ -3057,59 +3067,17 @@ class LiveTradingBot:
             if broker_symbol in position_symbols:
                 log.info(f"[{symbol}] Pending order FILLED! Position now open (broker: {broker_symbol})")
 
-                # BUGFIX P0: Calculate lot size at FILL MOMENT (not signal moment)
                 # Find the actual position to get filled volume
                 filled_position = next((p for p in my_positions if p.symbol == broker_symbol), None)
 
                 if filled_position:
-                    # CRITICAL: Recalculate lot size with CURRENT balance
-                    # The pending order was placed with min_lot as placeholder
-                    # Now we need to modify the position to correct lot size
-
-                    correct_lot_size = self._calculate_lot_size_at_fill(
-                        symbol=symbol,
-                        broker_symbol=broker_symbol,
-                        entry=setup.entry_price,
-                        sl=setup.stop_loss,
-                        confluence=setup.confluence,
-                    )
-                    
-                    if correct_lot_size > 0 and abs(filled_position.volume - correct_lot_size) > 0.01:
-                        # Position filled with placeholder lot size - need to adjust
-                        log.warning(f"[{symbol}] Position filled with {filled_position.volume} lots, should be {correct_lot_size} lots")
-                        log.warning(f"[{symbol}] Closing and re-opening with correct lot size...")
-                        
-                        # Close the position with wrong lot size
-                        close_result = self.mt5.close_position(filled_position.ticket)
-                        
-                        if close_result.success:
-                            # Re-open with correct lot size
-                            reopen_result = self.mt5.place_market_order(
-                                symbol=broker_symbol,
-                                direction=setup.direction,
-                                volume=correct_lot_size,
-                                sl=setup.stop_loss,
-                                tp=0,
-                            )
-                            
-                            if reopen_result.success:
-                                log.info(f"[{symbol}] ✅ Position re-opened with correct lot size: {correct_lot_size}")
-                                setup.lot_size = correct_lot_size
-                                setup.order_ticket = reopen_result.order_id
-                            else:
-                                log.error(f"[{symbol}] ❌ Failed to re-open position: {reopen_result.error}")
-                                setup.status = "cancelled"
-                                setups_to_remove.append(symbol)
-                                continue
-                        else:
-                            log.error(f"[{symbol}] ❌ Failed to close position for re-sizing: {close_result.error}")
-                            # Keep the position but with wrong lot size
-                            setup.lot_size = filled_position.volume
-                    else:
-                        # Lot size is close enough or correct
-                        setup.lot_size = filled_position.volume
-                    
+                    # Lot size was already calculated at order placement
+                    # Just verify it matches and update status
+                    setup.lot_size = filled_position.volume
                     setup.status = "filled"
+                    setup.order_ticket = filled_position.ticket
+                    
+                    log.info(f"[{symbol}] ✅ Position filled with {filled_position.volume} lots")
                     
                     self.risk_manager.record_trade_open(
                         symbol=broker_symbol,

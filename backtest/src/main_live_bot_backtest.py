@@ -774,6 +774,21 @@ class LiveTradingBot:
     MAX_ENTRY_WAIT_HOURS = 120  # 5 days - matches backtest max_wait_bars=5
     WEEKEND_GAP_THRESHOLD_PCT = 1.0  # 1% gap threshold
     
+    # CORRELATION FILTER - Limit correlated positions
+    MAX_CORRELATED_POSITIONS = 2  # Max positions per currency group
+    CORRELATION_GROUPS = {
+        "EUR": ["EUR_USD", "EUR_GBP", "EUR_JPY", "EUR_CHF", "EUR_AUD", "EUR_CAD", "EUR_NZD"],
+        "GBP": ["GBP_USD", "GBP_JPY", "GBP_CHF", "GBP_AUD", "GBP_CAD", "GBP_NZD", "EUR_GBP"],
+        "JPY": ["USD_JPY", "EUR_JPY", "GBP_JPY", "AUD_JPY", "CAD_JPY", "CHF_JPY", "NZD_JPY"],
+        "AUD": ["AUD_USD", "AUD_JPY", "AUD_NZD", "AUD_CAD", "AUD_CHF", "EUR_AUD", "GBP_AUD"],
+        "CAD": ["USD_CAD", "CAD_JPY", "CAD_CHF", "AUD_CAD", "EUR_CAD", "GBP_CAD", "NZD_CAD"],
+        "CHF": ["USD_CHF", "CHF_JPY", "EUR_CHF", "GBP_CHF", "AUD_CHF", "CAD_CHF", "NZD_CHF"],
+        "NZD": ["NZD_USD", "NZD_JPY", "NZD_CAD", "NZD_CHF", "AUD_NZD", "EUR_NZD", "GBP_NZD"],
+        "XAU": ["XAU_USD"],  # Gold - standalone
+        "XAG": ["XAG_USD"],  # Silver - standalone
+        "INDICES": ["SPX500_USD", "NAS100_USD", "UK100_USD", "DE30_EUR", "JP225_USD"],
+    }
+    
     def __init__(self, immediate_scan: bool = False, 
                  data_dir: str = "data/ohlcv",
                  initial_balance: float = 20000.0,
@@ -977,6 +992,50 @@ class LiveTradingBot:
                 json.dump(self.awaiting_spread, f, indent=2, default=str)
         except Exception as e:
             log.error(f"Error saving awaiting_spread: {e}")
+    
+    # ═══════════════════════════════════════════════════════════════════════════
+    # CORRELATION FILTER - Limit positions per currency group
+    # ═══════════════════════════════════════════════════════════════════════════
+    
+    def check_correlation_limit(self, symbol: str) -> tuple:
+        """
+        Check if adding a position for this symbol would exceed correlation limits.
+        
+        Returns:
+            (allowed: bool, reason: str)
+        """
+        # Get all open positions and pending orders
+        positions = self.mt5.get_my_positions() or []
+        pending_orders = self.mt5.get_pending_orders() or []
+        
+        # Combine all active symbols (handle both dict and object formats)
+        active_symbols = set()
+        for pos in positions:
+            if hasattr(pos, 'symbol'):
+                active_symbols.add(pos.symbol)
+            elif isinstance(pos, dict):
+                active_symbols.add(pos.get("symbol", ""))
+        for order in pending_orders:
+            if hasattr(order, 'symbol'):
+                active_symbols.add(order.symbol)
+            elif isinstance(order, dict):
+                active_symbols.add(order.get("symbol", ""))
+        
+        # Find which groups this symbol belongs to
+        symbol_groups = []
+        for group_name, group_symbols in self.CORRELATION_GROUPS.items():
+            if symbol in group_symbols:
+                symbol_groups.append(group_name)
+        
+        # For each group, count active positions
+        for group_name in symbol_groups:
+            group_symbols = self.CORRELATION_GROUPS[group_name]
+            count = sum(1 for s in active_symbols if s in group_symbols)
+            
+            if count >= self.MAX_CORRELATED_POSITIONS:
+                return False, f"Correlation limit: {count} {group_name} positions already (max {self.MAX_CORRELATED_POSITIONS})"
+        
+        return True, "OK"
     
     # ═══════════════════════════════════════════════════════════════════════════
     # AWAITING ENTRY - Queue for signals waiting for price proximity
@@ -2695,6 +2754,14 @@ class LiveTradingBot:
         confluence = setup["confluence"]
         quality_factors = setup["quality_factors"]
         entry_distance_r = setup.get("entry_distance_r", 0)
+        
+        # ═══════════════════════════════════════════════════════════════
+        # CORRELATION FILTER - Limit correlated positions
+        # ═══════════════════════════════════════════════════════════════
+        corr_allowed, corr_reason = self.check_correlation_limit(symbol)
+        if not corr_allowed:
+            log.info(f"[{symbol}] BLOCKED by correlation filter: {corr_reason}")
+            return False
         
         # ═══════════════════════════════════════════════════════════════
         # ENTRY PROXIMITY CHECK - Wait for price to approach entry

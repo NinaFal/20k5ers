@@ -4,7 +4,7 @@
   "best_score": 9.65725,
   "optimization_period": "2024-07-01 to 2024-07-21",
   "parameters": {
-    "risk_per_trade_pct": 0.8,
+    "risk_per_trade_pct": 0.7,
     "min_confluence": 3,
     "min_quality_factors": 2,
     "adx_trend_threshold": 21.0,

@@ -38,8 +38,8 @@ class Fiveers60KConfig:
     daily_loss_warning_pct: float = 2.0  # Warning at 2.0% daily loss
     # Tier 2: REDUCE at 3.0% - Reduce risk from 0.6% to 0.4% per trade
     daily_loss_reduce_pct: float = 3.0  # Reduce risk at 3.0% daily loss
-    # Tier 3: HALT at 3.5% - CLOSE ALL positions AND pending orders!
-    daily_loss_halt_pct: float = 3.5  # CLOSE ALL at 3.5% daily loss
+    # Tier 3: HALT at 3.2% - CLOSE ALL positions AND pending orders!
+    daily_loss_halt_pct: float = 3.2  # CLOSE ALL at 3.2% daily loss
     
     total_dd_warning_pct: float = 5.0  # Warning at 5% total DD
     total_dd_emergency_pct: float = 7.0  # Emergency mode at 7% total DD
