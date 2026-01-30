@@ -2862,12 +2862,14 @@ class LiveTradingBot:
         entry_distance_r = setup.get("entry_distance_r", 0)
         
         # ═══════════════════════════════════════════════════════════════
-        # CORRELATION FILTER - Limit correlated positions
+        # CORRELATION FILTER - DISABLED (not in live bot)
         # ═══════════════════════════════════════════════════════════════
-        corr_allowed, corr_reason = self.check_correlation_limit(symbol)
-        if not corr_allowed:
-            log.info(f"[{symbol}] BLOCKED by correlation filter: {corr_reason}")
-            return False
+        # NOTE: Correlation filter was only in backtest, NOT in main_live_bot.py
+        # Disabled for parity with production live bot
+        # corr_allowed, corr_reason = self.check_correlation_limit(symbol)
+        # if not corr_allowed:
+        #     log.info(f"[{symbol}] BLOCKED by correlation filter: {corr_reason}")
+        #     return False
         
         # ═══════════════════════════════════════════════════════════════
         # ENTRY PROXIMITY CHECK - Wait for price to approach entry
