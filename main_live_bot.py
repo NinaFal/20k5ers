@@ -4611,6 +4611,56 @@ def main():
                 )
                 print(f"📝 Stored Friday close prices for {len(bot.friday_close_prices)} symbols")
         
+        # ================================================================
+        # DELETE ALL FOREX PENDING ORDERS (weekend gap risk)
+        # ================================================================
+        print("")
+        print("=" * 70)
+        print("🗑️ DELETING FOREX PENDING ORDERS (weekend gap protection)")
+        print("=" * 70)
+        
+        # Crypto symbols that can stay (trade 24/7)
+        CRYPTO_SYMBOLS = {'BTCUSD', 'ETHUSD', 'BTC_USD', 'ETH_USD'}
+        
+        pending_orders = bot.mt5.get_pending_orders()
+        forex_orders_deleted = 0
+        crypto_orders_kept = 0
+        
+        if pending_orders:
+            for order in pending_orders:
+                symbol = order.symbol if hasattr(order, 'symbol') else str(order)
+                
+                # Check if it's crypto
+                if symbol.upper() in CRYPTO_SYMBOLS or symbol.replace('_', '').upper() in CRYPTO_SYMBOLS:
+                    crypto_orders_kept += 1
+                    print(f"   ⏸️ KEEP {symbol} (crypto, no weekend gap risk)")
+                else:
+                    # Delete forex/metals/indices pending order
+                    ticket = order.ticket if hasattr(order, 'ticket') else order
+                    result = bot.mt5.delete_order(ticket)
+                    if result:
+                        forex_orders_deleted += 1
+                        print(f"   ✓ Deleted {symbol} limit order (ticket {ticket})")
+                    else:
+                        print(f"   ✗ Failed to delete {symbol} (ticket {ticket})")
+            
+            print("")
+            print(f"📊 Pending orders: {forex_orders_deleted} deleted, {crypto_orders_kept} crypto kept")
+        else:
+            print("   No pending orders found")
+        
+        # Clear pending_setups for non-crypto (they'll be re-scanned Sunday)
+        if bot.pending_setups:
+            original_count = len(bot.pending_setups)
+            bot.pending_setups = {
+                sym: setup for sym, setup in bot.pending_setups.items()
+                if sym.upper() in CRYPTO_SYMBOLS or sym.replace('_', '').upper() in CRYPTO_SYMBOLS
+            }
+            removed = original_count - len(bot.pending_setups)
+            if removed > 0:
+                bot._save_pending_setups()
+                print(f"📋 Cleared {removed} forex pending setups (will re-scan Sunday)")
+        
         print("")
         print("✅ Friday position closing complete")
         print("=" * 70)
