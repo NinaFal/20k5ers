@@ -2097,7 +2097,7 @@ class LiveTradingBot:
         2. DDD/TDD checks use current equity
         3. Risk percentage reflects current account state
 
-        IMPORTANT: NO position count reduction - must match simulate_main_live_bot.py
+        IMPORTANT: NO position count reduction - must match main_live_bot.py
         The simulator uses fixed 0.6% risk per trade regardless of position count.
 
         Args:
@@ -2194,7 +2194,7 @@ class LiveTradingBot:
         log.info(f"[{symbol}] Dynamic pip value: ${dynamic_pip_value:.4f}/pip")
 
         # Calculate lot size using CURRENT balance
-        # IMPORTANT: NO position count reduction - must match simulate_main_live_bot.py
+        # IMPORTANT: NO position count reduction - must match main_live_bot.py
         try:
             lot_result = calculate_lot_size(
                 symbol=broker_symbol,
@@ -2696,7 +2696,7 @@ class LiveTradingBot:
             log.info(f"[{symbol}] Risk check passed - lot size will be calculated at fill moment")
             
             # NOTE: We do NOT simulate daily loss from potential SL hit.
-            # The simulator (simulate_main_live_bot.py) only checks DDD at fill moment,
+            # The simulator (main_live_bot.py) only checks DDD at fill moment,
             # not hypothetical losses. This matches backtest behavior.
             
         else:

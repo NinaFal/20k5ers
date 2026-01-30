@@ -14,31 +14,24 @@ Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accoun
 
 ---
 
-## Two-Level Backtest Architecture
+## Backtest Architecture
 
-**CRITICAL**: The `main_live_bot.py` backtest consists of TWO stages:
+**CRITICAL**: The backtest uses `main_live_bot_backtest.py` which is an **exact copy** of `main_live_bot.py`:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    BACKTEST = VALIDATE + SIMULATE                            │
+│                    BACKTEST = main_live_bot_backtest.py                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  STAGE 1: ftmo_challenge_analyzer.py --validate                             │
-│  ════════════════════════════════════════════════                            │
-│  • Generates D1 signals using compute_confluence()                          │
-│  • Outputs: trades CSV with entry/SL/TP levels                              │
-│  • Purpose: Signal generation & filtering                                    │
-│                                                                              │
-│                              ↓ trades CSV                                    │
-│                                                                              │
-│  STAGE 2: scripts/simulate_main_live_bot.py                                 │
-│  ══════════════════════════════════════════════                              │
-│  • Simulates H1 execution of trades                                         │
+│  backtest/src/main_live_bot_backtest.py                                     │
+│  ═══════════════════════════════════════                                     │
+│  • Uses CSVMT5Simulator instead of real MT5                                 │
+│  • M15 tick-by-tick simulation                                              │
 │  • Entry queue (0.3R proximity, 120h expiry)                                │
 │  • Lot sizing at FILL moment (compounding)                                  │
 │  • 3-TP partial closes                                                       │
 │  • DDD/TDD safety checks                                                     │
-│  • Purpose: Realistic P&L with proper money management                       │
+│  • Correlation filter                                                        │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -51,7 +44,7 @@ Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accoun
 |------|---------|
 | `strategy_core.py` | Trading strategy - `compute_confluence()`, `simulate_trades()` |
 | `ftmo_challenge_analyzer.py` | Optimization & `--validate` for signal generation |
-| `scripts/simulate_main_live_bot.py` | H1 simulation matching `main_live_bot.py` EXACTLY |
+| `backtest/src/main_live_bot_backtest.py` | Backtest version matching `main_live_bot.py` EXACTLY |
 | `main_live_bot.py` | Live MT5 trading with entry queue & dynamic lot sizing |
 | `challenge_risk_manager.py` | DDD/TDD enforcement, AccountSnapshot |
 | `ftmo_config.py` | 5ers challenge configuration |
@@ -117,11 +110,12 @@ Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accoun
 
 ### Full Backtest (RECOMMENDED)
 ```bash
-# Stage 1: Generate signals
-python ftmo_challenge_analyzer.py --validate --start 2023-01-01 --end 2025-12-31
+python backtest/src/main_live_bot_backtest.py --start 2023-01-01 --end 2025-12-31 --balance 20000
+```
 
-# Stage 2: Simulate with H1 execution
-python scripts/simulate_main_live_bot.py
+### Quick Signal Validation
+```bash
+python ftmo_challenge_analyzer.py --validate --start 2023-01-01 --end 2025-12-31
 ```
 
 ### Optimization

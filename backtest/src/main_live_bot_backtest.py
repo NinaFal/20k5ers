@@ -862,6 +862,7 @@ class LiveTradingBot:
         self._load_awaiting_spread()
         self._load_awaiting_entry()  # Signals waiting for price proximity
         self._load_ddd_halt_state()  # Load DDD halt state (survives restarts)
+        self._load_closed_today()  # Track symbols closed today (no re-entry same day)
         self._auto_start_challenge()
     
     # ═══════════════════════════════════════════════════════════════════════════
@@ -869,6 +870,75 @@ class LiveTradingBot:
     # ═══════════════════════════════════════════════════════════════════════════
     
     DDD_HALT_STATE_FILE = "ddd_halt_state.json"
+    CLOSED_TODAY_FILE = "closed_today.json"
+    
+    # ═══════════════════════════════════════════════════════════════════════════
+    # CLOSED TODAY TRACKING - Prevent re-entry on same day after manual/SL close
+    # ═══════════════════════════════════════════════════════════════════════════
+    
+    def _load_closed_today(self):
+        """Load symbols that were closed today. Reset on new day."""
+        self.closed_today: set = set()
+        self.closed_today_date: Optional[str] = None
+        
+        try:
+            if Path(self.CLOSED_TODAY_FILE).exists():
+                with open(self.CLOSED_TODAY_FILE, 'r') as f:
+                    state = json.load(f)
+                
+                saved_date = state.get("date", "")
+                # BACKTEST FIX: Use simulator time, not real time
+                sim_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
+                today = sim_time.strftime("%Y-%m-%d")
+                
+                if saved_date == today:
+                    self.closed_today = set(state.get("symbols", []))
+                    self.closed_today_date = saved_date
+                    if self.closed_today:
+                        log.info(f"📋 Loaded {len(self.closed_today)} symbols closed today: {', '.join(sorted(self.closed_today))}")
+                else:
+                    log.info(f"Closed-today list from {saved_date} expired (new day: {today})")
+                    self._save_closed_today()  # Clear the file
+        except Exception as e:
+            log.error(f"Error loading closed_today: {e}")
+    
+    def _save_closed_today(self):
+        """Save symbols closed today to file."""
+        try:
+            # BACKTEST FIX: Use simulator time, not real time
+            sim_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
+            today = sim_time.strftime("%Y-%m-%d")
+            state = {
+                "date": today,
+                "symbols": list(self.closed_today),
+                "last_update": sim_time.isoformat()
+            }
+            with open(self.CLOSED_TODAY_FILE, 'w') as f:
+                json.dump(state, f, indent=2)
+        except Exception as e:
+            log.error(f"Error saving closed_today: {e}")
+    
+    def mark_symbol_closed_today(self, symbol: str, reason: str = "unknown"):
+        """Mark a symbol as closed today. Prevents re-entry until next day."""
+        # Use OANDA format for internal tracking
+        if symbol not in self.closed_today:
+            self.closed_today.add(symbol)
+            self._save_closed_today()
+            log.info(f"🚫 [{symbol}] Marked as closed today ({reason}) - no re-entry until tomorrow")
+    
+    def is_symbol_closed_today(self, symbol: str) -> bool:
+        """Check if symbol was closed today (blocked from re-entry)."""
+        # Check if we need to reset for new day
+        # BACKTEST FIX: Use simulator time, not real time
+        sim_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
+        today = sim_time.strftime("%Y-%m-%d")
+        if self.closed_today_date != today:
+            log.info(f"📋 New day detected - clearing closed_today list")
+            self.closed_today.clear()
+            self.closed_today_date = today
+            self._save_closed_today()
+        
+        return symbol in self.closed_today
     
     def _load_ddd_halt_state(self):
         """Load DDD halt state from file. Halt persists for same day only."""
@@ -1530,6 +1600,7 @@ class LiveTradingBot:
         # Use weekend_gap_manager to select positions
         result = wgm.select_positions_for_weekend_tier1(
             positions=positions,
+            mt5_client=self.mt5,
             current_time=now,
             max_per_group=2,  # Max 2 positions per correlation group
             max_total_non_crypto=5,  # Max 5 non-crypto positions total
@@ -1983,6 +2054,32 @@ class LiveTradingBot:
                 if broker_symbol not in position_symbols:
                     log.warning(f"[{symbol}] Orphaned filled setup (position not in MT5) - removing")
                     orphaned_setups.append(symbol)
+                    
+                    # Determine if this was SL hit or manual close
+                    # If SL hit: price reached SL level (bot-controlled exit, allow re-entry)
+                    # If manual: price did NOT reach SL (user closed, block re-entry)
+                    was_sl_hit = False
+                    try:
+                        tick = self.mt5.get_tick(broker_symbol)
+                        if tick and setup.stop_loss:
+                            current_price = tick.bid if setup.direction == "buy" else tick.ask
+                            sl = setup.stop_loss
+                            
+                            # Check if price went past SL
+                            if setup.direction == "buy":
+                                was_sl_hit = current_price <= sl
+                            else:  # sell
+                                was_sl_hit = current_price >= sl
+                            
+                            log.info(f"[{symbol}] Close detection: price={current_price:.5f}, SL={sl:.5f}, SL hit={was_sl_hit}")
+                    except Exception as e:
+                        log.warning(f"[{symbol}] Could not determine close reason: {e}")
+                    
+                    if not was_sl_hit:
+                        # Manual close detected - block re-entry for today
+                        self.mark_symbol_closed_today(symbol, reason="manually closed by user")
+                    else:
+                        log.info(f"[{symbol}] SL was hit - re-entry allowed same day")
             
             elif setup.status == "halted":
                 # Halted setups from DDD halt - check if new day
@@ -2241,7 +2338,7 @@ class LiveTradingBot:
         2. DDD/TDD checks use current equity
         3. Risk percentage reflects current account state
 
-        IMPORTANT: NO position count reduction - must match simulate_main_live_bot.py
+        IMPORTANT: NO position count reduction - must match main_live_bot.py
         The simulator uses fixed 0.6% risk per trade regardless of position count.
 
         Args:
@@ -2338,7 +2435,7 @@ class LiveTradingBot:
         log.info(f"[{symbol}] Dynamic pip value: ${dynamic_pip_value:.4f}/pip")
 
         # Calculate lot size using CURRENT balance
-        # IMPORTANT: NO position count reduction - must match simulate_main_live_bot.py
+        # IMPORTANT: NO position count reduction - must match main_live_bot.py
         try:
             lot_result = calculate_lot_size(
                 symbol=broker_symbol,
@@ -2444,6 +2541,11 @@ class LiveTradingBot:
         
         broker_symbol = self.symbol_map[symbol]
         log.info(f"[{symbol}] Scanning (OANDA: {symbol}, FTMO: {broker_symbol})...")
+        
+        # Check if symbol was closed today (manual close or SL hit) - no re-entry until tomorrow
+        if self.is_symbol_closed_today(symbol):
+            log.info(f"[{symbol}] Was closed today - no re-entry until tomorrow, skipping")
+            return None
         
         if self.check_existing_position(broker_symbol):
             log.info(f"[{symbol}] Already in position, skipping")
@@ -2870,7 +2972,7 @@ class LiveTradingBot:
             log.info(f"[{symbol}] Risk check passed - lot size will be calculated at fill moment")
             
             # NOTE: We do NOT simulate daily loss from potential SL hit.
-            # The simulator (simulate_main_live_bot.py) only checks DDD at fill moment,
+            # The simulator (main_live_bot.py) only checks DDD at fill moment,
             # not hypothetical losses. This matches backtest behavior.
             
         else:

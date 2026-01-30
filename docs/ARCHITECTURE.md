@@ -17,7 +17,7 @@ The trading bot uses a **Two-Level Backtest Architecture**:
 │                                                                              │
 │                              ↓ trades CSV                                    │
 │                                                                              │
-│  STAGE 2: scripts/simulate_main_live_bot.py                                 │
+│  STAGE 2: scripts/main_live_bot_backtest.py                                 │
 │  ══════════════════════════════════════════════                              │
 │  • Simulates H1 execution of trades                                         │
 │  • Entry queue (0.3R proximity, 120h expiry)                                │
@@ -38,7 +38,7 @@ The trading bot uses a **Two-Level Backtest Architecture**:
 │  - Optuna TPE / NSGA-II          │     │  - Loads params/current*.json  │
 │  - Signal generation             │     │  - Entry queue system          │
 │                                  │     │  - 3-TP partial close          │
-│  simulate_main_live_bot.py       │     │  - Dynamic lot sizing          │
+│  main_live_bot_backtest.py       │     │  - Dynamic lot sizing          │
 │  - H1 realistic simulation       │     │  - DDD/TDD safety              │
 └─────────────────────────────────┘     └────────────────────────────────┘
 ```
@@ -57,7 +57,7 @@ The trading bot uses a **Two-Level Backtest Architecture**:
 | Module | Purpose |
 |--------|---------|
 | `ftmo_challenge_analyzer.py` | `--validate` for signal generation |
-| `scripts/simulate_main_live_bot.py` | H1 simulation matching live bot |
+| `scripts/main_live_bot_backtest.py` | H1 simulation matching live bot |
 
 ### Live Trading
 | Module | Purpose |
@@ -83,7 +83,7 @@ The trading bot uses a **Two-Level Backtest Architecture**:
    └── Generate signals via compute_confluence()
    └── Output: trades CSV
 
-2. simulate_main_live_bot.py
+2. main_live_bot_backtest.py
    └── Load trades CSV + H1 data
    └── Entry queue simulation (0.3R proximity)
    └── Lot sizing at FILL moment
@@ -122,7 +122,7 @@ class StrategyParams:
     tp3_close_pct: float = 0.35
 ```
 
-### SimConfig (simulate_main_live_bot.py)
+### SimConfig (main_live_bot_backtest.py)
 ```python
 @dataclass
 class SimConfig:

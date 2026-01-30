@@ -2,7 +2,7 @@
 
 Trading parameters optimized for 5ers 60K High Stakes challenge with maximum safety
 
-ALIGNED WITH simulate_main_live_bot.py:
+ALIGNED WITH main_live_bot.py:
 - immediate_entry_r: 0.05 (market order threshold)
 - max_entry_distance_r: 1.5 (max distance for valid entry)
 - XAUUSD pip size: 0.01 (MT5 Forex.com compliant)
@@ -534,7 +534,7 @@ PIP_SIZES = {
 
     # Metals - ALIGNED WITH SIMULATOR & MT5 FOREX.COM
     # Gold: 1 pip = $0.01 movement (MT5 standard)
-    # This matches simulate_main_live_bot.py CONTRACT_SPECS
+    # This matches main_live_bot.py CONTRACT_SPECS
     "XAUUSD": 0.01,  # FIXED: Was 0.10, now 0.01 to match simulator
     "XAGUSD": 0.01,  # Silver: $0.01 per pip
 

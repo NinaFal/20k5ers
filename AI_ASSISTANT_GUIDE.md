@@ -30,7 +30,7 @@ python ftmo_challenge_analyzer.py --validate --start 2023-01-01 --end 2025-12-31
 
 ### Stage 2: H1 Simulation  
 ```bash
-python scripts/simulate_main_live_bot.py
+python scripts/main_live_bot_backtest.py
 ```
 - Simulates EXACTLY what `main_live_bot.py` does
 - Entry queue, lot sizing at fill, 3-TP exits, DDD/TDD checks
@@ -45,7 +45,7 @@ python scripts/simulate_main_live_bot.py
 |------|---------|
 | `strategy_core.py` | Trading signals via `compute_confluence()` |
 | `ftmo_challenge_analyzer.py` | `--validate` generates trades CSV |
-| `scripts/simulate_main_live_bot.py` | H1 simulation with compounding |
+| `scripts/main_live_bot_backtest.py` | H1 simulation with compounding |
 | `main_live_bot.py` | Live MT5 trading |
 | `params/current_params.json` | Optimized parameters |
 | `challenge_risk_manager.py` | DDD/TDD safety |

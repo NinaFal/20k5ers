@@ -2,7 +2,7 @@
 
 **Date**: January 20, 2026  
 **Auditor**: Claude Opus 4.5 - Professional Trading Algorithm Review  
-**Scope**: `main_live_bot.py` vs `simulate_main_live_bot.py` parity  
+**Scope**: `main_live_bot.py` vs `main_live_bot_backtest.py` parity  
 **Status**: ✅ **PRODUCTION READY** (with minor recommendations)
 
 ---
@@ -11,7 +11,7 @@
 
 After a comprehensive audit of the trading system, I can confirm that:
 
-1. **✅ PARITY CONFIRMED**: `main_live_bot.py` and `simulate_main_live_bot.py` use identical trading logic
+1. **✅ PARITY CONFIRMED**: `main_live_bot.py` and `main_live_bot_backtest.py` use identical trading logic
 2. **✅ PARAMETERS ALIGNED**: Both load from `params/current_params.json` via `load_strategy_params()`
 3. **✅ 3-TP SYSTEM IDENTICAL**: Same R-multiples, close percentages, and trailing SL logic
 4. **✅ DDD/TDD LOGIC ALIGNED**: Same tier thresholds and halt conditions
@@ -23,7 +23,7 @@ After a comprehensive audit of the trading system, I can confirm that:
 
 ### 1. Parameters Loading (ALIGNED ✅)
 
-| Component | main_live_bot.py | simulate_main_live_bot.py |
+| Component | main_live_bot.py | main_live_bot_backtest.py |
 |-----------|------------------|---------------------------|
 | Loader | `load_best_params_from_file()` → `load_strategy_params()` | `load_strategy_params()` |
 | Source | `params/current_params.json` | `params/current_params.json` |
@@ -35,7 +35,7 @@ After a comprehensive audit of the trading system, I can confirm that:
 
 ### 2. 3-TP Exit System (ALIGNED ✅)
 
-| Parameter | Value | main_live_bot.py | simulate_main_live_bot.py |
+| Parameter | Value | main_live_bot.py | main_live_bot_backtest.py |
 |-----------|-------|------------------|---------------------------|
 | TP1 R-multiple | 0.6R | ✅ `self.params.tp1_r_multiple` | ✅ `self.params.tp1_r_multiple` |
 | TP1 Close % | 35% | ✅ `self.params.tp1_close_pct` | ✅ `self.params.tp1_close_pct` |
@@ -50,7 +50,7 @@ After a comprehensive audit of the trading system, I can confirm that:
 
 **Evidence**: 
 - main_live_bot.py: Lines 3077-3130
-- simulate_main_live_bot.py: Lines 780-807
+- main_live_bot_backtest.py: Lines 780-807
 
 ---
 
@@ -65,7 +65,7 @@ After a comprehensive audit of the trading system, I can confirm that:
 
 **Evidence**:
 - main_live_bot.py: Lines 2362-2371
-- simulate_main_live_bot.py: Lines 600-636
+- main_live_bot_backtest.py: Lines 600-636
 
 ---
 
@@ -73,7 +73,7 @@ After a comprehensive audit of the trading system, I can confirm that:
 
 **Critical Feature**: Both calculate lot size at FILL moment, not signal moment.
 
-| Aspect | main_live_bot.py | simulate_main_live_bot.py |
+| Aspect | main_live_bot.py | main_live_bot_backtest.py |
 |--------|------------------|---------------------------|
 | Timing | At fill | At fill |
 | Balance used | Current equity | Current balance |
@@ -82,7 +82,7 @@ After a comprehensive audit of the trading system, I can confirm that:
 
 **Evidence**:
 - main_live_bot.py: `_calculate_lot_size_at_fill()` Lines 1879-1950
-- simulate_main_live_bot.py: `_fill_order()` Lines 690-705
+- main_live_bot_backtest.py: `_fill_order()` Lines 690-705
 
 ---
 
@@ -102,7 +102,7 @@ After a comprehensive audit of the trading system, I can confirm that:
 
 **Evidence**: 
 - main_live_bot.py: Lines 450-600 (DDD protection worker)
-- simulate_main_live_bot.py: Lines 350-400
+- main_live_bot_backtest.py: Lines 350-400
 
 ---
 
@@ -143,7 +143,7 @@ except:  # Too broad
 ### 2. Commission Tracking Difference
 
 **Observation**: 
-- `simulate_main_live_bot.py` tracks commission explicitly ($4/lot)
+- `main_live_bot_backtest.py` tracks commission explicitly ($4/lot)
 - `main_live_bot.py` relies on broker-reported P&L (includes commission)
 
 **Risk Level**: NONE - Live bot uses broker's actual commission, which is correct.
@@ -221,7 +221,7 @@ for attempt in range(3):
 
 ## 🎯 CONCLUSION
 
-**The `main_live_bot.py` is production-ready and matches the `simulate_main_live_bot.py` in all critical trading logic.**
+**The `main_live_bot.py` is production-ready and matches the `main_live_bot_backtest.py` in all critical trading logic.**
 
 The minor issues identified are:
 1. Code style (bare except) - Non-functional

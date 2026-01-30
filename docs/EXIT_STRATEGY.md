@@ -123,7 +123,7 @@ total_pnl = partial_pnl_1 + partial_pnl_2 + final_pnl - commissions
 
 ## Implementation Location
 
-### scripts/simulate_main_live_bot.py
+### scripts/main_live_bot_backtest.py
 - `_check_tp_levels()` - Handles TP hits and partial closes
 - `_close_position()` - Handles final close and trailing SL
 - Matches exact live bot behavior

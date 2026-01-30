@@ -8,7 +8,7 @@ from typing import Dict, Optional
 import os
 
 
-# CONTRACT_SPECS aligned with simulate_main_live_bot.py
+# CONTRACT_SPECS aligned with main_live_bot.py
 # pip_size = price movement for 1 pip
 # pip_value_per_lot = how much $ moves per pip per lot (in USD)
 CONTRACT_SPECS = {
@@ -113,7 +113,7 @@ def get_pip_value(symbol: str, current_price: float = None) -> float:
     Get pip value per standard lot in USD.
     
     Uses pre-calculated pip_value_per_lot from CONTRACT_SPECS.
-    This matches simulate_main_live_bot.py exactly.
+    This matches main_live_bot.py exactly.
     
     Args:
         symbol: Trading symbol
@@ -147,7 +147,7 @@ def calculate_lot_size(
     """
     Calculate position size for a trade.
     
-    Aligned with simulate_main_live_bot.py for consistent results.
+    Aligned with main_live_bot.py for consistent results.
     
     Args:
         symbol: Trading symbol
@@ -200,7 +200,7 @@ def calculate_lot_size(
             "error": "Stop loss too close to entry"
         }
     
-    # Apply confluence scaling (matching simulate_main_live_bot.py)
+    # Apply confluence scaling (matching main_live_bot.py)
     adjusted_risk_percent = risk_percent
     if use_dynamic_scaling and confluence is not None:
         confluence_diff = confluence - confluence_base_score
@@ -223,7 +223,7 @@ def calculate_lot_size(
             "error": "Could not calculate risk per lot"
         }
     
-    # Lot size calculation (same as simulate_main_live_bot.py)
+    # Lot size calculation (same as main_live_bot.py)
     lot_size = risk_usd / risk_per_lot
     
     if existing_positions > 0:

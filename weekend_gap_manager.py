@@ -158,30 +158,67 @@ def get_correlation_group(symbol: str) -> str:
 # POSITION HELPER FUNCTIONS
 # ═══════════════════════════════════════════════════════════════════════════
 
-def get_current_r(pos) -> float:
+def get_current_r(pos, mt5_client=None) -> float:
     """
     Calculate current R-multiple for a position
     R-multiple = (Current P&L) / (Initial Risk)
+    
+    NOTE: MT5 Position objects don't have price_current attribute.
+    We calculate R from the profit and volume instead, or use mt5_client to get current price.
     """
     entry = pos.price_open
-    current = pos.price_current
     sl = pos.sl
-
-    # Handle BUY positions
-    if pos.type == 0:  # mt5.ORDER_TYPE_BUY
+    
+    # Calculate risk in price terms
+    if pos.type == 0:  # BUY
         risk = abs(entry - sl)
-        if risk == 0:
-            return 0.0
-        current_r = (current - entry) / risk
-
-    # Handle SELL positions
-    else:  # mt5.ORDER_TYPE_SELL
+    else:  # SELL
         risk = abs(sl - entry)
-        if risk == 0:
-            return 0.0
-        current_r = (entry - current) / risk
-
-    return current_r
+    
+    if risk == 0:
+        return 0.0
+    
+    # Method 1: If we have price_current (backtest/simulator)
+    if hasattr(pos, 'price_current') and pos.price_current is not None:
+        current = pos.price_current
+        if pos.type == 0:  # BUY
+            current_r = (current - entry) / risk
+        else:  # SELL
+            current_r = (entry - current) / risk
+        return current_r
+    
+    # Method 2: Calculate from profit and volume (live MT5)
+    # profit = (current - entry) * volume * contract_size for BUY
+    # We can calculate: profit / (risk * volume * contract_size) ≈ R
+    # But we need contract_size... use approximation from profit ratio
+    if hasattr(pos, 'profit') and pos.profit is not None:
+        # Get initial risk in USD (approximate)
+        # If we don't have contract specs, estimate R from profit direction
+        # positive profit = positive R for correctly sized trades
+        # This is an approximation but works for weekend selection
+        
+        # Try to get current price via mt5_client
+        if mt5_client is not None:
+            try:
+                tick = mt5_client.get_tick(pos.symbol)
+                if tick:
+                    current = tick.bid if pos.type == 0 else tick.ask
+                    if pos.type == 0:  # BUY
+                        current_r = (current - entry) / risk
+                    else:  # SELL
+                        current_r = (entry - current) / risk
+                    return current_r
+            except Exception:
+                pass
+        
+        # Fallback: estimate R from profit sign
+        # Assume risk_per_trade is ~0.7% of $20K = $140
+        # This gives rough R estimate
+        estimated_risk_usd = 140.0  # Conservative estimate
+        estimated_r = pos.profit / estimated_risk_usd
+        return estimated_r
+    
+    return 0.0
 
 
 def is_sl_protected(pos) -> bool:
@@ -206,6 +243,7 @@ def is_sl_protected(pos) -> bool:
 
 def select_positions_for_weekend_tier1(
     positions,
+    mt5_client=None,
     current_time: Optional[datetime] = None,
     max_per_group: int = 2,
     max_total_non_crypto: int = 5,
@@ -224,6 +262,7 @@ def select_positions_for_weekend_tier1(
 
     Args:
         positions: List of MT5 position objects
+        mt5_client: MT5 client for getting current prices (live mode)
         current_time: Current time (defaults to now UTC)
         max_per_group: Max positions per correlation group (default: 2)
         max_total_non_crypto: Max total non-crypto positions (default: 5)
@@ -268,7 +307,7 @@ def select_positions_for_weekend_tier1(
     # STEP 1: Apply basic rules to ALL positions
     # ═══════════════════════════════════════════════════
     for pos in positions:
-        current_r = get_current_r(pos)
+        current_r = get_current_r(pos, mt5_client)
         symbol = pos.symbol
         oanda_symbol = convert_broker_to_oanda(symbol)
 
@@ -328,7 +367,7 @@ def select_positions_for_weekend_tier1(
     # Display groups
     for group_name, group_positions in groups_dict.items():
         symbols = [convert_broker_to_oanda(p.symbol) for p in group_positions]
-        r_values = [f"{get_current_r(p):+.2f}R" for p in group_positions]
+        r_values = [f"{get_current_r(p, mt5_client):+.2f}R" for p in group_positions]
         logger.info(f"  {group_name}: {len(group_positions)} positions")
         for sym, r_val in zip(symbols, r_values):
             logger.info(f"    - {sym}: {r_val}")
@@ -341,7 +380,7 @@ def select_positions_for_weekend_tier1(
     for group_name, group_positions in groups_dict.items():
         # Sort by current R (prefer higher R = more profit locked in, closer to BE)
         group_sorted = sorted(group_positions,
-                             key=lambda p: get_current_r(p),
+                             key=lambda p: get_current_r(p, mt5_client),
                              reverse=True)
 
         # Take top max_per_group from this correlation group
@@ -354,7 +393,7 @@ def select_positions_for_weekend_tier1(
         for pos in excess:
             symbol = pos.symbol
             oanda_symbol = convert_broker_to_oanda(symbol)
-            current_r = get_current_r(pos)
+            current_r = get_current_r(pos, mt5_client)
             close.append(pos)
             logger.info(f"⚠️ CLOSE {oanda_symbol}: EXCESS in {group_name} ({current_r:+.2f}R)")
 
@@ -366,7 +405,7 @@ def select_positions_for_weekend_tier1(
 
         # Sort by current R (prefer higher R positions)
         ranked = sorted(selected_non_crypto,
-                       key=lambda p: get_current_r(p),
+                       key=lambda p: get_current_r(p, mt5_client),
                        reverse=True)
 
         final_keep = ranked[:max_total_non_crypto]
@@ -375,7 +414,7 @@ def select_positions_for_weekend_tier1(
         for pos in final_close:
             symbol = pos.symbol
             oanda_symbol = convert_broker_to_oanda(symbol)
-            current_r = get_current_r(pos)
+            current_r = get_current_r(pos, mt5_client)
             close.append(pos)
             logger.info(f"⚠️ CLOSE {oanda_symbol}: OVERALL LIMIT EXCEEDED ({current_r:+.2f}R)")
 
@@ -454,7 +493,21 @@ def store_friday_close_prices(positions, mt5_wrapper) -> dict:
 
     for pos in positions:
         symbol = pos.symbol
-        current_price = pos.price_current
+        # Try to get price_current attribute (backtest)
+        if hasattr(pos, 'price_current') and pos.price_current is not None:
+            current_price = pos.price_current
+        else:
+            # Get current price from MT5 (live)
+            try:
+                tick = mt5_wrapper.get_tick(symbol)
+                if tick:
+                    current_price = tick.bid if pos.type == 0 else tick.ask
+                else:
+                    logger.warning(f"Could not get price for {symbol}")
+                    continue
+            except Exception as e:
+                logger.warning(f"Error getting price for {symbol}: {e}")
+                continue
         friday_prices[symbol] = current_price
 
     logger.info(f"📝 Stored Friday close prices for {len(friday_prices)} symbols")
@@ -469,6 +522,7 @@ def store_friday_close_prices(positions, mt5_wrapper) -> dict:
 def detect_sunday_gaps(
     positions,
     friday_prices: dict,
+    mt5_client=None,
     current_time: Optional[datetime] = None,
     gap_threshold_pct: float = 1.0,
     catastrophic_gap_pct: float = 2.0,
@@ -482,6 +536,7 @@ def detect_sunday_gaps(
     Args:
         positions: Current MT5 positions
         friday_prices: Dict of {symbol: friday_close_price}
+        mt5_client: MT5 client for getting current prices (live mode)
         current_time: Current time (defaults to now UTC)
         gap_threshold_pct: Log warning if gap > this % (default: 1.0%)
         catastrophic_gap_pct: Close position if adverse gap > this % (default: 2.0%)
@@ -525,8 +580,23 @@ def detect_sunday_gaps(
             logger.warning(f"⚠️ {oanda_symbol}: No Friday close price stored, skipping gap check")
             continue
 
-        # Get current price
-        current_price = pos.price_current
+        # Get current price - try attribute first, then mt5_client
+        if hasattr(pos, 'price_current') and pos.price_current is not None:
+            current_price = pos.price_current
+        elif mt5_client is not None:
+            try:
+                tick = mt5_client.get_tick(symbol)
+                if tick:
+                    current_price = tick.bid if pos.type == 0 else tick.ask
+                else:
+                    logger.warning(f"Could not get current price for {symbol}")
+                    continue
+            except Exception:
+                logger.warning(f"Error getting price for {symbol}")
+                continue
+        else:
+            logger.warning(f"No price available for {symbol}")
+            continue
 
         # Calculate gap percentage
         gap_pct = abs(current_price - friday_close) / friday_close * 100
@@ -560,7 +630,7 @@ def detect_sunday_gaps(
 
         # THRESHOLD 3: Catastrophic adverse gap - Close even if SL not hit
         # Prevents massive losses from extreme gaps (Brexit, Swiss Franc, etc.)
-        current_r = get_current_r(pos)
+        current_r = get_current_r(pos, mt5_client)
         adverse_gap_pct = 0
 
         if pos_type == "BUY" and current_price < friday_close:

@@ -779,6 +779,10 @@ class LiveTradingBot:
         self.friday_closing_done: bool = False  # Track if we've done Friday closing this week
         self.friday_close_prices: dict = {}  # Store Friday close prices for gap detection
         self.last_friday_close_check: Optional[datetime] = None  # When we last did Friday check
+        
+        # Limit order compounding - update lot sizes every 30 minutes based on current equity
+        self.last_limit_order_update: Optional[datetime] = None
+        self.LIMIT_ORDER_UPDATE_INTERVAL_MINUTES: int = 30  # Update every 30 min
 
         self._load_pending_setups()
         self._load_trading_days()
@@ -1509,6 +1513,7 @@ class LiveTradingBot:
         # Use weekend_gap_manager to select positions
         result = wgm.select_positions_for_weekend_tier1(
             positions=positions,
+            mt5_client=self.mt5,
             current_time=now,
             max_per_group=2,  # Max 2 positions per correlation group
             max_total_non_crypto=5,  # Max 5 non-crypto positions total
@@ -1555,6 +1560,147 @@ class LiveTradingBot:
         log.info("=" * 70)
         log.info(f"✅ Friday closing complete - {len(result['HOLD'])} positions held for weekend")
         log.info(f"   Max gap risk: {result['stats']['max_gap_risk_pct']:.1f}% of account")
+        log.info("=" * 70)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # LIMIT ORDER COMPOUNDING - Update lot sizes based on current equity
+    # ═══════════════════════════════════════════════════════════════════════════
+    
+    def update_limit_orders_for_compounding(self):
+        """
+        Update pending limit orders to reflect current equity (compounding).
+        
+        This runs every 30 minutes to ensure limit orders have correct lot sizes
+        based on current equity, not the equity at the time of order placement.
+        
+        Process:
+        1. Get all pending limit orders
+        2. For each order, recalculate lot size with current equity
+        3. If lot size differs by >5%, cancel and replace the order
+        """
+        now = datetime.now(timezone.utc)
+        
+        # Skip if checked recently
+        if self.last_limit_order_update:
+            time_since = (now - self.last_limit_order_update).total_seconds() / 60
+            if time_since < self.LIMIT_ORDER_UPDATE_INTERVAL_MINUTES:
+                return
+        
+        pending_orders = self.mt5.get_my_pending_orders()
+        if not pending_orders:
+            self.last_limit_order_update = now
+            return
+        
+        log.info("=" * 70)
+        log.info("💰 LIMIT ORDER COMPOUNDING CHECK")
+        log.info("=" * 70)
+        
+        # Get current equity
+        if not self.challenge_manager:
+            log.warning("No challenge manager - skipping compounding update")
+            self.last_limit_order_update = now
+            return
+            
+        snapshot = self.challenge_manager.get_account_snapshot()
+        if not snapshot:
+            log.warning("Cannot get account snapshot - skipping compounding update")
+            self.last_limit_order_update = now
+            return
+        
+        current_equity = snapshot.equity
+        log.info(f"Current equity: ${current_equity:,.2f}")
+        
+        orders_updated = 0
+        
+        for order in pending_orders:
+            symbol = order.symbol
+            internal_symbol = get_internal_symbol(symbol)
+            
+            # Get the setup for this order to get SL and confluence
+            setup = self.pending_setups.get(internal_symbol)
+            if not setup:
+                # Try awaiting_entry
+                setup_dict = self.awaiting_entry.get(internal_symbol)
+                if setup_dict:
+                    sl = setup_dict.get("stop_loss", 0)
+                    confluence = setup_dict.get("confluence", 10)
+                else:
+                    log.debug(f"[{internal_symbol}] No setup found for pending order - skipping")
+                    continue
+            else:
+                sl = setup.stop_loss
+                confluence = setup.confluence_score
+            
+            entry = order.price
+            
+            if not sl or not entry:
+                log.debug(f"[{internal_symbol}] Missing SL or entry - skipping")
+                continue
+            
+            # Calculate new lot size based on current equity
+            new_lot_size = self._calculate_lot_size_at_fill(
+                symbol=internal_symbol,
+                broker_symbol=symbol,
+                entry=entry,
+                sl=sl,
+                confluence=confluence,
+            )
+            
+            if new_lot_size <= 0:
+                log.warning(f"[{internal_symbol}] Could not calculate new lot size - skipping")
+                continue
+            
+            old_lot_size = order.volume
+            
+            # Only update if lot size differs by >5%
+            lot_change_pct = abs(new_lot_size - old_lot_size) / old_lot_size * 100 if old_lot_size > 0 else 100
+            
+            if lot_change_pct >= 5.0:
+                log.info(f"[{internal_symbol}] Lot size change: {old_lot_size:.2f} → {new_lot_size:.2f} ({lot_change_pct:+.1f}%)")
+                
+                # Cancel old order and place new one
+                cancel_result = self.mt5.cancel_pending_order(order.ticket)
+                
+                if cancel_result:
+                    # Place new order with updated lot size
+                    order_type = "BUY_LIMIT" if order.type in [2, 4] else "SELL_LIMIT"  # 2=BUY_LIMIT, 4=BUY_STOP
+                    if order.type in [3, 5]:  # 3=SELL_LIMIT, 5=SELL_STOP
+                        order_type = "SELL_LIMIT"
+                    
+                    # Get TP from setup
+                    tp = order.tp if hasattr(order, 'tp') and order.tp else 0
+                    
+                    new_order_result = self.mt5.place_pending_order(
+                        symbol=symbol,
+                        order_type=order_type,
+                        volume=new_lot_size,
+                        price=entry,
+                        sl=sl,
+                        tp=tp,
+                        comment=f"5ers_compound"
+                    )
+                    
+                    if new_order_result and hasattr(new_order_result, 'ticket'):
+                        log.info(f"  ✓ Replaced order: ticket {order.ticket} → {new_order_result.ticket}")
+                        orders_updated += 1
+                        
+                        # Update setup with new ticket
+                        if setup:
+                            setup.order_ticket = new_order_result.ticket
+                            self._save_pending_setups()
+                    else:
+                        log.error(f"  ✗ Failed to place new order - order cancelled but not replaced!")
+                else:
+                    log.error(f"  ✗ Failed to cancel old order {order.ticket}")
+            else:
+                log.debug(f"[{internal_symbol}] Lot size OK: {old_lot_size:.2f} (change: {lot_change_pct:.1f}%)")
+        
+        self.last_limit_order_update = now
+        
+        if orders_updated > 0:
+            log.info(f"✅ Updated {orders_updated} limit orders for compounding")
+        else:
+            log.info("✅ All limit orders have correct lot sizes")
         log.info("=" * 70)
 
     def handle_sunday_gap_detection(self):
@@ -2267,7 +2413,7 @@ class LiveTradingBot:
         2. DDD/TDD checks use current equity
         3. Risk percentage reflects current account state
 
-        IMPORTANT: NO position count reduction - must match simulate_main_live_bot.py
+        IMPORTANT: NO position count reduction - must match main_live_bot.py
         The simulator uses fixed 0.6% risk per trade regardless of position count.
 
         Args:
@@ -2364,7 +2510,7 @@ class LiveTradingBot:
         log.info(f"[{symbol}] Dynamic pip value: ${dynamic_pip_value:.4f}/pip")
 
         # Calculate lot size using CURRENT balance
-        # IMPORTANT: NO position count reduction - must match simulate_main_live_bot.py
+        # IMPORTANT: NO position count reduction - must match main_live_bot.py
         try:
             lot_result = calculate_lot_size(
                 symbol=broker_symbol,
@@ -2904,7 +3050,7 @@ class LiveTradingBot:
             log.info(f"[{symbol}] Risk check passed - lot size will be calculated at fill moment")
             
             # NOTE: We do NOT simulate daily loss from potential SL hit.
-            # The simulator (simulate_main_live_bot.py) only checks DDD at fill moment,
+            # The simulator (main_live_bot.py) only checks DDD at fill moment,
             # not hypothetical losses. This matches backtest behavior.
             
         else:
@@ -4081,6 +4227,9 @@ class LiveTradingBot:
                         # Weekend gap risk management
                         self.handle_friday_position_closing()  # Friday 16:00+ UTC
                         self.handle_sunday_gap_detection()  # Sunday 22:00+ UTC
+                        
+                        # Limit order compounding - update lot sizes every 30 min
+                        self.update_limit_orders_for_compounding()
 
                         last_protection_check = now
 
@@ -4222,6 +4371,8 @@ def main():
                         help='Reset day_start_equity to current MT5 equity (use if bot missed trading days or MT5 traded without bot)')
     parser.add_argument('--set-day-start-equity', type=float,
                         help='Manually set day_start_equity to a specific value (e.g. from 5ers dashboard)')
+    parser.add_argument('--force-friday-close', action='store_true',
+                        help='Force Friday position closing immediately (use if bot missed 16:00 UTC window)')
     
     args = parser.parse_args()
     
@@ -4387,6 +4538,81 @@ def main():
         
         print("")
         print("Manual day start equity setting complete.")
+        print("=" * 70)
+        bot.disconnect()
+        sys.exit(0)
+    
+    # Handle force-friday-close (one-shot action)
+    if args.force_friday_close:
+        print("=" * 70)
+        print("🔒 FORCING FRIDAY POSITION CLOSING")
+        print("=" * 70)
+        
+        if not bot.connect():
+            print("ERROR: Could not connect to MT5")
+            sys.exit(1)
+        
+        # Reset the flag and force run
+        bot.friday_closing_done = False
+        
+        # Get positions
+        positions = bot.mt5.get_my_positions()
+        if not positions:
+            print("No positions to manage for weekend")
+        else:
+            print(f"Found {len(positions)} positions")
+            
+            # Call the weekend gap manager directly
+            import weekend_gap_manager as wgm
+            
+            now = datetime.now(timezone.utc)
+            result = wgm.select_positions_for_weekend_tier1(
+                positions=positions,
+                mt5_client=bot.mt5,
+                current_time=now,
+                max_per_group=2,
+                max_total_non_crypto=5,
+            )
+            
+            print("")
+            print(f"📊 RESULT:")
+            print(f"   HOLD: {len(result['HOLD'])} positions")
+            print(f"   CLOSE: {len(result['CLOSE'])} positions")
+            print(f"   REDUCE 50%: {len(result['REDUCE_50'])} positions")
+            print("")
+            
+            # Execute closures
+            for pos in result['CLOSE']:
+                print(f"🔒 Closing {pos.symbol} (ticket {pos.ticket})...")
+                close_result = bot.mt5.close_position(pos.ticket)
+                if hasattr(close_result, 'success') and close_result.success:
+                    print(f"   ✓ Closed successfully")
+                else:
+                    print(f"   ✗ Failed to close: {getattr(close_result, 'error', 'unknown')}")
+            
+            # Execute 50% reductions
+            for pos in result['REDUCE_50']:
+                current_volume = pos.volume
+                reduce_volume = round(current_volume * 0.5, 2)
+                if reduce_volume >= 0.01:
+                    print(f"⚠️ Reducing {pos.symbol} by 50% (ticket {pos.ticket})...")
+                    close_result = bot.mt5.close_position_partial(pos.ticket, reduce_volume)
+                    if hasattr(close_result, 'success') and close_result.success:
+                        print(f"   ✓ Reduced from {current_volume:.2f} to {current_volume - reduce_volume:.2f} lots")
+                    else:
+                        print(f"   ✗ Failed to reduce: {getattr(close_result, 'error', 'unknown')}")
+            
+            # Store Friday close prices
+            remaining_positions = bot.mt5.get_my_positions()
+            if remaining_positions:
+                bot.friday_close_prices = wgm.store_friday_close_prices(
+                    remaining_positions,
+                    bot.mt5
+                )
+                print(f"📝 Stored Friday close prices for {len(bot.friday_close_prices)} symbols")
+        
+        print("")
+        print("✅ Friday position closing complete")
         print("=" * 70)
         bot.disconnect()
         sys.exit(0)

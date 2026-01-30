@@ -29,7 +29,7 @@
 
 ## [January 4, 2026]
 ### Added
-- H1 realistic simulation (`simulate_main_live_bot.py`)
+- H1 realistic simulation (`main_live_bot_backtest.py`)
 - Challenge risk manager with AccountSnapshot
 
 ---

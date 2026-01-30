@@ -494,8 +494,8 @@ class BacktestMainLiveBot:
     Exact replica of main_live_bot.py's LiveTradingBot class.
     Uses CSV data instead of MT5 API.
     
-    KEY DIFFERENCE FROM simulate_main_live_bot.py:
-    - simulate_main_live_bot.py: Reads pre-generated signals from CSV
+    KEY DIFFERENCE FROM main_live_bot.py:
+    - main_live_bot.py: Reads pre-generated signals from CSV
     - backtest_main_live_bot.py: Generates signals using compute_confluence() like main_live_bot.py
     """
     
@@ -735,8 +735,8 @@ class BacktestMainLiveBot:
         Generate signals for today's scan using compute_confluence().
         EXACT REPLICA of main_live_bot.py's scan_all_symbols() at 00:10.
         
-        This is the CORE difference from simulate_main_live_bot.py:
-        - simulate_main_live_bot.py reads pre-generated signals from CSV
+        This is the CORE difference from main_live_bot.py:
+        - main_live_bot.py reads pre-generated signals from CSV
         - backtest_main_live_bot.py generates signals live using compute_confluence()
         """
         symbols = self.data_provider.get_available_symbols()
