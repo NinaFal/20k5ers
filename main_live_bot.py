@@ -4661,8 +4661,44 @@ def main():
                 bot._save_pending_setups()
                 print(f"📋 Cleared {removed} forex pending setups (will re-scan Sunday)")
         
+        # ================================================================
+        # SCAN FOR CRYPTO SIGNALS (crypto trades 24/7, no weekend gap)
+        # ================================================================
         print("")
-        print("✅ Friday position closing complete")
+        print("=" * 70)
+        print("🔍 SCANNING CRYPTO SIGNALS (24/7 trading, no weekend gap risk)")
+        print("=" * 70)
+        
+        # Get crypto symbols from config
+        crypto_oanda = [sym for sym in bot.tradable_symbols if 'BTC' in sym or 'ETH' in sym]
+        
+        if crypto_oanda:
+            print(f"Scanning {len(crypto_oanda)} crypto symbols: {', '.join(crypto_oanda)}")
+            
+            # Run scan for each crypto symbol
+            signals_found = 0
+            for symbol in crypto_oanda:
+                if symbol in bot.symbol_map:
+                    try:
+                        setup = bot.scan_symbol(symbol)
+                        if setup:
+                            signals_found += 1
+                            print(f"   ✓ {symbol}: {setup.get('direction', 'unknown')} signal")
+                            bot.place_setup_order(setup)
+                        else:
+                            print(f"   • {symbol}: no signal")
+                    except Exception as e:
+                        print(f"   ✗ {symbol}: error - {e}")
+                else:
+                    print(f"   ⚠️ {symbol}: not available on broker")
+            
+            if signals_found == 0:
+                print("   No crypto signals found")
+        else:
+            print("   No crypto symbols configured")
+        
+        print("")
+        print("✅ Friday close complete")
         print("=" * 70)
         bot.disconnect()
         sys.exit(0)
