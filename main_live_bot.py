@@ -4670,7 +4670,7 @@ def main():
         print("=" * 70)
         
         # Get crypto symbols from config
-        crypto_oanda = [sym for sym in bot.tradable_symbols if 'BTC' in sym or 'ETH' in sym]
+        crypto_oanda = [sym for sym in TRADABLE_SYMBOLS if 'BTC' in sym or 'ETH' in sym]
         
         if crypto_oanda:
             print(f"Scanning {len(crypto_oanda)} crypto symbols: {', '.join(crypto_oanda)}")
