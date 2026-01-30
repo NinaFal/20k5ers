@@ -3114,13 +3114,30 @@ class LiveTradingBot:
             if broker_symbol in position_symbols:
                 log.info(f"[{symbol}] Pending order FILLED! Position now open (broker: {broker_symbol})")
 
-                # BUGFIX P0: Calculate lot size at FILL MOMENT (not signal moment)
-                # Find the actual position to get filled volume
+                # COMPOUNDING FIX: Recalculate lot size at FILL MOMENT using CURRENT balance
+                # This ensures proper compounding when account grows while orders are pending
                 filled_position = next((p for p in my_positions if p.symbol == broker_symbol), None)
 
                 if filled_position:
-                    # Position filled - use the lot size from the order (already calculated)
-                    setup.lot_size = filled_position.volume
+                    # Recalculate lot size with current balance for proper compounding
+                    new_lot_size = self._calculate_lot_size_at_fill(
+                        symbol=symbol,
+                        broker_symbol=broker_symbol,
+                        entry=setup.entry_price,
+                        sl=setup.stop_loss,
+                        confluence=setup.confluence_score if hasattr(setup, 'confluence_score') else 10,
+                    )
+                    
+                    if new_lot_size > 0:
+                        # Update the position volume in simulator
+                        old_lot = filled_position.volume
+                        filled_position.volume = new_lot_size
+                        setup.lot_size = new_lot_size
+                        log.info(f"[{symbol}] ✅ Lot size recalculated at fill: {old_lot:.2f} -> {new_lot_size:.2f} (compounding)")
+                    else:
+                        # Risk check failed at fill - use original lot size
+                        setup.lot_size = filled_position.volume
+                        log.warning(f"[{symbol}] Lot size recalc returned 0, using original: {setup.lot_size:.2f}")
                     
                     setup.status = "filled"
                     

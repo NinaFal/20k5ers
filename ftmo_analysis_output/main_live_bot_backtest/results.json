@@ -1,13 +1,13 @@
 {
   "initial_balance": 20000.0,
-  "final_balance": 21336.1,
-  "net_pnl": 822.5,
-  "return_pct": 6.68,
-  "total_trades": 83,
-  "winners": 45,
-  "losers": 38,
-  "win_rate": 54.2,
-  "max_tdd_pct": 0.08,
-  "max_ddd_pct": 4.22,
-  "safety_events": 5
+  "final_balance": 28845.24,
+  "net_pnl": -179.59,
+  "return_pct": 44.23,
+  "total_trades": 235,
+  "winners": 143,
+  "losers": 92,
+  "win_rate": 60.9,
+  "max_tdd_pct": 0.18,
+  "max_ddd_pct": 2.75,
+  "safety_events": 0
 }

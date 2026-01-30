@@ -278,6 +278,25 @@ def is_market_open() -> bool:
     return True
 
 
+def is_friday_closing_period() -> bool:
+    """
+    Check if we're in the Friday closing period (no new orders allowed).
+    Friday 16:00 UTC onwards = no new forex orders (weekend gap protection).
+    
+    Returns:
+        True if Friday 16:00+ UTC (no new orders)
+        False otherwise (orders allowed)
+    """
+    now = datetime.now(timezone.utc)
+    weekday = now.weekday()  # 0=Monday, 4=Friday
+    hour = now.hour
+    
+    # Friday 16:00+ UTC = closing period
+    if weekday == 4 and hour >= 16:
+        return True
+    
+    return False
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # 5ERS DRAWDOWN MONITOR - CRITICAL: Different from FTMO!
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -714,6 +733,7 @@ class LiveTradingBot:
     FIRST_RUN_FLAG_FILE = "first_run_complete.flag"
     AWAITING_SPREAD_FILE = "awaiting_spread.json"
     AWAITING_ENTRY_FILE = "awaiting_entry.json"  # Signals waiting for price proximity
+    SCAN_STATE_FILE = "scan_state.json"  # Track last scan time to prevent duplicate scans
     VALIDATE_INTERVAL_MINUTES = 10
     MAIN_LOOP_INTERVAL_SECONDS = 10
     SPREAD_CHECK_INTERVAL_MINUTES = 5
@@ -766,8 +786,39 @@ class LiveTradingBot:
         self._load_awaiting_entry()  # Signals waiting for price proximity
         self._load_ddd_halt_state()  # Load DDD halt state (survives restarts)
         self._load_closed_today()  # Track symbols closed today (no re-entry same day)
+        self._load_scan_state()  # Track last scan to prevent duplicate scans after restart
         self._auto_start_challenge()
     
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SCAN STATE PERSISTENCE - Prevents duplicate scans after bot restart
+    # ═══════════════════════════════════════════════════════════════════════════
+    
+    def _load_scan_state(self):
+        """Load last scan time from file to prevent duplicate scans after restart."""
+        try:
+            if Path(self.SCAN_STATE_FILE).exists():
+                with open(self.SCAN_STATE_FILE, 'r') as f:
+                    data = json.load(f)
+                last_scan_str = data.get("last_scan_time")
+                if last_scan_str:
+                    self.last_scan_time = datetime.fromisoformat(last_scan_str.replace("Z", "+00:00"))
+                    log.info(f"Loaded last scan time: {self.last_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+        except Exception as e:
+            log.error(f"Error loading scan state: {e}")
+            self.last_scan_time = None
+    
+    def _save_scan_state(self):
+        """Save scan state to file."""
+        try:
+            data = {
+                "last_scan_time": self.last_scan_time.isoformat() if self.last_scan_time else None,
+                "last_update": datetime.now(timezone.utc).isoformat()
+            }
+            with open(self.SCAN_STATE_FILE, 'w') as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            log.error(f"Error saving scan state: {e}")
+
     # ═══════════════════════════════════════════════════════════════════════════
     # DDD HALT STATE PERSISTENCE - Survives bot restarts within same day
     # ═══════════════════════════════════════════════════════════════════════════
@@ -1050,6 +1101,12 @@ class LiveTradingBot:
             log.debug("Skipping entry queue check - DDD halt active")
             return
         
+        # FRIDAY CLOSING: Don't place new orders after 16:00 UTC
+        # (place_setup_order also checks this, but skip processing entirely)
+        if is_friday_closing_period():
+            log.debug("Skipping entry queue check - Friday closing period (16:00+ UTC)")
+            return
+        
         if not self.awaiting_entry:
             return
         
@@ -1183,6 +1240,11 @@ class LiveTradingBot:
         # CRITICAL: Don't place orders during DDD halt
         if getattr(self, 'ddd_halted', False):
             log.debug("Skipping spread queue check - DDD halt active")
+            return
+        
+        # FRIDAY CLOSING: Don't place new orders after 16:00 UTC
+        if is_friday_closing_period():
+            log.debug("Skipping spread queue check - Friday closing period (16:00+ UTC)")
             return
         
         if not self.awaiting_spread:
@@ -2716,6 +2778,15 @@ class LiveTradingBot:
         from ftmo_config import FTMO_CONFIG, get_pip_size, get_sl_limits
         
         symbol = setup["symbol"]
+        
+        # ═══════════════════════════════════════════════════════════════
+        # FRIDAY CLOSING PERIOD CHECK - No new orders after 16:00 UTC
+        # Weekend gap protection - crypto excluded (no gap risk)
+        # ═══════════════════════════════════════════════════════════════
+        if is_friday_closing_period() and not is_crypto_pair(symbol):
+            log.info(f"[{symbol}] ⏸️ Friday closing period (16:00+ UTC) - no new forex orders until Sunday")
+            return False
+        
         broker_symbol = setup.get("broker_symbol", self.symbol_map.get(symbol, symbol))
         direction = setup["direction"]
         current_price = setup.get("current_price", 0)
@@ -3771,14 +3842,26 @@ class LiveTradingBot:
         # ═══════════════════════════════════════════════════════════════════════════════
         # Use is_market_open() which correctly handles Sunday 22:00 UTC open
         forex_market_open = is_market_open()
+        friday_closing = is_friday_closing_period()  # Friday 16:00+ UTC = no new forex orders
+        
+        if friday_closing:
+            log.info("🌅 FRIDAY CLOSING PERIOD - Only crypto orders allowed (16:00+ UTC)")
         
         for symbol in available_symbols:
             try:
                 # ═══════════════════════════════════════════════════════════
                 # WEEKEND LOGIC - Skip forex when market closed, ALWAYS scan crypto
+                # FRIDAY CLOSING - Skip forex after 16:00 UTC (but still scan for info)
                 # ═══════════════════════════════════════════════════════════
-                if not forex_market_open and not is_crypto_pair(symbol):
+                is_crypto = is_crypto_pair(symbol)
+                
+                if not forex_market_open and not is_crypto:
                     log.debug(f"[{symbol}] Skipping - forex market closed")
+                    continue
+                
+                # Friday 16:00+ UTC: Skip forex, only allow crypto
+                if friday_closing and not is_crypto:
+                    log.debug(f"[{symbol}] Skipping - Friday closing period (no new forex orders)")
                     continue
                 
                 setup = self.scan_symbol(symbol)
@@ -3839,6 +3922,7 @@ class LiveTradingBot:
         log.info("=" * 70)
         
         self.last_scan_time = datetime.now(timezone.utc)
+        self._save_scan_state()  # Persist scan time to prevent duplicate scans after restart
     
     def run(self):
         """
@@ -3897,9 +3981,31 @@ class LiveTradingBot:
         global running
         
         # ═══════════════════════════════════════════════════════════════════
-        # FIRST RUN CHECK - Immediate scan if needed
+        # FIRST RUN CHECK - Immediate scan if needed (but check if scan already done today)
         # ═══════════════════════════════════════════════════════════════════
-        if self.should_do_immediate_scan():
+        server_now = get_server_time()
+        today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
+        today_scan_utc = today_scan.astimezone(timezone.utc)
+        
+        # Check if we already scanned today (prevents duplicate scans after restart)
+        # Use BOTH scan_state.json AND first_run_complete.flag for robustness
+        already_scanned_today = False
+        
+        # Method 1: Check scan_state.json (new, more reliable)
+        if self.last_scan_time:
+            last_scan_date = self.last_scan_time.date()
+            today_date = datetime.now(timezone.utc).date()
+            if last_scan_date == today_date:
+                already_scanned_today = True
+                log.info(f"✓ Already scanned today at {self.last_scan_time.strftime('%H:%M:%S UTC')} (from scan_state.json)")
+        
+        # Method 2: Check first_run_complete.flag (fallback for when scan_state.json doesn't exist yet)
+        if not already_scanned_today and self.first_run_complete:
+            # Flag exists and is recent (< 24h) - assume we already scanned
+            already_scanned_today = True
+            log.info(f"✓ First run flag is recent - assuming already scanned today")
+        
+        if not already_scanned_today and self.should_do_immediate_scan():
             log.info("=" * 70)
             log.info("🚀 IMMEDIATE SCAN - First run after restart/weekend")
             log.info("=" * 70)
@@ -3907,21 +4013,21 @@ class LiveTradingBot:
             self._mark_first_run_complete()
             # Calculate next scan time after immediate scan
             self.next_scan_time = get_next_scan_time()
-        else:
+        elif not already_scanned_today:
             # Get today's scan time (00:10 server time)
-            server_now = get_server_time()
-            today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
-            today_scan_utc = today_scan.astimezone(timezone.utc)
-
-            # If today's scan time has passed and it's a weekday, use today (will trigger immediately)
-            # Otherwise use next future scan time
+            # If today's scan time has passed and it's a weekday, check if we should scan
             if server_now >= today_scan and today_scan.weekday() < 5:
+                # Only trigger immediate scan if we haven't scanned today
                 self.next_scan_time = today_scan_utc
                 log.info(f"Missed today's scan - will scan immediately")
                 log.info(f"Scheduled scan time was: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
             else:
                 self.next_scan_time = get_next_scan_time()
                 log.info(f"Skipping immediate scan - next scheduled: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+        else:
+            # Already scanned today - just set next scan time
+            self.next_scan_time = get_next_scan_time()
+            log.info(f"Next scheduled scan: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
         
         # Weekend gap check (only on Monday morning)
         self.handle_weekend_gap_positions()
@@ -4037,18 +4143,27 @@ class LiveTradingBot:
                         
                         # Update day_start_equity BEFORE scan (use current equity as new day start)
                         # This is the equity at daily close which becomes the new day's starting point
-                        # SKIP if day_start_equity was manually set via --set-day-start-equity
+                        # SKIP if day_start_equity was manually set TODAY via --set-day-start-equity
+                        # BUGFIX: Use date comparison to ensure equity is updated the NEXT day
                         account = self.mt5.get_account_info()
                         if account and self.challenge_manager:
                             current_equity = account.get("equity", 0)
                             old_day_start = self.challenge_manager.day_start_equity
+                            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
                             
-                            if self.challenge_manager.day_start_equity_manually_set:
-                                log.info(f"Day start equity PRESERVED (manually set): ${old_day_start:,.2f} (current equity: ${current_equity:,.2f})")
-                                # Clear the flag for the NEXT day - manual override is one-time per day
-                                self.challenge_manager.day_start_equity_manually_set = False
-                                self.challenge_manager._save_state()
+                            manually_set_date = self.challenge_manager.day_start_equity_manually_set_date
+                            if manually_set_date == today:
+                                # Manually set TODAY - preserve and don't update
+                                log.info(f"Day start equity PRESERVED (manually set today): ${old_day_start:,.2f} (current equity: ${current_equity:,.2f})")
+                                # Keep the date - it will only be skipped for today
+                            elif manually_set_date:
+                                # Manually set on a PREVIOUS day - update now and clear the date
+                                log.info(f"Day start equity was manually set on {manually_set_date}, but today is {today} - updating now")
+                                self.challenge_manager.day_start_equity_manually_set_date = ""
+                                self.challenge_manager.update_day_start_equity(current_equity)
+                                log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${current_equity:,.2f}")
                             else:
+                                # Normal update
                                 self.challenge_manager.update_day_start_equity(current_equity)
                                 log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${current_equity:,.2f}")
 
@@ -4223,11 +4338,12 @@ def main():
                         sys.exit(0)
                 
                 # Set the manual value
+                today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
                 bot.challenge_manager.day_start_equity = manual_value
-                bot.challenge_manager.day_start_equity_manually_set = True  # Mark as manually set
+                bot.challenge_manager.day_start_equity_manually_set_date = today  # Mark with today's date
                 bot.challenge_manager._save_state()
                 print(f"New day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
-                print("✓ Day start equity manually set (will NOT be overridden by daily scan)")
+                print(f"✓ Day start equity manually set for {today} (will NOT be overridden by daily scan TODAY, but WILL update tomorrow)")
                 
                 # Calculate current DDD with new value
                 daily_loss = manual_value - current_equity

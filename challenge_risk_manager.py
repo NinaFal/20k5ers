@@ -140,7 +140,7 @@ class ChallengeRiskManager:
 
         self.day_start_balance: float = config.account_size
         self.day_start_equity: float = config.account_size  # BUGFIX: Init voor DDD-bewaking
-        self.day_start_equity_manually_set: bool = False  # Flag: True if manually set via --set-day-start-equity
+        self.day_start_equity_manually_set_date: str = ""  # Date (YYYY-MM-DD) when manually set, empty if not
         self.daily_pnl: float = 0.0
         self.total_drawdown: float = 0.0
         self.total_drawdown_pct: float = 0.0
@@ -194,7 +194,16 @@ class ChallengeRiskManager:
                 self.peak_equity = state.get('peak_equity', self.config.account_size)
                 self.day_start_balance = state.get('day_start_balance', self.config.account_size)
                 self.day_start_equity = state.get('day_start_equity', self.config.account_size)  # Load equity start
-                self.day_start_equity_manually_set = state.get('day_start_equity_manually_set', False)  # Load manual flag
+                # MIGRATION: Support both old bool format and new date format
+                old_manual_flag = state.get('day_start_equity_manually_set', False)
+                new_manual_date = state.get('day_start_equity_manually_set_date', '')
+                if new_manual_date:
+                    self.day_start_equity_manually_set_date = new_manual_date
+                elif old_manual_flag:
+                    # Migrate old bool to today's date (conservative: preserve override for today)
+                    self.day_start_equity_manually_set_date = date.today().isoformat()
+                else:
+                    self.day_start_equity_manually_set_date = ""
                 
                 # VALIDATION: Check if day_start_equity seems reasonable
                 if self.day_start_equity <= 0 or self.day_start_equity > self.config.account_size * 2:
@@ -241,7 +250,7 @@ class ChallengeRiskManager:
             'peak_equity': self.peak_equity,
             'day_start_balance': self.day_start_balance,
             'day_start_equity': self.day_start_equity,  # Save equity start for DDD
-            'day_start_equity_manually_set': self.day_start_equity_manually_set,  # Save manual flag
+            'day_start_equity_manually_set_date': self.day_start_equity_manually_set_date,  # Date when manually set (YYYY-MM-DD or empty)
             'current_date': self.current_date.isoformat(),
             'trades_today': self.trades_today,
             # TRANSPARENCY: Add DDD/TDD metrics for comparison with 5ers dashboard
@@ -260,14 +269,19 @@ class ChallengeRiskManager:
             log.error(f"Could not save state file: {e}")
     
     def should_close_for_weekend(self) -> bool:
-        """Check if positions should be closed for weekend gap protection."""
-        now = datetime.now()
+        """Check if positions should be closed for weekend gap protection.
+        
+        Uses UTC time for consistency with MT5 server time.
+        friday_close_hour is in UTC (default 22:00 UTC = 23:00 Brussels winter / 00:00 Brussels summer)
+        """
+        from datetime import timezone as tz
+        now = datetime.now(tz.utc)
         
         # Check if it's Friday
         if now.weekday() != 4:  # 4 = Friday
             return False
         
-        # Check if it's after closing hour
+        # Check if it's after closing hour (UTC)
         friday_close_hour = getattr(self.config, 'friday_close_hour', 22)
         if now.hour < friday_close_hour:
             return False
@@ -275,7 +289,7 @@ class ChallengeRiskManager:
         # Check if DDD is above threshold
         weekend_threshold = getattr(self.config, 'weekend_close_ddd_threshold_pct', 2.0)
         if self.daily_loss_pct >= weekend_threshold:
-            log.warning(f"🌅 WEEKEND GAP PROTECTION: Friday {now.hour}:00, DDD={self.daily_loss_pct:.1f}% >= {weekend_threshold}%")
+            log.warning(f"🌅 WEEKEND GAP PROTECTION: Friday {now.hour}:00 UTC, DDD={self.daily_loss_pct:.1f}% >= {weekend_threshold}%")
             return True
         
         return False
