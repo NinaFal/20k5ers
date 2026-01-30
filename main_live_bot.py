@@ -4641,6 +4641,17 @@ def main():
                     if result:
                         forex_orders_deleted += 1
                         print(f"   ✓ Deleted {symbol} limit order (ticket {ticket})")
+                        
+                        # Clear order_ticket in pending_setup so it can be re-placed Monday
+                        # Find the corresponding pending_setup using OANDA symbol format
+                        oanda_symbol = symbol.replace('USD', '_USD').replace('JPY', '_JPY').replace('CHF', '_CHF').replace('CAD', '_CAD').replace('AUD', '_AUD').replace('NZD', '_NZD').replace('GBP', '_GBP').replace('EUR', '_EUR')
+                        # Try common formats
+                        for sym_format in [symbol, oanda_symbol, symbol.replace('_', ''), f"{symbol[:3]}_{symbol[3:]}"]:
+                            if sym_format in bot.pending_setups:
+                                bot.pending_setups[sym_format]['order_ticket'] = None
+                                bot.pending_setups[sym_format]['status'] = 'awaiting_entry'
+                                print(f"      → {sym_format} setup preserved (will re-place Monday)")
+                                break
                     else:
                         print(f"   ✗ Failed to delete {symbol} (ticket {ticket})")
             
@@ -4649,17 +4660,10 @@ def main():
         else:
             print("   No pending orders found")
         
-        # Clear pending_setups for non-crypto (they'll be re-scanned Sunday)
-        if bot.pending_setups:
-            original_count = len(bot.pending_setups)
-            bot.pending_setups = {
-                sym: setup for sym, setup in bot.pending_setups.items()
-                if sym.upper() in CRYPTO_SYMBOLS or sym.replace('_', '').upper() in CRYPTO_SYMBOLS
-            }
-            removed = original_count - len(bot.pending_setups)
-            if removed > 0:
-                bot._save_pending_setups()
-                print(f"📋 Cleared {removed} forex pending setups (will re-scan Sunday)")
+        # Save pending_setups with cleared order_tickets (but keep the signals!)
+        if forex_orders_deleted > 0:
+            bot._save_pending_setups()
+            print(f"📋 Preserved {len(bot.pending_setups)} pending setups (signals still valid for 168h)")
         
         # ================================================================
         # SCAN FOR CRYPTO SIGNALS (crypto trades 24/7, no weekend gap)
