@@ -774,20 +774,8 @@ class LiveTradingBot:
     MAX_ENTRY_WAIT_HOURS = 120  # 5 days - matches backtest max_wait_bars=5
     WEEKEND_GAP_THRESHOLD_PCT = 1.0  # 1% gap threshold
     
-    # CORRELATION FILTER - Limit correlated positions
-    MAX_CORRELATED_POSITIONS = 2  # Max positions per currency group
-    CORRELATION_GROUPS = {
-        "EUR": ["EUR_USD", "EUR_GBP", "EUR_JPY", "EUR_CHF", "EUR_AUD", "EUR_CAD", "EUR_NZD"],
-        "GBP": ["GBP_USD", "GBP_JPY", "GBP_CHF", "GBP_AUD", "GBP_CAD", "GBP_NZD", "EUR_GBP"],
-        "JPY": ["USD_JPY", "EUR_JPY", "GBP_JPY", "AUD_JPY", "CAD_JPY", "CHF_JPY", "NZD_JPY"],
-        "AUD": ["AUD_USD", "AUD_JPY", "AUD_NZD", "AUD_CAD", "AUD_CHF", "EUR_AUD", "GBP_AUD"],
-        "CAD": ["USD_CAD", "CAD_JPY", "CAD_CHF", "AUD_CAD", "EUR_CAD", "GBP_CAD", "NZD_CAD"],
-        "CHF": ["USD_CHF", "CHF_JPY", "EUR_CHF", "GBP_CHF", "AUD_CHF", "CAD_CHF", "NZD_CHF"],
-        "NZD": ["NZD_USD", "NZD_JPY", "NZD_CAD", "NZD_CHF", "AUD_NZD", "EUR_NZD", "GBP_NZD"],
-        "XAU": ["XAU_USD"],  # Gold - standalone
-        "XAG": ["XAG_USD"],  # Silver - standalone
-        "INDICES": ["SPX500_USD", "NAS100_USD", "UK100_USD", "DE30_EUR", "JP225_USD"],
-    }
+    # NOTE: Correlation filter REMOVED - was never in main_live_bot.py
+    # Keeping backtest in parity with production live bot
     
     def __init__(self, immediate_scan: bool = False, 
                  data_dir: str = "data/ohlcv",
@@ -856,6 +844,10 @@ class LiveTradingBot:
         self.friday_closing_done: bool = False  # Track if we've done Friday closing this week
         self.friday_close_prices: dict = {}  # Store Friday close prices for gap detection
         self.last_friday_close_check: Optional[datetime] = None  # When we last did Friday check
+        
+        # Limit order compounding - update lot sizes based on current equity
+        self.last_limit_order_update: Optional[datetime] = None
+        self.LIMIT_ORDER_UPDATE_INTERVAL_MINUTES: int = 30  # Update every 30 min
 
         self._load_pending_setups()
         self._load_trading_days()
@@ -1063,49 +1055,8 @@ class LiveTradingBot:
         except Exception as e:
             log.error(f"Error saving awaiting_spread: {e}")
     
-    # ═══════════════════════════════════════════════════════════════════════════
-    # CORRELATION FILTER - Limit positions per currency group
-    # ═══════════════════════════════════════════════════════════════════════════
-    
-    def check_correlation_limit(self, symbol: str) -> tuple:
-        """
-        Check if adding a position for this symbol would exceed correlation limits.
-        
-        Returns:
-            (allowed: bool, reason: str)
-        """
-        # Get all open positions and pending orders
-        positions = self.mt5.get_my_positions() or []
-        pending_orders = self.mt5.get_pending_orders() or []
-        
-        # Combine all active symbols (handle both dict and object formats)
-        active_symbols = set()
-        for pos in positions:
-            if hasattr(pos, 'symbol'):
-                active_symbols.add(pos.symbol)
-            elif isinstance(pos, dict):
-                active_symbols.add(pos.get("symbol", ""))
-        for order in pending_orders:
-            if hasattr(order, 'symbol'):
-                active_symbols.add(order.symbol)
-            elif isinstance(order, dict):
-                active_symbols.add(order.get("symbol", ""))
-        
-        # Find which groups this symbol belongs to
-        symbol_groups = []
-        for group_name, group_symbols in self.CORRELATION_GROUPS.items():
-            if symbol in group_symbols:
-                symbol_groups.append(group_name)
-        
-        # For each group, count active positions
-        for group_name in symbol_groups:
-            group_symbols = self.CORRELATION_GROUPS[group_name]
-            count = sum(1 for s in active_symbols if s in group_symbols)
-            
-            if count >= self.MAX_CORRELATED_POSITIONS:
-                return False, f"Correlation limit: {count} {group_name} positions already (max {self.MAX_CORRELATED_POSITIONS})"
-        
-        return True, "OK"
+    # NOTE: Correlation filter REMOVED - was never in main_live_bot.py
+    # Keeping backtest in parity with production live bot
     
     # ═══════════════════════════════════════════════════════════════════════════
     # AWAITING ENTRY - Queue for signals waiting for price proximity
@@ -1647,6 +1598,147 @@ class LiveTradingBot:
         log.info("=" * 70)
         log.info(f"✅ Friday closing complete - {len(result['HOLD'])} positions held for weekend")
         log.info(f"   Max gap risk: {result['stats']['max_gap_risk_pct']:.1f}% of account")
+        log.info("=" * 70)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # LIMIT ORDER COMPOUNDING - Update lot sizes based on current equity
+    # ═══════════════════════════════════════════════════════════════════════════
+    
+    def update_limit_orders_for_compounding(self):
+        """
+        Update pending limit orders to reflect current equity (compounding).
+        
+        This runs every 30 minutes (simulated) to ensure limit orders have correct
+        lot sizes based on current equity, not the equity at order placement time.
+        
+        Process:
+        1. Get all pending limit orders
+        2. For each order, recalculate lot size with current equity
+        3. If lot size differs by >5%, cancel and replace the order
+        """
+        now = self.mt5.get_current_time()
+        
+        # Skip if checked recently
+        if self.last_limit_order_update:
+            time_since = (now - self.last_limit_order_update).total_seconds() / 60
+            if time_since < self.LIMIT_ORDER_UPDATE_INTERVAL_MINUTES:
+                return
+        
+        pending_orders = self.mt5.get_my_pending_orders()
+        if not pending_orders:
+            self.last_limit_order_update = now
+            return
+        
+        log.info("=" * 70)
+        log.info("💰 LIMIT ORDER COMPOUNDING CHECK")
+        log.info("=" * 70)
+        
+        # Get current equity
+        if not self.challenge_manager:
+            log.warning("No challenge manager - skipping compounding update")
+            self.last_limit_order_update = now
+            return
+            
+        snapshot = self.challenge_manager.get_account_snapshot()
+        if not snapshot:
+            log.warning("Cannot get account snapshot - skipping compounding update")
+            self.last_limit_order_update = now
+            return
+        
+        current_equity = snapshot.equity
+        log.info(f"Current equity: ${current_equity:,.2f}")
+        
+        orders_updated = 0
+        
+        for order in pending_orders:
+            symbol = order.symbol
+            internal_symbol = get_internal_symbol(symbol)
+            
+            # Get the setup for this order to get SL and confluence
+            setup = self.pending_setups.get(internal_symbol)
+            if not setup:
+                # Try awaiting_entry
+                setup_dict = self.awaiting_entry.get(internal_symbol)
+                if setup_dict:
+                    sl = setup_dict.get("stop_loss", 0)
+                    confluence = setup_dict.get("confluence", 10)
+                else:
+                    log.debug(f"[{internal_symbol}] No setup found for pending order - skipping")
+                    continue
+            else:
+                sl = setup.stop_loss
+                confluence = setup.confluence_score
+            
+            entry = order.price
+            
+            if not sl or not entry:
+                log.debug(f"[{internal_symbol}] Missing SL or entry - skipping")
+                continue
+            
+            # Calculate new lot size based on current equity
+            new_lot_size = self._calculate_lot_size_at_fill(
+                symbol=internal_symbol,
+                broker_symbol=symbol,
+                entry=entry,
+                sl=sl,
+                confluence=confluence,
+            )
+            
+            if new_lot_size <= 0:
+                log.warning(f"[{internal_symbol}] Could not calculate new lot size - skipping")
+                continue
+            
+            old_lot_size = order.volume
+            
+            # Only update if lot size differs by >5%
+            lot_change_pct = abs(new_lot_size - old_lot_size) / old_lot_size * 100 if old_lot_size > 0 else 100
+            
+            if lot_change_pct >= 5.0:
+                log.info(f"[{internal_symbol}] Lot size change: {old_lot_size:.2f} → {new_lot_size:.2f} ({lot_change_pct:+.1f}%)")
+                
+                # Cancel old order and place new one
+                cancel_result = self.mt5.cancel_pending_order(order.ticket)
+                
+                if cancel_result:
+                    # Determine order type
+                    order_type = "BUY_LIMIT" if order.type in [2, 4] else "SELL_LIMIT"
+                    if order.type in [3, 5]:
+                        order_type = "SELL_LIMIT"
+                    
+                    # Get TP from order
+                    tp = order.tp if hasattr(order, 'tp') and order.tp else 0
+                    
+                    new_order_result = self.mt5.place_pending_order(
+                        symbol=symbol,
+                        order_type=order_type,
+                        volume=new_lot_size,
+                        price=entry,
+                        sl=sl,
+                        tp=tp,
+                        comment=f"5ers_compound"
+                    )
+                    
+                    if new_order_result and hasattr(new_order_result, 'ticket'):
+                        log.info(f"  ✓ Replaced order: ticket {order.ticket} → {new_order_result.ticket}")
+                        orders_updated += 1
+                        
+                        # Update setup with new ticket
+                        if setup:
+                            setup.order_ticket = new_order_result.ticket
+                            self._save_pending_setups()
+                    else:
+                        log.error(f"  ✗ Failed to place new order - order cancelled but not replaced!")
+                else:
+                    log.error(f"  ✗ Failed to cancel old order {order.ticket}")
+            else:
+                log.debug(f"[{internal_symbol}] Lot size OK: {old_lot_size:.2f} (change: {lot_change_pct:.1f}%)")
+        
+        self.last_limit_order_update = now
+        
+        if orders_updated > 0:
+            log.info(f"✅ Updated {orders_updated} limit orders for compounding")
+        else:
+            log.info("✅ All limit orders have correct lot sizes")
         log.info("=" * 70)
 
     def handle_sunday_gap_detection(self):
@@ -4145,6 +4237,9 @@ class LiveTradingBot:
                         # Weekend gap risk management
                         self.handle_friday_position_closing()  # Friday 16:00+ UTC
                         self.handle_sunday_gap_detection()  # Sunday 22:00+ UTC
+                        
+                        # Limit order compounding - update lot sizes every 30 min
+                        self.update_limit_orders_for_compounding()
 
                         last_protection_check = now
 
