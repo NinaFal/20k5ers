@@ -4596,7 +4596,7 @@ def main():
                 reduce_volume = round(current_volume * 0.5, 2)
                 if reduce_volume >= 0.01:
                     print(f"⚠️ Reducing {pos.symbol} by 50% (ticket {pos.ticket})...")
-                    close_result = bot.mt5.close_position_partial(pos.ticket, reduce_volume)
+                    close_result = bot.mt5.partial_close(pos.ticket, reduce_volume)
                     if hasattr(close_result, 'success') and close_result.success:
                         print(f"   ✓ Reduced from {current_volume:.2f} to {current_volume - reduce_volume:.2f} lots")
                     else:
