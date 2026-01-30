@@ -4637,7 +4637,7 @@ def main():
                 else:
                     # Delete forex/metals/indices pending order
                     ticket = order.ticket if hasattr(order, 'ticket') else order
-                    result = bot.mt5.delete_order(ticket)
+                    result = bot.mt5.cancel_pending_order(ticket)
                     if result:
                         forex_orders_deleted += 1
                         print(f"   ✓ Deleted {symbol} limit order (ticket {ticket})")
