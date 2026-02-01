@@ -243,7 +243,9 @@ class ChallengeRiskManager:
         """Persist state to file."""
         # Calculate DDD limit for transparency
         # 5ers rule: 5% of MAX(previous_close_equity, previous_close_balance)
-        day_reference = max(self.day_start_balance, self.day_start_equity) if self.day_start_equity > 0 else self.day_start_balance
+        # IMPORTANT: At weekend rollover with no positions, equity = balance
+        # Use day_start_balance as reference (matches 5ers dashboard)
+        day_reference = self.day_start_balance  # Conservative: use balance (what 5ers actually uses)
         ddd_limit = day_reference * 0.95 if day_reference > 0 else 0.0
         tdd_limit = self.starting_balance * 0.90  # 10% max total drawdown from initial balance (STATIC)
 
@@ -390,7 +392,8 @@ class ChallengeRiskManager:
 
         # Calculate limits for transparency
         # 5ers rule: 5% of MAX(previous_close_equity, previous_close_balance)
-        day_reference = max(self.day_start_balance, self.day_start_equity) if self.day_start_equity > 0 else self.day_start_balance
+        # At rollover with no positions, equity = balance, so use balance (conservative)
+        day_reference = self.day_start_balance
         ddd_limit = day_reference * 0.95 if day_reference > 0 else 0.0
         tdd_limit = self.starting_balance * 0.90  # 10% max total drawdown (STATIC)
 
