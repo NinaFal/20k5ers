@@ -4112,9 +4112,13 @@ class LiveTradingBot:
         log.info(f"Symbols: {len(TRADABLE_SYMBOLS)}")
         log.info("=" * 70)
         
-        if not self.connect():
-            log.error("Failed to connect to MT5. Exiting.")
-            return
+        # Only connect if not already connected (e.g., from --force-friday-close)
+        if not self.mt5.connected:
+            if not self.connect():
+                log.error("Failed to connect to MT5. Exiting.")
+                return
+        else:
+            log.info("Already connected to MT5 (from previous command)")
         
         # CRITICAL FIX JAN 20, 2026: Start DDD protection loop AFTER connect()
         # Otherwise challenge_manager is None and the protection never works!
@@ -4702,10 +4706,10 @@ def main():
             print("   No crypto symbols configured")
         
         print("")
-        print("✅ Friday close complete")
+        print("✅ Friday close complete - bot will continue running for crypto monitoring")
         print("=" * 70)
-        bot.disconnect()
-        sys.exit(0)
+        # Don't exit - fall through to bot.run() to continue monitoring crypto orders
+        # The bot will keep running and manage any crypto positions/orders during weekend
     
     bot.run()
 
