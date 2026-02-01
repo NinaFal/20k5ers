@@ -236,8 +236,9 @@ def get_next_scan_time(include_today: bool = False) -> datetime:
     """
     server_now = get_server_time()
 
-    # Daily close is at 00:00 server time, scan at 00:10 server time
-    today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
+    # Daily close is at 00:00 server time, scan at 01:00 server time
+    # (1 hour after close to avoid wide spreads on Monday open)
+    today_scan = server_now.replace(hour=1, minute=0, second=0, microsecond=0)
 
     # If include_today is True and we haven't passed today's scan yet, return it
     if include_today and server_now < today_scan:
@@ -442,7 +443,7 @@ class LiveTradingBot:
     KEY FEATURES (5ers Compliant):
     - 5-TP Exit System: 5 take profit levels (0.6R to 3.5R)
     - Immediate scan on first run after restart/weekend
-    - Daily scan 10 min after daily close (00:10 server time)
+    - Daily scan 1 hour after daily close (01:00 server time)
     - Spread & volume checks before entry
     - Weekend gap protection
     - Total DD monitoring (no daily DD for 5ers!)
@@ -4076,7 +4077,7 @@ class LiveTradingBot:
         
         5ERS-SPECIFIC FEATURES:
         - First run: Immediate scan after restart/weekend (if --first-run or flag missing)
-        - Scheduled scan: 10 min after daily close (00:10 server time)
+        - Scheduled scan: 1 hour after daily close (01:00 server time)
         - Weekend gap protection: Check positions on Monday morning
         - Spread queue: Retry trades when spread improves
         - 5-TP partial close system: 10/10/15/20/45% at 0.6R/1.2R/2.0R/2.5R/3.5R
@@ -4085,7 +4086,7 @@ class LiveTradingBot:
         SCHEDULE:
         - Every 10 seconds: Protection checks, 5-TP management
         - Every 10 minutes: Spread queue check, validate setups
-        - 00:10 server time: Daily market scan
+        - 01:00 server time: Daily market scan
         - Monday 00:00-02:00: Weekend gap protection
         """
         log.info("=" * 70)
@@ -4112,13 +4113,9 @@ class LiveTradingBot:
         log.info(f"Symbols: {len(TRADABLE_SYMBOLS)}")
         log.info("=" * 70)
         
-        # Only connect if not already connected (e.g., from --force-friday-close)
-        if not self.mt5.connected:
-            if not self.connect():
-                log.error("Failed to connect to MT5. Exiting.")
-                return
-        else:
-            log.info("Already connected to MT5 (from previous command)")
+        if not self.connect():
+            log.error("Failed to connect to MT5. Exiting.")
+            return
         
         # CRITICAL FIX JAN 20, 2026: Start DDD protection loop AFTER connect()
         # Otherwise challenge_manager is None and the protection never works!
@@ -4164,7 +4161,7 @@ class LiveTradingBot:
             # Calculate next scan time after immediate scan
             self.next_scan_time = get_next_scan_time()
         elif not already_scanned_today:
-            # Get today's scan time (00:10 server time)
+            # Get today's scan time (01:00 server time)
             # If today's scan time has passed and it's a weekday, check if we should scan
             if server_now >= today_scan and today_scan.weekday() < 5:
                 # Only trigger immediate scan if we haven't scanned today
@@ -4274,7 +4271,7 @@ class LiveTradingBot:
                 #         self.validate_all_setups()
                 
                 # ═══════════════════════════════════════════════════════════════
-                # DAILY SCAN - 10 min after daily close (00:10 server time)
+                # DAILY SCAN - 1 hour after daily close (01:00 server time)
                 # ═══════════════════════════════════════════════════════════════
                 if self.next_scan_time and now >= self.next_scan_time:
                     if is_market_open():
@@ -4517,7 +4514,7 @@ def main():
                     print("")
                     print(f"🚨 DDD {daily_loss_pct:.2f}% >= {halt_threshold}% - HALT WILL BE ACTIVE!")
                     print(f"   Bot will NOT trade until next daily close (00:00 server time)")
-                    print(f"   At 00:10 server time the scan will execute for new day")
+                    print(f"   At 01:00 server time the scan will execute for new day")
                     # Set halt state
                     bot.ddd_halted = True
                     bot.ddd_halt_reason = f"DDD {daily_loss_pct:.2f}% (manual equity set)"
@@ -4706,10 +4703,10 @@ def main():
             print("   No crypto symbols configured")
         
         print("")
-        print("✅ Friday close complete - bot will continue running for crypto monitoring")
+        print("✅ Friday close complete")
         print("=" * 70)
-        # Don't exit - fall through to bot.run() to continue monitoring crypto orders
-        # The bot will keep running and manage any crypto positions/orders during weekend
+        bot.disconnect()
+        sys.exit(0)
     
     bot.run()
 

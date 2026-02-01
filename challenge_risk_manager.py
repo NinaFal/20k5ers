@@ -241,24 +241,15 @@ class ChallengeRiskManager:
     
     def _save_state(self):
         """Persist state to file."""
-        # Calculate DDD limit for transparency
-        # 5ers rule: 5% of MAX(previous_close_equity, previous_close_balance)
-        # SAFETY: When manually set equity differs from balance, use the LOWER value
-        # This ensures we don't exceed what 5ers actually calculates
-        if abs(self.day_start_equity - self.day_start_balance) < 1:  # Same value (no open positions at rollover)
-            day_reference = self.day_start_balance
-        else:
-            # Values differ - use MINIMUM for safety (more conservative floor)
-            day_reference = min(self.day_start_balance, self.day_start_equity)
-        ddd_limit = day_reference * 0.95 if day_reference > 0 else 0.0
-        tdd_limit = self.starting_balance * 0.90  # 10% max total drawdown from initial balance (STATIC)
+        # Calculate DDD limit for transparency (5% max daily loss from day start equity)
+        ddd_limit = self.day_start_equity * 0.95 if self.day_start_equity > 0 else 0.0
+        tdd_limit = self.starting_balance * 0.90  # 10% max total drawdown from initial balance
 
         state = {
             'starting_balance': self.starting_balance,
             'peak_equity': self.peak_equity,
             'day_start_balance': self.day_start_balance,
             'day_start_equity': self.day_start_equity,  # Save equity start for DDD
-            'day_reference': day_reference,  # MAX(balance, equity) used for DDD calc
             'day_start_equity_manually_set_date': self.day_start_equity_manually_set_date,  # Date when manually set (YYYY-MM-DD or empty)
             'current_date': self.current_date.isoformat(),
             'trades_today': self.trades_today,
@@ -266,9 +257,9 @@ class ChallengeRiskManager:
             'current_equity': self.current_equity,
             'daily_pnl': self.daily_pnl,
             'daily_loss_pct': self.daily_loss_pct,
-            'ddd_limit': ddd_limit,  # Floor: day_reference * 0.95
+            'ddd_limit': ddd_limit,  # 5% below day_start_equity
             'total_dd_pct': self.total_drawdown_pct,
-            'tdd_limit': tdd_limit,  # Floor: starting_balance * 0.90 (STATIC)
+            'tdd_limit': tdd_limit,  # 10% below starting_balance
             'last_update': datetime.now().isoformat()
         }
         try:
@@ -395,27 +386,20 @@ class ChallengeRiskManager:
         self.total_drawdown_pct = max(0, self.total_drawdown / self.starting_balance * 100) if self.starting_balance > 0 else 0
 
         # Calculate limits for transparency
-        # 5ers rule: 5% of MAX(previous_close_equity, previous_close_balance)
-        # SAFETY: When values differ, use MINIMUM for conservative floor
-        if abs(self.day_start_equity - self.day_start_balance) < 1:
-            day_reference = self.day_start_balance
-        else:
-            day_reference = min(self.day_start_balance, self.day_start_equity)
-        ddd_limit = day_reference * 0.95 if day_reference > 0 else 0.0
-        tdd_limit = self.starting_balance * 0.90  # 10% max total drawdown (STATIC)
+        ddd_limit = self.day_start_equity * 0.95  # 5% max daily loss
+        tdd_limit = self.starting_balance * 0.90  # 10% max total drawdown
 
         # TRANSPARENCY: Log DDD/TDD every sync for comparison with 5ers dashboard
         log.info("=" * 70)
         log.info("📊 RISK METRICS (Compare with 5ers Dashboard)")
         log.info(f"  Initial Balance: ${self.starting_balance:,.2f}")
-        log.info(f"  Day Start Balance: ${self.day_start_balance:,.2f}")
         log.info(f"  Day Start Equity: ${self.day_start_equity:,.2f}")
-        log.info(f"  Day Reference (max): ${day_reference:,.2f}")
         log.info(f"  Current Equity: ${equity:,.2f}")
+        log.info(f"  Peak Equity: ${self.peak_equity:,.2f}")
         log.info("---")
         log.info(f"  Daily P&L: ${self.daily_pnl:,.2f}")
-        log.info(f"  DDD: {self.daily_loss_pct:.2f}% (Floor: ${ddd_limit:,.2f})")
-        log.info(f"  TDD: {self.total_drawdown_pct:.2f}% (Floor: ${tdd_limit:,.2f})")
+        log.info(f"  DDD: {self.daily_loss_pct:.2f}% (Limit: ${ddd_limit:,.2f})")
+        log.info(f"  TDD: {self.total_drawdown_pct:.2f}% (Limit: ${tdd_limit:,.2f})")
         log.info("=" * 70)
 
         # Determine risk mode
