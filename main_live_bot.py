@@ -2299,8 +2299,17 @@ class LiveTradingBot:
         if pip_size <= 0:
             pip_size = 0.0001
         
-        # FIRST: Try to get tick_value directly from MT5 (most reliable source!)
-        # MT5 always gives correct tick_value for the broker's contract specs
+        # CRITICAL: For metals (XAU, XAG), MT5's tick_value is unreliable!
+        # MT5 returns tick_value per mini lot (0.01) instead of per standard lot.
+        # Verified from live trade: XAUUSD 0.2 lots, 4.78 points move = $95.60 profit
+        # This means pip_value = $100/point per lot (not $0.01 as MT5 reports).
+        # Use fiveers_specs which are verified correct for 5ers broker.
+        sym_upper = symbol.upper().replace("_", "")
+        if any(x in sym_upper for x in ["XAU", "XAG"]):
+            log.info(f"[{symbol}] Using fiveers_specs for metals: pip_value=${base_pip_value:.2f}/pip (pip_size={pip_size})")
+            return base_pip_value
+        
+        # For other symbols: Try to get tick_value directly from MT5
         try:
             symbol_info = self.mt5.get_symbol_info(broker_symbol)
             if symbol_info:

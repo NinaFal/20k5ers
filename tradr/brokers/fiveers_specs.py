@@ -49,16 +49,21 @@ FIVEERS_CONTRACT_SPECS = {
     },
     
     # METALS
-    "XAU": {  # Gold - 5ers: 100oz per lot, ~$100 per point
-        "pip_size": 0.01,             # $0.01 tick
-        "pip_value_per_lot": 100.0,   # $100 per point per lot (verified from live trade)
+    # CRITICAL: pip_size defines what "1 pip" means. pip_value is profit per pip per lot.
+    # XAU: $100 per POINT (1.00 move), pip_size=0.01, so 1 point = 100 pips
+    # Therefore: pip_value = $100/point / 100 pips = $1.00/pip
+    "XAU": {  # Gold - 5ers: 100oz per lot, $100 per point = $1 per pip
+        "pip_size": 0.01,             # 1 pip = $0.01 price movement
+        "pip_value_per_lot": 1.0,     # $1.00 per pip per lot (verified: 478 pips × $1 × 0.2 lots = $95.60)
         "min_lot": 0.01,
         "max_lot": 100.0,
         "lot_step": 0.01,
     },
-    "XAG": {  # Silver - 5ers: 5000oz, tick $0.001, tick_value $0.05 per 0.01 lots
-        "pip_size": 0.001,            # $0.001 tick
-        "pip_value_per_lot": 5.0,     # $5 per pip per lot ($0.05/0.01 or 5000oz × $0.001)
+    # XAG: From trade: 0.176 point move = -$44 at 0.05 lots
+    # So pip_value = $44 / 176 pips / 0.05 = $5/pip (if pip_size = 0.001)
+    "XAG": {  # Silver - 5ers: 5000oz, $5 per pip
+        "pip_size": 0.001,            # 1 pip = $0.001 price movement
+        "pip_value_per_lot": 5.0,     # $5.00 per pip per lot (verified: 176 pips × $5 × 0.05 = $44)
         "min_lot": 0.01,
         "max_lot": 100.0,
         "lot_step": 0.01,
