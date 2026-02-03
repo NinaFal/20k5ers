@@ -49,9 +49,9 @@ FIVEERS_CONTRACT_SPECS = {
     },
     
     # METALS
-    "XAU": {  # Gold - 5ers: 100oz per lot, tick 0.01
+    "XAU": {  # Gold - 5ers: 100oz per lot, ~$100 per point
         "pip_size": 0.01,             # $0.01 tick
-        "pip_value_per_lot": 1.0,     # $1 per pip per lot (100oz × $0.01)
+        "pip_value_per_lot": 100.0,   # $100 per point per lot (verified from live trade)
         "min_lot": 0.01,
         "max_lot": 100.0,
         "lot_step": 0.01,
