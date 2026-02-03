@@ -1,93 +1,86 @@
+# Exit Strategy - 5-TP System
 
-# Exit Strategy - 3-TP System
+**Last Updated**: February 3, 2026
 
 ## Overview
 
-The trading strategy uses a **3 Take Profit Level** exit system with partial position closing and dynamic trailing stops.
-
-> **Updated January 6, 2026**: Simplified from 5-TP to 3-TP for better risk management and higher win rate.
+The trading strategy uses a **5 Take Profit Level** exit system with partial position closing and progressive trailing stops. Parameters are loaded from `params/current_params.json`.
 
 ---
 
-## Take Profit Levels
+## Take Profit Levels (Current Configuration)
 
 | Level | R-Multiple | Close % | SL Action |
 |-------|------------|---------|-----------|
-| TP1 | 0.6R | 35% | Move to breakeven |
-| TP2 | 1.2R | 30% | Trail to TP1+0.5R |
-| TP3 | 2.0R | 35% | Close remaining |
+| TP1 | 0.9R | 20% | Move to breakeven |
+| TP2 | 2.9R | 20% | Trail to TP1+0.5R |
+| TP3 | 4.3R | 30% | Trail to TP2+0.5R |
+| TP4 | 4.8R | 15% | Trail to TP3+0.5R |
+| TP5 | 6.2R | 15% | Close all remaining |
 
-### Parameters
-```python
-# R-Multiples (in params/current_params.json)
-tp1_r_multiple: 0.6
-tp2_r_multiple: 1.2
-tp3_r_multiple: 2.0
-
-# Close Percentages
-tp1_close_pct: 0.35  # 35%
-tp2_close_pct: 0.30  # 30%
-tp3_close_pct: 0.35  # 35%
+### Parameters (from current_params.json)
+```json
+{
+  "tp1_r_multiple": 0.9,
+  "tp2_r_multiple": 2.9,
+  "tp3_r_multiple": 4.3,
+  "tp4_r_multiple": 4.8,
+  "tp5_r_multiple": 6.2,
+  "tp1_close_pct": 0.20,
+  "tp2_close_pct": 0.20,
+  "tp3_close_pct": 0.30,
+  "tp4_close_pct": 0.15,
+  "tp5_close_pct": 0.15
+}
 ```
 
 ---
 
-## Trailing Stop Logic
+## Progressive Trailing Stop
 
 ### Activation
-Trailing stop activates after **TP1 is hit**.
+At **1.0R** profit, the stop loss moves to **breakeven + 0.4R**.
 
-### Movement Rules
-
-| Event | Trailing SL Position |
-|-------|---------------------|
-| Entry | Original SL (1R away) |
-| TP1 Hit | Move to entry (breakeven) |
-| TP2 Hit | Move to TP1 + 0.5R |
-| TP3 Hit | Close all remaining |
+### Parameters
+```json
+{
+  "progressive_trigger_r": 1.0,
+  "progressive_trail_target_r": 0.4
+}
+```
 
 ---
 
 ## Exit Scenarios
 
-### Scenario A: Full TP3 Exit (Best Case)
+### Scenario A: Full TP5 Exit (Best Case)
 All TPs hit in sequence:
 ```
 Entry: 100.00, SL: 99.00 (risk = 1.00)
-TP1: 100.60 → Close 35% at 0.6R → Book +0.21R
-TP2: 101.20 → Close 30% at 1.2R → Book +0.36R
-TP3: 102.00 → Close 35% at 2.0R → Book +0.70R
+TP1: 100.90 → Close 20% at 0.9R → Book +0.18R
+TP2: 102.90 → Close 20% at 2.9R → Book +0.58R
+TP3: 104.30 → Close 30% at 4.3R → Book +1.29R
+TP4: 104.80 → Close 15% at 4.8R → Book +0.72R
+TP5: 106.20 → Close 15% at 6.2R → Book +0.93R
 
-Total R = 0.35*0.6 + 0.30*1.2 + 0.35*2.0
-       = 0.21 + 0.36 + 0.70
-       = 1.27R
+Total R = 0.18 + 0.58 + 1.29 + 0.72 + 0.93 = 3.70R
 ```
 
-### Scenario B: TP1 + Trailing Exit
+### Scenario B: TP1 + Progressive Trail Exit
 Price reverses after TP1:
 ```
-Entry: 100.00, SL: 99.00, TP1: 100.60
-TP1 hit → Close 35%, Trail SL to 100.00 (breakeven)
-Price reverses, hits trailing at 100.00
+Entry: 100.00, SL: 99.00, TP1: 100.90
+TP1 hit → Close 20%, Book +0.18R
+Price reaches 1.0R → SL moves to 100.40 (BE+0.4R)
+Price reverses, hits trailing at 100.40
 
-Total R = 0.35 * 0.6 + 0.65 * 0.0 = 0.21R (still profitable!)
+Trail R = (100.40 - 100.00) / 1.00 = 0.4R
+Remaining = 80%
+
+Total R = 0.18 + (0.80 * 0.4) = 0.18 + 0.32 = 0.50R
 ```
 
-### Scenario C: TP2 + Trailing Exit
-Price reverses after TP2:
-```
-Entry: 100.00, SL: 99.00
-TP1 hit → Close 35%, Book +0.21R
-TP2 hit → Close 30%, Book +0.36R, Trail to 101.10
-Price hits trailing at 101.10
-
-Trail R = (101.10 - 100.00) / 1.00 = 1.1R
-Remaining = 35%
-
-Total R = 0.21 + 0.36 + (0.35 * 1.1) = 0.21 + 0.36 + 0.385 = 0.955R
-```
-
-### Scenario D: Pure Stop Loss
+### Scenario C: Pure Stop Loss
 No TPs hit, SL triggered:
 ```
 Entry: 100.00, SL: 99.00
@@ -98,80 +91,14 @@ Total R = -1.0R
 
 ---
 
-## R Calculation Formula
+## Implementation Files
 
-### Partial Profit Booking
-Each TP level books profit immediately:
-
-```python
-# When TP1 hit
-partial_pnl_1 = position_size * 0.35 * 0.6R
-
-# When TP2 hit  
-partial_pnl_2 = position_size * 0.30 * 1.2R
-
-# When TP3 hit (or trailing SL)
-final_pnl = position_size * 0.35 * exit_r
-```
-
-### Total PnL
-```python
-total_pnl = partial_pnl_1 + partial_pnl_2 + final_pnl - commissions
-```
+| File | Function |
+|------|----------|
+| `main_live_bot.py` | `_manage_tp_exits()` - Live TP management |
+| `backtest/src/main_live_bot_backtest.py` | Same function for backtest |
+| `params/current_params.json` | TP level configuration |
 
 ---
 
-## Implementation Location
-
-### scripts/main_live_bot_backtest.py
-- `_check_tp_levels()` - Handles TP hits and partial closes
-- `_close_position()` - Handles final close and trailing SL
-- Matches exact live bot behavior
-
-### main_live_bot.py
-- Real-time MT5 execution
-- Same 3-TP logic with 5-minute monitoring
-
----
-
-## Key Parameters (params/current_params.json)
-
-```json
-{
-    "tp1_r_multiple": 0.6,
-    "tp2_r_multiple": 1.2,
-    "tp3_r_multiple": 2.0,
-    "tp1_close_pct": 0.35,
-    "tp2_close_pct": 0.30,
-    "tp3_close_pct": 0.35
-}
-```
-
----
-
-## Validation Results
-
-With this 3-TP system (2023-2025, H1 simulation):
-
-| Metric | Value |
-|--------|-------|
-| **Total Trades** | 943 |
-| **Win Rate** | 66.1% |
-| **Final Balance** | $948,629 |
-| **Return** | +1,481% |
-| **Max TDD** | 2.17% |
-| **Max DDD** | 4.16% |
-
----
-
-## Why 3-TP Instead of 5-TP?
-
-1. **Simpler execution** - Fewer partial closes to manage
-2. **Higher immediate profit** - 35% at TP1 vs 10%
-3. **Better breakeven protection** - More secured at first target
-4. **Lower complexity** - Easier to debug and maintain
-5. **Validated results** - $948K final balance proves effectiveness
-
----
-
-**Last Updated**: January 6, 2026
+**Note**: The 5-TP system is optimized via `backtest/optimize_main_live_bot.py` using Optuna.

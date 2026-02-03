@@ -1,16 +1,31 @@
 #!/usr/bin/env python3
 """
-Tradr Bot - Standalone MT5 Live Trading Bot
+═══════════════════════════════════════════════════════════════════════════════
+                    MAIN_LIVE_BOT.PY - 5ERS LIVE TRADING BOT
+                    Last Updated: February 3, 2026
+═══════════════════════════════════════════════════════════════════════════════
 
-This bot runs 24/7 on your Windows VM and trades using the EXACT SAME
-strategy logic that produced the great backtest results. Discord is NOT
-required for trading - the bot operates independently.
+Live MT5 trading bot for 5ers 20K High Stakes Challenge.
+Runs 24/7 on Windows VM with MetaTrader 5.
 
-IMPORTANT: Uses strategy_core.py directly - the same code as backtests!
+KEY FEATURES:
+    • 5-TP Partial Close System (from current_params.json)
+    • Entry Queue System (0.3R proximity, 168h expiry)
+    • DDD 3-Tier Protection (2% warn, 3% reduce, 3.2% halt)
+    • TDD Static Protection (10% from initial balance)
+    • Friday Close Protection (16:00+ UTC)
+    • Weekend Gap Management (correlation-aware)
+    • Metal Pip Value Fix (XAU=$100/pip, XAG=$5/pip from fiveers_specs)
+
+SAFETY SYSTEMS:
+    • Lot sizing at FILL moment (not signal time) for compounding
+    • 2x Risk Rejection (rejects trades where actual_risk > 2x intended)
+    • Spread protection (moves to awaiting_spread queue if too wide)
+    • Correlation limits (max per group on Friday)
 
 Supported Brokers:
-- Forex.com Demo (for testing)
-- 5ers Live (production)
+    • Forex.com Demo (for testing)
+    • 5ers Live (production)
 
 Usage:
     python main_live_bot.py                    # Uses BROKER_TYPE from .env
@@ -24,7 +39,10 @@ Configuration:
     - MT5_SERVER: Broker server name
     - MT5_LOGIN: Account login number
     - MT5_PASSWORD: Account password
-    - SCAN_INTERVAL_HOURS: How often to scan (default: 4)
+
+Backtest:
+    For backtesting, use backtest/src/main_live_bot_backtest.py which is
+    an exact copy of this file but uses CSVMT5Simulator instead of real MT5.
 """
 
 import os

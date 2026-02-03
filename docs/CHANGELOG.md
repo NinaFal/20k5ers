@@ -1,37 +1,56 @@
 # Changelog
 
-## [January 20, 2026]
-### Changed
-- Updated all documentation to 20K account (was 60K)
-- Added two-level backtest architecture documentation
-- Cleaned up obsolete documentation files
+## [February 3, 2026]
 
-## [January 18, 2026]
-### Added
-- Latest simulation results: $310,183 from $20K (+1,451%)
-- 871 trades with 67.5% win rate
-- Max TDD: 4.94%, Max DDD: 3.61%
+### Critical Fixes
+- **Metal Pip Value Fix**: XAU and XAG now use `fiveers_specs` directly for pip_value
+  - XAU: $100/pip (was incorrectly getting $1/pip from MT5 tick_value)
+  - XAG: $5/pip
+  - This fix prevents 59x oversizing on metal trades
 
-## [January 6, 2026]
-### Changed
-- Simplified from 5-TP to 3-TP exit system
-- TP levels: 0.6R/1.2R/2.0R with 35%/30%/35% closes
+### Safety Additions
+- **2x Risk Rejection**: Trades are now rejected if actual_risk exceeds 2x intended risk
+  - Catches cases where min_lot forces excessive risk
+  - Applies to ALL assets (forex, metals, indices, crypto)
 
-### Added
-- Entry queue system (0.3R proximity, 120h expiry)
-- Lot sizing at FILL moment for compounding
-- DDD safety system (2%/3%/3.5% tiers)
+### Documentation Updates
+- Updated all documentation to reflect 5-TP system (from old 3-TP references)
+- Updated risk per trade to 1.0% (from old 0.6% references)
+- Removed outdated files:
+  - `AI_ASSISTANT_GUIDE.md` (replaced by `.github/copilot-instructions.md`)
+  - `backtest/ISSUE_LOT_SIZING_ACCUMULATION.md` (resolved)
+  - `backtest/FIXES_AND_UPDATES.md` (outdated)
+  - Old analysis report txt files
 
-## [January 5, 2026]
-### Fixed
-- DDD protection loop timing
-- TDD calculation (STATIC from initial balance)
-
-## [January 4, 2026]
-### Added
-- H1 realistic simulation (`main_live_bot_backtest.py`)
-- Challenge risk manager with AccountSnapshot
+### Files Modified
+- `main_live_bot.py` - Metal pip_value fix, 2x risk rejection, updated docstring
+- `backtest/src/main_live_bot_backtest.py` - Same fixes as live bot
+- `.github/copilot-instructions.md` - Full update
+- `README.md` - Updated to 5-TP system
+- `docs/EXIT_STRATEGY.md` - Updated to 5-TP system
+- `docs/5ERS_COMPLIANCE.md` - Updated with safety features
+- `docs/ARCHITECTURE.md` - Updated architecture diagram
 
 ---
 
-**Last Updated**: January 20, 2026
+## [January 2026]
+
+### Strategy Configuration
+- Migrated from 3-TP to 5-TP exit system
+- Parameters now loaded from `params/current_params.json`
+- Risk per trade: 1.0%
+
+### Entry System
+- Entry queue with 168h (7 day) expiry
+- 0.3R proximity for limit orders
+- 0.05R for immediate market orders
+
+### Safety Systems
+- DDD 3-tier: 2% warn, 3% reduce, 3.2% halt
+- TDD static from initial balance (10% = $18K stop-out)
+- Friday closing at 16:00 UTC
+- Weekend gap management
+
+---
+
+**Last Updated**: February 3, 2026

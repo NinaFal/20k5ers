@@ -4,13 +4,16 @@
 
 Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accounts.
 
-### Current State (January 20, 2026)
+### Current State (February 3, 2026)
 - **Status**: ✅ Production Ready & Validated
-- **Latest Simulation**: $310,183 from $20K (+1,451%, 871 trades)
-- **5ers Compliance**: Max TDD 4.94%, Max DDD 3.61% (both within limits)
-- **Exit System**: 3 Take Profit levels (35%/30%/35% at 0.6R/1.2R/2.0R)
+- **Risk Per Trade**: 1.0% (from current_params.json)
+- **Exit System**: 5 Take Profit levels (configurable via params)
 - **Entry Queue**: Signals wait for 0.3R proximity, spread protection active
-- **Scan Timing**: Daily at 01:00 server time (1 hour after close, avoids Monday spread issues)
+- **Scan Timing**: Daily at 01:00 server time (1 hour after close)
+
+### Critical Fixes Applied (Feb 3, 2026)
+- **Metal Pip Value Fix**: XAU uses $100/pip, XAG uses $5/pip from fiveers_specs (not MT5 tick_value)
+- **2x Risk Rejection**: Trades where actual_risk > 2x intended are rejected
 
 ---
 
@@ -27,9 +30,9 @@ Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accoun
 │  ═══════════════════════════════════════                                     │
 │  • Uses CSVMT5Simulator instead of real MT5                                 │
 │  • M15 tick-by-tick simulation                                              │
-│  • Entry queue (0.3R proximity, 120h expiry)                                │
+│  • Entry queue (0.3R proximity, 168h expiry)                                │
 │  • Lot sizing at FILL moment (compounding)                                  │
-│  • 3-TP partial closes                                                       │
+│  • 5-TP partial closes                                                       │
 │  • DDD/TDD safety checks                                                     │
 │  • Correlation filter                                                        │
 │                                                                              │
@@ -45,20 +48,26 @@ Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accoun
 | `strategy_core.py` | Trading strategy - `compute_confluence()`, `simulate_trades()` |
 | `ftmo_challenge_analyzer.py` | Optimization & `--validate` for signal generation |
 | `backtest/src/main_live_bot_backtest.py` | Backtest version matching `main_live_bot.py` EXACTLY |
+| `backtest/optimize_main_live_bot.py` | Optuna optimizer for finding best parameters |
 | `main_live_bot.py` | Live MT5 trading with entry queue & dynamic lot sizing |
 | `challenge_risk_manager.py` | DDD/TDD enforcement, AccountSnapshot |
 | `ftmo_config.py` | 5ers challenge configuration |
 | `params/current_params.json` | Active optimized parameters |
+| `tradr/brokers/fiveers_specs.py` | Contract specs (pip_value, pip_size, min_lot) |
 
 ---
 
-## 3-TP Exit System
+## 5-TP Exit System (from current_params.json)
 
-| Level | R-Multiple | Close % | SL Action |
-|-------|------------|---------|-----------|
-| TP1 | 0.6R | 35% | Move to breakeven |
-| TP2 | 1.2R | 30% | Trail to TP1+0.5R |
-| TP3 | 2.0R | 35% | Close remaining |
+| Level | R-Multiple | Close % |
+|-------|------------|---------|
+| TP1 | 0.9R | 20% |
+| TP2 | 2.9R | 20% |
+| TP3 | 4.3R | 30% |
+| TP4 | 4.8R | 15% |
+| TP5 | 6.2R | 15% |
+
+**Progressive Trailing**: At 1.0R profit, SL moves to BE + 0.4R
 
 ---
 
@@ -66,15 +75,15 @@ Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accoun
 
 ### Scan Timing
 - **Daily close**: 00:00 server time
-- **Scan time**: **01:00 server time** (1 hour after daily close, avoids Monday spread issues)
+- **Scan time**: **01:00 server time** (1 hour after daily close)
 
 ### Order Placement (3 Scenarios)
 
 | Scenario | Condition | Action |
 |----------|-----------|--------|
 | A | Price ≤0.05R from entry | MARKET ORDER (spread check) |
-| B | 0.05R < price ≤ 0.3R | LIMIT ORDER |
-| C | Price > 0.3R | AWAITING ENTRY QUEUE |
+| B | 0.05R < price ≤ 1.5R | LIMIT ORDER |
+| C | Price > 1.5R | AWAITING ENTRY QUEUE (168h expiry) |
 
 ---
 
@@ -83,25 +92,26 @@ Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accoun
 | Tier | Daily DD | Action |
 |------|----------|--------|
 | Warning | ≥2.0% | Log warning only |
-| Reduce | ≥3.0% | Reduce risk: 0.6% → 0.4% |
-| Halt | ≥3.5% | Close all positions, stop trading until next day |
+| Reduce | ≥3.0% | Reduce risk |
+| Halt | ≥3.2% | Close all positions, stop trading until next day |
 
 ---
 
-## Latest Performance (January 18, 2026)
+## Lot Sizing Safety
 
-```json
-{
-  "starting_balance": 20000,
-  "final_balance": 310183,
-  "net_return_pct": 1451,
-  "total_trades": 871,
-  "win_rate": 67.5,
-  "max_total_dd_pct": 4.94,
-  "max_daily_dd_pct": 3.61,
-  "safety_events": 1,
-  "total_commissions": 2924
-}
+### Metal Pip Value (CRITICAL)
+```python
+# XAU and XAG use fiveers_specs directly (not MT5 tick_value!)
+# MT5 tick_value was returning $1/pip instead of $100/pip for XAU
+if any(x in symbol for x in ["XAU", "XAG"]):
+    pip_value = fiveers_specs["pip_value_per_lot"]  # XAU=$100, XAG=$5
+```
+
+### 2x Risk Rejection
+```python
+# Reject trades where actual risk exceeds 2x intended
+if actual_risk_pct > risk_pct * 2:
+    return 0.0  # NO TRADE
 ```
 
 ---
@@ -120,8 +130,7 @@ python ftmo_challenge_analyzer.py --validate --start 2023-01-01 --end 2025-12-31
 
 ### Optimization
 ```bash
-python ftmo_challenge_analyzer.py --single --trials 100  # TPE
-python ftmo_challenge_analyzer.py --multi --trials 100   # NSGA-II
+python backtest/optimize_main_live_bot.py --trials 100 --start 2024-01-01 --end 2024-12-31
 ```
 
 ---
@@ -145,10 +154,9 @@ MIN_CONFLUENCE = 5  # Don't hardcode
 ### Lot Sizing - At FILL Moment
 ```python
 # Lot size calculated when order FILLS, not when signal generated
-# This enables proper compounding
 lot_size = calculate_lot_size(
     balance=current_balance,  # Current, not signal-time balance
-    risk_pct=0.6,
+    risk_pct=1.0,
     entry=fill_price,
     stop_loss=sl,
 )
@@ -176,8 +184,8 @@ lot_size = calculate_lot_size(
 2. ❌ **Never change exit logic** without full simulation
 3. ❌ **Never use trailing TDD** - 5ers uses STATIC TDD
 4. ❌ **Never calculate lot size at signal time** - use fill time balance
-5. ❌ **Never run only Stage 1** - always run both validate AND simulate
+5. ❌ **Never trust MT5 tick_value for metals** - use fiveers_specs
 
 ---
 
-**Last Updated**: January 20, 2026
+**Last Updated**: February 3, 2026

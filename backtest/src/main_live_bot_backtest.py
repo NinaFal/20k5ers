@@ -1,16 +1,29 @@
 #!/usr/bin/env python3
 """
-Tradr Bot - BACKTEST VERSION (main_live_bot_backtest.py)
+═══════════════════════════════════════════════════════════════════════════════
+                MAIN_LIVE_BOT_BACKTEST.PY - BACKTEST VERSION
+                Last Updated: February 3, 2026
+═══════════════════════════════════════════════════════════════════════════════
 
-This is an EXACT COPY of main_live_bot.py modified to use CSV data instead
-of a real MT5 connection. The CSVMT5Simulator provides the same interface
-as MT5Client so all trading logic remains UNCHANGED.
+This is the BACKTEST version of main_live_bot.py. It uses CSVMT5Simulator
+instead of real MT5 connection, but ALL trading logic is IDENTICAL.
 
-IMPORTANT: Uses strategy_core.py directly - the same code as backtests!
+CRITICAL: This file must stay synchronized with main_live_bot.py!
+Any changes to the live bot should be replicated here.
 
-Usage (BACKTEST MODE):
-    python backtest/main_live_bot_backtest.py --start 2023-01-01 --end 2025-12-31 --balance 20000
-    python backtest/main_live_bot_backtest.py --start 2024-01-01 --end 2024-12-31 --balance 20000 --output results.json
+KEY FEATURES (same as main_live_bot.py):
+    • 5-TP Partial Close System (from current_params.json)
+    • Entry Queue System (0.3R proximity, 168h expiry)
+    • DDD 3-Tier Protection (2% warn, 3% reduce, 3.2% halt)
+    • TDD Static Protection (10% from initial balance)
+    • Friday Close Protection (16:00+ UTC)
+    • Weekend Gap Management (correlation-aware)
+    • Metal Pip Value Fix (XAU=$100/pip, XAG=$5/pip)
+    • M15 tick-by-tick simulation for realistic fills
+
+Usage:
+    python backtest/src/main_live_bot_backtest.py --start 2023-01-01 --end 2025-12-31 --balance 20000
+    python backtest/src/main_live_bot_backtest.py --start 2024-01-01 --end 2024-12-31 --output results.json
 
 Configuration:
     Uses params/current_params.json for strategy parameters

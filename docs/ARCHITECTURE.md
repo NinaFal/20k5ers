@@ -1,46 +1,47 @@
 # System Architecture
 
+**Last Updated**: February 3, 2026
+
 ## Overview
 
-The trading bot uses a **Two-Level Backtest Architecture**:
+The trading bot uses a **Single-Source Architecture** where the backtest uses an exact copy of the live bot code.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    BACKTEST = VALIDATE + SIMULATE                            │
+│                    BACKTEST = main_live_bot_backtest.py                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  STAGE 1: ftmo_challenge_analyzer.py --validate                             │
-│  ════════════════════════════════════════════════                            │
-│  • Generates D1 signals using compute_confluence()                          │
-│  • Outputs: trades CSV with entry/SL/TP levels                              │
-│  • Purpose: Signal generation & filtering                                    │
-│                                                                              │
-│                              ↓ trades CSV                                    │
-│                                                                              │
-│  STAGE 2: scripts/main_live_bot_backtest.py                                 │
-│  ══════════════════════════════════════════════                              │
-│  • Simulates H1 execution of trades                                         │
-│  • Entry queue (0.3R proximity, 120h expiry)                                │
+│  backtest/src/main_live_bot_backtest.py                                     │
+│  ═══════════════════════════════════════                                     │
+│  • Uses CSVMT5Simulator instead of real MT5                                 │
+│  • M15 tick-by-tick simulation                                              │
+│  • Entry queue (0.3R proximity, 168h expiry)                                │
 │  • Lot sizing at FILL moment (compounding)                                  │
-│  • 3-TP partial closes                                                       │
+│  • 5-TP partial closes                                                       │
 │  • DDD/TDD safety checks                                                     │
-│  • Purpose: Realistic P&L with proper money management                       │
+│  • Correlation filter                                                        │
+│                                                                              │
+│  backtest/optimize_main_live_bot.py                                         │
+│  ════════════════════════════════════                                        │
+│  • Optuna TPE / NSGA-II optimizer                                           │
+│  • Runs main_live_bot_backtest.py with different params                     │
+│  • Saves best params to params/current_params.json                          │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Two-Environment Design
 ```
-┌─────────────────────────────────┐     ┌────────────────────────────────┐
-│   OPTIMIZER (Any Platform)      │     │  LIVE BOT (Windows VM + MT5)   │
-│                                  │     │                                 │
-│  ftmo_challenge_analyzer.py      │────▶│  main_live_bot.py              │
-│  - Optuna TPE / NSGA-II          │     │  - Loads params/current*.json  │
-│  - Signal generation             │     │  - Entry queue system          │
-│                                  │     │  - 3-TP partial close          │
-│  main_live_bot_backtest.py       │     │  - Dynamic lot sizing          │
-│  - H1 realistic simulation       │     │  - DDD/TDD safety              │
-└─────────────────────────────────┘     └────────────────────────────────┘
+┌─────────────────────────────────────┐     ┌────────────────────────────────┐
+│   BACKTEST/OPTIMIZE (Any Platform)  │     │  LIVE BOT (Windows VM + MT5)   │
+│                                      │     │                                 │
+│  main_live_bot_backtest.py           │────▶│  main_live_bot.py              │
+│  optimize_main_live_bot.py           │     │  - Loads params/current*.json  │
+│  - Signal generation                 │     │  - Entry queue system          │
+│  - M15 tick simulation               │     │  - 5-TP partial close          │
+│  - Parameter optimization            │     │  - Dynamic lot sizing          │
+│                                      │     │  - DDD/TDD safety              │
+└─────────────────────────────────────┘     └────────────────────────────────┘
 ```
 
 ---
@@ -53,11 +54,12 @@ The trading bot uses a **Two-Level Backtest Architecture**:
 | `strategy_core.py` | `compute_confluence()`, `simulate_trades()`, signals |
 | `indicators.py` | Technical indicators (RSI, ATR, EMAs, etc.) |
 
-### Optimization & Validation
+### Backtest & Optimization
 | Module | Purpose |
 |--------|---------|
-| `ftmo_challenge_analyzer.py` | `--validate` for signal generation |
-| `scripts/main_live_bot_backtest.py` | H1 simulation matching live bot |
+| `backtest/src/main_live_bot_backtest.py` | Backtest (exact copy of live) |
+| `backtest/optimize_main_live_bot.py` | Optuna parameter optimization |
+| `backtest/src/csv_mt5_simulator.py` | CSV-based MT5 simulator |
 
 ### Live Trading
 | Module | Purpose |
@@ -71,69 +73,65 @@ The trading bot uses a **Two-Level Backtest Architecture**:
 |--------|---------|
 | `params/current_params.json` | Active optimized parameters |
 | `params/params_loader.py` | Parameter loading utilities |
+| `tradr/brokers/fiveers_specs.py` | Contract specifications |
 
 ---
 
 ## Data Flow
 
+### Optimization Flow
+```
+1. optimize_main_live_bot.py
+   └── Define parameter search space
+   └── For each trial:
+       └── Generate params
+       └── Run main_live_bot_backtest.py
+       └── Collect metrics (return, DD, win rate)
+   └── Save best to params/current_params.json
+```
+
 ### Backtest Flow
 ```
-1. ftmo_challenge_analyzer.py --validate
-   └── Load D1 data from data/ohlcv/
+1. main_live_bot_backtest.py
+   └── Load params/current_params.json
+   └── Load M15 data from data/ohlcv/
    └── Generate signals via compute_confluence()
-   └── Output: trades CSV
-
-2. main_live_bot_backtest.py
-   └── Load trades CSV + H1 data
    └── Entry queue simulation (0.3R proximity)
    └── Lot sizing at FILL moment
-   └── 3-TP exit management
+   └── 5-TP exit management
    └── DDD/TDD checks
-   └── Output: simulation_results.json
+   └── Output: results JSON, trades CSV
 ```
 
 ### Live Trading Flow
 ```
-1. Load params/current_params.json
-2. Connect to MT5 via broker_config.py
-3. Daily scan at 00:10 server time
-4. Entry queue management (0.3R, 120h)
-5. Lot sizing at fill moment
-6. 3-TP exit system
-7. DDD/TDD protection loop (every 5 sec)
+1. main_live_bot.py
+   └── Load params/current_params.json
+   └── Connect to MT5 via broker_config.py
+   └── Daily scan at 01:00 server time
+   └── Entry queue management (0.3R, 168h)
+   └── 5-TP management
+   └── DDD/TDD protection loop
 ```
 
 ---
 
-## Key Classes
+## Safety Systems
 
-### StrategyParams (strategy_core.py)
+### Metal Pip Value (CRITICAL FIX - Feb 3, 2026)
 ```python
-@dataclass
-class StrategyParams:
-    min_confluence: int = 2
-    min_quality_factors: int = 3
-    risk_per_trade_pct: float = 0.6
-    tp1_r_multiple: float = 0.6
-    tp2_r_multiple: float = 1.2
-    tp3_r_multiple: float = 2.0
-    tp1_close_pct: float = 0.35
-    tp2_close_pct: float = 0.30
-    tp3_close_pct: float = 0.35
+# XAU/XAG use fiveers_specs, not MT5 tick_value
+if any(x in symbol for x in ["XAU", "XAG"]):
+    pip_value = fiveers_specs["pip_value_per_lot"]
 ```
 
-### SimConfig (main_live_bot_backtest.py)
+### 2x Risk Rejection
 ```python
-@dataclass
-class SimConfig:
-    initial_balance: float = 20000
-    risk_per_trade_pct: float = 0.6
-    limit_order_proximity_r: float = 0.3
-    max_entry_wait_hours: float = 120
-    daily_loss_halt_pct: float = 3.5
-    max_total_dd_pct: float = 10.0
+# Reject if actual risk > 2x intended
+if actual_risk_pct > risk_pct * 2:
+    return 0.0  # NO TRADE
 ```
 
 ---
 
-**Last Updated**: January 20, 2026
+**Last Updated**: February 3, 2026

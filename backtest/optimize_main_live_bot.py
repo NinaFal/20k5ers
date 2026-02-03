@@ -1,22 +1,34 @@
 #!/usr/bin/env python3
 """
-Optimizer for Main Live Bot Backtest
+═══════════════════════════════════════════════════════════════════════════════
+                OPTIMIZE_MAIN_LIVE_BOT.PY - PARAMETER OPTIMIZER
+                Last Updated: February 3, 2026
+═══════════════════════════════════════════════════════════════════════════════
 
-Uses Optuna for hyperparameter optimization with the following objectives:
-1. Maximize net return
-2. Minimize max drawdown
-3. Keep within 5ers limits (TDD < 10%, DDD < 5%)
+Optuna-based hyperparameter optimizer for main_live_bot_backtest.py.
+Tests different parameter combinations and finds the best settings for
+5ers High Stakes challenge compliance and profitability.
 
-Parameters to optimize:
-- TP levels (TP1 through TP5) - R-multiples
-- TP close percentages
-- Trailing stop settings
-- Confluence thresholds
-- Risk per trade
+OPTIMIZATION OBJECTIVES:
+    1. Maximize net return
+    2. Minimize max drawdown
+    3. Keep within 5ers limits (TDD < 10%, DDD < 5%)
+
+PARAMETERS OPTIMIZED:
+    • TP levels (TP1 through TP5) - R-multiples
+    • TP close percentages (must sum to 1.0)
+    • Trailing stop settings (activation R, ATR multiplier)
+    • Progressive trailing (trigger R, target R)
+    • Confluence thresholds
+    • Risk per trade
 
 Usage:
     python backtest/optimize_main_live_bot.py --trials 50 --start 2024-01-01 --end 2024-03-31
     python backtest/optimize_main_live_bot.py --trials 100 --start 2023-01-01 --end 2025-12-31 --parallel 4
+
+Output:
+    Saves best parameters to params/current_params.json
+    Logs all trials to backtest/optimization_results/
 """
 
 import sys
