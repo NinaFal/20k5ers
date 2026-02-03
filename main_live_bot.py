@@ -2299,15 +2299,8 @@ class LiveTradingBot:
         if pip_size <= 0:
             pip_size = 0.0001
         
-        # CRITICAL FIX: For metals (XAU, XAG), ALWAYS use fiveers_specs!
-        # MT5 tick_value is unreliable for metals - it gives $1/pip instead of $100/pip
-        # This caused 59x oversizing on XAU trades!
-        sym_upper = symbol.upper().replace("_", "")
-        if any(x in sym_upper for x in ["XAU", "XAG"]):
-            log.info(f"[{symbol}] Using fiveers_specs for metals: pip_value=${base_pip_value:.2f}/pip (pip_size={pip_size})")
-            return base_pip_value
-        
-        # FIRST: Try to get tick_value directly from MT5 (most reliable for FOREX!)
+        # FIRST: Try to get tick_value directly from MT5 (most reliable source!)
+        # MT5 always gives correct tick_value for the broker's contract specs
         try:
             symbol_info = self.mt5.get_symbol_info(broker_symbol)
             if symbol_info:
