@@ -4300,14 +4300,16 @@ class LiveTradingBot:
                         # Update daily tracking and reset for new day
                         self.risk_manager._check_new_day()
                         
-                        # Update day_start_equity BEFORE scan (use current equity as new day start)
+                        # Update day_start_equity BEFORE scan per 5ers rules: MAX(equity, balance)
                         # This is the equity at daily close which becomes the new day's starting point
                         account = self.mt5.get_account_info()
                         if account and self.challenge_manager:
                             current_equity = account.get("equity", 0)
+                            current_balance = account.get("balance", 0)
                             old_day_start = self.challenge_manager.day_start_equity
-                            self.challenge_manager.update_day_start_equity(current_equity)
-                            log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${current_equity:,.2f}")
+                            self.challenge_manager.update_day_start_equity(current_equity, current_balance)
+                            new_value = max(current_equity, current_balance)
+                            log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${new_value:,.2f} (MAX of equity/balance per 5ers)")
 
                         self.scan_all_symbols()
 
@@ -4681,14 +4683,16 @@ def main():
         account = bot.mt5.get_account_info()
         if account:
             current_equity = account.get("equity", 0)
+            current_balance = account.get("balance", 0)
             print(f"Current MT5 equity: ${current_equity:,.2f}")
+            print(f"Current MT5 balance: ${current_balance:,.2f}")
             
             if bot.challenge_manager:
                 print(f"Old day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
-                # Use the new method to properly update day_start_equity
-                bot.challenge_manager.update_day_start_equity(current_equity)
+                # 5ers rule: DDD baseline = MAX(closing equity, closing balance)
+                bot.challenge_manager.update_day_start_equity(current_equity, current_balance)
                 print(f"New day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
-                print("✓ Day start equity updated to current equity (end of previous day)")
+                print(f"✓ Updated to MAX(${current_equity:,.2f}, ${current_balance:,.2f}) per 5ers rules")
             else:
                 print("ERROR: Challenge manager not initialized")
                 sys.exit(1)
