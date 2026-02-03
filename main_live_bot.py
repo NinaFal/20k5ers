@@ -1,31 +1,16 @@
 #!/usr/bin/env python3
 """
-═══════════════════════════════════════════════════════════════════════════════
-                    MAIN_LIVE_BOT.PY - 5ERS LIVE TRADING BOT
-                    Last Updated: February 3, 2026
-═══════════════════════════════════════════════════════════════════════════════
+Tradr Bot - Standalone MT5 Live Trading Bot
 
-Live MT5 trading bot for 5ers 20K High Stakes Challenge.
-Runs 24/7 on Windows VM with MetaTrader 5.
+This bot runs 24/7 on your Windows VM and trades using the EXACT SAME
+strategy logic that produced the great backtest results. Discord is NOT
+required for trading - the bot operates independently.
 
-KEY FEATURES:
-    • 5-TP Partial Close System (from current_params.json)
-    • Entry Queue System (0.3R proximity, 168h expiry)
-    • DDD 3-Tier Protection (2% warn, 3% reduce, 3.2% halt)
-    • TDD Static Protection (10% from initial balance)
-    • Friday Close Protection (16:00+ UTC)
-    • Weekend Gap Management (correlation-aware)
-    • Metal Pip Value Fix (XAU=$100/pip, XAG=$5/pip from fiveers_specs)
-
-SAFETY SYSTEMS:
-    • Lot sizing at FILL moment (not signal time) for compounding
-    • 2x Risk Rejection (rejects trades where actual_risk > 2x intended)
-    • Spread protection (moves to awaiting_spread queue if too wide)
-    • Correlation limits (max per group on Friday)
+IMPORTANT: Uses strategy_core.py directly - the same code as backtests!
 
 Supported Brokers:
-    • Forex.com Demo (for testing)
-    • 5ers Live (production)
+- Forex.com Demo (for testing)
+- 5ers Live (production)
 
 Usage:
     python main_live_bot.py                    # Uses BROKER_TYPE from .env
@@ -39,10 +24,7 @@ Configuration:
     - MT5_SERVER: Broker server name
     - MT5_LOGIN: Account login number
     - MT5_PASSWORD: Account password
-
-Backtest:
-    For backtesting, use backtest/src/main_live_bot_backtest.py which is
-    an exact copy of this file but uses CSVMT5Simulator instead of real MT5.
+    - SCAN_INTERVAL_HOURS: How often to scan (default: 4)
 """
 
 import os
@@ -245,7 +227,10 @@ def get_next_daily_close() -> datetime:
 
 def get_next_scan_time(include_today: bool = False) -> datetime:
     """
-    Get next scheduled scan time (10 min after daily close).
+    Get next scheduled scan time.
+    - Normal days (Tue-Fri): 15 min after daily close (00:15 server time)
+    - Monday: 1 hour after market open (01:00 server time) to avoid wide spreads
+    
     Returns datetime in UTC for comparison.
 
     Args:
@@ -253,24 +238,30 @@ def get_next_scan_time(include_today: bool = False) -> datetime:
                       Useful for initial setup to catch missed scans.
     """
     server_now = get_server_time()
+    
+    def get_scan_time_for_day(day: datetime) -> datetime:
+        """Get the scan time for a specific day based on weekday."""
+        if day.weekday() == 0:  # Monday - 1 hour after market open
+            return day.replace(hour=1, minute=0, second=0, microsecond=0)
+        else:  # Tue-Fri - 15 min after daily close
+            return day.replace(hour=0, minute=15, second=0, microsecond=0)
 
-    # Daily close is at 00:00 server time, scan at 01:00 server time
-    # (1 hour after close to avoid wide spreads on Monday open)
-    today_scan = server_now.replace(hour=1, minute=0, second=0, microsecond=0)
+    today_scan = get_scan_time_for_day(server_now)
 
     # If include_today is True and we haven't passed today's scan yet, return it
     if include_today and server_now < today_scan:
-        # Skip weekends
+        # Skip weekends (Saturday=5, Sunday=6)
         if today_scan.weekday() < 5:  # Monday-Friday
             return today_scan.astimezone(timezone.utc)
 
-    # If we're past today's scan (or it's weekend), get tomorrow's
-    if server_now >= today_scan or today_scan.weekday() >= 5:
-        tomorrow_scan = today_scan + timedelta(days=1)
+    # If we're past today's scan (or it's weekend), get next trading day's scan
+    if server_now >= today_scan or server_now.weekday() >= 5:
+        next_day = server_now + timedelta(days=1)
         # Skip weekends
-        while tomorrow_scan.weekday() >= 5:
-            tomorrow_scan += timedelta(days=1)
-        return tomorrow_scan.astimezone(timezone.utc)
+        while next_day.weekday() >= 5:
+            next_day += timedelta(days=1)
+        next_scan = get_scan_time_for_day(next_day)
+        return next_scan.astimezone(timezone.utc)
 
     # Return today's scan (handles case where include_today=False but it's before scan time)
     return today_scan.astimezone(timezone.utc)
@@ -4257,7 +4248,11 @@ class LiveTradingBot:
         # FIRST RUN CHECK - Immediate scan if needed (but check if scan already done today)
         # ═══════════════════════════════════════════════════════════════════
         server_now = get_server_time()
-        today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
+        # Use same logic as get_next_scan_time: Monday=01:00, Tue-Fri=00:15
+        if server_now.weekday() == 0:  # Monday
+            today_scan = server_now.replace(hour=1, minute=0, second=0, microsecond=0)
+        else:  # Tue-Fri
+            today_scan = server_now.replace(hour=0, minute=15, second=0, microsecond=0)
         today_scan_utc = today_scan.astimezone(timezone.utc)
         
         # Check if we already scanned today (prevents duplicate scans after restart)

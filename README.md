@@ -1,28 +1,30 @@
 # 5ers 20K High Stakes Trading Bot
 
-Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accounts. Uses a **5-TP Confluence System** with multi-timeframe analysis and M15 realistic simulation.
+Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accounts. Uses a **3-TP Confluence System** with multi-timeframe analysis and H1 realistic simulation.
 
-**Last Updated**: February 3, 2026
+## 🎯 Latest Validated Performance (January 18, 2026)
 
----
+### H1 Realistic Simulation (2023-2025)
+*Simulates EXACTLY what `main_live_bot.py` does in production*
 
-## 🎯 Current Configuration
+| Metric | Value |
+|--------|-------|
+| **Starting Balance** | $20,000 |
+| **Final Balance** | **$310,183** |
+| **Net Return** | **+1,451%** |
+| **Total Trades** | **871** |
+| **Win Rate** | **67.5%** |
+| **Max Total DD** | **4.94%** (limit 10%) ✅ |
+| **Max Daily DD** | **3.61%** (limit 5%) ✅ |
+| **Safety Events** | 1 (DDD halt working) |
+| **Commissions** | $2,924 |
 
-### From params/current_params.json
-| Parameter | Value |
-|-----------|-------|
-| Risk Per Trade | 1.0% |
-| Min Confluence | 3 |
-| Progressive Trail | 1.0R → BE+0.4R |
-
-### 5-TP Exit System
-| Level | R-Multiple | Close % |
-|-------|------------|---------|
-| TP1 | 0.9R | 20% |
-| TP2 | 2.9R | 20% |
-| TP3 | 4.3R | 30% |
-| TP4 | 4.8R | 15% |
-| TP5 | 6.2R | 15% |
+### 5ers Challenge Compliance
+| Rule | Limit | Achieved | Status |
+|------|-------|----------|--------|
+| Max TDD | 10% | 4.94% | ✅ |
+| Max DDD | 5% | 3.61% | ✅ |
+| Profit Target | 8% Step 1 | +1,451% | ✅ |
 
 ---
 
@@ -36,7 +38,8 @@ python backtest/src/main_live_bot_backtest.py --start 2023-01-01 --end 2025-12-3
 python ftmo_challenge_analyzer.py --validate --start 2023-01-01 --end 2025-12-31
 
 # 3. Run optimization
-python backtest/optimize_main_live_bot.py --trials 100 --start 2024-01-01 --end 2024-12-31
+python ftmo_challenge_analyzer.py --single --trials 100  # TPE single-objective
+python ftmo_challenge_analyzer.py --multi --trials 100   # NSGA-II multi-objective
 
 # 4. Run live bot (Windows VM with MT5)
 python main_live_bot.py
@@ -59,86 +62,125 @@ The backtest uses `main_live_bot_backtest.py` which is an **exact copy** of `mai
 │  ═══════════════════════════════════════                                     │
 │  • Uses CSVMT5Simulator instead of real MT5                                 │
 │  • M15 tick-by-tick simulation                                              │
-│  • Entry queue (0.3R proximity, 168h expiry)                                │
+│  • Entry queue (0.3R proximity, 120h expiry)                                │
 │  • Lot sizing at FILL moment (compounding)                                  │
-│  • 5-TP partial closes                                                       │
+│  • 3-TP partial closes                                                       │
 │  • DDD/TDD safety checks                                                     │
 │  • Correlation filter                                                        │
+│  • Purpose: Realistic P&L matching EXACTLY what live bot does               │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Two-Environment Design
 ```
-┌─────────────────────────────────────┐     ┌────────────────────────────────┐
-│   BACKTEST (Any Platform)           │     │  LIVE BOT (Windows VM + MT5)   │
-│                                      │     │                                 │
-│  main_live_bot_backtest.py           │────▶│  main_live_bot.py              │
-│  - Uses CSV data (M15)               │     │  - Uses real MT5               │
-│  - CSVMT5Simulator                   │     │  - Real order execution        │
-│                                      │     │                                 │
-│  optimize_main_live_bot.py           │     │  Both use SAME:                │
-│  - Optuna parameter optimization     │     │  - Entry queue system          │
-│                                      │     │  - 5-TP partial close          │
-│                                      │     │  - DDD/TDD safety              │
-└─────────────────────────────────────┘     └────────────────────────────────┘
+┌─────────────────────────────────┐     ┌────────────────────────────────┐
+│   BACKTEST (Any Platform)       │     │  LIVE BOT (Windows VM + MT5)   │
+│                                  │     │                                 │
+│  main_live_bot_backtest.py       │────▶│  main_live_bot.py              │
+│  - Uses CSV data (M15)           │     │  - Uses real MT5               │
+│  - CSVMT5Simulator               │     │  - Real order execution        │
+│                                  │     │                                 │
+│  ftmo_challenge_analyzer.py      │     │  Both use SAME:                │
+│  - Parameter optimization        │     │  - Entry queue system          │
+│  - Quick signal validation       │     │  - 3-TP partial close          │
+│                                  │     │  - DDD/TDD safety              │
+└─────────────────────────────────┘     └────────────────────────────────┘
 ```
 
 ---
 
-## Safety Systems
+## 3-TP Exit System
 
-### DDD (Daily Drawdown) - 3 Tier
-| Tier | Threshold | Action |
-|------|-----------|--------|
+| Level | R-Multiple | Close % | SL Action |
+|-------|------------|---------|-----------|
+| TP1 | 0.6R | 35% | Move to breakeven |
+| TP2 | 1.2R | 30% | Trail to TP1+0.5R |
+| TP3 | 2.0R | 35% | Close remaining |
+
+---
+
+## Entry Queue System
+
+| Parameter | Value |
+|-----------|-------|
+| Proximity Threshold | 0.3R |
+| Immediate Entry | ≤0.05R |
+| Max Wait Time | 120 hours (5 days) |
+| Fill Rate | ~50% of signals |
+
+**Scenarios:**
+- **Price ≤0.05R** → Market order (spread check active)
+- **Price ≤0.3R** → Limit order
+- **Price >0.3R** → Wait in queue
+
+---
+
+## DDD Safety System (3-Tier)
+
+| Tier | Daily DD | Action |
+|------|----------|--------|
 | Warning | ≥2.0% | Log warning |
-| Reduce | ≥3.0% | Reduce risk |
-| Halt | ≥3.2% | Close all, stop trading |
-
-### TDD (Total Drawdown) - STATIC
-- 10% max from **starting balance** ($20K → stop-out at $18K)
-- NOT trailing like FTMO
-
-### Lot Sizing Safety
-- **Metal Pip Value Fix**: XAU=$100/pip, XAG=$5/pip from fiveers_specs
-- **2x Risk Rejection**: Rejects trades where actual_risk > 2x intended
+| Reduce | ≥3.0% | Reduce risk: 0.6% → 0.4% |
+| Halt | ≥3.5% | Close all, stop until next day |
 
 ---
 
 ## 5ers Challenge Rules
 
-| Rule | Limit |
-|------|-------|
-| Account Size | $20,000 |
-| Max Total DD | 10% (STATIC from start) |
-| Max Daily DD | 5% from day start |
-| Step 1 Target | 8% = $1,600 |
-| Step 2 Target | 5% = $1,000 |
+| Rule | Limit | Our Performance |
+|------|-------|-----------------|
+| Max Total DD | 10% below start | **4.94% ✅** |
+| Max Daily DD | 5% from day start | **3.61% ✅** |
+| Step 1 Target | 8% = $1,600 | **+1,451% ✅** |
+
+**Key**: TDD is STATIC from initial balance ($20K), NOT trailing.
 
 ---
 
-## Key Files
+## Project Structure
+
+```
+├── strategy_core.py              # Trading strategy (3-TP, compute_confluence)
+├── ftmo_challenge_analyzer.py    # Optimization & signal validation
+├── main_live_bot.py              # Live MT5 trading
+├── challenge_risk_manager.py     # DDD/TDD enforcement
+├── ftmo_config.py                # 5ers challenge rules
+│
+├── backtest/src/
+│   └── main_live_bot_backtest.py # Backtest version (MATCHES LIVE BOT EXACTLY)
+│
+├── params/
+│   ├── current_params.json       # Active parameters
+│   └── params_loader.py          # Load utilities
+│
+├── data/ohlcv/                   # Historical data (D1, H1)
+└── ftmo_analysis_output/         # Results
+    └── SIMULATE_2023_2025_20K_JAN18/  # Latest simulation
+```
+
+---
+
+## Key Files Reference
 
 | File | Purpose |
 |------|---------|
+| `strategy_core.py` | Trading strategy - `compute_confluence()`, `simulate_trades()` |
+| `ftmo_challenge_analyzer.py` | Optimization & `--validate` for signal generation |
+| `backtest/src/main_live_bot_backtest.py` | Backtest matching `main_live_bot.py` EXACTLY |
 | `main_live_bot.py` | Live MT5 trading |
-| `backtest/src/main_live_bot_backtest.py` | Backtest (exact copy of live) |
-| `backtest/optimize_main_live_bot.py` | Optuna parameter optimizer |
-| `strategy_core.py` | Trading signals |
-| `params/current_params.json` | Active parameters |
-| `tradr/brokers/fiveers_specs.py` | Contract specs |
+| `params/current_params.json` | Optimized parameters |
+| `challenge_risk_manager.py` | DDD/TDD safety |
 
 ---
 
-## Recent Fixes (February 3, 2026)
+## Documentation
 
-### Critical: Metal Pip Value
-MT5 tick_value was giving $1/pip for XAU instead of $100/pip, causing 59x oversizing.
-**Fix**: Now uses fiveers_specs directly for XAU/XAG.
-
-### Safety: 2x Risk Rejection
-Added check to reject trades where actual_risk > 2x intended risk.
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** - AI Assistant instructions
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture
+- **[docs/STRATEGY_GUIDE.md](docs/STRATEGY_GUIDE.md)** - Trading strategy
+- **[docs/EXIT_STRATEGY.md](docs/EXIT_STRATEGY.md)** - 3-TP exit system
 
 ---
 
-**Last Updated**: February 3, 2026
+**Last Updated**: January 20, 2026
