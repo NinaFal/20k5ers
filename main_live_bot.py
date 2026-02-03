@@ -4302,6 +4302,8 @@ class LiveTradingBot:
                             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
                             
                             manually_set_date = self.challenge_manager.day_start_equity_manually_set_date
+                            current_balance = account.get("balance", 0)
+                            
                             if manually_set_date == today:
                                 # Manually set TODAY - preserve and don't update
                                 log.info(f"Day start equity PRESERVED (manually set today): ${old_day_start:,.2f} (current equity: ${current_equity:,.2f})")
@@ -4310,12 +4312,14 @@ class LiveTradingBot:
                                 # Manually set on a PREVIOUS day - update now and clear the date
                                 log.info(f"Day start equity was manually set on {manually_set_date}, but today is {today} - updating now")
                                 self.challenge_manager.day_start_equity_manually_set_date = ""
-                                self.challenge_manager.update_day_start_equity(current_equity)
-                                log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${current_equity:,.2f}")
+                                self.challenge_manager.update_day_start_equity(current_equity, current_balance)
+                                new_value = max(current_equity, current_balance)
+                                log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${new_value:,.2f} (MAX of equity/balance per 5ers)")
                             else:
-                                # Normal update
-                                self.challenge_manager.update_day_start_equity(current_equity)
-                                log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${current_equity:,.2f}")
+                                # Normal update per 5ers rules: MAX(equity, balance)
+                                self.challenge_manager.update_day_start_equity(current_equity, current_balance)
+                                new_value = max(current_equity, current_balance)
+                                log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${new_value:,.2f} (MAX of equity/balance per 5ers)")
 
                         self.scan_all_symbols()
 
@@ -4427,14 +4431,16 @@ def main():
         account = bot.mt5.get_account_info()
         if account:
             current_equity = account.get("equity", 0)
+            current_balance = account.get("balance", 0)
             print(f"Current MT5 equity: ${current_equity:,.2f}")
+            print(f"Current MT5 balance: ${current_balance:,.2f}")
             
             if bot.challenge_manager:
                 print(f"Old day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
-                # Use the new method to properly update day_start_equity
-                bot.challenge_manager.update_day_start_equity(current_equity)
+                # Use the new method to properly update day_start_equity (5ers rule: MAX of equity/balance)
+                bot.challenge_manager.update_day_start_equity(current_equity, current_balance)
                 print(f"New day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
-                print("✓ Day start equity updated to current equity (end of previous day)")
+                print(f"✓ Day start equity = MAX(${current_equity:,.2f}, ${current_balance:,.2f}) per 5ers rules")
             else:
                 print("ERROR: Challenge manager not initialized")
                 sys.exit(1)

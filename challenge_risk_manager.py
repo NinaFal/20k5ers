@@ -342,25 +342,30 @@ class ChallengeRiskManager:
                 # Don't reset on same day - keep the original baseline
         
         if today != self.current_date or days_difference > 1:
+            # 5ERS RULE: DDD baseline = MAX(closing equity, closing balance) at 00:00 server time
+            new_day_start_equity = max(equity, balance)
+            
             if days_difference > 1:
                 log.info("=" * 70)
                 log.info(f"🌅 NEW TRADING WEEK: {today} (missed {days_difference} days)")
-                log.info(f"  Previous day equity (end of last trading day): ${self.day_start_equity:,.2f}")
+                log.info(f"  Previous day_start_equity: ${self.day_start_equity:,.2f}")
                 log.info(f"  Current equity: ${equity:,.2f}")
-                log.info("  ⚠️  Keeping previous day_start_equity for DDD calculation")
+                log.info(f"  Current balance: ${balance:,.2f}")
+                log.info(f"  NEW day_start_equity = MAX(equity, balance) = ${new_day_start_equity:,.2f}")
                 log.info("=" * 70)
             else:
                 log.info("=" * 70)
                 log.info(f"🌅 NEW TRADING DAY: {today}")
-                log.info(f"  Previous day equity (end of last trading day): ${self.day_start_equity:,.2f}")
+                log.info(f"  Previous day_start_equity: ${self.day_start_equity:,.2f}")
                 log.info(f"  Current equity: ${equity:,.2f}")
-                log.info("  ✓ Using previous day equity for DDD baseline")
+                log.info(f"  Current balance: ${balance:,.2f}")
+                log.info(f"  ✓ NEW day_start_equity = MAX(equity, balance) = ${new_day_start_equity:,.2f}")
                 log.info("=" * 70)
             
-            # IMPORTANT: day_start_equity stays as previous day's END equity for DDD calculation
-            # Per 5ers rules: DDD is calculated from previous day's closing equity
-            # It does NOT get updated to current equity at start of day
-            self.day_start_balance = balance  # This can be updated
+            # CRITICAL: Per 5ers rules, DDD baseline = MAX(closing equity, closing balance) at rollover
+            # This is calculated at 00:00 server time (rollover moment)
+            self.day_start_equity = new_day_start_equity
+            self.day_start_balance = balance
             self.trades_today = 0
             self.current_date = today
 
@@ -669,17 +674,24 @@ class ChallengeRiskManager:
         
         return tp1_vol, tp2_vol, tp3_vol
     
-    def update_day_start_equity(self, equity: float):
+    def update_day_start_equity(self, equity: float, balance: float = None):
         """
-        Update day_start_equity to current equity (call at end of trading day).
+        Update day_start_equity to MAX(equity, balance) at end of trading day.
         This sets the baseline for next day's DDD calculation.
-        According to 5ers rules, DDD is calculated from previous day's closing equity.
+        According to 5ers rules, DDD baseline = MAX(closing equity, closing balance) at 00:00 server time.
         
         VALIDATION: This method includes automatic validation to detect if the bot
         missed trading days or if MT5 traded without the bot running.
         """
-        log.info(f"📅 END OF DAY: Updating day_start_equity from ${self.day_start_equity:,.2f} to ${equity:,.2f}")
-        self.day_start_equity = equity
+        # If balance not provided, use current_balance
+        if balance is None:
+            balance = self.current_balance
+        
+        new_value = max(equity, balance)
+        log.info(f"📅 END OF DAY: Updating day_start_equity from ${self.day_start_equity:,.2f}")
+        log.info(f"  Equity: ${equity:,.2f}, Balance: ${balance:,.2f}")
+        log.info(f"  → NEW day_start_equity = MAX(equity, balance) = ${new_value:,.2f}")
+        self.day_start_equity = new_value
         self._save_state()
     
     def __str__(self) -> str:

@@ -17,9 +17,15 @@
 
 ### Daily Drawdown (DDD)
 **5ers DOES track daily drawdown!**
-- **Limit**: 5% from day start balance
+- **Limit**: 5% from day start
+- **Baseline**: MAX(closing equity, closing balance) at 00:00 server time
 - **Reset**: Daily at 00:00 broker time
 - As balance grows, daily loss allowance grows too
+
+**Example**: If your account has equity $22,000 and balance $21,500 at 23:59:
+- At 00:00 rollover → day_start = MAX($22,000, $21,500) = **$22,000**
+- Daily loss limit: 5% × $22,000 = **$1,100**
+- Stop-out at: $22,000 - $1,100 = **$20,900** for that day
 
 ### Profit Targets
 | Step | Target | Amount |
