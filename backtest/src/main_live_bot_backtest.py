@@ -2306,7 +2306,15 @@ class LiveTradingBot:
         if pip_size <= 0:
             pip_size = 0.0001
         
-        # FIRST: Try to get tick_value directly from MT5 (most reliable!)
+        # CRITICAL FIX: For metals (XAU, XAG), ALWAYS use fiveers_specs!
+        # MT5 tick_value is unreliable for metals - it gives $1/pip instead of $100/pip
+        # This caused 59x oversizing on XAU trades!
+        sym_upper = symbol.upper().replace("_", "")
+        if any(x in sym_upper for x in ["XAU", "XAG"]):
+            log.info(f"[{symbol}] Using fiveers_specs for metals: pip_value=${base_pip_value:.2f}/pip (pip_size={pip_size})")
+            return base_pip_value
+        
+        # FIRST: Try to get tick_value directly from MT5 (most reliable for FOREX!)
         try:
             symbol_info = self.mt5.get_symbol_info(broker_symbol)
             if symbol_info:
@@ -2351,8 +2359,8 @@ class LiveTradingBot:
         if any(x in sym_upper for x in ["NAS100", "SPX500", "SP500", "US100", "US500", "US30"]):
             return base_pip_value
         
-        # Metals and Crypto - already in USD
-        if any(x in sym_upper for x in ["XAU", "XAG", "BTC", "ETH"]):
+        # Crypto - already in USD (metals handled at start of function)
+        if any(x in sym_upper for x in ["BTC", "ETH"]):
             return base_pip_value
         
         # FOREX - check quote currency
@@ -2551,6 +2559,14 @@ class LiveTradingBot:
         lot_size = lot_result.get("lot_size", 0.0)
         risk_usd = lot_result.get("risk_usd", 0.0)
         risk_pips = lot_result.get("stop_pips", 0.0)
+        actual_risk_pct = lot_result.get("actual_risk_pct", 0.0)
+
+        # CRITICAL: Reject trade if actual risk exceeds 2x intended risk
+        # This catches cases where min_lot forces excessive risk
+        max_acceptable_risk_pct = risk_pct * 2 / 100  # 2x the intended risk %
+        if actual_risk_pct > max_acceptable_risk_pct:
+            log.warning(f"[{symbol}] Actual risk {actual_risk_pct*100:.2f}% exceeds 2x intended {risk_pct:.2f}% - stop too wide (NO TRADE)")
+            return 0.0
 
         # Validate lot size
         if lot_size <= 0 or lot_size < min_lot:
