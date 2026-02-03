@@ -195,17 +195,22 @@ class StrategyParams:
     
     # TP R-Multiples (NEW - from Optuna optimization)
     # These define WHERE each TP level is placed in R-multiples
-    tp1_r_multiple: float = 1.7   # TP1 at 1.7R profit
-    tp2_r_multiple: float = 2.7   # TP2 at 2.7R profit
-    tp3_r_multiple: float = 6.0   # TP3 at 6.0R profit
+    # MUST be in INCREASING order: TP1 < TP2 < TP3 < TP4 < TP5
+    tp1_r_multiple: float = 0.6   # TP1 at 0.6R profit
+    tp2_r_multiple: float = 1.2   # TP2 at 1.2R profit
+    tp3_r_multiple: float = 2.0   # TP3 at 2.0R profit
+    tp4_r_multiple: float = 2.5   # TP4 at 2.5R profit (for 5-TP system)
+    tp5_r_multiple: float = 3.5   # TP5 at 3.5R profit (for 5-TP system)
     
     # Partial take-profit percentages (must sum to 1.0)
     # These define WHAT PERCENTAGE of position closes at each TP level
-    tp1_close_pct: float = 0.34   # Close 34% at TP1
-    tp2_close_pct: float = 0.16   # Close 16% at TP2
-    tp3_close_pct: float = 0.35   # Close 35% at TP3
-    tp4_close_pct: float = 0.20   # Close 20% at TP4 (legacy)
-    tp5_close_pct: float = 0.45   # Close 45% at TP5 (legacy)
+    # For 3-TP: use tp1+tp2+tp3 = 100% (set tp4=0, tp5=0)
+    # For 5-TP: use tp1+tp2+tp3+tp4+tp5 = 100%
+    tp1_close_pct: float = 0.10   # Close 10% at TP1
+    tp2_close_pct: float = 0.10   # Close 10% at TP2
+    tp3_close_pct: float = 0.15   # Close 15% at TP3
+    tp4_close_pct: float = 0.20   # Close 20% at TP4 (for 5-TP system)
+    tp5_close_pct: float = 0.45   # Close 45% at TP5 (for 5-TP system)
     
     # Quantitative enhancement filters - DISABLED for baseline testing
     use_atr_regime_filter: bool = False

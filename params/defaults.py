@@ -50,12 +50,15 @@ PARAMETER_DEFAULTS: Dict[str, Any] = {
     'structure_sl_lookback': 35,      # Bars to look back for structure SL
     
     # ═══════════════════════════════════════════════════════════════════════════
-    # TAKE PROFIT R-MULTIPLES (NEW - from Optuna optimization)
+    # TAKE PROFIT R-MULTIPLES (from Optuna optimization)
     # These define WHERE each TP level is placed in R-multiples
+    # MUST be in INCREASING order: TP1 < TP2 < TP3 < TP4 < TP5
     # ═══════════════════════════════════════════════════════════════════════════
-    'tp1_r_multiple': 1.7,            # TP1 at 1.7R profit
-    'tp2_r_multiple': 2.7,            # TP2 at 2.7R profit  
-    'tp3_r_multiple': 6.0,            # TP3 at 6.0R profit
+    'tp1_r_multiple': 0.6,            # TP1 at 0.6R profit
+    'tp2_r_multiple': 1.2,            # TP2 at 1.2R profit  
+    'tp3_r_multiple': 2.0,            # TP3 at 2.0R profit
+    'tp4_r_multiple': 2.5,            # TP4 at 2.5R profit (for 5-TP system)
+    'tp5_r_multiple': 3.5,            # TP5 at 3.5R profit (for 5-TP system)
     
     # Legacy ATR-based TP multipliers (for backward compatibility)
     'atr_tp1_multiplier': 0.6,        # ATR multiplier for TP1

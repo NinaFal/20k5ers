@@ -312,19 +312,10 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
         TRAIL_RANGES['use_atr_trailing']
     )
     
-    # Sample progressive trailing parameters (between TP1 and TP2)
-    params['progressive_trigger_r'] = trial.suggest_float(
-        'progressive_trigger_r',
-        PROGRESSIVE_TRAIL_RANGES['progressive_trigger_r'][0],
-        PROGRESSIVE_TRAIL_RANGES['progressive_trigger_r'][1],
-        step=0.1
-    )
-    params['progressive_trail_target_r'] = trial.suggest_float(
-        'progressive_trail_target_r',
-        PROGRESSIVE_TRAIL_RANGES['progressive_trail_target_r'][0],
-        PROGRESSIVE_TRAIL_RANGES['progressive_trail_target_r'][1],
-        step=0.1
-    )
+    # Progressive trailing parameters - FIXED VALUES (not optimized)
+    # These are proven to work well and should remain constant
+    params['progressive_trigger_r'] = 1.0      # Trigger at 1.0R (fixed)
+    params['progressive_trail_target_r'] = 0.4  # Trail to BE + 0.4R (fixed)
     
     # Sample confluence parameters
     params['trend_min_confluence'] = trial.suggest_int(
@@ -365,10 +356,12 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
     trial.set_user_attr('win_rate', result.win_rate)
     trial.set_user_attr('max_tdd_pct', result.max_tdd_pct)
     trial.set_user_attr('max_ddd_pct', result.max_ddd_pct)
+    trial.set_user_attr('ddd_halts', result.ddd_halts)
+    trial.set_user_attr('final_balance', result.final_balance)
     trial.set_user_attr('valid', result.valid)
     
     print(f"    → Return: {result.net_return_pct:+.1f}%, Trades: {result.total_trades}, Win: {result.win_rate:.1f}%")
-    print(f"    → TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%, Valid: {result.valid}")
+    print(f"    → TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%, DDD Halts: {result.ddd_halts}, Valid: {result.valid}")
     
     # Calculate score - balanced multi-factor approach
     # Penalize heavily if not within 5ers limits

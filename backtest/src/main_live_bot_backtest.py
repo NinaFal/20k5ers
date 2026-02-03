@@ -3655,20 +3655,30 @@ class LiveTradingBot:
             else:
                 current_r = (entry - current_price) / risk
             
-            # Get TP levels from params (3-TP system - ALIGNED WITH SIMULATOR)
+            # Get TP levels from params (5-TP system for optimization)
             tp1_r = self.params.tp1_r_multiple
             tp2_r = self.params.tp2_r_multiple
             tp3_r = self.params.tp3_r_multiple
+            tp4_r = getattr(self.params, 'tp4_r_multiple', 2.5)  # Default 2.5R
+            tp5_r = getattr(self.params, 'tp5_r_multiple', 3.5)  # Default 3.5R
+            
+            # Get close percentages
+            tp4_close_pct = getattr(self.params, 'tp4_close_pct', 0.20)
+            tp5_close_pct = getattr(self.params, 'tp5_close_pct', 0.45)
             
             # Calculate actual TP prices for accurate P&L calculation
             if setup.direction == "bullish":
                 tp1_price = entry + (risk * tp1_r)
                 tp2_price = entry + (risk * tp2_r)
                 tp3_price = entry + (risk * tp3_r)
+                tp4_price = entry + (risk * tp4_r)
+                tp5_price = entry + (risk * tp5_r)
             else:
                 tp1_price = entry - (risk * tp1_r)
                 tp2_price = entry - (risk * tp2_r)
                 tp3_price = entry - (risk * tp3_r)
+                tp4_price = entry - (risk * tp4_r)
+                tp5_price = entry - (risk * tp5_r)
             
             original_volume = setup.lot_size
             current_volume = pos.volume
@@ -3777,15 +3787,92 @@ class LiveTradingBot:
                     log.error(f"[{broker_symbol}] Partial close failed: {result.error}")
             
             # ═══════════════════════════════════════════════════════════════
-            # TP3 HIT - Close ALL REMAINING (matches simulator exactly)
+            # TP3 HIT - Close tp3_close_pct, trail SL to TP2 + 0.5R
+            # (5-TP system: continues to TP4/TP5 instead of closing all)
             # ═══════════════════════════════════════════════════════════════
             if current_r >= tp3_r and partial_state == 2:
-                log.info(f"[{broker_symbol}] TP3 HIT at {current_r:.2f}R! Closing ALL remaining")
+                close_pct = self.params.tp3_close_pct
+                close_volume = max(0.01, round(original_volume * close_pct, 2))
+                close_volume = min(close_volume, current_volume)
+                
+                log.info(f"[{broker_symbol}] TP3 HIT at {current_r:.2f}R! Closing {close_pct*100:.0f}%")
+                
+                # Retry logic for partial close (up to 3 attempts)
+                result = None
+                for attempt in range(3):
+                    result = self.mt5.partial_close(pos.ticket, close_volume, close_price=tp3_price)
+                    if result.success:
+                        break
+                    if attempt < 2:
+                        log.warning(f"[{broker_symbol}] Partial close attempt {attempt+1} failed, retrying...")
+                        time.sleep(0.5 * (attempt + 1))
+                
+                if result and result.success:
+                    log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
+                    setup.partial_closes = 3
+                    setup.tp3_hit = True
+                    
+                    # Trail SL to TP2 + 0.5R
+                    if setup.direction == "bullish":
+                        new_sl = entry + (risk * tp2_r) + (0.5 * risk)
+                    else:
+                        new_sl = entry - (risk * tp2_r) - (0.5 * risk)
+                    
+                    self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
+                    log.info(f"[{broker_symbol}] SL trailed to TP2+0.5R: {new_sl:.5f}")
+                    
+                    self._save_pending_setups()
+                else:
+                    log.error(f"[{broker_symbol}] Partial close failed: {result.error}")
+            
+            # ═══════════════════════════════════════════════════════════════
+            # TP4 HIT - Close tp4_close_pct, trail SL to TP3 + 0.5R
+            # ═══════════════════════════════════════════════════════════════
+            if current_r >= tp4_r and partial_state == 3:
+                close_pct = tp4_close_pct
+                close_volume = max(0.01, round(original_volume * close_pct, 2))
+                close_volume = min(close_volume, current_volume)
+                
+                log.info(f"[{broker_symbol}] TP4 HIT at {current_r:.2f}R! Closing {close_pct*100:.0f}%")
+                
+                # Retry logic for partial close (up to 3 attempts)
+                result = None
+                for attempt in range(3):
+                    result = self.mt5.partial_close(pos.ticket, close_volume, close_price=tp4_price)
+                    if result.success:
+                        break
+                    if attempt < 2:
+                        log.warning(f"[{broker_symbol}] Partial close attempt {attempt+1} failed, retrying...")
+                        time.sleep(0.5 * (attempt + 1))
+                
+                if result and result.success:
+                    log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
+                    setup.partial_closes = 4
+                    setup.tp4_hit = True
+                    
+                    # Trail SL to TP3 + 0.5R
+                    if setup.direction == "bullish":
+                        new_sl = entry + (risk * tp3_r) + (0.5 * risk)
+                    else:
+                        new_sl = entry - (risk * tp3_r) - (0.5 * risk)
+                    
+                    self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
+                    log.info(f"[{broker_symbol}] SL trailed to TP3+0.5R: {new_sl:.5f}")
+                    
+                    self._save_pending_setups()
+                else:
+                    log.error(f"[{broker_symbol}] Partial close failed: {result.error}")
+            
+            # ═══════════════════════════════════════════════════════════════
+            # TP5 HIT - Close ALL REMAINING (final TP level)
+            # ═══════════════════════════════════════════════════════════════
+            if current_r >= tp5_r and partial_state == 4:
+                log.info(f"[{broker_symbol}] TP5 HIT at {current_r:.2f}R! Closing ALL remaining")
                 
                 # Retry logic for position close (up to 3 attempts)
                 result = None
                 for attempt in range(3):
-                    result = self.mt5.close_position(pos.ticket, close_price=tp3_price)
+                    result = self.mt5.close_position(pos.ticket, close_price=tp5_price)
                     if result.success:
                         break
                     if attempt < 2:
@@ -3794,15 +3881,17 @@ class LiveTradingBot:
                 
                 if result and result.success:
                     log.info(f"[{broker_symbol}] ✅ Position FULLY CLOSED at {result.price}")
-                    setup.partial_closes = 3
-                    setup.tp3_hit = True
+                    setup.partial_closes = 5
+                    setup.tp5_hit = True
                     setup.status = "closed"
                     
-                    # Calculate total R for this trade (matches simulator)
+                    # Calculate total R for this trade (5-TP system)
                     total_r = (tp1_r * self.params.tp1_close_pct +
                               tp2_r * self.params.tp2_close_pct +
-                              tp3_r * (1.0 - self.params.tp1_close_pct - self.params.tp2_close_pct))
-                    log.info(f"[{broker_symbol}] Total R: ~{total_r:.2f}R (perfect 3-TP exit)")
+                              tp3_r * self.params.tp3_close_pct +
+                              tp4_r * tp4_close_pct +
+                              tp5_r * tp5_close_pct)
+                    log.info(f"[{broker_symbol}] Total R: ~{total_r:.2f}R (perfect 5-TP exit)")
                     
                     self._save_pending_setups()
                 else:
@@ -4132,10 +4221,21 @@ class LiveTradingBot:
         log.info(f"  - Step 2: 5% profit = ${ACCOUNT_SIZE * 0.05:,.0f}")
         log.info(f"  - Min Trading Days: 3")
         log.info("=" * 70)
-        log.info(f"3-TP EXIT SYSTEM (ALIGNED WITH SIMULATOR):")
-        log.info(f"  - TP1: {self.params.tp1_r_multiple}R -> {self.params.tp1_close_pct*100:.0f}%")
-        log.info(f"  - TP2: {self.params.tp2_r_multiple}R -> {self.params.tp2_close_pct*100:.0f}%")
-        log.info(f"  - TP3: {self.params.tp3_r_multiple}R -> CLOSE ALL remaining")
+        # Determine if using 3-TP or 5-TP system based on params
+        tp4_r = getattr(self.params, 'tp4_r_multiple', 0)
+        tp5_r = getattr(self.params, 'tp5_r_multiple', 0)
+        if tp4_r > 0 and tp5_r > 0:
+            log.info(f"5-TP EXIT SYSTEM:")
+            log.info(f"  - TP1: {self.params.tp1_r_multiple}R -> {self.params.tp1_close_pct*100:.0f}%")
+            log.info(f"  - TP2: {self.params.tp2_r_multiple}R -> {self.params.tp2_close_pct*100:.0f}%")
+            log.info(f"  - TP3: {self.params.tp3_r_multiple}R -> {self.params.tp3_close_pct*100:.0f}%")
+            log.info(f"  - TP4: {tp4_r}R -> {getattr(self.params, 'tp4_close_pct', 0.20)*100:.0f}%")
+            log.info(f"  - TP5: {tp5_r}R -> CLOSE ALL remaining")
+        else:
+            log.info(f"3-TP EXIT SYSTEM:")
+            log.info(f"  - TP1: {self.params.tp1_r_multiple}R -> {self.params.tp1_close_pct*100:.0f}%")
+            log.info(f"  - TP2: {self.params.tp2_r_multiple}R -> {self.params.tp2_close_pct*100:.0f}%")
+            log.info(f"  - TP3: {self.params.tp3_r_multiple}R -> CLOSE ALL remaining")
         log.info("=" * 70)
         log.info(f"Server: {MT5_SERVER}")
         log.info(f"Login: {MT5_LOGIN}")
