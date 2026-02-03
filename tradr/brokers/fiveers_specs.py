@@ -56,9 +56,9 @@ FIVEERS_CONTRACT_SPECS = {
         "max_lot": 100.0,
         "lot_step": 0.01,
     },
-    "XAG": {  # Silver - 5ers uses 5000oz per lot
-        "pip_size": 0.001,            # $0.001 (tick is 0.0001, pip = 10 ticks)
-        "pip_value_per_lot": 5.0,     # $5 per pip per lot ($0.001 × 5000oz)
+    "XAG": {  # Silver - 5ers: 5000oz, tick_value $0.05
+        "pip_size": 0.001,            # $0.001 tick
+        "pip_value_per_lot": 0.05,    # $0.05 per tick per lot (from MT5 specs)
         "min_lot": 0.01,
         "max_lot": 100.0,
         "lot_step": 0.01,
