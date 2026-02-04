@@ -2228,12 +2228,33 @@ class LiveTradingBot:
         This ensures that if TP R-multiples have changed, all existing trades
         are updated to use the new levels.
         
+        The MT5 TP field stores the FINAL take profit (TP5 if 5-TP system, else TP3).
+        Intermediate TPs (TP1-TP4) are managed internally by the bot.
+        
         Called at startup after _startup_sync_with_mt5().
         """
         log.info("=" * 70)
         log.info("🔄 SYNCING TP LEVELS TO CURRENT PARAMS")
         log.info("=" * 70)
-        log.info(f"  Current TP R-multiples: TP1={self.params.tp1_r_multiple}R, TP2={self.params.tp2_r_multiple}R, TP3={self.params.tp3_r_multiple}R")
+        
+        # Determine which TP level is the final one
+        tp5_r = getattr(self.params, 'tp5_r_multiple', 0)
+        tp4_r = getattr(self.params, 'tp4_r_multiple', 0)
+        tp3_r = getattr(self.params, 'tp3_r_multiple', 2.0)
+        
+        # Use the highest TP level that's configured
+        if tp5_r and tp5_r > 0:
+            final_tp_r = tp5_r
+            final_tp_name = "TP5"
+        elif tp4_r and tp4_r > 0:
+            final_tp_r = tp4_r
+            final_tp_name = "TP4"
+        else:
+            final_tp_r = tp3_r
+            final_tp_name = "TP3"
+        
+        log.info(f"  Using {final_tp_name} ({final_tp_r}R) as final TP level")
+        log.info(f"  TP R-multiples: TP1={self.params.tp1_r_multiple}R, TP2={self.params.tp2_r_multiple}R, TP3={self.params.tp3_r_multiple}R, TP4={tp4_r}R, TP5={tp5_r}R")
         
         updated_orders = 0
         updated_positions = 0
@@ -2258,11 +2279,11 @@ class LiveTradingBot:
                 # Calculate risk (distance from entry to SL)
                 risk = abs(entry - sl)
                 
-                # Calculate new TP3 (the main TP stored in MT5)
+                # Calculate new final TP
                 if is_buy:
-                    new_tp = entry + (risk * self.params.tp3_r_multiple)
+                    new_tp = entry + (risk * final_tp_r)
                 else:
-                    new_tp = entry - (risk * self.params.tp3_r_multiple)
+                    new_tp = entry - (risk * final_tp_r)
                 
                 # Check if update needed (allow small tolerance for floating point)
                 current_tp = order.tp
@@ -2271,7 +2292,7 @@ class LiveTradingBot:
                 
                 # Modify the order
                 if self.mt5.modify_pending_order(order.ticket, tp=new_tp):
-                    log.info(f"  ✅ [{order.symbol}] Order {order.ticket}: TP updated {current_tp:.5f} → {new_tp:.5f}")
+                    log.info(f"  ✅ [{order.symbol}] Order {order.ticket}: TP updated {current_tp:.5f} → {new_tp:.5f} ({final_tp_name}={final_tp_r}R)")
                     updated_orders += 1
                 else:
                     log.warning(f"  ❌ [{order.symbol}] Order {order.ticket}: Failed to update TP")
@@ -2298,11 +2319,11 @@ class LiveTradingBot:
                 # Calculate risk
                 risk = abs(entry - sl)
                 
-                # Calculate new TP3
+                # Calculate new final TP
                 if is_buy:
-                    new_tp = entry + (risk * self.params.tp3_r_multiple)
+                    new_tp = entry + (risk * final_tp_r)
                 else:
-                    new_tp = entry - (risk * self.params.tp3_r_multiple)
+                    new_tp = entry - (risk * final_tp_r)
                 
                 # Check if update needed
                 current_tp = pos.tp
@@ -2311,7 +2332,7 @@ class LiveTradingBot:
                 
                 # Modify the position
                 if self.mt5.modify_sl_tp(pos.ticket, tp=new_tp):
-                    log.info(f"  ✅ [{pos.symbol}] Position {pos.ticket}: TP updated {current_tp:.5f} → {new_tp:.5f}")
+                    log.info(f"  ✅ [{pos.symbol}] Position {pos.ticket}: TP updated {current_tp:.5f} → {new_tp:.5f} ({final_tp_name}={final_tp_r}R)")
                     updated_positions += 1
                 else:
                     log.warning(f"  ❌ [{pos.symbol}] Position {pos.ticket}: Failed to update TP")
