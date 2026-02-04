@@ -2749,7 +2749,7 @@ class LiveTradingBot:
             log.info(f"[{symbol}] Was closed today - no re-entry until tomorrow, skipping")
             return None
         
-        if self.check_existing_position(broker_symbol):
+        if self.check_existing_position(symbol):  # Use OANDA format - function converts internally
             log.info(f"[{symbol}] Already in position, skipping")
             return None
         
