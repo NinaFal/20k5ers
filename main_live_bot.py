@@ -2212,14 +2212,143 @@ class LiveTradingBot:
         
         # 4. Log final state
         log.info("=" * 70)
+        # 5. CRITICAL: Recover orphaned MT5 positions not in pending_setups
+        # This handles positions opened when bot was down or crashed after fill
+        recovered_count = self._recover_orphaned_positions(my_positions)
+        
         log.info(f"✅ STARTUP SYNC COMPLETE")
         log.info(f"  Active pending_setups: {len(self.pending_setups)}")
         log.info(f"  Active awaiting_entry: {len(self.awaiting_entry)}")
         log.info(f"  Active awaiting_spread: {len(self.awaiting_spread)}")
+        if recovered_count > 0:
+            log.info(f"  ⚠️ Recovered orphaned positions: {recovered_count}")
         log.info("=" * 70)
         
-        # 5. Sync TP levels to current params
+        # 6. Sync TP levels to current params
         self._sync_tp_levels_to_current_params()
+
+    def _recover_orphaned_positions(self, my_positions: list) -> int:
+        """
+        CRITICAL: Recover MT5 positions that are not in pending_setups.
+        
+        This happens when:
+        1. Bot crashed after placing order but before fill detection
+        2. Bot restarted and old entry was cleaned up
+        3. Position was opened manually or via different system
+        
+        For each orphaned position, we create a minimal pending_setup entry
+        so the bot can manage TP levels and trailing SL.
+        
+        Returns: Number of recovered positions
+        """
+        # Build reverse symbol map (broker -> OANDA)
+        reverse_symbol_map = {v: k for k, v in self.symbol_map.items()}
+        
+        # Get currently tracked symbols
+        tracked_broker_symbols = set()
+        for symbol, setup in self.pending_setups.items():
+            if setup.status == "filled":
+                broker_symbol = self.symbol_map.get(symbol, symbol)
+                tracked_broker_symbols.add(broker_symbol)
+        
+        recovered = 0
+        for pos in my_positions:
+            broker_symbol = pos.symbol
+            
+            # Check if this position is already tracked
+            if broker_symbol in tracked_broker_symbols:
+                continue
+            
+            # Convert to OANDA symbol
+            oanda_symbol = reverse_symbol_map.get(broker_symbol, broker_symbol)
+            
+            # Skip if symbol is not in our watchlist
+            if oanda_symbol not in self.symbol_map:
+                log.debug(f"[{broker_symbol}] Not in symbol_map, skipping recovery")
+                continue
+            
+            log.warning(f"[{oanda_symbol}] ⚠️ ORPHANED POSITION FOUND (broker: {broker_symbol}, ticket: {pos.ticket})")
+            log.warning(f"[{oanda_symbol}] Creating recovery entry from MT5 position data")
+            
+            # Determine direction from position type
+            direction = "bullish" if pos.type == 0 else "bearish"  # 0 = BUY, 1 = SELL
+            
+            # Get current SL/TP from MT5
+            sl = pos.sl if hasattr(pos, 'sl') and pos.sl > 0 else None
+            tp = pos.tp if hasattr(pos, 'tp') and pos.tp > 0 else None
+            
+            # Calculate risk (entry - SL)
+            entry = pos.price_open
+            if sl:
+                risk = abs(entry - sl)
+            else:
+                # Estimate risk as 2% of entry price if no SL set
+                risk = entry * 0.02
+                log.warning(f"[{oanda_symbol}] No SL found, estimating risk as 2% of entry = {risk:.5f}")
+            
+            # Calculate TP levels from current_params
+            tp1_r = self.params.get("tp1_r", 0.4)
+            tp2_r = self.params.get("tp2_r", 1.6)
+            tp3_r = self.params.get("tp3_r", 2.1)
+            tp4_r = self.params.get("tp4_r", 2.4)
+            tp5_r = self.params.get("tp5_r", 3.6)
+            
+            if direction == "bullish":
+                calc_sl = sl if sl else entry - risk
+                tp1 = entry + (tp1_r * risk)
+                tp2 = entry + (tp2_r * risk)
+                tp3 = entry + (tp3_r * risk)
+                tp4 = entry + (tp4_r * risk)
+                tp5 = entry + (tp5_r * risk)
+            else:
+                calc_sl = sl if sl else entry + risk
+                tp1 = entry - (tp1_r * risk)
+                tp2 = entry - (tp2_r * risk)
+                tp3 = entry - (tp3_r * risk)
+                tp4 = entry - (tp4_r * risk)
+                tp5 = entry - (tp5_r * risk)
+            
+            # Create recovery entry
+            from datetime import datetime, timezone
+            recovery_setup = PendingSetup(
+                symbol=oanda_symbol,
+                direction=direction,
+                entry_price=entry,
+                stop_loss=calc_sl,
+                tp1=tp1,
+                tp2=tp2,
+                tp3=tp3,
+                tp4=tp4,
+                tp5=tp5,
+                confluence=0,  # Unknown for recovered positions
+                confluence_score=0,
+                quality_factors=0,
+                entry_distance_r=0.0,
+                created_at=datetime.now(timezone.utc).isoformat(),
+                order_ticket=pos.ticket,
+                status="filled",
+                lot_size=pos.volume,
+                partial_closes=0,
+                trailing_sl=None,
+                tp1_hit=False,
+                tp2_hit=False,
+                tp3_hit=False,
+                tp4_hit=False,
+                tp5_hit=False,
+                progressive_trail_applied=False,
+            )
+            
+            self.pending_setups[oanda_symbol] = recovery_setup
+            recovered += 1
+            
+            log.info(f"[{oanda_symbol}] ✅ Recovered: {pos.volume} lots @ {entry:.5f}, SL={calc_sl:.5f}")
+            log.info(f"[{oanda_symbol}]    TP levels: TP1={tp1:.2f}, TP2={tp2:.2f}, TP3={tp3:.2f}, TP4={tp4:.2f}, TP5={tp5:.2f}")
+        
+        if recovered > 0:
+            self._save_pending_setups()
+            log.info(f"💾 Saved {recovered} recovered position(s) to pending_setups.json")
+        
+        return recovered
 
     def _sync_tp_levels_to_current_params(self):
         """
