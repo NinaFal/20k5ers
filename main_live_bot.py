@@ -2217,7 +2217,112 @@ class LiveTradingBot:
         log.info(f"  Active awaiting_entry: {len(self.awaiting_entry)}")
         log.info(f"  Active awaiting_spread: {len(self.awaiting_spread)}")
         log.info("=" * 70)
-    
+        
+        # 5. Sync TP levels to current params
+        self._sync_tp_levels_to_current_params()
+
+    def _sync_tp_levels_to_current_params(self):
+        """
+        Sync TP levels of all pending orders and open positions to current_params.json.
+        
+        This ensures that if TP R-multiples have changed, all existing trades
+        are updated to use the new levels.
+        
+        Called at startup after _startup_sync_with_mt5().
+        """
+        log.info("=" * 70)
+        log.info("🔄 SYNCING TP LEVELS TO CURRENT PARAMS")
+        log.info("=" * 70)
+        log.info(f"  Current TP R-multiples: TP1={self.params.tp1_r_multiple}R, TP2={self.params.tp2_r_multiple}R, TP3={self.params.tp3_r_multiple}R")
+        
+        updated_orders = 0
+        updated_positions = 0
+        
+        # 1. Update pending orders
+        pending_orders = self.mt5.get_my_pending_orders()
+        log.info(f"  Found {len(pending_orders)} pending orders to check")
+        
+        for order in pending_orders:
+            try:
+                # Calculate new TP based on entry and SL
+                entry = order.price
+                sl = order.sl
+                
+                if sl == 0:
+                    log.warning(f"  [{order.symbol}] Order {order.ticket}: No SL set, skipping TP update")
+                    continue
+                
+                # Determine direction from order type (0,2,4 = buy, 1,3,5 = sell)
+                is_buy = order.type in [0, 2, 4]  # ORDER_TYPE_BUY, BUY_LIMIT, BUY_STOP
+                
+                # Calculate risk (distance from entry to SL)
+                risk = abs(entry - sl)
+                
+                # Calculate new TP3 (the main TP stored in MT5)
+                if is_buy:
+                    new_tp = entry + (risk * self.params.tp3_r_multiple)
+                else:
+                    new_tp = entry - (risk * self.params.tp3_r_multiple)
+                
+                # Check if update needed (allow small tolerance for floating point)
+                current_tp = order.tp
+                if abs(current_tp - new_tp) < 0.00001:
+                    continue  # Already correct
+                
+                # Modify the order
+                if self.mt5.modify_pending_order(order.ticket, tp=new_tp):
+                    log.info(f"  ✅ [{order.symbol}] Order {order.ticket}: TP updated {current_tp:.5f} → {new_tp:.5f}")
+                    updated_orders += 1
+                else:
+                    log.warning(f"  ❌ [{order.symbol}] Order {order.ticket}: Failed to update TP")
+                    
+            except Exception as e:
+                log.error(f"  ❌ [{order.symbol}] Order {order.ticket}: Error - {e}")
+        
+        # 2. Update open positions
+        positions = self.mt5.get_my_positions()
+        log.info(f"  Found {len(positions)} open positions to check")
+        
+        for pos in positions:
+            try:
+                entry = pos.price_open
+                sl = pos.sl
+                
+                if sl == 0:
+                    log.warning(f"  [{pos.symbol}] Position {pos.ticket}: No SL set, skipping TP update")
+                    continue
+                
+                # Determine direction
+                is_buy = pos.type == 0  # POSITION_TYPE_BUY
+                
+                # Calculate risk
+                risk = abs(entry - sl)
+                
+                # Calculate new TP3
+                if is_buy:
+                    new_tp = entry + (risk * self.params.tp3_r_multiple)
+                else:
+                    new_tp = entry - (risk * self.params.tp3_r_multiple)
+                
+                # Check if update needed
+                current_tp = pos.tp
+                if abs(current_tp - new_tp) < 0.00001:
+                    continue  # Already correct
+                
+                # Modify the position
+                if self.mt5.modify_sl_tp(pos.ticket, tp=new_tp):
+                    log.info(f"  ✅ [{pos.symbol}] Position {pos.ticket}: TP updated {current_tp:.5f} → {new_tp:.5f}")
+                    updated_positions += 1
+                else:
+                    log.warning(f"  ❌ [{pos.symbol}] Position {pos.ticket}: Failed to update TP")
+                    
+            except Exception as e:
+                log.error(f"  ❌ [{pos.symbol}] Position {pos.ticket}: Error - {e}")
+        
+        log.info("=" * 70)
+        log.info(f"✅ TP SYNC COMPLETE: {updated_orders} orders, {updated_positions} positions updated")
+        log.info("=" * 70)
+
     def disconnect(self):
         """Disconnect from MT5."""
         self.mt5.disconnect()

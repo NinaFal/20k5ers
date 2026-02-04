@@ -905,7 +905,61 @@ class MT5Client:
         """Get pending orders placed by this bot (by magic number)."""
         all_orders = self.get_pending_orders()
         return [o for o in all_orders if o.magic == self.MAGIC_NUMBER]
-    
+
+    def modify_pending_order(
+        self,
+        ticket: int,
+        price: float = None,
+        sl: float = None,
+        tp: float = None,
+    ) -> bool:
+        """
+        Modify a pending order's price, SL, and/or TP.
+        
+        Args:
+            ticket: Order ticket number
+            price: New entry price (optional)
+            sl: New stop loss (optional)
+            tp: New take profit (optional)
+            
+        Returns:
+            True if modification succeeded, False otherwise
+        """
+        if not self.connected:
+            return False
+        
+        mt5 = self._import_mt5()
+        
+        # Get current order to fill in missing values
+        orders = mt5.orders_get(ticket=ticket)
+        if not orders:
+            log.warning(f"Pending order {ticket} not found")
+            return False
+        
+        order = orders[0]
+        
+        request = {
+            "action": mt5.TRADE_ACTION_MODIFY,
+            "order": ticket,
+            "price": price if price is not None else order.price_open,
+            "sl": sl if sl is not None else order.sl,
+            "tp": tp if tp is not None else order.tp,
+            "type_time": order.type_time,
+            "expiration": order.time_expiration,
+        }
+        
+        result = mt5.order_send(request)
+        
+        if result is None:
+            log.error(f"Modify pending order {ticket} returned None")
+            return False
+        
+        if result.retcode != mt5.TRADE_RETCODE_DONE:
+            log.error(f"Modify pending order {ticket} failed: {result.comment} (code: {result.retcode})")
+            return False
+        
+        return True
+
     def place_market_order(
         self,
         symbol: str,
