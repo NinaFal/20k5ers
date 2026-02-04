@@ -781,9 +781,10 @@ class LiveTradingBot:
         self.friday_close_prices: dict = {}  # Store Friday close prices for gap detection
         self.last_friday_close_check: Optional[datetime] = None  # When we last did Friday check
         
-        # Limit order compounding - update lot sizes every 30 minutes based on current equity
+        # Limit order compounding - update lot sizes 2x per day based on BALANCE growth
         self.last_limit_order_update: Optional[datetime] = None
-        self.LIMIT_ORDER_UPDATE_INTERVAL_MINUTES: int = 30  # Update every 30 min
+        self.LIMIT_ORDER_UPDATE_INTERVAL_MINUTES: int = 720  # 12 hours = 2x per day
+        self.last_balance_for_scaling: Optional[float] = None  # Track balance for scaling decisions
 
         self._load_pending_setups()
         self._load_trading_days()
@@ -1564,24 +1565,29 @@ class LiveTradingBot:
         log.info("=" * 70)
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # LIMIT ORDER COMPOUNDING - Update lot sizes based on current equity
+    # LIMIT ORDER COMPOUNDING - Update lot sizes based on BALANCE growth (2x/day)
     # ═══════════════════════════════════════════════════════════════════════════
     
     def update_limit_orders_for_compounding(self):
         """
-        Update pending limit orders to reflect current equity (compounding).
+        Update pending limit orders to reflect current BALANCE (compounding).
         
-        This runs every 30 minutes to ensure limit orders have correct lot sizes
-        based on current equity, not the equity at the time of order placement.
+        This runs 2x per day (every 12 hours) to ensure limit orders have correct 
+        lot sizes based on current BALANCE, enabling scaling when profits grow.
+        
+        IMPORTANT: Uses BALANCE not equity!
+        - Balance = realized P&L only (closed trades)
+        - Equity = unrealized + realized (fluctuates with open positions)
         
         Process:
-        1. Get all pending limit orders
-        2. For each order, recalculate lot size with current equity
-        3. If lot size differs by >5%, cancel and replace the order
+        1. Get current BALANCE
+        2. Compare to last known balance for scaling
+        3. If balance increased by >2%, recalculate all pending order lot sizes
+        4. Cancel and replace orders with updated lot sizes
         """
         now = datetime.now(timezone.utc)
         
-        # Skip if checked recently
+        # Skip if checked recently (12 hours = 2x per day)
         if self.last_limit_order_update:
             time_since = (now - self.last_limit_order_update).total_seconds() / 60
             if time_since < self.LIMIT_ORDER_UPDATE_INTERVAL_MINUTES:
@@ -1593,23 +1599,38 @@ class LiveTradingBot:
             return
         
         log.info("=" * 70)
-        log.info("💰 LIMIT ORDER COMPOUNDING CHECK")
+        log.info("💰 LIMIT ORDER SCALING CHECK (2x/day based on BALANCE)")
         log.info("=" * 70)
         
-        # Get current equity
-        if not self.challenge_manager:
-            log.warning("No challenge manager - skipping compounding update")
-            self.last_limit_order_update = now
-            return
-            
-        snapshot = self.challenge_manager.get_account_snapshot()
-        if not snapshot:
-            log.warning("Cannot get account snapshot - skipping compounding update")
+        # Get current BALANCE (not equity!)
+        account_info = self.mt5.get_account_info()
+        if not account_info:
+            log.warning("Cannot get account info - skipping scaling update")
             self.last_limit_order_update = now
             return
         
-        current_equity = snapshot.equity
-        log.info(f"Current equity: ${current_equity:,.2f}")
+        current_balance = account_info.get("balance", 0)
+        log.info(f"Current BALANCE: ${current_balance:,.2f}")
+        
+        # Check if balance has grown since last check
+        if self.last_balance_for_scaling is None:
+            # First time - just record the balance
+            self.last_balance_for_scaling = current_balance
+            log.info(f"First scaling check - recording balance: ${current_balance:,.2f}")
+            self.last_limit_order_update = now
+            return
+        
+        balance_growth_pct = (current_balance - self.last_balance_for_scaling) / self.last_balance_for_scaling * 100 if self.last_balance_for_scaling > 0 else 0
+        
+        log.info(f"Balance change: ${self.last_balance_for_scaling:,.2f} → ${current_balance:,.2f} ({balance_growth_pct:+.2f}%)")
+        
+        # Only scale UP if balance grew by at least 2%
+        if balance_growth_pct < 2.0:
+            log.info(f"Balance growth {balance_growth_pct:.2f}% < 2% threshold - no scaling needed")
+            self.last_limit_order_update = now
+            return
+        
+        log.info(f"✅ Balance grew {balance_growth_pct:.2f}% - scaling up pending orders!")
         
         orders_updated = 0
         
@@ -1698,8 +1719,10 @@ class LiveTradingBot:
         
         self.last_limit_order_update = now
         
+        # Update last known balance for future scaling comparisons
         if orders_updated > 0:
-            log.info(f"✅ Updated {orders_updated} limit orders for compounding")
+            self.last_balance_for_scaling = current_balance
+            log.info(f"✅ Scaled up {orders_updated} limit orders! New balance baseline: ${current_balance:,.2f}")
         else:
             log.info("✅ All limit orders have correct lot sizes")
         log.info("=" * 70)
