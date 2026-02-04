@@ -9,8 +9,8 @@ as MT5Client so all trading logic remains UNCHANGED.
 IMPORTANT: Uses strategy_core.py directly - the same code as backtests!
 
 Usage (BACKTEST MODE):
-    python backtest/main_live_bot_backtest.py --start 2023-01-01 --end 2025-12-31 --balance 20000
-    python backtest/main_live_bot_backtest.py --start 2024-01-01 --end 2024-12-31 --balance 20000 --output results.json
+    python backtest/src/main_live_bot_backtest.py --start 2023-01-01 --end 2025-12-31 --balance 20000
+    python backtest/src/main_live_bot_backtest.py --start 2024-01-01 --end 2024-12-31 --balance 20000 --output results.json
 
 Configuration:
     Uses params/current_params.json for strategy parameters
@@ -27,6 +27,7 @@ backtest_dir = os.path.dirname(current_dir)  # backtest/
 project_root = os.path.dirname(backtest_dir)  # /workspaces/20k5ers
 sys.path.insert(0, project_root)
 sys.path.insert(0, backtest_dir)  # For csv_mt5_simulator if needed from backtest/
+
 import time
 import json
 import logging
@@ -211,18 +212,6 @@ class SimTimeFormatter(logging.Formatter):
         # Fallback to real time
         return super().formatTime(record, datefmt)
 
-def set_simulator_for_logging(simulator):
-    """Set the simulator instance for log timestamps."""
-    global _simulator_instance
-    _simulator_instance = simulator
-    # Update all handlers on the log to use SimTimeFormatter
-    for handler in log.handlers:
-        handler.setFormatter(SimTimeFormatter(
-            "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
-        ))
-    log.info("Log timestamps now use simulator time")
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TIMEZONE HELPERS - MT5/5ERS SERVER TIME
@@ -268,8 +257,9 @@ def get_next_scan_time(include_today: bool = False) -> datetime:
     """
     server_now = get_server_time()
 
-    # Daily close is at 00:00 server time, scan at 00:10 server time
-    today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
+    # Daily close is at 00:00 server time, scan at 01:00 server time
+    # (1 hour after close to avoid wide spreads on Monday open)
+    today_scan = server_now.replace(hour=1, minute=0, second=0, microsecond=0)
 
     # If include_today is True and we haven't passed today's scan yet, return it
     if include_today and server_now < today_scan:
@@ -309,6 +299,25 @@ def is_market_open() -> bool:
     
     return True
 
+
+def is_friday_closing_period() -> bool:
+    """
+    Check if we're in the Friday closing period (no new orders allowed).
+    Friday 16:00 UTC onwards = no new forex orders (weekend gap protection).
+    
+    Returns:
+        True if Friday 16:00+ UTC (no new orders)
+        False otherwise (orders allowed)
+    """
+    now = datetime.now(timezone.utc)
+    weekday = now.weekday()  # 0=Monday, 4=Friday
+    hour = now.hour
+    
+    # Friday 16:00+ UTC = closing period
+    if weekday == 4 and hour >= 16:
+        return True
+    
+    return False
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 5ERS DRAWDOWN MONITOR - CRITICAL: Different from FTMO!
@@ -396,29 +405,21 @@ log.info(f"Tradable Symbols: {len(TRADABLE_SYMBOLS)}")
 log.info("=" * 70)
 
 
-def load_best_params_from_file(custom_params: dict = None):
+def load_best_params_from_file():
     """
     Load best parameters from params/current_params.json (single source of truth).
     - No fallback to StrategyParams defaults.
     - Merges with PARAMETER_DEFAULTS (same as optimizer) to guarantee 77 params.
     - Warns if the file is missing params (so you know to re-save from a run).
-    - If custom_params is provided (from optimizer), overlay those on top.
     """
     from pathlib import Path
     from params.params_loader import load_strategy_params, load_params_dict
     from params.defaults import PARAMETER_DEFAULTS
-    from strategy_core import StrategyParams
-    import dataclasses
     
-    # BACKTEST FIX: Go to project root (backtest/src/ -> backtest/ -> /workspaces/20k5ers/)
-    current_file = Path(__file__)  # backtest/src/main_live_bot_backtest.py
-    backtest_dir = current_file.parent.parent  # backtest/
-    project_root = backtest_dir.parent  # /workspaces/20k5ers/
-    params_file = project_root / "params" / "current_params.json"
-    
+    params_file = Path(__file__).parent / "params" / "current_params.json"
     if not params_file.exists():
         raise FileNotFoundError(
-            f"CRITICAL: {params_file} does not exist!\n"
+            "CRITICAL: params/current_params.json does not exist!\n"
             "Select a run first: python scripts/select_run.py <run_name>"
         )
     
@@ -438,17 +439,6 @@ def load_best_params_from_file(custom_params: dict = None):
     
     # Use the same merge logic as optimizer
     params_obj = load_strategy_params()
-    
-    # If custom_params provided (from optimizer), overlay them
-    if custom_params:
-        log.info("[OPTIMIZER] Applying %d custom parameters", len(custom_params))
-        valid_fields = {f.name for f in dataclasses.fields(StrategyParams)}
-        params_dict = dataclasses.asdict(params_obj)
-        for key, value in custom_params.items():
-            if key in valid_fields:
-                params_dict[key] = value
-        params_obj = StrategyParams(**params_dict)
-    
     log.info("✓ Loaded %d parameters (post-merge) from params/current_params.json", len(vars(params_obj)))
     return params_obj
 
@@ -474,7 +464,7 @@ class LiveTradingBot:
     KEY FEATURES (5ers Compliant):
     - 5-TP Exit System: 5 take profit levels (0.6R to 3.5R)
     - Immediate scan on first run after restart/weekend
-    - Daily scan 10 min after daily close (00:10 server time)
+    - Daily scan 1 hour after daily close (01:00 server time)
     - Spread & volume checks before entry
     - Weekend gap protection
     - Total DD monitoring (no daily DD for 5ers!)
@@ -559,8 +549,7 @@ class LiveTradingBot:
                             log.info(f"[DDD Protection] ✅ Trading re-enabled for new day with fresh DDD baseline")
                         else:
                             # Normal new day transition - sync with MT5
-                            sim_date = self.mt5.get_current_time().date() if hasattr(self.mt5, 'get_current_time') else None
-                            self.challenge_manager.sync_with_mt5(current_balance, current_equity, sim_date=sim_date)
+                            self.challenge_manager.sync_with_mt5(current_balance, current_equity)
                     
                     day_start_equity = self.challenge_manager.day_start_equity
                     if day_start_equity <= 0:
@@ -766,6 +755,7 @@ class LiveTradingBot:
     FIRST_RUN_FLAG_FILE = "first_run_complete.flag"
     AWAITING_SPREAD_FILE = "awaiting_spread.json"
     AWAITING_ENTRY_FILE = "awaiting_entry.json"  # Signals waiting for price proximity
+    SCAN_STATE_FILE = "scan_state.json"  # Track last scan time to prevent duplicate scans
     VALIDATE_INTERVAL_MINUTES = 10
     MAIN_LOOP_INTERVAL_SECONDS = 10
     SPREAD_CHECK_INTERVAL_MINUTES = 5
@@ -774,52 +764,19 @@ class LiveTradingBot:
     MAX_ENTRY_WAIT_HOURS = 120  # 5 days - matches backtest max_wait_bars=5
     WEEKEND_GAP_THRESHOLD_PCT = 1.0  # 1% gap threshold
     
-    # NOTE: Correlation filter REMOVED - was never in main_live_bot.py
-    # Keeping backtest in parity with production live bot
-    
-    def __init__(self, immediate_scan: bool = False, 
-                 data_dir: str = "data/ohlcv",
-                 initial_balance: float = 20000.0,
-                 start_date: datetime = None,
-                 end_date: datetime = None,
-                 custom_params: dict = None):
-        """
-        Initialize backtest bot.
-        
-        Args:
-            immediate_scan: Ignored in backtest mode
-            data_dir: Directory with CSV data files
-            initial_balance: Starting balance for backtest
-            start_date: Backtest start date
-            end_date: Backtest end date
-            custom_params: Optional custom parameters (for optimizer)
-        """
+    def __init__(self, immediate_scan: bool = False):
         self.ddd_halted = False
         self.ddd_halt_reason = ""
         self.ddd_halt_date: Optional[str] = None  # Track which day the halt occurred
-        
-        # BACKTEST MODE: Use CSV simulator instead of real MT5
         self.mt5 = MT5Client(
             server=MT5_SERVER,
             login=MT5_LOGIN,
             password=MT5_PASSWORD,
-            data_dir=data_dir,
-            initial_balance=initial_balance,
         )
-        
-        # Enable simulator time for log timestamps
-        set_simulator_for_logging(self.mt5)
-        
-        # Backtest date range
-        self.start_date = start_date or datetime(2023, 1, 1, tzinfo=timezone.utc)
-        self.end_date = end_date or datetime(2025, 12, 31, tzinfo=timezone.utc)
-        self.initial_balance = initial_balance
-        
         self.risk_manager = RiskManager(state_file="challenge_state.json")
         # STRICT: Load params (merged with defaults) - no fallback to dataclass defaults
         # load_best_params_from_file() returns StrategyParams with defaults merged
-        # If custom_params provided (from optimizer), overlay those on top
-        self.params = load_best_params_from_file(custom_params)
+        self.params = load_best_params_from_file()
         self.last_scan_time: Optional[datetime] = None
         self.next_scan_time: Optional[datetime] = None  # Store next scheduled scan time
         self.last_validate_time: Optional[datetime] = None
@@ -845,7 +802,7 @@ class LiveTradingBot:
         self.friday_close_prices: dict = {}  # Store Friday close prices for gap detection
         self.last_friday_close_check: Optional[datetime] = None  # When we last did Friday check
         
-        # Limit order compounding - update lot sizes based on current equity
+        # Limit order compounding - update lot sizes every 30 minutes based on current equity
         self.last_limit_order_update: Optional[datetime] = None
         self.LIMIT_ORDER_UPDATE_INTERVAL_MINUTES: int = 30  # Update every 30 min
 
@@ -855,8 +812,39 @@ class LiveTradingBot:
         self._load_awaiting_entry()  # Signals waiting for price proximity
         self._load_ddd_halt_state()  # Load DDD halt state (survives restarts)
         self._load_closed_today()  # Track symbols closed today (no re-entry same day)
+        self._load_scan_state()  # Track last scan to prevent duplicate scans after restart
         self._auto_start_challenge()
     
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SCAN STATE PERSISTENCE - Prevents duplicate scans after bot restart
+    # ═══════════════════════════════════════════════════════════════════════════
+    
+    def _load_scan_state(self):
+        """Load last scan time from file to prevent duplicate scans after restart."""
+        try:
+            if Path(self.SCAN_STATE_FILE).exists():
+                with open(self.SCAN_STATE_FILE, 'r') as f:
+                    data = json.load(f)
+                last_scan_str = data.get("last_scan_time")
+                if last_scan_str:
+                    self.last_scan_time = datetime.fromisoformat(last_scan_str.replace("Z", "+00:00"))
+                    log.info(f"Loaded last scan time: {self.last_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+        except Exception as e:
+            log.error(f"Error loading scan state: {e}")
+            self.last_scan_time = None
+    
+    def _save_scan_state(self):
+        """Save scan state to file."""
+        try:
+            data = {
+                "last_scan_time": self.last_scan_time.isoformat() if self.last_scan_time else None,
+                "last_update": datetime.now(timezone.utc).isoformat()
+            }
+            with open(self.SCAN_STATE_FILE, 'w') as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            log.error(f"Error saving scan state: {e}")
+
     # ═══════════════════════════════════════════════════════════════════════════
     # DDD HALT STATE PERSISTENCE - Survives bot restarts within same day
     # ═══════════════════════════════════════════════════════════════════════════
@@ -879,9 +867,7 @@ class LiveTradingBot:
                     state = json.load(f)
                 
                 saved_date = state.get("date", "")
-                # BACKTEST FIX: Use simulator time, not real time
-                sim_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
-                today = sim_time.strftime("%Y-%m-%d")
+                today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
                 
                 if saved_date == today:
                     self.closed_today = set(state.get("symbols", []))
@@ -897,13 +883,11 @@ class LiveTradingBot:
     def _save_closed_today(self):
         """Save symbols closed today to file."""
         try:
-            # BACKTEST FIX: Use simulator time, not real time
-            sim_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
-            today = sim_time.strftime("%Y-%m-%d")
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             state = {
                 "date": today,
                 "symbols": list(self.closed_today),
-                "last_update": sim_time.isoformat()
+                "last_update": datetime.now(timezone.utc).isoformat()
             }
             with open(self.CLOSED_TODAY_FILE, 'w') as f:
                 json.dump(state, f, indent=2)
@@ -921,9 +905,7 @@ class LiveTradingBot:
     def is_symbol_closed_today(self, symbol: str) -> bool:
         """Check if symbol was closed today (blocked from re-entry)."""
         # Check if we need to reset for new day
-        # BACKTEST FIX: Use simulator time, not real time
-        sim_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
-        today = sim_time.strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         if self.closed_today_date != today:
             log.info(f"📋 New day detected - clearing closed_today list")
             self.closed_today.clear()
@@ -1009,8 +991,7 @@ class LiveTradingBot:
         """Check if currently in news event blackout period."""
         if not FIVEERS_CONFIG.block_trading_around_news:
             return False
-        # BACKTEST FIX: Use simulator time, not real time
-        now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
         
         # Check each major news event
         for day_of_week, hour, minute in FIVEERS_CONFIG.major_news_events:
@@ -1055,9 +1036,6 @@ class LiveTradingBot:
         except Exception as e:
             log.error(f"Error saving awaiting_spread: {e}")
     
-    # NOTE: Correlation filter REMOVED - was never in main_live_bot.py
-    # Keeping backtest in parity with production live bot
-    
     # ═══════════════════════════════════════════════════════════════════════════
     # AWAITING ENTRY - Queue for signals waiting for price proximity
     # ═══════════════════════════════════════════════════════════════════════════
@@ -1089,9 +1067,6 @@ class LiveTradingBot:
         
         When price is far from entry (>0.3R), we don't place limit order yet.
         This avoids wasted limit orders that never fill.
-        
-        BACKYBACK LOGIC: New signals REPLACE old ones in the queue.
-        This is more realistic - new signal is based on latest data.
         """
         symbol = setup["symbol"]
         entry = setup.get("entry", 0)
@@ -1152,6 +1127,12 @@ class LiveTradingBot:
             log.debug("Skipping entry queue check - DDD halt active")
             return
         
+        # FRIDAY CLOSING: Don't place new orders after 16:00 UTC
+        # (place_setup_order also checks this, but skip processing entirely)
+        if is_friday_closing_period():
+            log.debug("Skipping entry queue check - Friday closing period (16:00+ UTC)")
+            return
+        
         if not self.awaiting_entry:
             return
         
@@ -1159,16 +1140,14 @@ class LiveTradingBot:
         signals_to_remove = []
         proximity_r = FIVEERS_CONFIG.limit_order_proximity_r  # 0.3R
         
-        # Reduced logging - only log when queue size changes
-        # log.info(f"Checking {len(self.awaiting_entry)} signals awaiting price proximity...")
+        log.info(f"Checking {len(self.awaiting_entry)} signals awaiting price proximity...")
         
         for symbol, setup in list(self.awaiting_entry.items()):
-            # Only block if we have a FILLED position (open trade)
-            # Pending setups should NOT block - the entry queue takes priority
+            # BUGFIX: Check if we already have a pending order or position for this symbol
             if symbol in self.pending_setups:
                 existing = self.pending_setups[symbol]
-                if existing.status == "filled":
-                    log.debug(f"[{symbol}] Already have open position - removing from entry queue")
+                if existing.status in ("pending", "filled"):
+                    log.debug(f"[{symbol}] Already have {existing.status} setup - removing from entry queue")
                     signals_to_remove.append(symbol)
                     continue
             
@@ -1287,6 +1266,11 @@ class LiveTradingBot:
         # CRITICAL: Don't place orders during DDD halt
         if getattr(self, 'ddd_halted', False):
             log.debug("Skipping spread queue check - DDD halt active")
+            return
+        
+        # FRIDAY CLOSING: Don't place new orders after 16:00 UTC
+        if is_friday_closing_period():
+            log.debug("Skipping spread queue check - Friday closing period (16:00+ UTC)")
             return
         
         if not self.awaiting_spread:
@@ -1608,15 +1592,15 @@ class LiveTradingBot:
         """
         Update pending limit orders to reflect current equity (compounding).
         
-        This runs every 30 minutes (simulated) to ensure limit orders have correct
-        lot sizes based on current equity, not the equity at order placement time.
+        This runs every 30 minutes to ensure limit orders have correct lot sizes
+        based on current equity, not the equity at the time of order placement.
         
         Process:
         1. Get all pending limit orders
         2. For each order, recalculate lot size with current equity
         3. If lot size differs by >5%, cancel and replace the order
         """
-        now = self.mt5.get_current_time()
+        now = datetime.now(timezone.utc)
         
         # Skip if checked recently
         if self.last_limit_order_update:
@@ -1700,12 +1684,12 @@ class LiveTradingBot:
                 cancel_result = self.mt5.cancel_pending_order(order.ticket)
                 
                 if cancel_result:
-                    # Determine order type
-                    order_type = "BUY_LIMIT" if order.type in [2, 4] else "SELL_LIMIT"
-                    if order.type in [3, 5]:
+                    # Place new order with updated lot size
+                    order_type = "BUY_LIMIT" if order.type in [2, 4] else "SELL_LIMIT"  # 2=BUY_LIMIT, 4=BUY_STOP
+                    if order.type in [3, 5]:  # 3=SELL_LIMIT, 5=SELL_STOP
                         order_type = "SELL_LIMIT"
                     
-                    # Get TP from order
+                    # Get TP from setup
                     tp = order.tp if hasattr(order, 'tp') and order.tp else 0
                     
                     new_order_result = self.mt5.place_pending_order(
@@ -1764,7 +1748,10 @@ class LiveTradingBot:
             return
 
         if not self.friday_close_prices:
-            log.warning("⚠️ No Friday close prices stored, skipping Sunday gap detection")
+            # Only log this once per session to avoid spam
+            if not getattr(self, '_friday_close_warning_logged', False):
+                log.warning("⚠️ No Friday close prices stored, skipping Sunday gap detection")
+                self._friday_close_warning_logged = True
             return
 
         positions = self.mt5.get_my_positions()
@@ -1922,38 +1909,29 @@ class LiveTradingBot:
         except Exception as e:
             log.error(f"Error saving trading days: {e}")
     
-    def record_trading_day(self, sim_time: datetime = None):
+    def record_trading_day(self):
         """
         Record today as a trading day when a trade is executed.
         Called after successful order placement/fill.
-        
-        Args:
-            sim_time: Optional simulator time for backtest mode
         """
         from ftmo_config import FIVEERS_CONFIG
-        if sim_time:
-            today = sim_time.strftime("%Y-%m-%d")
-        else:
-            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         if today not in self.trading_days:
             self.trading_days.add(today)
             self._save_trading_days()
             log.info(f"Recorded trading day: {today} (Total: {len(self.trading_days)}/{FIVEERS_CONFIG.min_profitable_days} required)")
     
-    def check_trading_days_warning(self, sim_time: datetime = None) -> bool:
+    def check_trading_days_warning(self) -> bool:
         """
         Check if we're at risk of not meeting minimum trading days requirement.
         Returns True if warning should be shown (not enough days traded relative to time remaining).
-        
-        Args:
-            sim_time: Optional simulator time for backtest mode
         """
         from ftmo_config import FIVEERS_CONFIG
         
         if self.challenge_end_date is None:
             return False
         
-        now = sim_time if sim_time else datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
         days_remaining = (self.challenge_end_date - now).days
         trading_days_count = len(self.trading_days)
         days_needed = FIVEERS_CONFIG.min_profitable_days - trading_days_count
@@ -2002,19 +1980,14 @@ class LiveTradingBot:
             log.info(f"Challenge already active (Phase {phase}) - continuing...")
     
     def connect(self) -> bool:
-        """Connect to MT5 (or load CSV data in backtest mode)."""
+        """Connect to MT5."""
         log.info("=" * 70)
-        log.info("CONNECTING (BACKTEST MODE - Loading CSV data)")
+        log.info("CONNECTING TO MT5")
         log.info("=" * 70)
         
         if not self.mt5.connect():
-            log.error("Failed to connect (simulated)")
+            log.error("Failed to connect to MT5")
             return False
-        
-        # BACKTEST: Load M15 data for all symbols
-        from config import FOREX_PAIRS, METALS, INDICES, CRYPTO_ASSETS
-        all_symbols = FOREX_PAIRS + METALS + INDICES + CRYPTO_ASSETS
-        self.mt5.load_m15_data(all_symbols)
         
         account = self.mt5.get_account_info()
         log.info(f"Connected: {account.get('login')} @ {account.get('server')}")
@@ -2024,19 +1997,59 @@ class LiveTradingBot:
         
         # Discover available symbols
         log.info("\n" + "=" * 70)
-        log.info(f"DISCOVERING SYMBOLS (BACKTEST MODE)")
+        log.info(f"DISCOVERING BROKER SYMBOLS ({BROKER_NAME})")
         log.info("=" * 70)
         
         available_symbols = self.mt5.get_available_symbols()
-        log.info(f"M15 data available for {len(available_symbols)} symbols")
+        log.info(f"Broker has {len(available_symbols)} total symbols")
         
-        # BACKTEST: Map symbols directly (OANDA format in CSV files)
+        # Get broker type for symbol mapping
+        broker_type = BROKER_CONFIG.broker_type.value
+        
+        # Map our symbols to broker symbols
+        # TRADABLE_SYMBOLS uses OANDA format (EUR_USD), broker uses specific format
+        mapped_count = 0
         self.symbol_map = {}
-        for symbol in available_symbols:
-            # In backtest, symbol format is the same (OANDA format with underscores)
-            self.symbol_map[symbol] = symbol
         
-        log.info(f"Mapped {len(self.symbol_map)} symbols for backtest")
+        for our_symbol in TRADABLE_SYMBOLS:
+            # Use broker-aware symbol mapping
+            broker_symbol = get_broker_symbol(our_symbol, broker_type)
+            
+            # First try the mapped symbol
+            if self.mt5.get_symbol_info(broker_symbol):
+                self.symbol_map[our_symbol] = broker_symbol
+                mapped_count += 1
+                log.info(f"✓ {our_symbol:15s} -> {broker_symbol}")
+            else:
+                # Try to find a match in available symbols
+                found_symbol = self.mt5.find_symbol_match(our_symbol)
+                if found_symbol:
+                    self.symbol_map[our_symbol] = found_symbol
+                    mapped_count += 1
+                    log.info(f"✓ {our_symbol:15s} -> {found_symbol} (auto-detected)")
+                else:
+                    log.warning(f"✗ {our_symbol:15s} -> NOT FOUND (expected: {broker_symbol})")
+        
+        log.info("=" * 70)
+        log.info(f"Mapped {mapped_count}/{len(TRADABLE_SYMBOLS)} symbols")
+        log.info("=" * 70)
+        
+        if mapped_count == 0:
+            log.error("No symbols could be mapped! Check broker symbol naming.")
+            return False
+        
+        # Validate symbol mapping integrity
+        log.info("\n" + "=" * 70)
+        log.info("VALIDATING SYMBOL MAPPING")
+        log.info("=" * 70)
+        sample_symbols = list(self.symbol_map.items())[:5]
+        for oanda_sym, broker_sym in sample_symbols:
+            # Test that we can get symbol info
+            info = self.mt5.get_symbol_info(broker_sym)
+            if info:
+                log.info(f"✓ {oanda_sym} -> {broker_sym} (digits: {info.get('digits')}, spread: {info.get('spread')})")
+            else:
+                log.error(f"✗ {oanda_sym} -> {broker_sym} FAILED to get symbol info")
         log.info("=" * 70)
         
         balance = account.get('balance', 0)
@@ -2071,34 +2084,14 @@ class LiveTradingBot:
                     profit_ultra_safe_threshold_pct=FIVEERS_CONFIG.profit_ultra_safe_threshold_pct,
                     ultra_safe_risk_pct=FIVEERS_CONFIG.ultra_safe_risk_pct,
                 )
-                # BACKTEST: Use a temp state file to avoid conflicts with live state
-                import tempfile
-                backtest_state_file = Path(tempfile.gettempdir()) / "backtest_challenge_state.json"
-                # Remove old backtest state to ensure fresh start
-                if backtest_state_file.exists():
-                    backtest_state_file.unlink()
-                
                 self.challenge_manager = ChallengeRiskManager(
                     config=config,
                     mt5_client=self.mt5,
-                    state_file=str(backtest_state_file),
+                    state_file="challenge_risk_state.json",
                     trading_days_file=self.TRADING_DAYS_FILE,
                 )
-                # CRITICAL: Force reset the state to initial_balance for backtest
-                self.challenge_manager.starting_balance = self.initial_balance
-                self.challenge_manager.day_start_equity = self.initial_balance
-                self.challenge_manager.day_start_balance = self.initial_balance
-                self.challenge_manager.current_equity = self.initial_balance
-                self.challenge_manager.current_balance = self.initial_balance
-                self.challenge_manager.peak_equity = self.initial_balance
-                self.challenge_manager.daily_pnl = 0.0
-                self.challenge_manager.daily_loss_pct = 0.0
-                self.challenge_manager.total_drawdown_pct = 0.0
-                self.challenge_manager.halted = False
-                
-                sim_date = self.mt5.get_current_time().date() if hasattr(self.mt5, 'get_current_time') else None
-                self.challenge_manager.sync_with_mt5(balance, equity, sim_date=sim_date)
-                log.info("Challenge Risk Manager initialized with ELITE PROTECTION (BACKTEST MODE - fresh state)")
+                self.challenge_manager.sync_with_mt5(balance, equity)
+                log.info("Challenge Risk Manager initialized with ELITE PROTECTION")
         
         # CRITICAL: Sync pending_setups and queues with actual MT5 state
         self._startup_sync_with_mt5()
@@ -2152,9 +2145,9 @@ class LiveTradingBot:
                     # If manual: price did NOT reach SL (user closed, block re-entry)
                     was_sl_hit = False
                     try:
-                        tick = self.mt5.get_tick(broker_symbol)
+                        tick = self.mt5.get_symbol_tick(broker_symbol)
                         if tick and setup.stop_loss:
-                            current_price = tick.bid if setup.direction == "buy" else tick.ask
+                            current_price = tick.get("bid", 0) if setup.direction == "buy" else tick.get("ask", 0)
                             sl = setup.stop_loss
                             
                             # Check if price went past SL
@@ -2240,12 +2233,335 @@ class LiveTradingBot:
         
         # 4. Log final state
         log.info("=" * 70)
+        # 5. CRITICAL: Recover orphaned MT5 positions not in pending_setups
+        # This handles positions opened when bot was down or crashed after fill
+        recovered_count = self._recover_orphaned_positions(my_positions)
+        
         log.info(f"✅ STARTUP SYNC COMPLETE")
         log.info(f"  Active pending_setups: {len(self.pending_setups)}")
         log.info(f"  Active awaiting_entry: {len(self.awaiting_entry)}")
         log.info(f"  Active awaiting_spread: {len(self.awaiting_spread)}")
+        if recovered_count > 0:
+            log.info(f"  ⚠️ Recovered orphaned positions: {recovered_count}")
         log.info("=" * 70)
-    
+        
+        # 6. Sync TP levels to current params
+        self._sync_tp_levels_to_current_params()
+
+    def _recover_orphaned_positions(self, my_positions: list) -> int:
+        """
+        CRITICAL: Recover MT5 positions that are not in pending_setups.
+        
+        This happens when:
+        1. Bot crashed after placing order but before fill detection
+        2. Bot restarted and old entry was cleaned up
+        3. Position was opened manually or via different system
+        
+        For each orphaned position, we create a minimal pending_setup entry
+        so the bot can manage TP levels and trailing SL.
+        
+        Returns: Number of recovered positions
+        """
+        # Build reverse symbol map (broker -> OANDA)
+        reverse_symbol_map = {v: k for k, v in self.symbol_map.items()}
+        
+        # Get currently tracked symbols
+        tracked_broker_symbols = set()
+        for symbol, setup in self.pending_setups.items():
+            if setup.status == "filled":
+                broker_symbol = self.symbol_map.get(symbol, symbol)
+                tracked_broker_symbols.add(broker_symbol)
+        
+        recovered = 0
+        for pos in my_positions:
+            broker_symbol = pos.symbol
+            
+            # Check if this position is already tracked
+            if broker_symbol in tracked_broker_symbols:
+                continue
+            
+            # Convert to OANDA symbol
+            oanda_symbol = reverse_symbol_map.get(broker_symbol, broker_symbol)
+            
+            # Skip if symbol is not in our watchlist
+            if oanda_symbol not in self.symbol_map:
+                log.debug(f"[{broker_symbol}] Not in symbol_map, skipping recovery")
+                continue
+            
+            log.warning(f"[{oanda_symbol}] ⚠️ ORPHANED POSITION FOUND (broker: {broker_symbol}, ticket: {pos.ticket})")
+            log.warning(f"[{oanda_symbol}] Creating recovery entry from MT5 position data")
+            
+            # Determine direction from position type
+            direction = "bullish" if pos.type == 0 else "bearish"  # 0 = BUY, 1 = SELL
+            
+            # Get current SL/TP from MT5
+            sl = pos.sl if hasattr(pos, 'sl') and pos.sl > 0 else None
+            tp = pos.tp if hasattr(pos, 'tp') and pos.tp > 0 else None
+            
+            # Calculate risk (entry - SL)
+            entry = pos.price_open
+            if sl:
+                risk = abs(entry - sl)
+            else:
+                # Estimate risk as 2% of entry price if no SL set
+                risk = entry * 0.02
+                log.warning(f"[{oanda_symbol}] No SL found, estimating risk as 2% of entry = {risk:.5f}")
+            
+            # Calculate TP levels from current_params
+            tp1_r = getattr(self.params, 'tp1_r_multiple', 0.4)
+            tp2_r = getattr(self.params, 'tp2_r_multiple', 1.6)
+            tp3_r = getattr(self.params, 'tp3_r_multiple', 2.1)
+            tp4_r = getattr(self.params, 'tp4_r_multiple', 2.4)
+            tp5_r = getattr(self.params, 'tp5_r_multiple', 3.6)
+            
+            if direction == "bullish":
+                calc_sl = sl if sl else entry - risk
+                tp1 = entry + (tp1_r * risk)
+                tp2 = entry + (tp2_r * risk)
+                tp3 = entry + (tp3_r * risk)
+                tp4 = entry + (tp4_r * risk)
+                tp5 = entry + (tp5_r * risk)
+            else:
+                calc_sl = sl if sl else entry + risk
+                tp1 = entry - (tp1_r * risk)
+                tp2 = entry - (tp2_r * risk)
+                tp3 = entry - (tp3_r * risk)
+                tp4 = entry - (tp4_r * risk)
+                tp5 = entry - (tp5_r * risk)
+            
+            # Create recovery entry
+            from datetime import datetime, timezone
+            recovery_setup = PendingSetup(
+                symbol=oanda_symbol,
+                direction=direction,
+                entry_price=entry,
+                stop_loss=calc_sl,
+                tp1=tp1,
+                tp2=tp2,
+                tp3=tp3,
+                tp4=tp4,
+                tp5=tp5,
+                confluence=0,  # Unknown for recovered positions
+                confluence_score=0,
+                quality_factors=0,
+                entry_distance_r=0.0,
+                created_at=datetime.now(timezone.utc).isoformat(),
+                order_ticket=pos.ticket,
+                status="filled",
+                lot_size=pos.volume,
+                partial_closes=0,
+                trailing_sl=None,
+                tp1_hit=False,
+                tp2_hit=False,
+                tp3_hit=False,
+                tp4_hit=False,
+                tp5_hit=False,
+                progressive_trail_applied=False,
+            )
+            
+            self.pending_setups[oanda_symbol] = recovery_setup
+            recovered += 1
+            
+            log.info(f"[{oanda_symbol}] ✅ Recovered: {pos.volume} lots @ {entry:.5f}, SL={calc_sl:.5f}")
+            log.info(f"[{oanda_symbol}]    TP levels: TP1={tp1:.2f}, TP2={tp2:.2f}, TP3={tp3:.2f}, TP4={tp4:.2f}, TP5={tp5:.2f}")
+        
+        if recovered > 0:
+            self._save_pending_setups()
+            log.info(f"💾 Saved {recovered} recovered position(s) to pending_setups.json")
+        
+        return recovered
+
+    def _sync_tp_levels_to_current_params(self):
+        """
+        Sync TP levels of all pending orders and open positions to current_params.json.
+        
+        This ensures that if TP R-multiples have changed, all existing trades
+        are updated to use the new levels.
+        
+        The MT5 TP field stores the FINAL take profit (TP5 if 5-TP system, else TP3).
+        Intermediate TPs (TP1-TP4) are managed internally by the bot.
+        
+        Called at startup after _startup_sync_with_mt5().
+        """
+        log.info("=" * 70)
+        log.info("🔄 SYNCING TP LEVELS TO CURRENT PARAMS")
+        log.info("=" * 70)
+        
+        # Determine which TP level is the final one
+        tp5_r = getattr(self.params, 'tp5_r_multiple', 0)
+        tp4_r = getattr(self.params, 'tp4_r_multiple', 0)
+        tp3_r = getattr(self.params, 'tp3_r_multiple', 2.0)
+        
+        # Use the highest TP level that's configured
+        if tp5_r and tp5_r > 0:
+            final_tp_r = tp5_r
+            final_tp_name = "TP5"
+        elif tp4_r and tp4_r > 0:
+            final_tp_r = tp4_r
+            final_tp_name = "TP4"
+        else:
+            final_tp_r = tp3_r
+            final_tp_name = "TP3"
+        
+        log.info(f"  Using {final_tp_name} ({final_tp_r}R) as final TP level")
+        log.info(f"  TP R-multiples: TP1={self.params.tp1_r_multiple}R, TP2={self.params.tp2_r_multiple}R, TP3={self.params.tp3_r_multiple}R, TP4={tp4_r}R, TP5={tp5_r}R")
+        
+        updated_orders = 0
+        updated_positions = 0
+        
+        # 1. Update pending orders
+        pending_orders = self.mt5.get_my_pending_orders()
+        log.info(f"  Found {len(pending_orders)} pending orders to check")
+        
+        for order in pending_orders:
+            try:
+                # Calculate new TP based on entry and SL
+                entry = order.price
+                sl = order.sl
+                
+                if sl == 0:
+                    log.warning(f"  [{order.symbol}] Order {order.ticket}: No SL set, skipping TP update")
+                    continue
+                
+                # Determine direction from order type (0,2,4 = buy, 1,3,5 = sell)
+                is_buy = order.type in [0, 2, 4]  # ORDER_TYPE_BUY, BUY_LIMIT, BUY_STOP
+                
+                # Calculate risk (distance from entry to SL)
+                risk = abs(entry - sl)
+                
+                # Calculate new final TP
+                if is_buy:
+                    new_tp = entry + (risk * final_tp_r)
+                else:
+                    new_tp = entry - (risk * final_tp_r)
+                
+                # Check if update needed (allow small tolerance for floating point)
+                current_tp = order.tp
+                if abs(current_tp - new_tp) < 0.00001:
+                    continue  # Already correct
+                
+                # Modify the order
+                if self.mt5.modify_pending_order(order.ticket, tp=new_tp):
+                    log.info(f"  ✅ [{order.symbol}] Order {order.ticket}: TP updated {current_tp:.5f} → {new_tp:.5f} ({final_tp_name}={final_tp_r}R)")
+                    updated_orders += 1
+                else:
+                    log.warning(f"  ❌ [{order.symbol}] Order {order.ticket}: Failed to update TP")
+                    
+            except Exception as e:
+                log.error(f"  ❌ [{order.symbol}] Order {order.ticket}: Error - {e}")
+        
+        # 2. Update open positions
+        positions = self.mt5.get_my_positions()
+        log.info(f"  Found {len(positions)} open positions to check")
+        
+        for pos in positions:
+            try:
+                entry = pos.price_open
+                sl = pos.sl
+                
+                if sl == 0:
+                    log.warning(f"  [{pos.symbol}] Position {pos.ticket}: No SL set, skipping TP update")
+                    continue
+                
+                # Determine direction
+                is_buy = pos.type == 0  # POSITION_TYPE_BUY
+                
+                # Calculate risk
+                risk = abs(entry - sl)
+                
+                # Calculate new final TP
+                if is_buy:
+                    new_tp = entry + (risk * final_tp_r)
+                else:
+                    new_tp = entry - (risk * final_tp_r)
+                
+                # Check if update needed
+                current_tp = pos.tp
+                if abs(current_tp - new_tp) < 0.00001:
+                    continue  # Already correct
+                
+                # Modify the position
+                if self.mt5.modify_sl_tp(pos.ticket, tp=new_tp):
+                    log.info(f"  ✅ [{pos.symbol}] Position {pos.ticket}: TP updated {current_tp:.5f} → {new_tp:.5f} ({final_tp_name}={final_tp_r}R)")
+                    updated_positions += 1
+                else:
+                    log.warning(f"  ❌ [{pos.symbol}] Position {pos.ticket}: Failed to update TP")
+                    
+            except Exception as e:
+                log.error(f"  ❌ [{pos.symbol}] Position {pos.ticket}: Error - {e}")
+        
+        # 3. Update pending_setups.json with correct tp4/tp5 values
+        updated_setups = 0
+        tp1_r = getattr(self.params, 'tp1_r_multiple', 0.4)
+        tp2_r = getattr(self.params, 'tp2_r_multiple', 1.6)
+        tp3_r = getattr(self.params, 'tp3_r_multiple', 2.1)
+        
+        for symbol, setup in self.pending_setups.items():
+            if setup.stop_loss is None or setup.entry_price is None:
+                continue
+            
+            # Calculate risk
+            risk = abs(setup.entry_price - setup.stop_loss)
+            if risk == 0:
+                continue
+            
+            is_bullish = setup.direction == "bullish"
+            needs_update = False
+            
+            # Check and update tp4 if null or incorrect
+            if tp4_r and tp4_r > 0:
+                if is_bullish:
+                    correct_tp4 = setup.entry_price + (tp4_r * risk)
+                else:
+                    correct_tp4 = setup.entry_price - (tp4_r * risk)
+                
+                if setup.tp4 is None or abs(setup.tp4 - correct_tp4) > 0.00001:
+                    setup.tp4 = correct_tp4
+                    needs_update = True
+            
+            # Check and update tp5 if null or incorrect
+            if tp5_r and tp5_r > 0:
+                if is_bullish:
+                    correct_tp5 = setup.entry_price + (tp5_r * risk)
+                else:
+                    correct_tp5 = setup.entry_price - (tp5_r * risk)
+                
+                if setup.tp5 is None or abs(setup.tp5 - correct_tp5) > 0.00001:
+                    setup.tp5 = correct_tp5
+                    needs_update = True
+            
+            # Also update tp1/tp2/tp3 if they don't match current params
+            if is_bullish:
+                correct_tp1 = setup.entry_price + (tp1_r * risk)
+                correct_tp2 = setup.entry_price + (tp2_r * risk)
+                correct_tp3 = setup.entry_price + (tp3_r * risk)
+            else:
+                correct_tp1 = setup.entry_price - (tp1_r * risk)
+                correct_tp2 = setup.entry_price - (tp2_r * risk)
+                correct_tp3 = setup.entry_price - (tp3_r * risk)
+            
+            if setup.tp1 is None or abs(setup.tp1 - correct_tp1) > 0.00001:
+                setup.tp1 = correct_tp1
+                needs_update = True
+            if setup.tp2 is None or abs(setup.tp2 - correct_tp2) > 0.00001:
+                setup.tp2 = correct_tp2
+                needs_update = True
+            if setup.tp3 is None or abs(setup.tp3 - correct_tp3) > 0.00001:
+                setup.tp3 = correct_tp3
+                needs_update = True
+            
+            if needs_update:
+                updated_setups += 1
+                log.info(f"  ✅ [{symbol}] pending_setup TP levels synced: TP4={setup.tp4:.5f}, TP5={setup.tp5:.5f}")
+        
+        if updated_setups > 0:
+            self._save_pending_setups()
+            log.info(f"  💾 Updated {updated_setups} pending_setups with correct TP levels")
+        
+        log.info("=" * 70)
+        log.info(f"✅ TP SYNC COMPLETE: {updated_orders} orders, {updated_positions} positions, {updated_setups} setups updated")
+        log.info("=" * 70)
+
     def disconnect(self):
         """Disconnect from MT5."""
         self.mt5.disconnect()
@@ -2276,6 +2592,18 @@ class LiveTradingBot:
             if pos.symbol == broker_symbol:
                 return True
         return False
+    
+    def _broker_to_oanda(self, broker_symbol: str) -> str:
+        """Convert broker symbol back to OANDA format.
+        
+        Example: UK100 -> UK100_GBP, EURUSD -> EUR_USD
+        """
+        # Reverse lookup in symbol_map
+        for oanda_sym, broker_sym in self.symbol_map.items():
+            if broker_sym == broker_symbol:
+                return oanda_sym
+        # Fallback: return as-is if not found
+        return broker_symbol
     
     def _get_dynamic_pip_value(self, symbol: str, broker_symbol: str) -> float:
         """
@@ -2639,11 +2967,11 @@ class LiveTradingBot:
             log.info(f"[{symbol}] Was closed today - no re-entry until tomorrow, skipping")
             return None
         
-        if self.check_existing_position(broker_symbol):
+        if self.check_existing_position(symbol):  # Use OANDA format - function converts internally
             log.info(f"[{symbol}] Already in position, skipping")
             return None
         
-        # BACKYBACK LOGIC: Don't skip pending setups - NEW signals replace OLD ones
+        # REPLACE LOGIC: New signals replace old pending setups
         # Rationale: New signal is based on latest market data, so it's likely better
         # Only skip if there's a FILLED position (handled above)
         if symbol in self.pending_setups:
@@ -2656,8 +2984,10 @@ class LiveTradingBot:
                 # Replace old pending with new signal
                 # IMPORTANT: Cancel the old MT5 pending order first!
                 if existing.order_ticket:
-                    log.debug(f"[{symbol}] Cancelling old pending order (ticket {existing.order_ticket}) before replacing")
-                    self.mt5.cancel_pending_order(existing.order_ticket)
+                    log.info(f"[{symbol}] Cancelling old pending order (ticket {existing.order_ticket}) before replacing")
+                    cancel_result = self.mt5.cancel_pending_order(existing.order_ticket)
+                    if hasattr(cancel_result, 'success') and not cancel_result.success:
+                        log.warning(f"[{symbol}] Failed to cancel old order: {getattr(cancel_result, 'error', 'unknown')}")
                 log.info(f"[{symbol}] Replacing old {existing.status} setup with new signal")
                 del self.pending_setups[symbol]
         
@@ -2708,7 +3038,7 @@ class LiveTradingBot:
         has_htf_bias = flags.get("htf_bias", False)
         
         # ALIGNED WITH strategy_core.py generate_signals() - quality derived from confluence
-        # This ensures backtest signals match ftmo_challenge_analyzer signals
+        # This ensures live bot signals match ftmo_challenge_analyzer signals
         quality_factors = max(1, confluence_score // 3)
         
         # Regime-based MIN_CONFLUENCE (use params from optimizer if available)
@@ -2731,7 +3061,7 @@ class LiveTradingBot:
             status = "scan_only"
         
         regime_str = "TREND" if atr_regime_ok else "RANGE"
-        log.info(f"[{symbol}] {direction.upper()} | Conf: {confluence_score} (min: {min_confluence} {regime_str}) | Quality: {quality_factors} | Status: {status}")
+        log.info(f"[{symbol}] {direction.upper()} | Conf: {confluence_score} (min: {min_confluence}, {regime_str}) | Quality: {quality_factors} | Status: {status}")
         
         for pillar, is_met in flags.items():
             marker = "✓" if is_met else "✗"
@@ -2822,7 +3152,7 @@ class LiveTradingBot:
         
         log.info(f"[{symbol}] ✓ ACTIVE SIGNAL VALIDATED!")
         log.info(f"  Direction: {direction.upper()}")
-        log.info(f"  Confluence: {confluence_score} (min: {min_confluence})")
+        log.info(f"  Confluence: {confluence_score}/7")
         log.info(f"  Current Price: {current_price:.5f}")
         log.info(f"  Entry: {entry:.5f} ({entry_distance_r:.2f}R away)")
         log.info(f"  SL: {sl:.5f} ({sl_pips:.1f} pips)")
@@ -2939,6 +3269,15 @@ class LiveTradingBot:
         from ftmo_config import FTMO_CONFIG, get_pip_size, get_sl_limits
         
         symbol = setup["symbol"]
+        
+        # ═══════════════════════════════════════════════════════════════
+        # FRIDAY CLOSING PERIOD CHECK - No new orders after 16:00 UTC
+        # Weekend gap protection - crypto excluded (no gap risk)
+        # ═══════════════════════════════════════════════════════════════
+        if is_friday_closing_period() and not is_crypto_pair(symbol):
+            log.info(f"[{symbol}] ⏸️ Friday closing period (16:00+ UTC) - no new forex orders until Sunday")
+            return False
+        
         broker_symbol = setup.get("broker_symbol", self.symbol_map.get(symbol, symbol))
         direction = setup["direction"]
         current_price = setup.get("current_price", 0)
@@ -2952,16 +3291,6 @@ class LiveTradingBot:
         confluence = setup["confluence"]
         quality_factors = setup["quality_factors"]
         entry_distance_r = setup.get("entry_distance_r", 0)
-        
-        # ═══════════════════════════════════════════════════════════════
-        # CORRELATION FILTER - DISABLED (not in live bot)
-        # ═══════════════════════════════════════════════════════════════
-        # NOTE: Correlation filter was only in backtest, NOT in main_live_bot.py
-        # Disabled for parity with production live bot
-        # corr_allowed, corr_reason = self.check_correlation_limit(symbol)
-        # if not corr_allowed:
-        #     log.info(f"[{symbol}] BLOCKED by correlation filter: {corr_reason}")
-        #     return False
         
         # ═══════════════════════════════════════════════════════════════
         # ENTRY PROXIMITY CHECK - Wait for price to approach entry
@@ -3134,6 +3463,8 @@ class LiveTradingBot:
                 tp1=tp1,
                 tp2=tp2,
                 tp3=tp3,
+                tp4=tp4,
+                tp5=tp5,
                 confluence=confluence,
                 confluence_score=confluence,
                 quality_factors=quality_factors,
@@ -3148,8 +3479,8 @@ class LiveTradingBot:
             order_type = "PENDING"
             log.info(f"[{symbol}] Price {entry_distance_r:.2f}R from entry - using PENDING ORDER")
             
-            # BUGFIX: Calculate lot size BEFORE placing order (not at fill)
-            # This ensures proper position sizing from the start
+            # FIX: Calculate lot size NOW at order placement time
+            # This is more reliable than close/reopen on fill
             lot_size = self._calculate_lot_size_at_fill(
                 symbol=symbol,
                 broker_symbol=broker_symbol,
@@ -3168,13 +3499,13 @@ class LiveTradingBot:
             log.info(f"  SL: {sl:.5f}")
             log.info(f"  TP1: {tp1:.5f}")
             log.info(f"  TP3: {tp3:.5f} (closes ALL remaining)" if tp3 else "  TP3: N/A")
-            log.info(f"  Lot Size: {lot_size:.2f} (calculated at signal time)")
+            log.info(f"  Lot Size: {lot_size} (calculated at signal time)")
             log.info(f"  Expiration: {FIVEERS_CONFIG.pending_order_expiry_hours} hours")
             
             result = self.mt5.place_pending_order(
                 symbol=broker_symbol,
                 direction=direction,
-                volume=lot_size,  # Use calculated lot size directly
+                volume=lot_size,  # Correct lot size at order placement
                 entry_price=entry,
                 sl=sl,
                 tp=0,  # No auto-TP - bot manages partial closes at TP1/TP2/TP3 manually
@@ -3198,6 +3529,8 @@ class LiveTradingBot:
                 tp1=tp1,
                 tp2=tp2,
                 tp3=tp3,
+                tp4=tp4,
+                tp5=tp5,
                 confluence=confluence,
                 confluence_score=confluence,
                 quality_factors=quality_factors,
@@ -3205,15 +3538,14 @@ class LiveTradingBot:
                 created_at=datetime.now(timezone.utc).isoformat(),
                 order_ticket=result.order_id,
                 status="pending",
-                lot_size=lot_size,  # Store calculated lot size (not 0.0)
+                lot_size=lot_size,  # Lot size calculated at order placement
             )
         
         self.pending_setups[symbol] = pending_setup
         self._save_pending_setups()
         
         if pending_setup.status == "filled":
-            sim_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else None
-            self.record_trading_day(sim_time)
+            self.record_trading_day()
         
         return True
     
@@ -3310,32 +3642,17 @@ class LiveTradingBot:
             if broker_symbol in position_symbols:
                 log.info(f"[{symbol}] Pending order FILLED! Position now open (broker: {broker_symbol})")
 
-                # COMPOUNDING FIX: Recalculate lot size at FILL MOMENT using CURRENT balance
-                # This ensures proper compounding when account grows while orders are pending
+                # Find the actual position to get filled volume
                 filled_position = next((p for p in my_positions if p.symbol == broker_symbol), None)
 
                 if filled_position:
-                    # Recalculate lot size with current balance for proper compounding
-                    new_lot_size = self._calculate_lot_size_at_fill(
-                        symbol=symbol,
-                        broker_symbol=broker_symbol,
-                        entry=setup.entry_price,
-                        sl=setup.stop_loss,
-                        confluence=setup.confluence_score if hasattr(setup, 'confluence_score') else 10,
-                    )
-                    
-                    if new_lot_size > 0:
-                        # Update the position volume in simulator
-                        old_lot = filled_position.volume
-                        filled_position.volume = new_lot_size
-                        setup.lot_size = new_lot_size
-                        log.info(f"[{symbol}] ✅ Lot size recalculated at fill: {old_lot:.2f} -> {new_lot_size:.2f} (compounding)")
-                    else:
-                        # Risk check failed at fill - use original lot size
-                        setup.lot_size = filled_position.volume
-                        log.warning(f"[{symbol}] Lot size recalc returned 0, using original: {setup.lot_size:.2f}")
-                    
+                    # Lot size was already calculated at order placement
+                    # Just verify it matches and update status
+                    setup.lot_size = filled_position.volume
                     setup.status = "filled"
+                    setup.order_ticket = filled_position.ticket
+                    
+                    log.info(f"[{symbol}] ✅ Position filled with {filled_position.volume} lots")
                     
                     self.risk_manager.record_trade_open(
                         symbol=broker_symbol,
@@ -3350,8 +3667,7 @@ class LiveTradingBot:
                     setup.status = "filled"
                 
                 self._save_pending_setups()
-                sim_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else None
-                self.record_trading_day(sim_time)
+                self.record_trading_day()
                 continue
             
             if setup.order_ticket and setup.order_ticket not in pending_order_tickets:
@@ -3666,20 +3982,6 @@ class LiveTradingBot:
             tp4_close_pct = getattr(self.params, 'tp4_close_pct', 0.20)
             tp5_close_pct = getattr(self.params, 'tp5_close_pct', 0.45)
             
-            # Calculate actual TP prices for accurate P&L calculation
-            if setup.direction == "bullish":
-                tp1_price = entry + (risk * tp1_r)
-                tp2_price = entry + (risk * tp2_r)
-                tp3_price = entry + (risk * tp3_r)
-                tp4_price = entry + (risk * tp4_r)
-                tp5_price = entry + (risk * tp5_r)
-            else:
-                tp1_price = entry - (risk * tp1_r)
-                tp2_price = entry - (risk * tp2_r)
-                tp3_price = entry - (risk * tp3_r)
-                tp4_price = entry - (risk * tp4_r)
-                tp5_price = entry - (risk * tp5_r)
-            
             original_volume = setup.lot_size
             current_volume = pos.volume
             partial_state = setup.partial_closes if hasattr(setup, 'partial_closes') else 0
@@ -3697,7 +3999,7 @@ class LiveTradingBot:
                 # Retry logic for partial close (up to 3 attempts)
                 result = None
                 for attempt in range(3):
-                    result = self.mt5.partial_close(pos.ticket, close_volume, close_price=tp1_price)
+                    result = self.mt5.partial_close(pos.ticket, close_volume)
                     if result.success:
                         break
                     if attempt < 2:
@@ -3761,7 +4063,7 @@ class LiveTradingBot:
                 # Retry logic for partial close (up to 3 attempts)
                 result = None
                 for attempt in range(3):
-                    result = self.mt5.partial_close(pos.ticket, close_volume, close_price=tp2_price)
+                    result = self.mt5.partial_close(pos.ticket, close_volume)
                     if result.success:
                         break
                     if attempt < 2:
@@ -3800,7 +4102,7 @@ class LiveTradingBot:
                 # Retry logic for partial close (up to 3 attempts)
                 result = None
                 for attempt in range(3):
-                    result = self.mt5.partial_close(pos.ticket, close_volume, close_price=tp3_price)
+                    result = self.mt5.partial_close(pos.ticket, close_volume)
                     if result.success:
                         break
                     if attempt < 2:
@@ -3838,7 +4140,7 @@ class LiveTradingBot:
                 # Retry logic for partial close (up to 3 attempts)
                 result = None
                 for attempt in range(3):
-                    result = self.mt5.partial_close(pos.ticket, close_volume, close_price=tp4_price)
+                    result = self.mt5.partial_close(pos.ticket, close_volume)
                     if result.success:
                         break
                     if attempt < 2:
@@ -3872,7 +4174,7 @@ class LiveTradingBot:
                 # Retry logic for position close (up to 3 attempts)
                 result = None
                 for attempt in range(3):
-                    result = self.mt5.close_position(pos.ticket, close_price=tp5_price)
+                    result = self.mt5.close_position(pos.ticket)
                     if result.success:
                         break
                     if attempt < 2:
@@ -4062,8 +4364,7 @@ class LiveTradingBot:
             try:
                 current_equity = self.mt5.get_account_equity()
                 current_balance = self.mt5.get_account_balance()
-                sim_date = self.mt5.get_current_time().date() if hasattr(self.mt5, 'get_current_time') else None
-                self.challenge_manager.sync_with_mt5(current_balance, current_equity, sim_date=sim_date)
+                self.challenge_manager.sync_with_mt5(current_balance, current_equity)
             except Exception as e:
                 log.error(f"Failed to sync risk manager: {e}")
             
@@ -4100,9 +4401,7 @@ class LiveTradingBot:
                 return
         
         log.info("=" * 70)
-        # Use simulator time for backtest, real time for live
-        scan_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
-        log.info(f"MARKET SCAN - {scan_time.strftime('%Y-%m-%d %H:%M UTC')}")
+        log.info(f"MARKET SCAN - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
         log.info(f"Strategy Mode: {SIGNAL_MODE} (Min Confluence: TREND={TREND_MIN_CONFLUENCE}, RANGE={RANGE_MIN_CONFLUENCE})")
         log.info(f"Using PENDING ORDERS (like backtest)")
         log.info("=" * 70)
@@ -4117,18 +4416,28 @@ class LiveTradingBot:
         # ═══════════════════════════════════════════════════════════════════════════════
         # WEEKEND CRYPTO SCANNING - Detect if it's weekend and filter accordingly
         # ═══════════════════════════════════════════════════════════════════════════════
-        # BACKTEST FIX: Use simulator time, not real time!
-        sim_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
-        current_day = sim_time.weekday()  # 0=Monday, 6=Sunday
-        is_weekend = current_day in [5, 6]  # Saturday=5, Sunday=6
+        # Use is_market_open() which correctly handles Sunday 22:00 UTC open
+        forex_market_open = is_market_open()
+        friday_closing = is_friday_closing_period()  # Friday 16:00+ UTC = no new forex orders
+        
+        if friday_closing:
+            log.info("🌅 FRIDAY CLOSING PERIOD - Only crypto orders allowed (16:00+ UTC)")
         
         for symbol in available_symbols:
             try:
                 # ═══════════════════════════════════════════════════════════
-                # WEEKEND LOGIC - Skip forex on weekends, ALWAYS scan crypto
+                # WEEKEND LOGIC - Skip forex when market closed, ALWAYS scan crypto
+                # FRIDAY CLOSING - Skip forex after 16:00 UTC (but still scan for info)
                 # ═══════════════════════════════════════════════════════════
-                if is_weekend and not is_crypto_pair(symbol):
-                    log.debug(f"[{symbol}] Skipping weekend scan - forex market closed")
+                is_crypto = is_crypto_pair(symbol)
+                
+                if not forex_market_open and not is_crypto:
+                    log.debug(f"[{symbol}] Skipping - forex market closed")
+                    continue
+                
+                # Friday 16:00+ UTC: Skip forex, only allow crypto
+                if friday_closing and not is_crypto:
+                    log.debug(f"[{symbol}] Skipping - Friday closing period (no new forex orders)")
                     continue
                 
                 setup = self.scan_symbol(symbol)
@@ -4188,8 +4497,8 @@ class LiveTradingBot:
             log.info(f"  Profitable Days: {status['profitable_days']}/{status['min_profitable_days']}")
         log.info("=" * 70)
         
-        # Use simulator time for backtest, real time for live
-        self.last_scan_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
+        self.last_scan_time = datetime.now(timezone.utc)
+        self._save_scan_state()  # Persist scan time to prevent duplicate scans after restart
     
     def run(self):
         """
@@ -4197,7 +4506,7 @@ class LiveTradingBot:
         
         5ERS-SPECIFIC FEATURES:
         - First run: Immediate scan after restart/weekend (if --first-run or flag missing)
-        - Scheduled scan: 10 min after daily close (00:10 server time)
+        - Scheduled scan: 1 hour after daily close (01:00 server time)
         - Weekend gap protection: Check positions on Monday morning
         - Spread queue: Retry trades when spread improves
         - 5-TP partial close system: 10/10/15/20/45% at 0.6R/1.2R/2.0R/2.5R/3.5R
@@ -4206,7 +4515,7 @@ class LiveTradingBot:
         SCHEDULE:
         - Every 10 seconds: Protection checks, 5-TP management
         - Every 10 minutes: Spread queue check, validate setups
-        - 00:10 server time: Daily market scan
+        - 01:00 server time: Daily market scan
         - Monday 00:00-02:00: Weekend gap protection
         """
         log.info("=" * 70)
@@ -4259,9 +4568,31 @@ class LiveTradingBot:
         global running
         
         # ═══════════════════════════════════════════════════════════════════
-        # FIRST RUN CHECK - Immediate scan if needed
+        # FIRST RUN CHECK - Immediate scan if needed (but check if scan already done today)
         # ═══════════════════════════════════════════════════════════════════
-        if self.should_do_immediate_scan():
+        server_now = get_server_time()
+        today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
+        today_scan_utc = today_scan.astimezone(timezone.utc)
+        
+        # Check if we already scanned today (prevents duplicate scans after restart)
+        # Use BOTH scan_state.json AND first_run_complete.flag for robustness
+        already_scanned_today = False
+        
+        # Method 1: Check scan_state.json (new, more reliable)
+        if self.last_scan_time:
+            last_scan_date = self.last_scan_time.date()
+            today_date = datetime.now(timezone.utc).date()
+            if last_scan_date == today_date:
+                already_scanned_today = True
+                log.info(f"✓ Already scanned today at {self.last_scan_time.strftime('%H:%M:%S UTC')} (from scan_state.json)")
+        
+        # Method 2: Check first_run_complete.flag (fallback for when scan_state.json doesn't exist yet)
+        if not already_scanned_today and self.first_run_complete:
+            # Flag exists and is recent (< 24h) - assume we already scanned
+            already_scanned_today = True
+            log.info(f"✓ First run flag is recent - assuming already scanned today")
+        
+        if not already_scanned_today and self.should_do_immediate_scan():
             log.info("=" * 70)
             log.info("🚀 IMMEDIATE SCAN - First run after restart/weekend")
             log.info("=" * 70)
@@ -4269,21 +4600,21 @@ class LiveTradingBot:
             self._mark_first_run_complete()
             # Calculate next scan time after immediate scan
             self.next_scan_time = get_next_scan_time()
-        else:
-            # Get today's scan time (00:10 server time)
-            server_now = get_server_time()
-            today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
-            today_scan_utc = today_scan.astimezone(timezone.utc)
-
-            # If today's scan time has passed and it's a weekday, use today (will trigger immediately)
-            # Otherwise use next future scan time
+        elif not already_scanned_today:
+            # Get today's scan time (01:00 server time)
+            # If today's scan time has passed and it's a weekday, check if we should scan
             if server_now >= today_scan and today_scan.weekday() < 5:
+                # Only trigger immediate scan if we haven't scanned today
                 self.next_scan_time = today_scan_utc
                 log.info(f"Missed today's scan - will scan immediately")
                 log.info(f"Scheduled scan time was: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
             else:
                 self.next_scan_time = get_next_scan_time()
                 log.info(f"Skipping immediate scan - next scheduled: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+        else:
+            # Already scanned today - just set next scan time
+            self.next_scan_time = get_next_scan_time()
+            log.info(f"Next scheduled scan: {self.next_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
         
         # Weekend gap check (only on Monday morning)
         self.handle_weekend_gap_positions()
@@ -4380,7 +4711,7 @@ class LiveTradingBot:
                 #         self.validate_all_setups()
                 
                 # ═══════════════════════════════════════════════════════════════
-                # DAILY SCAN - 10 min after daily close (00:10 server time)
+                # DAILY SCAN - 1 hour after daily close (01:00 server time)
                 # ═══════════════════════════════════════════════════════════════
                 if self.next_scan_time and now >= self.next_scan_time:
                     if is_market_open():
@@ -4400,16 +4731,35 @@ class LiveTradingBot:
                         # Update daily tracking and reset for new day
                         self.risk_manager._check_new_day()
                         
-                        # Update day_start_equity BEFORE scan per 5ers rules: MAX(equity, balance)
+                        # Update day_start_equity BEFORE scan (use current equity as new day start)
                         # This is the equity at daily close which becomes the new day's starting point
+                        # SKIP if day_start_equity was manually set TODAY via --set-day-start-equity
+                        # BUGFIX: Use date comparison to ensure equity is updated the NEXT day
                         account = self.mt5.get_account_info()
                         if account and self.challenge_manager:
                             current_equity = account.get("equity", 0)
-                            current_balance = account.get("balance", 0)
                             old_day_start = self.challenge_manager.day_start_equity
-                            self.challenge_manager.update_day_start_equity(current_equity, current_balance)
-                            new_value = max(current_equity, current_balance)
-                            log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${new_value:,.2f} (MAX of equity/balance per 5ers)")
+                            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                            
+                            manually_set_date = self.challenge_manager.day_start_equity_manually_set_date
+                            current_balance = account.get("balance", 0)
+                            
+                            if manually_set_date == today:
+                                # Manually set TODAY - preserve and don't update
+                                log.info(f"Day start equity PRESERVED (manually set today): ${old_day_start:,.2f} (current equity: ${current_equity:,.2f})")
+                                # Keep the date - it will only be skipped for today
+                            elif manually_set_date:
+                                # Manually set on a PREVIOUS day - update now and clear the date
+                                log.info(f"Day start equity was manually set on {manually_set_date}, but today is {today} - updating now")
+                                self.challenge_manager.day_start_equity_manually_set_date = ""
+                                self.challenge_manager.update_day_start_equity(current_equity, current_balance)
+                                new_value = max(current_equity, current_balance)
+                                log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${new_value:,.2f} (MAX of equity/balance per 5ers)")
+                            else:
+                                # Normal update per 5ers rules: MAX(equity, balance)
+                                self.challenge_manager.update_day_start_equity(current_equity, current_balance)
+                                new_value = max(current_equity, current_balance)
+                                log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${new_value:,.2f} (MAX of equity/balance per 5ers)")
 
                         self.scan_all_symbols()
 
@@ -4448,340 +4798,6 @@ class LiveTradingBot:
         self._save_awaiting_spread()
         self.disconnect()
         log.info("Bot stopped")
-    
-    # ═══════════════════════════════════════════════════════════════════════
-    # BACKTEST MODE - run_backtest() replaces run() for historical simulation
-    # ═══════════════════════════════════════════════════════════════════════
-    
-    def run_backtest(self) -> Dict:
-        """
-        Run backtest simulation on M15 historical data.
-        
-        This method replicates EXACTLY what run() does, but:
-        1. Steps through M15 timeline instead of real-time
-        2. Uses CSV data instead of live MT5 feed
-        3. Simulates order fills on M15 bar touches
-        4. Returns results dict instead of running forever
-        
-        Returns:
-            Dict with backtest results (trades, P&L, drawdown, etc.)
-        """
-        from tqdm import tqdm
-        
-        log.info("=" * 70)
-        log.info("MAIN LIVE BOT BACKTEST")
-        log.info("=" * 70)
-        log.info(f"  Start: {self.start_date}")
-        log.info(f"  End: {self.end_date}")
-        log.info(f"  Balance: ${self.initial_balance:,.0f}")
-        log.info("=" * 70)
-        
-        # Connect (loads data)
-        if not self.connect():
-            log.error("Failed to connect (load data)")
-            return {"error": "Failed to connect"}
-        
-        # Get M15 timeline
-        timeline = self.mt5.get_m15_timeline(self.start_date, self.end_date)
-        if not timeline:
-            log.error("No M15 data in date range")
-            return {"error": "No data"}
-        
-        log.info(f"M15 timeline: {len(timeline)} bars")
-        log.info(f"From {timeline[0]} to {timeline[-1]}")
-        
-        # Tracking
-        max_tdd = 0.0
-        max_ddd = 0.0
-        equity_low = self.initial_balance
-        equity_high = self.initial_balance
-        last_scanned_date = None
-        current_date = None
-        day_start_equity = self.initial_balance
-        safety_events = []
-        trading_halted_today = False
-        
-        pbar = tqdm(timeline, desc="Backtesting", mininterval=1.0)
-        
-        for current_time in pbar:
-            # Convert to datetime if needed
-            if hasattr(current_time, 'to_pydatetime'):
-                current_time = current_time.to_pydatetime()
-            if current_time.tzinfo is None:
-                current_time = current_time.replace(tzinfo=timezone.utc)
-            
-            # Set simulator time
-            self.mt5.set_current_time(current_time)
-            
-            today = current_time.date()
-            
-            # ═══════════════════════════════════════════════════════════════
-            # NEW DAY HANDLING
-            # ═══════════════════════════════════════════════════════════════
-            if today != current_date:
-                current_date = today
-                
-                # Get current equity for new day start
-                account = self.mt5.get_account_info()
-                day_start_equity = account.get("equity", self.initial_balance)
-                
-                # CRITICAL: Sync day_start_equity to challenge_manager
-                if self.challenge_manager:
-                    self.challenge_manager.day_start_equity = day_start_equity
-                    self.challenge_manager.day_start_balance = account.get("balance", self.initial_balance)
-                    log.info(f"📊 New day {today}: day_start_equity = ${day_start_equity:,.2f}")
-                
-                # Reset DDD halt for new day
-                trading_halted_today = False
-                self.ddd_halted = False
-            
-            # Skip weekends
-            if current_time.weekday() >= 5:
-                continue
-            
-            # ═══════════════════════════════════════════════════════════════
-            # DRAWDOWN CHECKS
-            # ═══════════════════════════════════════════════════════════════
-            account = self.mt5.get_account_info()
-            equity = account.get("equity", self.initial_balance)
-            balance = account.get("balance", self.initial_balance)
-            
-            equity_low = min(equity_low, equity)
-            equity_high = max(equity_high, equity)
-            
-            # TDD check (static from initial balance)
-            tdd_pct = max(0, (self.initial_balance - equity) / self.initial_balance * 100)
-            max_tdd = max(max_tdd, tdd_pct)
-            
-            if tdd_pct >= 10.0:
-                log.error(f"🚨 TDD STOP-OUT at {current_time}: {tdd_pct:.1f}%")
-                # Close all positions
-                for pos in self.mt5.get_my_positions():
-                    self.mt5.close_position(pos.ticket)
-                break
-            
-            # DDD check
-            ddd_pct = max(0, (day_start_equity - equity) / day_start_equity * 100) if day_start_equity > 0 else 0
-            max_ddd = max(max_ddd, ddd_pct)
-            
-            if ddd_pct >= 3.5 and not trading_halted_today:
-                log.warning(f"🚨 DDD HALT at {current_time}: {ddd_pct:.1f}%")
-                # Close all positions
-                for pos in self.mt5.get_my_positions():
-                    self.mt5.close_position(pos.ticket)
-                # Cancel pending orders
-                for order in self.mt5.get_my_pending_orders():
-                    self.mt5.cancel_pending_order(order.ticket)
-                trading_halted_today = True
-                safety_events.append({
-                    'time': str(current_time),
-                    'type': 'DDD_HALT',
-                    'ddd_pct': ddd_pct,
-                })
-                continue
-            
-            if trading_halted_today:
-                continue
-            
-            # ═══════════════════════════════════════════════════════════════
-            # CHECK SL/TP HITS ON M15 BAR
-            # ═══════════════════════════════════════════════════════════════
-            sl_tp_hits = self.mt5.check_sl_tp_hits()
-            for hit in sl_tp_hits:
-                # Close at HIT PRICE (not current bar close!)
-                pos = self.mt5._positions.get(hit['ticket'])
-                if pos:
-                    # Pass the exact hit price for accurate P&L calculation
-                    self.mt5.close_position(hit['ticket'], close_price=hit['price'])
-                    log.info(f"[{pos.symbol}] {hit['type'].upper()} HIT at {hit['price']:.5f}")
-            
-            # ═══════════════════════════════════════════════════════════════
-            # CLEANUP: Remove filled setups for closed positions
-            # This is CRITICAL for allowing new trades on the same symbol!
-            # ═══════════════════════════════════════════════════════════════
-            open_position_symbols = {p.symbol for p in self.mt5.get_my_positions()}
-            pending_order_tickets = {o.ticket for o in self.mt5.get_my_pending_orders()}
-            
-            for symbol in list(self.pending_setups.keys()):
-                setup = self.pending_setups[symbol]
-                broker_symbol = self.symbol_map.get(symbol, symbol)
-                
-                if setup.status == "filled":
-                    # Position closed - remove the filled setup so new signals can be processed
-                    if broker_symbol not in open_position_symbols:
-                        log.info(f"[{symbol}] Position closed - removing filled setup to allow new signals")
-                        del self.pending_setups[symbol]
-                
-                elif setup.status == "pending":
-                    # Pending order no longer exists (expired or cancelled) - remove setup
-                    if setup.order_ticket and setup.order_ticket not in pending_order_tickets:
-                        log.info(f"[{symbol}] Pending order {setup.order_ticket} expired/cancelled - removing setup")
-                        del self.pending_setups[symbol]
-            
-            # ═══════════════════════════════════════════════════════════════
-            # CHECK PENDING ORDER FILLS
-            # ═══════════════════════════════════════════════════════════════
-            filled_tickets = self.mt5.check_pending_order_fills()
-            for ticket in filled_tickets:
-                log.debug(f"Order {ticket} filled")
-            
-            # ═══════════════════════════════════════════════════════════════
-            # DAILY SCAN at 00:00-00:30 (first M15 bar of day)
-            # ═══════════════════════════════════════════════════════════════
-            if today != last_scanned_date and current_time.hour == 0 and current_time.minute < 30:
-                log.info(f"📊 DAILY SCAN - {current_time.strftime('%Y-%m-%d')}")
-                self.scan_all_symbols()
-                last_scanned_date = today
-            
-            # ═══════════════════════════════════════════════════════════════
-            # ENTRY QUEUE CHECK (every 30 min in M15 terms = every 2 bars)
-            # ═══════════════════════════════════════════════════════════════
-            if current_time.minute in [0, 30]:
-                self.check_awaiting_entry_signals()
-            
-            # ═══════════════════════════════════════════════════════════════
-            # PARTIAL TAKE PROFIT MANAGEMENT
-            # ═══════════════════════════════════════════════════════════════
-            self.manage_partial_takes()
-            
-            # ═══════════════════════════════════════════════════════════════
-            # CHECK PENDING ORDERS (from pending_setups)
-            # ═══════════════════════════════════════════════════════════════
-            self.check_pending_orders()
-            
-            # Update position profits
-            self.mt5.update_all_position_profits()
-        
-        # ═══════════════════════════════════════════════════════════════════
-        # CLOSE REMAINING POSITIONS AT END
-        # ═══════════════════════════════════════════════════════════════════
-        for pos in self.mt5.get_my_positions():
-            self.mt5.close_position(pos.ticket)
-        
-        # ═══════════════════════════════════════════════════════════════════
-        # COMPILE RESULTS
-        # ═══════════════════════════════════════════════════════════════════
-        final_account = self.mt5.get_account_info()
-        final_balance = final_account.get("balance", self.initial_balance)
-        
-        closed_trades = self.mt5.get_closed_trades()
-        
-        # Separate full trades from partial closes for accurate counting
-        full_trades = [t for t in closed_trades if not t.get('partial', False)]
-        partial_closes = [t for t in closed_trades if t.get('partial', False)]
-        
-        total_trades = len(full_trades)  # Only count full trades as "trades"
-        winners = sum(1 for t in full_trades if t.get('pnl', 0) > 0)
-        win_rate = (winners / total_trades * 100) if total_trades > 0 else 0
-        
-        # Net PnL includes ALL closes (full + partial)
-        closed_pnl = sum(t.get('pnl', 0) for t in closed_trades)  # All P&L from closed_trades
-        total_pnl = final_balance - self.initial_balance  # This is the REAL net P&L
-        
-        # Log partial close info
-        if partial_closes:
-            log.info(f"📊 Partial closes: {len(partial_closes)} (P&L: ${sum(t.get('pnl', 0) for t in partial_closes):,.2f})")
-        
-        # ═══════════════════════════════════════════════════════════════════
-        # MONTHLY STATISTICS
-        # ═══════════════════════════════════════════════════════════════════
-        from collections import defaultdict
-        monthly_stats = defaultdict(lambda: {'trades': 0, 'winners': 0, 'losers': 0, 'pnl': 0.0, 'partial_closes': 0})
-        
-        for trade in closed_trades:
-            # Get close time from trade
-            close_time = trade.get('close_time')
-            if close_time:
-                if isinstance(close_time, str):
-                    from datetime import datetime
-                    try:
-                        close_time = datetime.fromisoformat(close_time.replace('Z', '+00:00'))
-                    except:
-                        continue
-                month_key = close_time.strftime('%Y-%m')
-                pnl = trade.get('pnl', 0)
-                is_partial = trade.get('partial', False)
-                
-                # Always add P&L (from both full and partial closes)
-                monthly_stats[month_key]['pnl'] += pnl
-                
-                if is_partial:
-                    # Track partial closes separately
-                    monthly_stats[month_key]['partial_closes'] += 1
-                else:
-                    # Only count full trades for win/loss statistics
-                    monthly_stats[month_key]['trades'] += 1
-                    if pnl > 0:
-                        monthly_stats[month_key]['winners'] += 1
-                    else:
-                        monthly_stats[month_key]['losers'] += 1
-        
-        # Convert to regular dict and round values
-        monthly_stats = {k: {
-            'trades': v['trades'],
-            'winners': v['winners'],
-            'losers': v['losers'],
-            'pnl': round(v['pnl'], 2),
-            'partial_closes': v['partial_closes'],
-            'win_rate': round(v['winners'] / v['trades'] * 100, 1) if v['trades'] > 0 else 0
-        } for k, v in monthly_stats.items()}
-        
-        results = {
-            'initial_balance': self.initial_balance,
-            'final_balance': round(final_balance, 2),
-            'net_pnl': round(total_pnl, 2),
-            'closed_trades_pnl': round(closed_pnl, 2),  # P&L from closed trades only
-            'return_pct': round((final_balance - self.initial_balance) / self.initial_balance * 100, 2),
-            'total_trades': total_trades,
-            'winners': winners,
-            'losers': total_trades - winners,
-            'win_rate': round(win_rate, 1),
-            'max_tdd_pct': round(max_tdd, 2),
-            'max_ddd_pct': round(max_ddd, 2),
-            'safety_events': len(safety_events),
-            'ddd_halts': len(safety_events),
-            'tdd_warnings': sum(1 for e in safety_events if e.get('type') == 'TDD_WARNING'),
-            'monthly_stats': monthly_stats,
-        }
-        
-        # Print results
-        print(f"\n{'='*70}")
-        print("BACKTEST RESULTS")
-        print(f"{'='*70}")
-        print(f"\n📊 TRADES:")
-        print(f"   Total: {total_trades}")
-        print(f"   Winners: {winners} ({win_rate:.1f}%)")
-        print(f"   Losers: {total_trades - winners}")
-        
-        print(f"\n💰 PROFIT/LOSS:")
-        print(f"   Net PnL: ${total_pnl:,.2f}")
-        
-        print(f"\n📈 ACCOUNT:")
-        print(f"   Starting: ${self.initial_balance:,.0f}")
-        print(f"   Final: ${final_balance:,.2f}")
-        print(f"   Return: {(final_balance - self.initial_balance) / self.initial_balance * 100:+.1f}%")
-        
-        print(f"\n📉 DRAWDOWN:")
-        print(f"   Max TDD: {max_tdd:.2f}%")
-        print(f"   Max DDD: {max_ddd:.2f}%")
-        
-        print(f"\n🚨 SAFETY:")
-        print(f"   DDD halt events: {len(safety_events)}")
-        
-        # Monthly breakdown
-        if monthly_stats:
-            print(f"\n📅 MONTHLY BREAKDOWN:")
-            print(f"   {'-'*55}")
-            print(f"   {'Month':<10} {'Trades':>8} {'Winners':>8} {'WR%':>8} {'PnL':>12}")
-            print(f"   {'-'*55}")
-            for month in sorted(monthly_stats.keys()):
-                m = monthly_stats[month]
-                print(f"   {month:<10} {m['trades']:>8} {m['winners']:>8} {m['win_rate']:>7.1f}% ${m['pnl']:>10,.0f}")
-            print(f"   {'-'*55}")
-        
-        print(f"\n{'='*70}")
-        
-        return results
 
 
 def main():
@@ -4800,6 +4816,8 @@ def main():
                         help='Reset day_start_equity to current MT5 equity (use if bot missed trading days or MT5 traded without bot)')
     parser.add_argument('--set-day-start-equity', type=float,
                         help='Manually set day_start_equity to a specific value (e.g. from 5ers dashboard)')
+    parser.add_argument('--force-friday-close', action='store_true',
+                        help='Force Friday position closing immediately (use if bot missed 16:00 UTC window)')
     
     args = parser.parse_args()
     
@@ -4859,10 +4877,10 @@ def main():
             
             if bot.challenge_manager:
                 print(f"Old day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
-                # 5ers rule: DDD baseline = MAX(closing equity, closing balance)
+                # Use the new method to properly update day_start_equity (5ers rule: MAX of equity/balance)
                 bot.challenge_manager.update_day_start_equity(current_equity, current_balance)
                 print(f"New day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
-                print(f"✓ Updated to MAX(${current_equity:,.2f}, ${current_balance:,.2f}) per 5ers rules")
+                print(f"✓ Day start equity = MAX(${current_equity:,.2f}, ${current_balance:,.2f}) per 5ers rules")
             else:
                 print("ERROR: Challenge manager not initialized")
                 sys.exit(1)
@@ -4918,10 +4936,12 @@ def main():
                         sys.exit(0)
                 
                 # Set the manual value
+                today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
                 bot.challenge_manager.day_start_equity = manual_value
+                bot.challenge_manager.day_start_equity_manually_set_date = today  # Mark with today's date
                 bot.challenge_manager._save_state()
                 print(f"New day_start_equity: ${bot.challenge_manager.day_start_equity:,.2f}")
-                print("✓ Day start equity manually set")
+                print(f"✓ Day start equity manually set for {today} (will NOT be overridden by daily scan TODAY, but WILL update tomorrow)")
                 
                 # Calculate current DDD with new value
                 daily_loss = manual_value - current_equity
@@ -4940,7 +4960,7 @@ def main():
                     print("")
                     print(f"🚨 DDD {daily_loss_pct:.2f}% >= {halt_threshold}% - HALT WILL BE ACTIVE!")
                     print(f"   Bot will NOT trade until next daily close (00:00 server time)")
-                    print(f"   At 00:10 server time the scan will execute for new day")
+                    print(f"   At 01:00 server time the scan will execute for new day")
                     # Set halt state
                     bot.ddd_halted = True
                     bot.ddd_halt_reason = f"DDD {daily_loss_pct:.2f}% (manual equity set)"
@@ -4969,87 +4989,172 @@ def main():
         bot.disconnect()
         sys.exit(0)
     
-    # BACKTEST MODE - run_backtest instead of run
-    bot.run_backtest()
-
-
-def main():
-    """
-    BACKTEST MODE - Run main_live_bot.py logic on historical CSV data.
+    # Handle force-friday-close (one-shot action)
+    if args.force_friday_close:
+        print("=" * 70)
+        print("🔒 FORCING FRIDAY POSITION CLOSING")
+        print("=" * 70)
+        
+        if not bot.connect():
+            print("ERROR: Could not connect to MT5")
+            sys.exit(1)
+        
+        # Reset the flag and force run
+        bot.friday_closing_done = False
+        
+        # Get positions
+        positions = bot.mt5.get_my_positions()
+        if not positions:
+            print("No positions to manage for weekend")
+        else:
+            print(f"Found {len(positions)} positions")
+            
+            # Call the weekend gap manager directly
+            import weekend_gap_manager as wgm
+            
+            now = datetime.now(timezone.utc)
+            result = wgm.select_positions_for_weekend_tier1(
+                positions=positions,
+                mt5_client=bot.mt5,
+                current_time=now,
+                max_per_group=2,
+                max_total_non_crypto=5,
+            )
+            
+            print("")
+            print(f"📊 RESULT:")
+            print(f"   HOLD: {len(result['HOLD'])} positions")
+            print(f"   CLOSE: {len(result['CLOSE'])} positions")
+            print(f"   REDUCE 50%: {len(result['REDUCE_50'])} positions")
+            print("")
+            
+            # Execute closures
+            for pos in result['CLOSE']:
+                print(f"🔒 Closing {pos.symbol} (ticket {pos.ticket})...")
+                close_result = bot.mt5.close_position(pos.ticket)
+                if hasattr(close_result, 'success') and close_result.success:
+                    print(f"   ✓ Closed successfully")
+                else:
+                    print(f"   ✗ Failed to close: {getattr(close_result, 'error', 'unknown')}")
+            
+            # Execute 50% reductions
+            for pos in result['REDUCE_50']:
+                current_volume = pos.volume
+                reduce_volume = round(current_volume * 0.5, 2)
+                if reduce_volume >= 0.01:
+                    print(f"⚠️ Reducing {pos.symbol} by 50% (ticket {pos.ticket})...")
+                    close_result = bot.mt5.partial_close(pos.ticket, reduce_volume)
+                    if hasattr(close_result, 'success') and close_result.success:
+                        print(f"   ✓ Reduced from {current_volume:.2f} to {current_volume - reduce_volume:.2f} lots")
+                    else:
+                        print(f"   ✗ Failed to reduce: {getattr(close_result, 'error', 'unknown')}")
+            
+            # Store Friday close prices
+            remaining_positions = bot.mt5.get_my_positions()
+            if remaining_positions:
+                bot.friday_close_prices = wgm.store_friday_close_prices(
+                    remaining_positions,
+                    bot.mt5
+                )
+                print(f"📝 Stored Friday close prices for {len(bot.friday_close_prices)} symbols")
+        
+        # ================================================================
+        # DELETE ALL FOREX PENDING ORDERS (weekend gap risk)
+        # ================================================================
+        print("")
+        print("=" * 70)
+        print("🗑️ DELETING FOREX PENDING ORDERS (weekend gap protection)")
+        print("=" * 70)
+        
+        # Crypto symbols that can stay (trade 24/7)
+        CRYPTO_SYMBOLS = {'BTCUSD', 'ETHUSD', 'BTC_USD', 'ETH_USD'}
+        
+        pending_orders = bot.mt5.get_pending_orders()
+        forex_orders_deleted = 0
+        crypto_orders_kept = 0
+        
+        if pending_orders:
+            for order in pending_orders:
+                symbol = order.symbol if hasattr(order, 'symbol') else str(order)
+                
+                # Check if it's crypto
+                if symbol.upper() in CRYPTO_SYMBOLS or symbol.replace('_', '').upper() in CRYPTO_SYMBOLS:
+                    crypto_orders_kept += 1
+                    print(f"   ⏸️ KEEP {symbol} (crypto, no weekend gap risk)")
+                else:
+                    # Delete forex/metals/indices pending order
+                    ticket = order.ticket if hasattr(order, 'ticket') else order
+                    result = bot.mt5.cancel_pending_order(ticket)
+                    if result:
+                        forex_orders_deleted += 1
+                        print(f"   ✓ Deleted {symbol} limit order (ticket {ticket})")
+                        
+                        # Clear order_ticket in pending_setup so it can be re-placed Monday
+                        # Find the corresponding pending_setup using OANDA symbol format
+                        oanda_symbol = symbol.replace('USD', '_USD').replace('JPY', '_JPY').replace('CHF', '_CHF').replace('CAD', '_CAD').replace('AUD', '_AUD').replace('NZD', '_NZD').replace('GBP', '_GBP').replace('EUR', '_EUR')
+                        # Try common formats
+                        for sym_format in [symbol, oanda_symbol, symbol.replace('_', ''), f"{symbol[:3]}_{symbol[3:]}"]:
+                            if sym_format in bot.pending_setups:
+                                bot.pending_setups[sym_format]['order_ticket'] = None
+                                bot.pending_setups[sym_format]['status'] = 'awaiting_entry'
+                                print(f"      → {sym_format} setup preserved (will re-place Monday)")
+                                break
+                    else:
+                        print(f"   ✗ Failed to delete {symbol} (ticket {ticket})")
+            
+            print("")
+            print(f"📊 Pending orders: {forex_orders_deleted} deleted, {crypto_orders_kept} crypto kept")
+        else:
+            print("   No pending orders found")
+        
+        # Save pending_setups with cleared order_tickets (but keep the signals!)
+        if forex_orders_deleted > 0:
+            bot._save_pending_setups()
+            print(f"📋 Preserved {len(bot.pending_setups)} pending setups (signals still valid for 168h)")
+        
+        # ================================================================
+        # SCAN FOR CRYPTO SIGNALS (crypto trades 24/7, no weekend gap)
+        # ================================================================
+        print("")
+        print("=" * 70)
+        print("🔍 SCANNING CRYPTO SIGNALS (24/7 trading, no weekend gap risk)")
+        print("=" * 70)
+        
+        # Get crypto symbols from config
+        crypto_oanda = [sym for sym in TRADABLE_SYMBOLS if 'BTC' in sym or 'ETH' in sym]
+        
+        if crypto_oanda:
+            print(f"Scanning {len(crypto_oanda)} crypto symbols: {', '.join(crypto_oanda)}")
+            
+            # Run scan for each crypto symbol
+            signals_found = 0
+            for symbol in crypto_oanda:
+                if symbol in bot.symbol_map:
+                    try:
+                        setup = bot.scan_symbol(symbol)
+                        if setup:
+                            signals_found += 1
+                            print(f"   ✓ {symbol}: {setup.get('direction', 'unknown')} signal")
+                            bot.place_setup_order(setup)
+                        else:
+                            print(f"   • {symbol}: no signal")
+                    except Exception as e:
+                        print(f"   ✗ {symbol}: error - {e}")
+                else:
+                    print(f"   ⚠️ {symbol}: not available on broker")
+            
+            if signals_found == 0:
+                print("   No crypto signals found")
+        else:
+            print("   No crypto symbols configured")
+        
+        print("")
+        print("✅ Friday close complete")
+        print("=" * 70)
+        bot.disconnect()
+        sys.exit(0)
     
-    Usage:
-        python backtest/main_live_bot_backtest.py --start 2023-01-01 --end 2025-12-31
-        python backtest/main_live_bot_backtest.py --balance 20000 --start 2024-01-01
-    """
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Main Live Bot Backtest')
-    parser.add_argument('--start', type=str, default='2023-01-01', help='Start date (YYYY-MM-DD)')
-    parser.add_argument('--end', type=str, default='2025-12-31', help='End date (YYYY-MM-DD)')
-    parser.add_argument('--balance', type=float, default=20000, help='Initial balance')
-    parser.add_argument('--data-dir', type=str, default='data/ohlcv', help='Data directory')
-    parser.add_argument('--output', type=str, default='ftmo_analysis_output/main_live_bot_backtest', help='Output directory')
-    parser.add_argument('--params-file', type=str, default=None, help='Custom params JSON file (for optimizer)')
-    parser.add_argument('--quiet', action='store_true', help='Suppress verbose output (for optimizer)')
-    
-    args = parser.parse_args()
-    
-    # Load custom params if provided (for optimizer)
-    custom_params = None
-    if args.params_file:
-        try:
-            with open(args.params_file, 'r') as f:
-                data = json.load(f)
-                # Support both optimizer output format and direct params format
-                custom_params = data.get('best_parameters', data.get('parameters', data))
-            if not args.quiet:
-                print(f"[OPTIMIZER] Loaded custom params from {args.params_file}")
-        except Exception as e:
-            print(f"[OPTIMIZER] Warning: Could not load params file: {e}")
-    
-    # Parse dates
-    start_date = datetime.strptime(args.start, '%Y-%m-%d').replace(tzinfo=timezone.utc)
-    end_date = datetime.strptime(args.end, '%Y-%m-%d').replace(tzinfo=timezone.utc)
-    
-    print("=" * 70)
-    print("MAIN LIVE BOT BACKTEST")
-    print("=" * 70)
-    print(f"  Start: {args.start}")
-    print(f"  End: {args.end}")
-    print(f"  Balance: ${args.balance:,.0f}")
-    print(f"  Data dir: {args.data_dir}")
-    print("=" * 70)
-    
-    # Create bot instance
-    bot = LiveTradingBot(
-        immediate_scan=False,
-        data_dir=args.data_dir,
-        initial_balance=args.balance,
-        start_date=start_date,
-        end_date=end_date,
-        custom_params=custom_params,
-    )
-    
-    # Run backtest
-    results = bot.run_backtest()
-    
-    # Save results
-    from pathlib import Path
-    import pandas as pd
-    # Note: json already imported at top of file
-    
-    output_dir = Path(args.output)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    with open(output_dir / 'results.json', 'w') as f:
-        json.dump(results, f, indent=2, default=str)
-    
-    # Save closed trades
-    closed_trades = bot.mt5.get_closed_trades()
-    if closed_trades:
-        pd.DataFrame(closed_trades).to_csv(output_dir / 'trades.csv', index=False)
-    
-    print(f"\n✅ Results saved to: {output_dir}")
+    bot.run()
 
 
 if __name__ == "__main__":
