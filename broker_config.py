@@ -202,7 +202,7 @@ def get_forexcom_demo_config() -> BrokerConfig:
         
         # Symbols - crypto may not be available
         trade_forex=True,
-        trade_metals=True,
+        trade_metals=False,  # DISABLED - XAU/XAG excluded from trading
         trade_indices=True,
         trade_crypto=False,  # Forex.com demo may not have crypto
         excluded_symbols=[],
@@ -252,7 +252,7 @@ def get_fiveers_live_config() -> BrokerConfig:
         
         # All symbols
         trade_forex=True,
-        trade_metals=True,
+        trade_metals=False,  # DISABLED - XAU/XAG excluded from trading
         trade_indices=True,
         trade_crypto=True,
         excluded_symbols=[],
