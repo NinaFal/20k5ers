@@ -89,6 +89,11 @@ RISK_RANGES = {
     'risk_per_trade_pct': (0.3, 1.5),          # 0.3% - 1.5% risk per trade (was 0.4-1.0)
 }
 
+# Compounding Parameters - NEW
+COMPOUNDING_RANGES = {
+    'compound_threshold_pct': (2.0, 10.0),     # Update lot size when equity changes by 2-10%
+}
+
 
 @dataclass
 class OptimizationResult:
@@ -349,10 +354,19 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
         step=0.05
     )
     
+    # Sample compounding parameter
+    params['compound_threshold_pct'] = trial.suggest_float(
+        'compound_threshold_pct',
+        COMPOUNDING_RANGES['compound_threshold_pct'][0],
+        COMPOUNDING_RANGES['compound_threshold_pct'][1],
+        step=0.5
+    )
+    
     # Run backtest
     print(f"\n  Trial {trial.number}: Running backtest...")
     print(f"    TPs: {params.get('tp1_r_multiple', 0):.1f}R/{params.get('tp2_r_multiple', 0):.1f}R/{params.get('tp3_r_multiple', 0):.1f}R")
     print(f"    Trail: {params.get('trail_activation_r', 0):.1f}R, {params.get('atr_trail_multiplier', 0):.1f}x ATR")
+    print(f"    Compound: Update when equity changes ≥{params.get('compound_threshold_pct', 5):.1f}%")
     print(f"    Confluence: T={params.get('trend_min_confluence', 0)}, R={params.get('range_min_confluence', 0)}")
     
     result = run_backtest(params, start, end, balance)

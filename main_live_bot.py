@@ -1653,10 +1653,11 @@ class LiveTradingBot:
             
             old_lot_size = order.volume
             
-            # Only update if lot size differs by >5%
+            # Only update if lot size differs by threshold percentage (default 5%)
+            compound_threshold = getattr(self.params, 'compound_threshold_pct', 5.0)
             lot_change_pct = abs(new_lot_size - old_lot_size) / old_lot_size * 100 if old_lot_size > 0 else 100
             
-            if lot_change_pct >= 5.0:
+            if lot_change_pct >= compound_threshold:
                 log.info(f"[{internal_symbol}] Lot size change: {old_lot_size:.2f} → {new_lot_size:.2f} ({lot_change_pct:+.1f}%)")
                 
                 # Cancel old order and place new one
