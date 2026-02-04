@@ -395,15 +395,17 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
     # Profit quality = return * win_rate
     profit_quality = result.net_return_pct * win_rate_factor if result.net_return_pct > 0 else result.net_return_pct
     
-    # === COMBINED SCORE ===
-    # Primary: Raw return (weight: 50%) - higher return = better
-    # Secondary: Win rate quality (weight: 30%) - higher win rate = better  
-    # Tertiary: Trade frequency (weight: 20%) - more trades = more reliable
+    # === COMBINED SCORE - AGGRESSIVE RETURNS + HIGH WIN RATE ===
+    # Primary: Raw return (weight: ~60%) - AGGRESSIVE returns rewarded heavily
+    # Secondary: Win rate quality (weight: ~30%) - High win rate critical for consistency
+    # Tertiary: Trade frequency (weight: ~10%) - More trades = more reliable stats
+    # 
+    # Win = TP1 reached (correctly counted in backtest)
     
     score = (
-        result.net_return_pct * 1.0 +           # ~50% weight - raw return is king
-        profit_quality * 0.5 +                  # ~30% weight - profitable + high win rate
-        min(result.total_trades / 10, 10)       # ~20% weight - cap at 100 trades bonus
+        result.net_return_pct * 1.5 +           # 60% weight - MAXIMIZE returns
+        profit_quality * 0.8 +                  # 30% weight - Return × Win Rate
+        min(result.total_trades / 10, 10) * 2   # 10% weight - Trade frequency bonus
     )
     
     # Only penalize TDD if it's getting dangerous (above 8%)
