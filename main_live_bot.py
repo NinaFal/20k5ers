@@ -2287,11 +2287,11 @@ class LiveTradingBot:
                 log.warning(f"[{oanda_symbol}] No SL found, estimating risk as 2% of entry = {risk:.5f}")
             
             # Calculate TP levels from current_params
-            tp1_r = self.params.get("tp1_r", 0.4)
-            tp2_r = self.params.get("tp2_r", 1.6)
-            tp3_r = self.params.get("tp3_r", 2.1)
-            tp4_r = self.params.get("tp4_r", 2.4)
-            tp5_r = self.params.get("tp5_r", 3.6)
+            tp1_r = getattr(self.params, 'tp1_r_multiple', 0.4)
+            tp2_r = getattr(self.params, 'tp2_r_multiple', 1.6)
+            tp3_r = getattr(self.params, 'tp3_r_multiple', 2.1)
+            tp4_r = getattr(self.params, 'tp4_r_multiple', 2.4)
+            tp5_r = getattr(self.params, 'tp5_r_multiple', 3.6)
             
             if direction == "bullish":
                 calc_sl = sl if sl else entry - risk
@@ -2471,9 +2471,9 @@ class LiveTradingBot:
         
         # 3. Update pending_setups.json with correct tp4/tp5 values
         updated_setups = 0
-        tp1_r = self.params.tp1_r_multiple
-        tp2_r = self.params.tp2_r_multiple
-        tp3_r = self.params.tp3_r_multiple
+        tp1_r = getattr(self.params, 'tp1_r_multiple', 0.4)
+        tp2_r = getattr(self.params, 'tp2_r_multiple', 1.6)
+        tp3_r = getattr(self.params, 'tp3_r_multiple', 2.1)
         
         for symbol, setup in self.pending_setups.items():
             if setup.stop_loss is None or setup.entry_price is None:
