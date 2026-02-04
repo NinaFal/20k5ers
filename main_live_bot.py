@@ -781,9 +781,9 @@ class LiveTradingBot:
         self.friday_close_prices: dict = {}  # Store Friday close prices for gap detection
         self.last_friday_close_check: Optional[datetime] = None  # When we last did Friday check
         
-        # Limit order scaling - update lot sizes 2x per day based on BALANCE
+        # Limit order compounding - update lot sizes every 30 minutes based on current equity
         self.last_limit_order_update: Optional[datetime] = None
-        self.LIMIT_ORDER_UPDATE_INTERVAL_MINUTES: int = 720  # 12 hours = 2x per day
+        self.LIMIT_ORDER_UPDATE_INTERVAL_MINUTES: int = 30  # Update every 30 min
 
         self._load_pending_setups()
         self._load_trading_days()
@@ -1564,28 +1564,24 @@ class LiveTradingBot:
         log.info("=" * 70)
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # LIMIT ORDER SCALING - Update lot sizes based on BALANCE (2x/day)
+    # LIMIT ORDER COMPOUNDING - Update lot sizes based on current equity
     # ═══════════════════════════════════════════════════════════════════════════
     
     def update_limit_orders_for_compounding(self):
         """
-        Update pending limit orders to reflect current BALANCE (compounding).
+        Update pending limit orders to reflect current equity (compounding).
         
-        This runs 2x per day (every 12 hours) to ensure limit orders have correct 
-        lot sizes based on current BALANCE - both scaling UP and DOWN.
-        
-        IMPORTANT: Uses BALANCE not equity!
-        - Balance = realized P&L only (closed trades)
-        - Equity = unrealized + realized (fluctuates with open positions)
+        This runs every 30 minutes to ensure limit orders have correct lot sizes
+        based on current equity, not the equity at the time of order placement.
         
         Process:
         1. Get all pending limit orders
-        2. For each order, recalculate lot size with current balance
+        2. For each order, recalculate lot size with current equity
         3. If lot size differs by >5%, cancel and replace the order
         """
         now = datetime.now(timezone.utc)
         
-        # Skip if checked recently (12 hours = 2x per day)
+        # Skip if checked recently
         if self.last_limit_order_update:
             time_since = (now - self.last_limit_order_update).total_seconds() / 60
             if time_since < self.LIMIT_ORDER_UPDATE_INTERVAL_MINUTES:
@@ -1597,18 +1593,23 @@ class LiveTradingBot:
             return
         
         log.info("=" * 70)
-        log.info("💰 LIMIT ORDER SCALING CHECK (2x/day based on BALANCE)")
+        log.info("💰 LIMIT ORDER COMPOUNDING CHECK")
         log.info("=" * 70)
         
-        # Get current BALANCE (not equity!)
-        account_info = self.mt5.get_account_info()
-        if not account_info:
-            log.warning("Cannot get account info - skipping scaling update")
+        # Get current equity
+        if not self.challenge_manager:
+            log.warning("No challenge manager - skipping compounding update")
+            self.last_limit_order_update = now
+            return
+            
+        snapshot = self.challenge_manager.get_account_snapshot()
+        if not snapshot:
+            log.warning("Cannot get account snapshot - skipping compounding update")
             self.last_limit_order_update = now
             return
         
-        current_balance = account_info.get("balance", 0)
-        log.info(f"Current BALANCE: ${current_balance:,.2f}")
+        current_equity = snapshot.equity
+        log.info(f"Current equity: ${current_equity:,.2f}")
         
         orders_updated = 0
         
@@ -1698,7 +1699,7 @@ class LiveTradingBot:
         self.last_limit_order_update = now
         
         if orders_updated > 0:
-            log.info(f"✅ Scaled {orders_updated} limit orders based on current balance ${current_balance:,.2f}")
+            log.info(f"✅ Updated {orders_updated} limit orders for compounding")
         else:
             log.info("✅ All limit orders have correct lot sizes")
         log.info("=" * 70)
