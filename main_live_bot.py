@@ -2469,8 +2469,76 @@ class LiveTradingBot:
             except Exception as e:
                 log.error(f"  ❌ [{pos.symbol}] Position {pos.ticket}: Error - {e}")
         
+        # 3. Update pending_setups.json with correct tp4/tp5 values
+        updated_setups = 0
+        tp1_r = self.params.tp1_r_multiple
+        tp2_r = self.params.tp2_r_multiple
+        tp3_r = self.params.tp3_r_multiple
+        
+        for symbol, setup in self.pending_setups.items():
+            if setup.stop_loss is None or setup.entry_price is None:
+                continue
+            
+            # Calculate risk
+            risk = abs(setup.entry_price - setup.stop_loss)
+            if risk == 0:
+                continue
+            
+            is_bullish = setup.direction == "bullish"
+            needs_update = False
+            
+            # Check and update tp4 if null or incorrect
+            if tp4_r and tp4_r > 0:
+                if is_bullish:
+                    correct_tp4 = setup.entry_price + (tp4_r * risk)
+                else:
+                    correct_tp4 = setup.entry_price - (tp4_r * risk)
+                
+                if setup.tp4 is None or abs(setup.tp4 - correct_tp4) > 0.00001:
+                    setup.tp4 = correct_tp4
+                    needs_update = True
+            
+            # Check and update tp5 if null or incorrect
+            if tp5_r and tp5_r > 0:
+                if is_bullish:
+                    correct_tp5 = setup.entry_price + (tp5_r * risk)
+                else:
+                    correct_tp5 = setup.entry_price - (tp5_r * risk)
+                
+                if setup.tp5 is None or abs(setup.tp5 - correct_tp5) > 0.00001:
+                    setup.tp5 = correct_tp5
+                    needs_update = True
+            
+            # Also update tp1/tp2/tp3 if they don't match current params
+            if is_bullish:
+                correct_tp1 = setup.entry_price + (tp1_r * risk)
+                correct_tp2 = setup.entry_price + (tp2_r * risk)
+                correct_tp3 = setup.entry_price + (tp3_r * risk)
+            else:
+                correct_tp1 = setup.entry_price - (tp1_r * risk)
+                correct_tp2 = setup.entry_price - (tp2_r * risk)
+                correct_tp3 = setup.entry_price - (tp3_r * risk)
+            
+            if setup.tp1 is None or abs(setup.tp1 - correct_tp1) > 0.00001:
+                setup.tp1 = correct_tp1
+                needs_update = True
+            if setup.tp2 is None or abs(setup.tp2 - correct_tp2) > 0.00001:
+                setup.tp2 = correct_tp2
+                needs_update = True
+            if setup.tp3 is None or abs(setup.tp3 - correct_tp3) > 0.00001:
+                setup.tp3 = correct_tp3
+                needs_update = True
+            
+            if needs_update:
+                updated_setups += 1
+                log.info(f"  ✅ [{symbol}] pending_setup TP levels synced: TP4={setup.tp4:.5f}, TP5={setup.tp5:.5f}")
+        
+        if updated_setups > 0:
+            self._save_pending_setups()
+            log.info(f"  💾 Updated {updated_setups} pending_setups with correct TP levels")
+        
         log.info("=" * 70)
-        log.info(f"✅ TP SYNC COMPLETE: {updated_orders} orders, {updated_positions} positions updated")
+        log.info(f"✅ TP SYNC COMPLETE: {updated_orders} orders, {updated_positions} positions, {updated_setups} setups updated")
         log.info("=" * 70)
 
     def disconnect(self):
