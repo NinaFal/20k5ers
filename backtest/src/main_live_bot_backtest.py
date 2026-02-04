@@ -2278,6 +2278,18 @@ class LiveTradingBot:
                 return True
         return False
     
+    def _broker_to_oanda(self, broker_symbol: str) -> str:
+        """Convert broker symbol back to OANDA format.
+        
+        Example: UK100 -> UK100_GBP, EURUSD -> EUR_USD
+        """
+        # Reverse lookup in symbol_map
+        for oanda_sym, broker_sym in self.symbol_map.items():
+            if broker_sym == broker_symbol:
+                return oanda_sym
+        # Fallback: return as-is if not found
+        return broker_symbol
+    
     def _get_dynamic_pip_value(self, symbol: str, broker_symbol: str) -> float:
         """
         Get pip value using MT5's tick_value (most accurate source).
@@ -3135,6 +3147,8 @@ class LiveTradingBot:
                 tp1=tp1,
                 tp2=tp2,
                 tp3=tp3,
+                tp4=tp4,
+                tp5=tp5,
                 confluence=confluence,
                 confluence_score=confluence,
                 quality_factors=quality_factors,
@@ -3199,6 +3213,8 @@ class LiveTradingBot:
                 tp1=tp1,
                 tp2=tp2,
                 tp3=tp3,
+                tp4=tp4,
+                tp5=tp5,
                 confluence=confluence,
                 confluence_score=confluence,
                 quality_factors=quality_factors,
