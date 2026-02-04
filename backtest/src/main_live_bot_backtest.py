@@ -259,10 +259,7 @@ def get_next_daily_close() -> datetime:
 
 def get_next_scan_time(include_today: bool = False) -> datetime:
     """
-    Get next scheduled scan time.
-    - Normal days (Tue-Fri): 15 min after daily close (00:15 server time)
-    - Monday: 1 hour after market open (01:00 server time) to avoid wide spreads
-    
+    Get next scheduled scan time (10 min after daily close).
     Returns datetime in UTC for comparison.
 
     Args:
@@ -270,30 +267,23 @@ def get_next_scan_time(include_today: bool = False) -> datetime:
                       Useful for initial setup to catch missed scans.
     """
     server_now = get_server_time()
-    
-    def get_scan_time_for_day(day: datetime) -> datetime:
-        """Get the scan time for a specific day based on weekday."""
-        if day.weekday() == 0:  # Monday - 1 hour after market open
-            return day.replace(hour=1, minute=0, second=0, microsecond=0)
-        else:  # Tue-Fri - 15 min after daily close
-            return day.replace(hour=0, minute=15, second=0, microsecond=0)
 
-    today_scan = get_scan_time_for_day(server_now)
+    # Daily close is at 00:00 server time, scan at 00:10 server time
+    today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
 
     # If include_today is True and we haven't passed today's scan yet, return it
     if include_today and server_now < today_scan:
-        # Skip weekends (Saturday=5, Sunday=6)
+        # Skip weekends
         if today_scan.weekday() < 5:  # Monday-Friday
             return today_scan.astimezone(timezone.utc)
 
-    # If we're past today's scan (or it's weekend), get next trading day's scan
-    if server_now >= today_scan or server_now.weekday() >= 5:
-        next_day = server_now + timedelta(days=1)
+    # If we're past today's scan (or it's weekend), get tomorrow's
+    if server_now >= today_scan or today_scan.weekday() >= 5:
+        tomorrow_scan = today_scan + timedelta(days=1)
         # Skip weekends
-        while next_day.weekday() >= 5:
-            next_day += timedelta(days=1)
-        next_scan = get_scan_time_for_day(next_day)
-        return next_scan.astimezone(timezone.utc)
+        while tomorrow_scan.weekday() >= 5:
+            tomorrow_scan += timedelta(days=1)
+        return tomorrow_scan.astimezone(timezone.utc)
 
     # Return today's scan (handles case where include_today=False but it's before scan time)
     return today_scan.astimezone(timezone.utc)
@@ -2316,15 +2306,7 @@ class LiveTradingBot:
         if pip_size <= 0:
             pip_size = 0.0001
         
-        # CRITICAL FIX: For metals (XAU, XAG), ALWAYS use fiveers_specs!
-        # MT5 tick_value is unreliable for metals - it gives $1/pip instead of $100/pip
-        # This caused 59x oversizing on XAU trades!
-        sym_upper = symbol.upper().replace("_", "")
-        if any(x in sym_upper for x in ["XAU", "XAG"]):
-            log.info(f"[{symbol}] Using fiveers_specs for metals: pip_value=${base_pip_value:.2f}/pip (pip_size={pip_size})")
-            return base_pip_value
-        
-        # FIRST: Try to get tick_value directly from MT5 (most reliable for FOREX!)
+        # FIRST: Try to get tick_value directly from MT5 (most reliable!)
         try:
             symbol_info = self.mt5.get_symbol_info(broker_symbol)
             if symbol_info:
@@ -2369,8 +2351,8 @@ class LiveTradingBot:
         if any(x in sym_upper for x in ["NAS100", "SPX500", "SP500", "US100", "US500", "US30"]):
             return base_pip_value
         
-        # Crypto - already in USD (metals handled at start of function)
-        if any(x in sym_upper for x in ["BTC", "ETH"]):
+        # Metals and Crypto - already in USD
+        if any(x in sym_upper for x in ["XAU", "XAG", "BTC", "ETH"]):
             return base_pip_value
         
         # FOREX - check quote currency
@@ -2569,14 +2551,6 @@ class LiveTradingBot:
         lot_size = lot_result.get("lot_size", 0.0)
         risk_usd = lot_result.get("risk_usd", 0.0)
         risk_pips = lot_result.get("stop_pips", 0.0)
-        actual_risk_pct = lot_result.get("actual_risk_pct", 0.0)
-
-        # CRITICAL: Reject trade if actual risk exceeds 2x intended risk
-        # This catches cases where min_lot forces excessive risk
-        max_acceptable_risk_pct = risk_pct * 2 / 100  # 2x the intended risk %
-        if actual_risk_pct > max_acceptable_risk_pct:
-            log.warning(f"[{symbol}] Actual risk {actual_risk_pct*100:.2f}% exceeds 2x intended {risk_pct:.2f}% - stop too wide (NO TRADE)")
-            return 0.0
 
         # Validate lot size
         if lot_size <= 0 or lot_size < min_lot:
@@ -4296,12 +4270,9 @@ class LiveTradingBot:
             # Calculate next scan time after immediate scan
             self.next_scan_time = get_next_scan_time()
         else:
-            # Get today's scan time (Monday=01:00, Tue-Fri=00:15 server time)
+            # Get today's scan time (00:10 server time)
             server_now = get_server_time()
-            if server_now.weekday() == 0:  # Monday
-                today_scan = server_now.replace(hour=1, minute=0, second=0, microsecond=0)
-            else:  # Tue-Fri
-                today_scan = server_now.replace(hour=0, minute=15, second=0, microsecond=0)
+            today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
             today_scan_utc = today_scan.astimezone(timezone.utc)
 
             # If today's scan time has passed and it's a weekday, use today (will trigger immediately)
@@ -4694,16 +4665,72 @@ class LiveTradingBot:
         final_balance = final_account.get("balance", self.initial_balance)
         
         closed_trades = self.mt5.get_closed_trades()
-        total_trades = len(closed_trades)
-        winners = sum(1 for t in closed_trades if t.get('pnl', 0) > 0)
+        
+        # Separate full trades from partial closes for accurate counting
+        full_trades = [t for t in closed_trades if not t.get('partial', False)]
+        partial_closes = [t for t in closed_trades if t.get('partial', False)]
+        
+        total_trades = len(full_trades)  # Only count full trades as "trades"
+        winners = sum(1 for t in full_trades if t.get('pnl', 0) > 0)
         win_rate = (winners / total_trades * 100) if total_trades > 0 else 0
         
-        total_pnl = sum(t.get('pnl', 0) for t in closed_trades)
+        # Net PnL includes ALL closes (full + partial)
+        closed_pnl = sum(t.get('pnl', 0) for t in closed_trades)  # All P&L from closed_trades
+        total_pnl = final_balance - self.initial_balance  # This is the REAL net P&L
+        
+        # Log partial close info
+        if partial_closes:
+            log.info(f"📊 Partial closes: {len(partial_closes)} (P&L: ${sum(t.get('pnl', 0) for t in partial_closes):,.2f})")
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # MONTHLY STATISTICS
+        # ═══════════════════════════════════════════════════════════════════
+        from collections import defaultdict
+        monthly_stats = defaultdict(lambda: {'trades': 0, 'winners': 0, 'losers': 0, 'pnl': 0.0, 'partial_closes': 0})
+        
+        for trade in closed_trades:
+            # Get close time from trade
+            close_time = trade.get('close_time')
+            if close_time:
+                if isinstance(close_time, str):
+                    from datetime import datetime
+                    try:
+                        close_time = datetime.fromisoformat(close_time.replace('Z', '+00:00'))
+                    except:
+                        continue
+                month_key = close_time.strftime('%Y-%m')
+                pnl = trade.get('pnl', 0)
+                is_partial = trade.get('partial', False)
+                
+                # Always add P&L (from both full and partial closes)
+                monthly_stats[month_key]['pnl'] += pnl
+                
+                if is_partial:
+                    # Track partial closes separately
+                    monthly_stats[month_key]['partial_closes'] += 1
+                else:
+                    # Only count full trades for win/loss statistics
+                    monthly_stats[month_key]['trades'] += 1
+                    if pnl > 0:
+                        monthly_stats[month_key]['winners'] += 1
+                    else:
+                        monthly_stats[month_key]['losers'] += 1
+        
+        # Convert to regular dict and round values
+        monthly_stats = {k: {
+            'trades': v['trades'],
+            'winners': v['winners'],
+            'losers': v['losers'],
+            'pnl': round(v['pnl'], 2),
+            'partial_closes': v['partial_closes'],
+            'win_rate': round(v['winners'] / v['trades'] * 100, 1) if v['trades'] > 0 else 0
+        } for k, v in monthly_stats.items()}
         
         results = {
             'initial_balance': self.initial_balance,
             'final_balance': round(final_balance, 2),
             'net_pnl': round(total_pnl, 2),
+            'closed_trades_pnl': round(closed_pnl, 2),  # P&L from closed trades only
             'return_pct': round((final_balance - self.initial_balance) / self.initial_balance * 100, 2),
             'total_trades': total_trades,
             'winners': winners,
@@ -4712,6 +4739,9 @@ class LiveTradingBot:
             'max_tdd_pct': round(max_tdd, 2),
             'max_ddd_pct': round(max_ddd, 2),
             'safety_events': len(safety_events),
+            'ddd_halts': len(safety_events),
+            'tdd_warnings': sum(1 for e in safety_events if e.get('type') == 'TDD_WARNING'),
+            'monthly_stats': monthly_stats,
         }
         
         # Print results
@@ -4737,6 +4767,17 @@ class LiveTradingBot:
         
         print(f"\n🚨 SAFETY:")
         print(f"   DDD halt events: {len(safety_events)}")
+        
+        # Monthly breakdown
+        if monthly_stats:
+            print(f"\n📅 MONTHLY BREAKDOWN:")
+            print(f"   {'-'*55}")
+            print(f"   {'Month':<10} {'Trades':>8} {'Winners':>8} {'WR%':>8} {'PnL':>12}")
+            print(f"   {'-'*55}")
+            for month in sorted(monthly_stats.keys()):
+                m = monthly_stats[month]
+                print(f"   {month:<10} {m['trades']:>8} {m['winners']:>8} {m['win_rate']:>7.1f}% ${m['pnl']:>10,.0f}")
+            print(f"   {'-'*55}")
         
         print(f"\n{'='*70}")
         

@@ -1,34 +1,22 @@
 #!/usr/bin/env python3
 """
-═══════════════════════════════════════════════════════════════════════════════
-                OPTIMIZE_MAIN_LIVE_BOT.PY - PARAMETER OPTIMIZER
-                Last Updated: February 3, 2026
-═══════════════════════════════════════════════════════════════════════════════
+Optimizer for Main Live Bot Backtest
 
-Optuna-based hyperparameter optimizer for main_live_bot_backtest.py.
-Tests different parameter combinations and finds the best settings for
-5ers High Stakes challenge compliance and profitability.
+Uses Optuna for hyperparameter optimization with the following objectives:
+1. Maximize net return
+2. Minimize max drawdown
+3. Keep within 5ers limits (TDD < 10%, DDD < 5%)
 
-OPTIMIZATION OBJECTIVES:
-    1. Maximize net return
-    2. Minimize max drawdown
-    3. Keep within 5ers limits (TDD < 10%, DDD < 5%)
-
-PARAMETERS OPTIMIZED:
-    • TP levels (TP1 through TP5) - R-multiples
-    • TP close percentages (must sum to 1.0)
-    • Trailing stop settings (activation R, ATR multiplier)
-    • Progressive trailing (trigger R, target R)
-    • Confluence thresholds
-    • Risk per trade
+Parameters to optimize:
+- TP levels (TP1 through TP5) - R-multiples
+- TP close percentages
+- Trailing stop settings
+- Confluence thresholds
+- Risk per trade
 
 Usage:
     python backtest/optimize_main_live_bot.py --trials 50 --start 2024-01-01 --end 2024-03-31
     python backtest/optimize_main_live_bot.py --trials 100 --start 2023-01-01 --end 2025-12-31 --parallel 4
-
-Output:
-    Saves best parameters to params/current_params.json
-    Logs all trials to backtest/optimization_results/
 """
 
 import sys
@@ -114,6 +102,10 @@ class OptimizationResult:
     final_balance: float
     ddd_halts: int
     valid: bool  # Within 5ers limits?
+    # Extended metrics
+    monthly_stats: Dict[str, Any] = None  # {"2024-01": {"trades": 10, "winners": 7, "pnl": 500}}
+    safety_events: int = 0  # Number of DDD safety halts
+    tdd_warnings: int = 0  # Number of TDD warnings
 
 
 def create_temp_params_file(params: Dict[str, Any]) -> Path:
@@ -184,7 +176,10 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 
                 max_ddd_pct=data.get('max_ddd_pct', 100),
                 final_balance=data.get('final_balance', balance),
                 ddd_halts=data.get('ddd_halts', 0),
-                valid=(data.get('max_tdd_pct', 100) < 10 and data.get('max_ddd_pct', 100) < 5)
+                valid=(data.get('max_tdd_pct', 100) < 10 and data.get('max_ddd_pct', 100) < 5),
+                monthly_stats=data.get('monthly_stats', {}),
+                safety_events=data.get('safety_events', data.get('ddd_halts', 0)),
+                tdd_warnings=data.get('tdd_warnings', 0)
             )
         else:
             # Try parsing from stdout
@@ -370,6 +365,9 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
     trial.set_user_attr('max_ddd_pct', result.max_ddd_pct)
     trial.set_user_attr('ddd_halts', result.ddd_halts)
     trial.set_user_attr('final_balance', result.final_balance)
+    trial.set_user_attr('monthly_stats', result.monthly_stats or {})
+    trial.set_user_attr('safety_events', result.safety_events)
+    trial.set_user_attr('tdd_warnings', result.tdd_warnings)
     trial.set_user_attr('valid', result.valid)
     
     print(f"    → Return: {result.net_return_pct:+.1f}%, Trades: {result.total_trades}, Win: {result.win_rate:.1f}%")
@@ -380,39 +378,37 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
     if not result.valid:
         return -1000 - result.max_ddd_pct * 10
     
+    # CRITICAL: If DDD >= 3.5% (safety halt triggered), heavily penalize
+    if result.max_ddd_pct >= 3.5:
+        return -500 - result.max_ddd_pct * 20  # Safety halt is unacceptable
+    
     # Minimum trades required for statistical significance
     if result.total_trades < 10:
         return -500 + result.total_trades  # Encourage more trades
     
-    # === CORE METRIC: Risk-Adjusted Return (like Calmar Ratio) ===
-    # Return per unit of max drawdown - rewards consistent growth
-    max_dd = max(result.max_ddd_pct, 0.5)  # Floor at 0.5% to avoid division issues
-    risk_adjusted_return = result.net_return_pct / max_dd
+    # === CORE METRICS: Return and Win Rate (most important) ===
+    # DDD below 3.5% is acceptable - don't penalize it in scoring
     
-    # === PROFIT FACTOR PROXY ===
-    # Win rate * avg win estimate vs loss rate * avg loss
-    # Higher win rate with positive returns = better profit factor
+    # Win rate bonus (higher = better)
     win_rate_factor = result.win_rate / 100.0
+    
+    # Profit quality = return * win_rate
     profit_quality = result.net_return_pct * win_rate_factor if result.net_return_pct > 0 else result.net_return_pct
     
     # === COMBINED SCORE ===
-    # Primary: Risk-adjusted return (weight: 40%)
-    # Secondary: Raw return (weight: 30%) 
-    # Tertiary: Profit quality (weight: 20%)
-    # Bonus: Trade frequency (weight: 10%)
+    # Primary: Raw return (weight: 50%) - higher return = better
+    # Secondary: Win rate quality (weight: 30%) - higher win rate = better  
+    # Tertiary: Trade frequency (weight: 20%) - more trades = more reliable
     
     score = (
-        risk_adjusted_return * 2.0 +           # ~40% weight - reward return/drawdown ratio
-        result.net_return_pct * 0.5 +           # ~30% weight - raw return matters
-        profit_quality * 0.3 +                  # ~20% weight - profitable + high win rate
-        min(result.total_trades / 20, 5)        # ~10% weight - cap at 100 trades bonus
+        result.net_return_pct * 1.0 +           # ~50% weight - raw return is king
+        profit_quality * 0.5 +                  # ~30% weight - profitable + high win rate
+        min(result.total_trades / 10, 10)       # ~20% weight - cap at 100 trades bonus
     )
     
-    # Penalty for excessive drawdowns (soft cap)
-    if result.max_ddd_pct > 4.0:
-        score -= (result.max_ddd_pct - 4.0) * 3  # Penalize above 4% DDD
+    # Only penalize TDD if it's getting dangerous (above 8%)
     if result.max_tdd_pct > 8.0:
-        score -= (result.max_tdd_pct - 8.0) * 2  # Penalize above 8% TDD
+        score -= (result.max_tdd_pct - 8.0) * 5  # Strong penalty above 8% TDD
     
     return score
 
@@ -473,6 +469,7 @@ def run_optimization(
     print(f"  Win Rate: {best.user_attrs.get('win_rate', 0):.1f}%")
     print(f"  Max TDD: {best.user_attrs.get('max_tdd_pct', 0):.2f}%")
     print(f"  Max DDD: {best.user_attrs.get('max_ddd_pct', 0):.2f}%")
+    print(f"  Safety Events: {best.user_attrs.get('safety_events', best.user_attrs.get('ddd_halts', 0))}")
     print("=" * 70)
     
     print("\n📊 BEST PARAMETERS:")
@@ -481,6 +478,41 @@ def run_optimization(
             print(f"  {key}: {value:.3f}")
         else:
             print(f"  {key}: {value}")
+    
+    # Monthly breakdown for best trial
+    monthly = best.user_attrs.get('monthly_stats', {})
+    if monthly:
+        print("\n📅 MONTHLY BREAKDOWN (Best Trial):")
+        print("  " + "-" * 60)
+        print(f"  {'Month':<10} {'Trades':>8} {'Winners':>8} {'Win%':>8} {'PnL':>12}")
+        print("  " + "-" * 60)
+        for month in sorted(monthly.keys()):
+            m = monthly[month]
+            trades = m.get('trades', 0)
+            winners = m.get('winners', 0)
+            pnl = m.get('pnl', 0)
+            wr = (winners / trades * 100) if trades > 0 else 0
+            print(f"  {month:<10} {trades:>8} {winners:>8} {wr:>7.1f}% ${pnl:>10,.0f}")
+        print("  " + "-" * 60)
+    
+    # Full trial report
+    print("\n" + "=" * 70)
+    print("ALL TRIALS SUMMARY")
+    print("=" * 70)
+    print(f"{'#':>3} {'Score':>8} {'Return':>8} {'Trades':>7} {'WR%':>6} {'TDD':>6} {'DDD':>6} {'Safe':>5}")
+    print("-" * 70)
+    for t in sorted(study.trials, key=lambda x: x.value if x.value else -999, reverse=True)[:20]:
+        score = t.value if t.value else -999
+        ret = t.user_attrs.get('net_return_pct', 0)
+        trades = t.user_attrs.get('total_trades', 0)
+        wr = t.user_attrs.get('win_rate', 0)
+        tdd = t.user_attrs.get('max_tdd_pct', 0)
+        ddd = t.user_attrs.get('max_ddd_pct', 0)
+        safe = t.user_attrs.get('safety_events', t.user_attrs.get('ddd_halts', 0))
+        print(f"{t.number:>3} {score:>8.1f} {ret:>+7.1f}% {trades:>7} {wr:>5.1f}% {tdd:>5.1f}% {ddd:>5.1f}% {safe:>5}")
+    print("-" * 70)
+    if len(study.trials) > 20:
+        print(f"  (Showing top 20 of {len(study.trials)} trials)")
     
     # Save results
     output_path = Path(output_dir)

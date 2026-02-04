@@ -1,0 +1,2743 @@
+{
+  "optimization_mode": "TPE",
+  "timestamp": "2026-02-04T15:12:26.065934",
+  "config": {
+    "trials": 50,
+    "start": "2023-02-01",
+    "end": "2023-04-30",
+    "balance": 20000,
+    "num_tps": 5
+  },
+  "best_score": 96.028744,
+  "best_metrics": {
+    "net_return_pct": 55.76,
+    "total_trades": 155,
+    "win_rate": 52.3,
+    "max_tdd_pct": 0.0,
+    "max_ddd_pct": 2.05,
+    "valid": true
+  },
+  "best_parameters": {
+    "tp1_r_multiple": 0.4,
+    "tp2_r_multiple": 1.3,
+    "tp3_r_multiple": 1.4000000000000001,
+    "tp4_r_multiple": 2.7,
+    "tp5_r_multiple": 3.2,
+    "tp1_close_pct_weight": 0.15000000000000002,
+    "tp2_close_pct_weight": 0.4,
+    "tp3_close_pct_weight": 0.4,
+    "tp4_close_pct_weight": 0.1,
+    "tp5_close_pct_weight": 0.1,
+    "trail_activation_r": 1.5000000000000002,
+    "atr_trail_multiplier": 4.0,
+    "use_atr_trailing": false,
+    "trend_min_confluence": 4,
+    "range_min_confluence": 4,
+    "min_quality_factors": 4,
+    "risk_per_trade_pct": 1.1
+  },
+  "all_trials": [
+    {
+      "trial": 0,
+      "score": 44.8681919469496,
+      "params": {
+        "tp1_r_multiple": 1.1,
+        "tp2_r_multiple": 1.5000000000000002,
+        "tp3_r_multiple": 3.4000000000000004,
+        "tp4_r_multiple": 3.5000000000000004,
+        "tp5_r_multiple": 4.700000000000001,
+        "tp1_close_pct_weight": 0.35,
+        "tp2_close_pct_weight": 0.35,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.6,
+        "atr_trail_multiplier": 3.1,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 6,
+        "range_min_confluence": 2,
+        "min_quality_factors": 2,
+        "risk_per_trade_pct": 0.55
+      },
+      "metrics": {
+        "net_return_pct": 32.66,
+        "total_trades": 112,
+        "win_rate": 63.4,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.77,
+        "ddd_halts": 1,
+        "final_balance": 26532.86,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 22,
+            "winners": 13,
+            "losers": 9,
+            "pnl": -284.09,
+            "win_rate": 59.1
+          },
+          "2023-03": {
+            "trades": 45,
+            "winners": 25,
+            "losers": 20,
+            "pnl": -1164.69,
+            "win_rate": 55.6
+          },
+          "2023-04": {
+            "trades": 45,
+            "winners": 33,
+            "losers": 12,
+            "pnl": 1983.01,
+            "win_rate": 73.3
+          }
+        },
+        "safety_events": 1,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 1,
+      "score": 46.39122440394088,
+      "params": {
+        "tp1_r_multiple": 0.7000000000000001,
+        "tp2_r_multiple": 2.1,
+        "tp3_r_multiple": 2.4000000000000004,
+        "tp4_r_multiple": 5.800000000000001,
+        "tp5_r_multiple": 7.300000000000001,
+        "tp1_close_pct_weight": 0.55,
+        "tp2_close_pct_weight": 0.35,
+        "tp3_close_pct_weight": 0.1,
+        "tp4_close_pct_weight": 0.25,
+        "tp5_close_pct_weight": 0.4,
+        "trail_activation_r": 1.7000000000000002,
+        "atr_trail_multiplier": 0.8,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 2,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.35
+      },
+      "metrics": {
+        "net_return_pct": 35.47,
+        "total_trades": 117,
+        "win_rate": 59.8,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 4.06,
+        "ddd_halts": 1,
+        "final_balance": 27094.92,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 25,
+            "winners": 14,
+            "losers": 11,
+            "pnl": 468.78,
+            "win_rate": 56.0
+          },
+          "2023-03": {
+            "trades": 50,
+            "winners": 25,
+            "losers": 25,
+            "pnl": -1143.18,
+            "win_rate": 50.0
+          },
+          "2023-04": {
+            "trades": 42,
+            "winners": 31,
+            "losers": 11,
+            "pnl": 2467.52,
+            "win_rate": 73.8
+          }
+        },
+        "safety_events": 1,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 2,
+      "score": 50.10207398876404,
+      "params": {
+        "tp1_r_multiple": 1.1,
+        "tp2_r_multiple": 1.6,
+        "tp3_r_multiple": 2.2,
+        "tp4_r_multiple": 5.200000000000001,
+        "tp5_r_multiple": 7.300000000000001,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.15000000000000002,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.15000000000000002,
+        "tp5_close_pct_weight": 0.4,
+        "trail_activation_r": 2.0,
+        "atr_trail_multiplier": 0.9,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 0.8500000000000001
+      },
+      "metrics": {
+        "net_return_pct": 36.05,
+        "total_trades": 111,
+        "win_rate": 63.1,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.56,
+        "ddd_halts": 1,
+        "final_balance": 27210.69,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 22,
+            "winners": 13,
+            "losers": 9,
+            "pnl": 562.94,
+            "win_rate": 59.1
+          },
+          "2023-03": {
+            "trades": 44,
+            "winners": 24,
+            "losers": 20,
+            "pnl": -90.6,
+            "win_rate": 54.5
+          },
+          "2023-04": {
+            "trades": 45,
+            "winners": 33,
+            "losers": 12,
+            "pnl": 3612.21,
+            "win_rate": 73.3
+          }
+        },
+        "safety_events": 1,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 3,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 1.1,
+        "tp3_r_multiple": 4.7,
+        "tp4_r_multiple": 5.7,
+        "tp5_r_multiple": 7.2,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.1,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.15000000000000002,
+        "trail_activation_r": 0.4,
+        "atr_trail_multiplier": 0.5,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 7,
+        "range_min_confluence": 5,
+        "min_quality_factors": 6,
+        "risk_per_trade_pct": 0.45
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 4,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 2.6,
+        "tp3_r_multiple": 2.9000000000000004,
+        "tp4_r_multiple": 5.700000000000001,
+        "tp5_r_multiple": 7.1000000000000005,
+        "tp1_close_pct_weight": 0.30000000000000004,
+        "tp2_close_pct_weight": 0.25,
+        "tp3_close_pct_weight": 0.5,
+        "tp4_close_pct_weight": 0.15000000000000002,
+        "tp5_close_pct_weight": 0.25,
+        "trail_activation_r": 1.8,
+        "atr_trail_multiplier": 0.6,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 9,
+        "range_min_confluence": 6,
+        "min_quality_factors": 6,
+        "risk_per_trade_pct": 0.7
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 5,
+      "score": 42.7679522841823,
+      "params": {
+        "tp1_r_multiple": 1.3,
+        "tp2_r_multiple": 2.7,
+        "tp3_r_multiple": 4.9,
+        "tp4_r_multiple": 5.4,
+        "tp5_r_multiple": 7.2,
+        "tp1_close_pct_weight": 0.30000000000000004,
+        "tp2_close_pct_weight": 0.1,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.3,
+        "tp5_close_pct_weight": 0.15000000000000002,
+        "trail_activation_r": 0.4,
+        "atr_trail_multiplier": 1.5,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 3,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 0.35
+      },
+      "metrics": {
+        "net_return_pct": 30.66,
+        "total_trades": 98,
+        "win_rate": 66.3,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.73,
+        "ddd_halts": 2,
+        "final_balance": 26132.09,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 9,
+            "winners": 3,
+            "losers": 6,
+            "pnl": -728.37,
+            "win_rate": 33.3
+          },
+          "2023-03": {
+            "trades": 39,
+            "winners": 24,
+            "losers": 15,
+            "pnl": 344.76,
+            "win_rate": 61.5
+          },
+          "2023-04": {
+            "trades": 50,
+            "winners": 38,
+            "losers": 12,
+            "pnl": 3641.47,
+            "win_rate": 76.0
+          }
+        },
+        "safety_events": 2,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 6,
+      "score": 76.5594674851485,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 1.1,
+        "tp3_r_multiple": 4.6000000000000005,
+        "tp4_r_multiple": 5.800000000000001,
+        "tp5_r_multiple": 7.0,
+        "tp1_close_pct_weight": 0.1,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.30000000000000004,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 0.8,
+        "atr_trail_multiplier": 0.8,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 6,
+        "range_min_confluence": 5,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.4500000000000002
+      },
+      "metrics": {
+        "net_return_pct": 42.94,
+        "total_trades": 119,
+        "win_rate": 58.8,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.02,
+        "ddd_halts": 0,
+        "final_balance": 28588.61,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 26,
+            "winners": 16,
+            "losers": 10,
+            "pnl": 452.43,
+            "win_rate": 61.5
+          },
+          "2023-03": {
+            "trades": 48,
+            "winners": 24,
+            "losers": 24,
+            "pnl": -537.56,
+            "win_rate": 50.0
+          },
+          "2023-04": {
+            "trades": 45,
+            "winners": 30,
+            "losers": 15,
+            "pnl": 2165.76,
+            "win_rate": 66.7
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 7,
+      "score": 54.63995561581922,
+      "params": {
+        "tp1_r_multiple": 0.9,
+        "tp2_r_multiple": 1.7000000000000002,
+        "tp3_r_multiple": 4.800000000000001,
+        "tp4_r_multiple": 5.800000000000001,
+        "tp5_r_multiple": 7.2,
+        "tp1_close_pct_weight": 0.45000000000000007,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.1,
+        "tp4_close_pct_weight": 0.3,
+        "tp5_close_pct_weight": 0.35000000000000003,
+        "trail_activation_r": 1.0,
+        "atr_trail_multiplier": 1.6,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 8,
+        "range_min_confluence": 7,
+        "min_quality_factors": 1,
+        "risk_per_trade_pct": 0.3
+      },
+      "metrics": {
+        "net_return_pct": 39.52,
+        "total_trades": 113,
+        "win_rate": 63.7,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.54,
+        "ddd_halts": 1,
+        "final_balance": 27904.92,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 20,
+            "winners": 10,
+            "losers": 10,
+            "pnl": -152.49,
+            "win_rate": 50.0
+          },
+          "2023-03": {
+            "trades": 49,
+            "winners": 28,
+            "losers": 21,
+            "pnl": -195.31,
+            "win_rate": 57.1
+          },
+          "2023-04": {
+            "trades": 44,
+            "winners": 34,
+            "losers": 10,
+            "pnl": 2630.1,
+            "win_rate": 77.3
+          }
+        },
+        "safety_events": 1,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 8,
+      "score": 39.0047053557423,
+      "params": {
+        "tp1_r_multiple": 1.2000000000000002,
+        "tp2_r_multiple": 2.7,
+        "tp3_r_multiple": 3.5000000000000004,
+        "tp4_r_multiple": 5.1000000000000005,
+        "tp5_r_multiple": 5.6000000000000005,
+        "tp1_close_pct_weight": 0.35,
+        "tp2_close_pct_weight": 0.30000000000000004,
+        "tp3_close_pct_weight": 0.55,
+        "tp4_close_pct_weight": 0.25,
+        "tp5_close_pct_weight": 0.15000000000000002,
+        "trail_activation_r": 2.0,
+        "atr_trail_multiplier": 3.1,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 8,
+        "range_min_confluence": 6,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.2
+      },
+      "metrics": {
+        "net_return_pct": 27.62,
+        "total_trades": 94,
+        "win_rate": 60.6,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.57,
+        "ddd_halts": 1,
+        "final_balance": 25524.6,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 13,
+            "winners": 4,
+            "losers": 9,
+            "pnl": -1009.89,
+            "win_rate": 30.8
+          },
+          "2023-03": {
+            "trades": 41,
+            "winners": 26,
+            "losers": 15,
+            "pnl": 85.97,
+            "win_rate": 63.4
+          },
+          "2023-04": {
+            "trades": 40,
+            "winners": 27,
+            "losers": 13,
+            "pnl": 2688.31,
+            "win_rate": 67.5
+          }
+        },
+        "safety_events": 1,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 9,
+      "score": 39.20657237366549,
+      "params": {
+        "tp1_r_multiple": 1.4,
+        "tp2_r_multiple": 1.9,
+        "tp3_r_multiple": 3.7,
+        "tp4_r_multiple": 5.800000000000001,
+        "tp5_r_multiple": 7.4,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.5,
+        "tp4_close_pct_weight": 0.3,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 0.7,
+        "atr_trail_multiplier": 0.8,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 6,
+        "range_min_confluence": 5,
+        "min_quality_factors": 1,
+        "risk_per_trade_pct": 0.95
+      },
+      "metrics": {
+        "net_return_pct": 25.23,
+        "total_trades": 92,
+        "win_rate": 53.3,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.81,
+        "ddd_halts": 0,
+        "final_balance": 25046.63,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 18,
+            "winners": 9,
+            "losers": 9,
+            "pnl": 84.72,
+            "win_rate": 50.0
+          },
+          "2023-03": {
+            "trades": 32,
+            "winners": 14,
+            "losers": 18,
+            "pnl": -1180.62,
+            "win_rate": 43.8
+          },
+          "2023-04": {
+            "trades": 42,
+            "winners": 26,
+            "losers": 16,
+            "pnl": 2255.93,
+            "win_rate": 61.9
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 10,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 1.3,
+        "tp2_r_multiple": 1.9000000000000001,
+        "tp3_r_multiple": 4.800000000000001,
+        "tp4_r_multiple": 5.4,
+        "tp5_r_multiple": 6.3,
+        "tp1_close_pct_weight": 0.1,
+        "tp2_close_pct_weight": 0.1,
+        "tp3_close_pct_weight": 0.5,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.35000000000000003,
+        "trail_activation_r": 0.5,
+        "atr_trail_multiplier": 2.0,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 7,
+        "range_min_confluence": 3,
+        "min_quality_factors": 6,
+        "risk_per_trade_pct": 0.7
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 11,
+      "score": 48.50842583113456,
+      "params": {
+        "tp1_r_multiple": 1.0,
+        "tp2_r_multiple": 2.0,
+        "tp3_r_multiple": 3.4000000000000004,
+        "tp4_r_multiple": 3.8000000000000007,
+        "tp5_r_multiple": 7.4,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.6,
+        "tp4_close_pct_weight": 0.25,
+        "tp5_close_pct_weight": 0.25,
+        "trail_activation_r": 1.9000000000000001,
+        "atr_trail_multiplier": 0.8,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 8,
+        "range_min_confluence": 2,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 0.35
+      },
+      "metrics": {
+        "net_return_pct": 35.41,
+        "total_trades": 109,
+        "win_rate": 67.0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.79,
+        "ddd_halts": 1,
+        "final_balance": 27082.38,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 17,
+            "winners": 9,
+            "losers": 8,
+            "pnl": -341.53,
+            "win_rate": 52.9
+          },
+          "2023-03": {
+            "trades": 49,
+            "winners": 30,
+            "losers": 19,
+            "pnl": 292.02,
+            "win_rate": 61.2
+          },
+          "2023-04": {
+            "trades": 43,
+            "winners": 34,
+            "losers": 9,
+            "pnl": 3145.76,
+            "win_rate": 79.1
+          }
+        },
+        "safety_events": 1,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 12,
+      "score": 60.79311851094891,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 1.0,
+        "tp3_r_multiple": 2.1,
+        "tp4_r_multiple": 2.2,
+        "tp5_r_multiple": 6.5,
+        "tp1_close_pct_weight": 0.55,
+        "tp2_close_pct_weight": 0.2,
+        "tp3_close_pct_weight": 0.45000000000000007,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.3,
+        "trail_activation_r": 0.9000000000000001,
+        "atr_trail_multiplier": 1.1,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 3,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 0.55
+      },
+      "metrics": {
+        "net_return_pct": 39.86,
+        "total_trades": 136,
+        "win_rate": 56.6,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.74,
+        "ddd_halts": 0,
+        "final_balance": 27972.18,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 33,
+            "winners": 20,
+            "losers": 13,
+            "pnl": 1047.75,
+            "win_rate": 60.6
+          },
+          "2023-03": {
+            "trades": 55,
+            "winners": 25,
+            "losers": 30,
+            "pnl": -675.17,
+            "win_rate": 45.5
+          },
+          "2023-04": {
+            "trades": 48,
+            "winners": 32,
+            "losers": 16,
+            "pnl": 2391.69,
+            "win_rate": 66.7
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 13,
+      "score": 80.66008500000001,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 0.8,
+        "tp3_r_multiple": 1.3,
+        "tp4_r_multiple": 2.0,
+        "tp5_r_multiple": 3.1,
+        "tp1_close_pct_weight": 0.2,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.4,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 0.9000000000000001,
+        "atr_trail_multiplier": 3.8000000000000003,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 5,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.1
+      },
+      "metrics": {
+        "net_return_pct": 46.15,
+        "total_trades": 167,
+        "win_rate": 59.3,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.08,
+        "ddd_halts": 0,
+        "final_balance": 29230.08,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 47,
+            "winners": 25,
+            "losers": 22,
+            "pnl": 114.12,
+            "win_rate": 53.2
+          },
+          "2023-03": {
+            "trades": 68,
+            "winners": 37,
+            "losers": 31,
+            "pnl": -4.31,
+            "win_rate": 54.4
+          },
+          "2023-04": {
+            "trades": 52,
+            "winners": 37,
+            "losers": 15,
+            "pnl": 1653.4,
+            "win_rate": 71.2
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 14,
+      "score": 66.37212266666666,
+      "params": {
+        "tp1_r_multiple": 0.8,
+        "tp2_r_multiple": 1.0,
+        "tp3_r_multiple": 4.3,
+        "tp4_r_multiple": 5.999999999999999,
+        "tp5_r_multiple": 7.799999999999999,
+        "tp1_close_pct_weight": 0.5,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.35,
+        "tp4_close_pct_weight": 0.2,
+        "tp5_close_pct_weight": 0.3,
+        "trail_activation_r": 1.1,
+        "atr_trail_multiplier": 1.8,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 7,
+        "min_quality_factors": 1,
+        "risk_per_trade_pct": 1.4500000000000002
+      },
+      "metrics": {
+        "net_return_pct": 48.16,
+        "total_trades": 129,
+        "win_rate": 59.7,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.36,
+        "ddd_halts": 0,
+        "final_balance": 29631.45,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 31,
+            "winners": 19,
+            "losers": 12,
+            "pnl": 872.38,
+            "win_rate": 61.3
+          },
+          "2023-03": {
+            "trades": 50,
+            "winners": 25,
+            "losers": 25,
+            "pnl": -604.55,
+            "win_rate": 50.0
+          },
+          "2023-04": {
+            "trades": 48,
+            "winners": 33,
+            "losers": 15,
+            "pnl": 2595.98,
+            "win_rate": 68.8
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 15,
+      "score": 71.09035436781609,
+      "params": {
+        "tp1_r_multiple": 0.8,
+        "tp2_r_multiple": 0.9,
+        "tp3_r_multiple": 4.2,
+        "tp4_r_multiple": 6.0,
+        "tp5_r_multiple": 7.8999999999999995,
+        "tp1_close_pct_weight": 0.5,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.35,
+        "tp4_close_pct_weight": 0.2,
+        "tp5_close_pct_weight": 0.3,
+        "trail_activation_r": 1.0,
+        "atr_trail_multiplier": 1.6,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 7,
+        "min_quality_factors": 1,
+        "risk_per_trade_pct": 1.5
+      },
+      "metrics": {
+        "net_return_pct": 52.15,
+        "total_trades": 134,
+        "win_rate": 64.2,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.48,
+        "ddd_halts": 0,
+        "final_balance": 30430.65,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 34,
+            "winners": 24,
+            "losers": 10,
+            "pnl": 982.03,
+            "win_rate": 70.6
+          },
+          "2023-03": {
+            "trades": 52,
+            "winners": 29,
+            "losers": 23,
+            "pnl": -311.34,
+            "win_rate": 55.8
+          },
+          "2023-04": {
+            "trades": 48,
+            "winners": 33,
+            "losers": 15,
+            "pnl": 2595.37,
+            "win_rate": 68.8
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 16,
+      "score": 78.18955171929825,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 0.8,
+        "tp3_r_multiple": 1.8,
+        "tp4_r_multiple": 2.0,
+        "tp5_r_multiple": 3.2,
+        "tp1_close_pct_weight": 0.6,
+        "tp2_close_pct_weight": 0.2,
+        "tp3_close_pct_weight": 0.4,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.1,
+        "atr_trail_multiplier": 3.9000000000000004,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.4500000000000002
+      },
+      "metrics": {
+        "net_return_pct": 39.36,
+        "total_trades": 147,
+        "win_rate": 63.3,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 1.71,
+        "ddd_halts": 0,
+        "final_balance": 27871.24,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 39,
+            "winners": 22,
+            "losers": 17,
+            "pnl": 251.49,
+            "win_rate": 56.4
+          },
+          "2023-03": {
+            "trades": 61,
+            "winners": 38,
+            "losers": 23,
+            "pnl": 475.95,
+            "win_rate": 62.3
+          },
+          "2023-04": {
+            "trades": 47,
+            "winners": 33,
+            "losers": 14,
+            "pnl": 1285.53,
+            "win_rate": 70.2
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 17,
+      "score": 95.23901794117647,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 0.8,
+        "tp3_r_multiple": 1.2,
+        "tp4_r_multiple": 2.3,
+        "tp5_r_multiple": 3.2,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.35,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.2,
+        "atr_trail_multiplier": 4.0,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.5
+      },
+      "metrics": {
+        "net_return_pct": 48.35,
+        "total_trades": 147,
+        "win_rate": 63.3,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 1.7,
+        "ddd_halts": 0,
+        "final_balance": 29669.07,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 39,
+            "winners": 22,
+            "losers": 17,
+            "pnl": 337.46,
+            "win_rate": 56.4
+          },
+          "2023-03": {
+            "trades": 61,
+            "winners": 38,
+            "losers": 23,
+            "pnl": 671.94,
+            "win_rate": 62.3
+          },
+          "2023-04": {
+            "trades": 47,
+            "winners": 33,
+            "losers": 14,
+            "pnl": 1585.7,
+            "win_rate": 70.2
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 18,
+      "score": 95.23901794117647,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 0.8,
+        "tp3_r_multiple": 1.5,
+        "tp4_r_multiple": 2.2,
+        "tp5_r_multiple": 3.5,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.35,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.5000000000000002,
+        "atr_trail_multiplier": 2.6,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.1500000000000001
+      },
+      "metrics": {
+        "net_return_pct": 48.35,
+        "total_trades": 147,
+        "win_rate": 63.3,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 1.7,
+        "ddd_halts": 0,
+        "final_balance": 29669.07,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 39,
+            "winners": 22,
+            "losers": 17,
+            "pnl": 337.46,
+            "win_rate": 56.4
+          },
+          "2023-03": {
+            "trades": 61,
+            "winners": 38,
+            "losers": 23,
+            "pnl": 671.94,
+            "win_rate": 62.3
+          },
+          "2023-04": {
+            "trades": 47,
+            "winners": 33,
+            "losers": 14,
+            "pnl": 1585.7,
+            "win_rate": 70.2
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 19,
+      "score": 90.33479482758622,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 1.3,
+        "tp3_r_multiple": 1.4000000000000001,
+        "tp4_r_multiple": 2.7,
+        "tp5_r_multiple": 3.2,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.4,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.4000000000000001,
+        "atr_trail_multiplier": 4.0,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.1500000000000001
+      },
+      "metrics": {
+        "net_return_pct": 55.75,
+        "total_trades": 137,
+        "win_rate": 56.2,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.32,
+        "ddd_halts": 0,
+        "final_balance": 31149.29,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 35,
+            "winners": 16,
+            "losers": 19,
+            "pnl": -218.47,
+            "win_rate": 45.7
+          },
+          "2023-03": {
+            "trades": 52,
+            "winners": 26,
+            "losers": 26,
+            "pnl": -282.65,
+            "win_rate": 50.0
+          },
+          "2023-04": {
+            "trades": 50,
+            "winners": 35,
+            "losers": 15,
+            "pnl": 2116.94,
+            "win_rate": 70.0
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 20,
+      "score": 78.95666250485436,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 1.3,
+        "tp3_r_multiple": 1.4000000000000001,
+        "tp4_r_multiple": 2.1,
+        "tp5_r_multiple": 3.0,
+        "tp1_close_pct_weight": 0.6,
+        "tp2_close_pct_weight": 0.25,
+        "tp3_close_pct_weight": 0.4,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.4000000000000001,
+        "atr_trail_multiplier": 3.9000000000000004,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.1500000000000001
+      },
+      "metrics": {
+        "net_return_pct": 45.11,
+        "total_trades": 137,
+        "win_rate": 56.2,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.06,
+        "ddd_halts": 0,
+        "final_balance": 29021.92,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 35,
+            "winners": 16,
+            "losers": 19,
+            "pnl": -98.25,
+            "win_rate": 45.7
+          },
+          "2023-03": {
+            "trades": 52,
+            "winners": 26,
+            "losers": 26,
+            "pnl": -302.64,
+            "win_rate": 50.0
+          },
+          "2023-04": {
+            "trades": 50,
+            "winners": 35,
+            "losers": 15,
+            "pnl": 1254.94,
+            "win_rate": 70.0
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 21,
+      "score": 96.028744,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 1.3,
+        "tp3_r_multiple": 1.4000000000000001,
+        "tp4_r_multiple": 2.7,
+        "tp5_r_multiple": 3.2,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.4,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.5000000000000002,
+        "atr_trail_multiplier": 4.0,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 4,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.1
+      },
+      "metrics": {
+        "net_return_pct": 55.76,
+        "total_trades": 155,
+        "win_rate": 52.3,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.05,
+        "ddd_halts": 0,
+        "final_balance": 31151.4,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 41,
+            "winners": 18,
+            "losers": 23,
+            "pnl": 272.7,
+            "win_rate": 43.9
+          },
+          "2023-03": {
+            "trades": 60,
+            "winners": 26,
+            "losers": 34,
+            "pnl": -474.81,
+            "win_rate": 43.3
+          },
+          "2023-04": {
+            "trades": 54,
+            "winners": 37,
+            "losers": 17,
+            "pnl": 2593.78,
+            "win_rate": 68.5
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 22,
+      "score": 93.44205282758621,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 1.3,
+        "tp3_r_multiple": 1.4000000000000001,
+        "tp4_r_multiple": 2.7,
+        "tp5_r_multiple": 4.0,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.4,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.3,
+        "atr_trail_multiplier": 2.7,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.2
+      },
+      "metrics": {
+        "net_return_pct": 57.78,
+        "total_trades": 137,
+        "win_rate": 56.2,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.32,
+        "ddd_halts": 0,
+        "final_balance": 31555.38,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 35,
+            "winners": 16,
+            "losers": 19,
+            "pnl": 309.63,
+            "win_rate": 45.7
+          },
+          "2023-03": {
+            "trades": 52,
+            "winners": 26,
+            "losers": 26,
+            "pnl": 155.14,
+            "win_rate": 50.0
+          },
+          "2023-04": {
+            "trades": 50,
+            "winners": 35,
+            "losers": 15,
+            "pnl": 2532.9,
+            "win_rate": 70.0
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 23,
+      "score": 49.11180272237961,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 2.4000000000000004,
+        "tp3_r_multiple": 2.9000000000000004,
+        "tp4_r_multiple": 3.4000000000000004,
+        "tp5_r_multiple": 4.0,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.30000000000000004,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.2,
+        "trail_activation_r": 1.3,
+        "atr_trail_multiplier": 2.5,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 3,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.25
+      },
+      "metrics": {
+        "net_return_pct": 35.31,
+        "total_trades": 115,
+        "win_rate": 60.9,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.53,
+        "ddd_halts": 1,
+        "final_balance": 27062.37,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 21,
+            "winners": 9,
+            "losers": 12,
+            "pnl": -209.75,
+            "win_rate": 42.9
+          },
+          "2023-03": {
+            "trades": 53,
+            "winners": 30,
+            "losers": 23,
+            "pnl": -143.07,
+            "win_rate": 56.6
+          },
+          "2023-04": {
+            "trades": 41,
+            "winners": 31,
+            "losers": 10,
+            "pnl": 3070.51,
+            "win_rate": 75.6
+          }
+        },
+        "safety_events": 1,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 24,
+      "score": 65.94995173758865,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 1.3,
+        "tp3_r_multiple": 1.7000000000000002,
+        "tp4_r_multiple": 2.8,
+        "tp5_r_multiple": 3.8,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.30000000000000004,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.3,
+        "atr_trail_multiplier": 3.1,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 4,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.25
+      },
+      "metrics": {
+        "net_return_pct": 44.15,
+        "total_trades": 133,
+        "win_rate": 57.1,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.82,
+        "ddd_halts": 0,
+        "final_balance": 28830.59,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 31,
+            "winners": 19,
+            "losers": 12,
+            "pnl": 525.12,
+            "win_rate": 61.3
+          },
+          "2023-03": {
+            "trades": 52,
+            "winners": 23,
+            "losers": 29,
+            "pnl": -1364.46,
+            "win_rate": 44.2
+          },
+          "2023-04": {
+            "trades": 50,
+            "winners": 34,
+            "losers": 16,
+            "pnl": 2254.14,
+            "win_rate": 68.0
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 25,
+      "score": 66.15702971631205,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 1.3,
+        "tp3_r_multiple": 1.8000000000000003,
+        "tp4_r_multiple": 2.8,
+        "tp5_r_multiple": 3.9,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.30000000000000004,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.4000000000000001,
+        "atr_trail_multiplier": 2.6,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 3,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.3
+      },
+      "metrics": {
+        "net_return_pct": 44.3,
+        "total_trades": 133,
+        "win_rate": 57.1,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.82,
+        "ddd_halts": 0,
+        "final_balance": 28860.7,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 31,
+            "winners": 19,
+            "losers": 12,
+            "pnl": 549.57,
+            "win_rate": 61.3
+          },
+          "2023-03": {
+            "trades": 52,
+            "winners": 23,
+            "losers": 29,
+            "pnl": -1290.73,
+            "win_rate": 44.2
+          },
+          "2023-04": {
+            "trades": 50,
+            "winners": 34,
+            "losers": 16,
+            "pnl": 2386.92,
+            "win_rate": 68.0
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 26,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 1.3,
+        "tp3_r_multiple": 1.8000000000000003,
+        "tp4_r_multiple": 2.7,
+        "tp5_r_multiple": 3.9,
+        "tp1_close_pct_weight": 0.2,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.30000000000000004,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.5000000000000002,
+        "atr_trail_multiplier": 2.7,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 4,
+        "min_quality_factors": 6,
+        "risk_per_trade_pct": 1.0
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 27,
+      "score": 47.3145442793296,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 3.0,
+        "tp3_r_multiple": 3.2,
+        "tp4_r_multiple": 3.4000000000000004,
+        "tp5_r_multiple": 4.0,
+        "tp1_close_pct_weight": 0.2,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.30000000000000004,
+        "tp4_close_pct_weight": 0.15000000000000002,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.6,
+        "atr_trail_multiplier": 3.5,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 3,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.0
+      },
+      "metrics": {
+        "net_return_pct": 34.42,
+        "total_trades": 116,
+        "win_rate": 56.9,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.58,
+        "ddd_halts": 1,
+        "final_balance": 26883.06,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 22,
+            "winners": 8,
+            "losers": 14,
+            "pnl": -316.62,
+            "win_rate": 36.4
+          },
+          "2023-03": {
+            "trades": 53,
+            "winners": 28,
+            "losers": 25,
+            "pnl": -263.58,
+            "win_rate": 52.8
+          },
+          "2023-04": {
+            "trades": 41,
+            "winners": 30,
+            "losers": 11,
+            "pnl": 3420.09,
+            "win_rate": 73.2
+          }
+        },
+        "safety_events": 1,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 28,
+      "score": 75.20440742857141,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 0.8,
+        "tp3_r_multiple": 1.8,
+        "tp4_r_multiple": 3.1,
+        "tp5_r_multiple": 4.6000000000000005,
+        "tp1_close_pct_weight": 0.2,
+        "tp2_close_pct_weight": 0.35,
+        "tp3_close_pct_weight": 0.45000000000000007,
+        "tp4_close_pct_weight": 0.15000000000000002,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.6,
+        "atr_trail_multiplier": 3.5,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 3,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.0
+      },
+      "metrics": {
+        "net_return_pct": 44.44,
+        "total_trades": 151,
+        "win_rate": 62.3,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.24,
+        "ddd_halts": 0,
+        "final_balance": 28888.63,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 40,
+            "winners": 26,
+            "losers": 14,
+            "pnl": 872.98,
+            "win_rate": 65.0
+          },
+          "2023-03": {
+            "trades": 63,
+            "winners": 35,
+            "losers": 28,
+            "pnl": 276.78,
+            "win_rate": 55.6
+          },
+          "2023-04": {
+            "trades": 48,
+            "winners": 33,
+            "losers": 15,
+            "pnl": 2446.66,
+            "win_rate": 68.8
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 29,
+      "score": 51.43928071148459,
+      "params": {
+        "tp1_r_multiple": 0.7000000000000001,
+        "tp2_r_multiple": 3.0,
+        "tp3_r_multiple": 3.2,
+        "tp4_r_multiple": 3.4000000000000004,
+        "tp5_r_multiple": 4.5,
+        "tp1_close_pct_weight": 0.1,
+        "tp2_close_pct_weight": 0.35,
+        "tp3_close_pct_weight": 0.45000000000000007,
+        "tp4_close_pct_weight": 0.15000000000000002,
+        "tp5_close_pct_weight": 0.2,
+        "trail_activation_r": 1.6,
+        "atr_trail_multiplier": 3.5,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 6,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.05
+      },
+      "metrics": {
+        "net_return_pct": 37.39,
+        "total_trades": 109,
+        "win_rate": 60.6,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.57,
+        "ddd_halts": 1,
+        "final_balance": 27478.88,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 19,
+            "winners": 8,
+            "losers": 11,
+            "pnl": -277.84,
+            "win_rate": 42.1
+          },
+          "2023-03": {
+            "trades": 50,
+            "winners": 28,
+            "losers": 22,
+            "pnl": 83.27,
+            "win_rate": 56.0
+          },
+          "2023-04": {
+            "trades": 40,
+            "winners": 30,
+            "losers": 10,
+            "pnl": 3942.02,
+            "win_rate": 75.0
+          }
+        },
+        "safety_events": 1,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 30,
+      "score": 81.28403824096385,
+      "params": {
+        "tp1_r_multiple": 0.7000000000000001,
+        "tp2_r_multiple": 0.8,
+        "tp3_r_multiple": 2.5,
+        "tp4_r_multiple": 3.0,
+        "tp5_r_multiple": 4.7,
+        "tp1_close_pct_weight": 0.1,
+        "tp2_close_pct_weight": 0.35,
+        "tp3_close_pct_weight": 0.45000000000000007,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.2,
+        "trail_activation_r": 1.2,
+        "atr_trail_multiplier": 3.5,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 6,
+        "min_quality_factors": 2,
+        "risk_per_trade_pct": 0.8
+      },
+      "metrics": {
+        "net_return_pct": 58.54,
+        "total_trades": 142,
+        "win_rate": 66.9,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.32,
+        "ddd_halts": 0,
+        "final_balance": 31707.5,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 36,
+            "winners": 26,
+            "losers": 10,
+            "pnl": 1557.66,
+            "win_rate": 72.2
+          },
+          "2023-03": {
+            "trades": 59,
+            "winners": 36,
+            "losers": 23,
+            "pnl": 982.08,
+            "win_rate": 61.0
+          },
+          "2023-04": {
+            "trades": 47,
+            "winners": 33,
+            "losers": 14,
+            "pnl": 3736.99,
+            "win_rate": 70.2
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 31,
+      "score": 81.28403824096385,
+      "params": {
+        "tp1_r_multiple": 0.7000000000000001,
+        "tp2_r_multiple": 0.8,
+        "tp3_r_multiple": 1.2,
+        "tp4_r_multiple": 4.4,
+        "tp5_r_multiple": 4.7,
+        "tp1_close_pct_weight": 0.1,
+        "tp2_close_pct_weight": 0.35,
+        "tp3_close_pct_weight": 0.45000000000000007,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.2,
+        "trail_activation_r": 1.2,
+        "atr_trail_multiplier": 3.5,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 6,
+        "min_quality_factors": 2,
+        "risk_per_trade_pct": 0.8500000000000001
+      },
+      "metrics": {
+        "net_return_pct": 58.54,
+        "total_trades": 142,
+        "win_rate": 66.9,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.32,
+        "ddd_halts": 0,
+        "final_balance": 31707.5,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 36,
+            "winners": 26,
+            "losers": 10,
+            "pnl": 1557.66,
+            "win_rate": 72.2
+          },
+          "2023-03": {
+            "trades": 59,
+            "winners": 36,
+            "losers": 23,
+            "pnl": 982.08,
+            "win_rate": 61.0
+          },
+          "2023-04": {
+            "trades": 47,
+            "winners": 33,
+            "losers": 14,
+            "pnl": 3736.99,
+            "win_rate": 70.2
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 32,
+      "score": 48.84668154639175,
+      "params": {
+        "tp1_r_multiple": 0.7000000000000001,
+        "tp2_r_multiple": 1.5,
+        "tp3_r_multiple": 2.5,
+        "tp4_r_multiple": 4.4,
+        "tp5_r_multiple": 4.7,
+        "tp1_close_pct_weight": 0.4,
+        "tp2_close_pct_weight": 0.35,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.2,
+        "trail_activation_r": 1.2,
+        "atr_trail_multiplier": 3.5,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 6,
+        "min_quality_factors": 2,
+        "risk_per_trade_pct": 0.8500000000000001
+      },
+      "metrics": {
+        "net_return_pct": 36.54,
+        "total_trades": 122,
+        "win_rate": 61.5,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.88,
+        "ddd_halts": 1,
+        "final_balance": 27308.0,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 26,
+            "winners": 15,
+            "losers": 11,
+            "pnl": 61.54,
+            "win_rate": 57.7
+          },
+          "2023-03": {
+            "trades": 51,
+            "winners": 27,
+            "losers": 24,
+            "pnl": -1278.53,
+            "win_rate": 52.9
+          },
+          "2023-04": {
+            "trades": 45,
+            "winners": 33,
+            "losers": 12,
+            "pnl": 1878.84,
+            "win_rate": 73.3
+          }
+        },
+        "safety_events": 1,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 33,
+      "score": 44.25573775342467,
+      "params": {
+        "tp1_r_multiple": 1.5,
+        "tp2_r_multiple": 1.7000000000000002,
+        "tp3_r_multiple": 2.5000000000000004,
+        "tp4_r_multiple": 4.200000000000001,
+        "tp5_r_multiple": 5.500000000000001,
+        "tp1_close_pct_weight": 0.4,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.15000000000000002,
+        "trail_activation_r": 1.2,
+        "atr_trail_multiplier": 2.3,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 5,
+        "min_quality_factors": 2,
+        "risk_per_trade_pct": 0.8
+      },
+      "metrics": {
+        "net_return_pct": 32.38,
+        "total_trades": 104,
+        "win_rate": 54.8,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 3.65,
+        "ddd_halts": 1,
+        "final_balance": 26476.01,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 18,
+            "winners": 9,
+            "losers": 9,
+            "pnl": -444.78,
+            "win_rate": 50.0
+          },
+          "2023-03": {
+            "trades": 43,
+            "winners": 21,
+            "losers": 22,
+            "pnl": -1274.81,
+            "win_rate": 48.8
+          },
+          "2023-04": {
+            "trades": 43,
+            "winners": 27,
+            "losers": 16,
+            "pnl": 1443.39,
+            "win_rate": 62.8
+          }
+        },
+        "safety_events": 1,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 34,
+      "score": 82.5159357201646,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 1.6,
+        "tp3_r_multiple": 2.1,
+        "tp4_r_multiple": 2.4000000000000004,
+        "tp5_r_multiple": 3.6,
+        "tp1_close_pct_weight": 0.2,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.35,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.15000000000000002,
+        "trail_activation_r": 1.2,
+        "atr_trail_multiplier": 3.0,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.35
+      },
+      "metrics": {
+        "net_return_pct": 52.04,
+        "total_trades": 128,
+        "win_rate": 55.5,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.43,
+        "ddd_halts": 0,
+        "final_balance": 30408.62,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 32,
+            "winners": 13,
+            "losers": 19,
+            "pnl": -23.34,
+            "win_rate": 40.6
+          },
+          "2023-03": {
+            "trades": 48,
+            "winners": 25,
+            "losers": 23,
+            "pnl": 9.81,
+            "win_rate": 52.1
+          },
+          "2023-04": {
+            "trades": 48,
+            "winners": 33,
+            "losers": 15,
+            "pnl": 2535.98,
+            "win_rate": 68.8
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 35,
+      "score": 82.67800991891892,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 1.1,
+        "tp3_r_multiple": 1.5000000000000002,
+        "tp4_r_multiple": 2.4,
+        "tp5_r_multiple": 3.5,
+        "tp1_close_pct_weight": 0.4,
+        "tp2_close_pct_weight": 0.30000000000000004,
+        "tp3_close_pct_weight": 0.35,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.15000000000000002,
+        "trail_activation_r": 1.7000000000000002,
+        "atr_trail_multiplier": 3.0,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.35
+      },
+      "metrics": {
+        "net_return_pct": 44.51,
+        "total_trades": 137,
+        "win_rate": 54.7,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 1.85,
+        "ddd_halts": 0,
+        "final_balance": 28902.99,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 35,
+            "winners": 16,
+            "losers": 19,
+            "pnl": 205.08,
+            "win_rate": 45.7
+          },
+          "2023-03": {
+            "trades": 52,
+            "winners": 25,
+            "losers": 27,
+            "pnl": 74.02,
+            "win_rate": 48.1
+          },
+          "2023-04": {
+            "trades": 50,
+            "winners": 34,
+            "losers": 16,
+            "pnl": 1859.83,
+            "win_rate": 68.0
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 36,
+      "score": 82.33897228571429,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 1.5,
+        "tp3_r_multiple": 2.0,
+        "tp4_r_multiple": 2.4000000000000004,
+        "tp5_r_multiple": 3.5,
+        "tp1_close_pct_weight": 0.2,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.35,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.15000000000000002,
+        "trail_activation_r": 1.7000000000000002,
+        "atr_trail_multiplier": 3.0,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.35
+      },
+      "metrics": {
+        "net_return_pct": 49.53,
+        "total_trades": 128,
+        "win_rate": 56.2,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.24,
+        "ddd_halts": 0,
+        "final_balance": 29905.08,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 33,
+            "winners": 14,
+            "losers": 19,
+            "pnl": 130.86,
+            "win_rate": 42.4
+          },
+          "2023-03": {
+            "trades": 47,
+            "winners": 24,
+            "losers": 23,
+            "pnl": 208.87,
+            "win_rate": 51.1
+          },
+          "2023-04": {
+            "trades": 48,
+            "winners": 34,
+            "losers": 14,
+            "pnl": 2620.67,
+            "win_rate": 70.8
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 37,
+      "score": 86.09427770165746,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 1.1,
+        "tp3_r_multiple": 1.5000000000000002,
+        "tp4_r_multiple": 2.3,
+        "tp5_r_multiple": 3.5,
+        "tp1_close_pct_weight": 0.30000000000000004,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.35,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.7000000000000002,
+        "atr_trail_multiplier": 2.8000000000000003,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.35
+      },
+      "metrics": {
+        "net_return_pct": 45.84,
+        "total_trades": 137,
+        "win_rate": 54.7,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 1.81,
+        "ddd_halts": 0,
+        "final_balance": 29168.13,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 35,
+            "winners": 16,
+            "losers": 19,
+            "pnl": 90.67,
+            "win_rate": 45.7
+          },
+          "2023-03": {
+            "trades": 52,
+            "winners": 25,
+            "losers": 27,
+            "pnl": -280.75,
+            "win_rate": 48.1
+          },
+          "2023-04": {
+            "trades": 50,
+            "winners": 34,
+            "losers": 16,
+            "pnl": 1645.92,
+            "win_rate": 68.0
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 38,
+      "score": 81.8577748108108,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 1.1,
+        "tp3_r_multiple": 1.5000000000000002,
+        "tp4_r_multiple": 2.4,
+        "tp5_r_multiple": 3.5,
+        "tp1_close_pct_weight": 0.30000000000000004,
+        "tp2_close_pct_weight": 0.30000000000000004,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.7000000000000002,
+        "atr_trail_multiplier": 2.9000000000000004,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 2,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.35
+      },
+      "metrics": {
+        "net_return_pct": 44.04,
+        "total_trades": 137,
+        "win_rate": 54.7,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 1.85,
+        "ddd_halts": 0,
+        "final_balance": 28807.15,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 35,
+            "winners": 16,
+            "losers": 19,
+            "pnl": 38.89,
+            "win_rate": 45.7
+          },
+          "2023-03": {
+            "trades": 52,
+            "winners": 25,
+            "losers": 27,
+            "pnl": -269.05,
+            "win_rate": 48.1
+          },
+          "2023-04": {
+            "trades": 50,
+            "winners": 34,
+            "losers": 16,
+            "pnl": 1552.81,
+            "win_rate": 68.0
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 39,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 1.5,
+        "tp3_r_multiple": 2.0,
+        "tp4_r_multiple": 2.4000000000000004,
+        "tp5_r_multiple": 4.3,
+        "tp1_close_pct_weight": 0.30000000000000004,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.5000000000000002,
+        "atr_trail_multiplier": 2.8000000000000003,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 2,
+        "min_quality_factors": 6,
+        "risk_per_trade_pct": 1.1
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 40,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 1.0,
+        "tp3_r_multiple": 1.6,
+        "tp4_r_multiple": 3.1,
+        "tp5_r_multiple": 5.2,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.5000000000000002,
+        "atr_trail_multiplier": 2.1,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 2,
+        "min_quality_factors": 6,
+        "risk_per_trade_pct": 1.1
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 41,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 2.2,
+        "tp3_r_multiple": 2.4000000000000004,
+        "tp4_r_multiple": 3.1000000000000005,
+        "tp5_r_multiple": 4.200000000000001,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.15000000000000002,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.5000000000000002,
+        "atr_trail_multiplier": 2.3,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 2,
+        "min_quality_factors": 6,
+        "risk_per_trade_pct": 1.1
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 42,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 2.3,
+        "tp3_r_multiple": 2.7,
+        "tp4_r_multiple": 3.2,
+        "tp5_r_multiple": 5.2,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.15000000000000002,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.5000000000000002,
+        "atr_trail_multiplier": 2.4000000000000004,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 6,
+        "range_min_confluence": 5,
+        "min_quality_factors": 6,
+        "risk_per_trade_pct": 1.2
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 43,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 2.2,
+        "tp3_r_multiple": 2.4000000000000004,
+        "tp4_r_multiple": 3.0000000000000004,
+        "tp5_r_multiple": 5.800000000000001,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.4,
+        "tp4_close_pct_weight": 0.15000000000000002,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.5000000000000002,
+        "atr_trail_multiplier": 3.3000000000000003,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 5,
+        "min_quality_factors": 6,
+        "risk_per_trade_pct": 1.1500000000000001
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 44,
+      "score": 81.29797838116592,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 1.4000000000000001,
+        "tp3_r_multiple": 1.7000000000000002,
+        "tp4_r_multiple": 2.6,
+        "tp5_r_multiple": 3.2,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.4,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.4000000000000001,
+        "atr_trail_multiplier": 4.0,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 5,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.2
+      },
+      "metrics": {
+        "net_return_pct": 48.23,
+        "total_trades": 120,
+        "win_rate": 61.7,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.23,
+        "ddd_halts": 0,
+        "final_balance": 29646.78,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 27,
+            "winners": 17,
+            "losers": 10,
+            "pnl": 519.93,
+            "win_rate": 63.0
+          },
+          "2023-03": {
+            "trades": 48,
+            "winners": 24,
+            "losers": 24,
+            "pnl": -864.28,
+            "win_rate": 50.0
+          },
+          "2023-04": {
+            "trades": 45,
+            "winners": 33,
+            "losers": 12,
+            "pnl": 2149.27,
+            "win_rate": 73.3
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 45,
+      "score": 77.74277152542372,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 1.3,
+        "tp3_r_multiple": 1.6,
+        "tp4_r_multiple": 2.6,
+        "tp5_r_multiple": 3.3,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.4,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.4000000000000001,
+        "atr_trail_multiplier": 4.0,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 5,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.2
+      },
+      "metrics": {
+        "net_return_pct": 47.4,
+        "total_trades": 117,
+        "win_rate": 62.4,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.36,
+        "ddd_halts": 0,
+        "final_balance": 29479.76,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 25,
+            "winners": 17,
+            "losers": 8,
+            "pnl": 559.46,
+            "win_rate": 68.0
+          },
+          "2023-03": {
+            "trades": 46,
+            "winners": 23,
+            "losers": 23,
+            "pnl": -802.19,
+            "win_rate": 50.0
+          },
+          "2023-04": {
+            "trades": 46,
+            "winners": 33,
+            "losers": 13,
+            "pnl": 2242.94,
+            "win_rate": 71.7
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 46,
+      "score": 86.42962,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 1.2000000000000002,
+        "tp3_r_multiple": 1.3000000000000003,
+        "tp4_r_multiple": 2.6,
+        "tp5_r_multiple": 3.2,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.4,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.4000000000000001,
+        "atr_trail_multiplier": 4.0,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.2
+      },
+      "metrics": {
+        "net_return_pct": 47.1,
+        "total_trades": 117,
+        "win_rate": 62.4,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 1.92,
+        "ddd_halts": 0,
+        "final_balance": 29419.14,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 25,
+            "winners": 17,
+            "losers": 8,
+            "pnl": 381.16,
+            "win_rate": 68.0
+          },
+          "2023-03": {
+            "trades": 47,
+            "winners": 24,
+            "losers": 23,
+            "pnl": -1043.38,
+            "win_rate": 51.1
+          },
+          "2023-04": {
+            "trades": 45,
+            "winners": 32,
+            "losers": 13,
+            "pnl": 1931.59,
+            "win_rate": 71.1
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 47,
+      "score": 86.42962,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 1.2000000000000002,
+        "tp3_r_multiple": 1.3000000000000003,
+        "tp4_r_multiple": 2.6,
+        "tp5_r_multiple": 3.2,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.4,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.3,
+        "atr_trail_multiplier": 4.0,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 7,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.25
+      },
+      "metrics": {
+        "net_return_pct": 47.1,
+        "total_trades": 117,
+        "win_rate": 62.4,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 1.92,
+        "ddd_halts": 0,
+        "final_balance": 29419.14,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 25,
+            "winners": 17,
+            "losers": 8,
+            "pnl": 381.16,
+            "win_rate": 68.0
+          },
+          "2023-03": {
+            "trades": 47,
+            "winners": 24,
+            "losers": 23,
+            "pnl": -1043.38,
+            "win_rate": 51.1
+          },
+          "2023-04": {
+            "trades": 45,
+            "winners": 32,
+            "losers": 13,
+            "pnl": 1931.59,
+            "win_rate": 71.1
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 48,
+      "score": 90.85746666666667,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 1.2000000000000002,
+        "tp3_r_multiple": 1.3000000000000003,
+        "tp4_r_multiple": 2.6,
+        "tp5_r_multiple": 3.2,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.4,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.3,
+        "atr_trail_multiplier": 3.7,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 9,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.25
+      },
+      "metrics": {
+        "net_return_pct": 55.2,
+        "total_trades": 137,
+        "win_rate": 55.5,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.25,
+        "ddd_halts": 0,
+        "final_balance": 31039.51,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 35,
+            "winners": 16,
+            "losers": 19,
+            "pnl": -12.16,
+            "win_rate": 45.7
+          },
+          "2023-03": {
+            "trades": 52,
+            "winners": 26,
+            "losers": 26,
+            "pnl": -65.74,
+            "win_rate": 50.0
+          },
+          "2023-04": {
+            "trades": 50,
+            "winners": 34,
+            "losers": 16,
+            "pnl": 1906.68,
+            "win_rate": 68.0
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 49,
+      "score": 67.90610365217391,
+      "params": {
+        "tp1_r_multiple": 1.1,
+        "tp2_r_multiple": 1.4000000000000001,
+        "tp3_r_multiple": 1.9000000000000004,
+        "tp4_r_multiple": 3.6000000000000005,
+        "tp5_r_multiple": 4.200000000000001,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.55,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.3,
+        "atr_trail_multiplier": 3.7,
+        "use_atr_trailing": false,
+        "trend_min_confluence": 7,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 0.95
+      },
+      "metrics": {
+        "net_return_pct": 45.76,
+        "total_trades": 102,
+        "win_rate": 68.6,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 2.99,
+        "ddd_halts": 0,
+        "final_balance": 29151.61,
+        "monthly_stats": {
+          "2023-02": {
+            "trades": 20,
+            "winners": 14,
+            "losers": 6,
+            "pnl": 624.54,
+            "win_rate": 70.0
+          },
+          "2023-03": {
+            "trades": 38,
+            "winners": 21,
+            "losers": 17,
+            "pnl": -370.97,
+            "win_rate": 55.3
+          },
+          "2023-04": {
+            "trades": 44,
+            "winners": 35,
+            "losers": 9,
+            "pnl": 3553.51,
+            "win_rate": 79.5
+          }
+        },
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    }
+  ]
+}

@@ -656,9 +656,25 @@ class CSVMT5Simulator:
                 'tp': pos.tp,
             })
         else:
-            # Partial close
+            # Partial close - also log this!
             pos.volume -= close_volume
             self._balance += pnl
+            
+            # Log partial close as separate trade entry
+            self._closed_trades.append({
+                'ticket': f"{ticket}_partial_{int(self._current_time.timestamp())}",
+                'symbol': pos.symbol,
+                'type': 'buy' if pos.type == 0 else 'sell',
+                'volume': close_volume,
+                'open_price': pos.price_open,
+                'close_price': close_price,
+                'open_time': pos.time,
+                'close_time': self._current_time,
+                'pnl': pnl,
+                'sl': pos.sl,
+                'tp': pos.tp,
+                'partial': True,  # Mark as partial close
+            })
         
         return TradeResult(
             success=True,

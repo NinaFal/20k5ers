@@ -142,10 +142,12 @@ FOREX_PAIRS = [
 ]
 
 # Metals (FTMO tradable)
-METALS = [
-    "XAU_USD",  # Gold (XAUUSD on FTMO)
-    "XAG_USD",  # Silver (XAGUSD on FTMO)
-]
+# TEMPORARILY DISABLED for optimization - uncomment when done
+# METALS = [
+#     "XAU_USD",  # Gold (XAUUSD on FTMO)
+#     "XAG_USD",  # Silver (XAGUSD on FTMO)
+# ]
+METALS = []  # Empty for optimization run
 
 # Indices (FTMO tradable)
 INDICES = [

@@ -227,10 +227,7 @@ def get_next_daily_close() -> datetime:
 
 def get_next_scan_time(include_today: bool = False) -> datetime:
     """
-    Get next scheduled scan time.
-    - Normal days (Tue-Fri): 15 min after daily close (00:15 server time)
-    - Monday: 1 hour after market open (01:00 server time) to avoid wide spreads
-    
+    Get next scheduled scan time (10 min after daily close).
     Returns datetime in UTC for comparison.
 
     Args:
@@ -238,30 +235,24 @@ def get_next_scan_time(include_today: bool = False) -> datetime:
                       Useful for initial setup to catch missed scans.
     """
     server_now = get_server_time()
-    
-    def get_scan_time_for_day(day: datetime) -> datetime:
-        """Get the scan time for a specific day based on weekday."""
-        if day.weekday() == 0:  # Monday - 1 hour after market open
-            return day.replace(hour=1, minute=0, second=0, microsecond=0)
-        else:  # Tue-Fri - 15 min after daily close
-            return day.replace(hour=0, minute=15, second=0, microsecond=0)
 
-    today_scan = get_scan_time_for_day(server_now)
+    # Daily close is at 00:00 server time, scan at 01:00 server time
+    # (1 hour after close to avoid wide spreads on Monday open)
+    today_scan = server_now.replace(hour=1, minute=0, second=0, microsecond=0)
 
     # If include_today is True and we haven't passed today's scan yet, return it
     if include_today and server_now < today_scan:
-        # Skip weekends (Saturday=5, Sunday=6)
+        # Skip weekends
         if today_scan.weekday() < 5:  # Monday-Friday
             return today_scan.astimezone(timezone.utc)
 
-    # If we're past today's scan (or it's weekend), get next trading day's scan
-    if server_now >= today_scan or server_now.weekday() >= 5:
-        next_day = server_now + timedelta(days=1)
+    # If we're past today's scan (or it's weekend), get tomorrow's
+    if server_now >= today_scan or today_scan.weekday() >= 5:
+        tomorrow_scan = today_scan + timedelta(days=1)
         # Skip weekends
-        while next_day.weekday() >= 5:
-            next_day += timedelta(days=1)
-        next_scan = get_scan_time_for_day(next_day)
-        return next_scan.astimezone(timezone.utc)
+        while tomorrow_scan.weekday() >= 5:
+            tomorrow_scan += timedelta(days=1)
+        return tomorrow_scan.astimezone(timezone.utc)
 
     # Return today's scan (handles case where include_today=False but it's before scan time)
     return today_scan.astimezone(timezone.utc)
@@ -2299,17 +2290,7 @@ class LiveTradingBot:
         if pip_size <= 0:
             pip_size = 0.0001
         
-        # CRITICAL: For metals (XAU, XAG), MT5's tick_value is unreliable!
-        # MT5 returns tick_value per mini lot (0.01) instead of per standard lot.
-        # Verified from live trade: XAUUSD 0.2 lots, 4.78 points move = $95.60 profit
-        # This means pip_value = $100/point per lot (not $0.01 as MT5 reports).
-        # Use fiveers_specs which are verified correct for 5ers broker.
-        sym_upper = symbol.upper().replace("_", "")
-        if any(x in sym_upper for x in ["XAU", "XAG"]):
-            log.info(f"[{symbol}] Using fiveers_specs for metals: pip_value=${base_pip_value:.2f}/pip (pip_size={pip_size})")
-            return base_pip_value
-        
-        # For other symbols: Try to get tick_value directly from MT5
+        # FIRST: Try to get tick_value directly from MT5 (most reliable!)
         try:
             symbol_info = self.mt5.get_symbol_info(broker_symbol)
             if symbol_info:
@@ -2354,8 +2335,8 @@ class LiveTradingBot:
         if any(x in sym_upper for x in ["NAS100", "SPX500", "SP500", "US100", "US500", "US30"]):
             return base_pip_value
         
-        # Crypto - already in USD (metals handled at start of function)
-        if any(x in sym_upper for x in ["BTC", "ETH"]):
+        # Metals and Crypto - already in USD
+        if any(x in sym_upper for x in ["XAU", "XAG", "BTC", "ETH"]):
             return base_pip_value
         
         # FOREX - check quote currency
@@ -2554,14 +2535,6 @@ class LiveTradingBot:
         lot_size = lot_result.get("lot_size", 0.0)
         risk_usd = lot_result.get("risk_usd", 0.0)
         risk_pips = lot_result.get("stop_pips", 0.0)
-        actual_risk_pct = lot_result.get("actual_risk_pct", 0.0)
-
-        # CRITICAL: Reject trade if actual risk exceeds 2x intended risk
-        # This catches cases where min_lot forces excessive risk
-        max_acceptable_risk_pct = risk_pct * 2 / 100  # 2x the intended risk %
-        if actual_risk_pct > max_acceptable_risk_pct:
-            log.warning(f"[{symbol}] Actual risk {actual_risk_pct*100:.2f}% exceeds 2x intended {risk_pct:.2f}% - stop too wide (NO TRADE)")
-            return 0.0
 
         # Validate lot size
         if lot_size <= 0 or lot_size < min_lot:
@@ -4250,11 +4223,7 @@ class LiveTradingBot:
         # FIRST RUN CHECK - Immediate scan if needed (but check if scan already done today)
         # ═══════════════════════════════════════════════════════════════════
         server_now = get_server_time()
-        # Use same logic as get_next_scan_time: Monday=01:00, Tue-Fri=00:15
-        if server_now.weekday() == 0:  # Monday
-            today_scan = server_now.replace(hour=1, minute=0, second=0, microsecond=0)
-        else:  # Tue-Fri
-            today_scan = server_now.replace(hour=0, minute=15, second=0, microsecond=0)
+        today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
         today_scan_utc = today_scan.astimezone(timezone.utc)
         
         # Check if we already scanned today (prevents duplicate scans after restart)

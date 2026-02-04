@@ -1,8 +1,8 @@
 # 5ers Compliance Guide
 
-**Last Updated**: February 3, 2026  
+**Last Updated**: January 20, 2026  
 **Account**: 5ers 20K High Stakes Challenge  
-**Risk Per Trade**: 1.0% = $200/R
+**Strategy Risk**: 0.6% per trade = $120/R
 
 ---
 
@@ -16,9 +16,16 @@
 > ⚠️ **Key Difference from FTMO**: 5ers TDD is STATIC, not trailing!
 
 ### Daily Drawdown (DDD)
+**5ers DOES track daily drawdown!**
 - **Limit**: 5% from day start
 - **Baseline**: MAX(closing equity, closing balance) at 00:00 server time
 - **Reset**: Daily at 00:00 broker time
+- As balance grows, daily loss allowance grows too
+
+**Example**: If your account has equity $22,000 and balance $21,500 at 23:59:
+- At 00:00 rollover → day_start = MAX($22,000, $21,500) = **$22,000**
+- Daily loss limit: 5% × $22,000 = **$1,100**
+- Stop-out at: $22,000 - $1,100 = **$20,900** for that day
 
 ### Profit Targets
 | Step | Target | Amount |
@@ -34,11 +41,11 @@
 
 | Tier | Daily DD | Action |
 |------|----------|--------|
-| Warning | ≥2.0% | Log warning only |
-| Reduce | ≥3.0% | Reduce risk |
-| Halt | ≥3.2% | Close all, stop trading |
+| Warning | ≥2.0% | Log warning |
+| Reduce | ≥3.0% | Reduce risk 0.6%→0.4% |
+| Halt | ≥3.5% | Close all, stop trading |
 
-**Margin to 5ers limit**: 5.0% - 3.2% = **1.8% safety buffer**
+**Margin to 5ers limit**: 5.0% - 3.5% = **1.5% safety buffer**
 
 ### TDD Implementation
 ```python
@@ -51,39 +58,24 @@ is_stopped_out = current_balance < stop_out_level
 
 ---
 
-## Safety Features (February 3, 2026)
+## Validated Compliance (January 18, 2026)
 
-### Metal Pip Value Fix
-- XAU: $100/pip (from fiveers_specs)
-- XAG: $5/pip (from fiveers_specs)
-- **Reason**: MT5 tick_value was unreliable for metals
-
-### 2x Risk Rejection
-```python
-# Reject trades where actual risk exceeds 2x intended
-if actual_risk_pct > risk_pct * 2:
-    return 0.0  # NO TRADE
+### Simulation Results (2023-2025)
+```
+Starting Balance:     $20,000
+Final Balance:        $310,183
+Return:               +1,451%
+Max TDD:              4.94%  (limit 10%) ✅
+Max DDD:              3.61%  (limit 5%)  ✅
+DDD Halt Events:      1 (safety working)
 ```
 
-### Friday Protection
-- No new orders after 16:00 UTC Friday
-- Weekend gap management (correlation-aware)
-- Crypto positions held (24/7 markets)
+### Margin Analysis
+| Metric | Limit | Achieved | Margin |
+|--------|-------|----------|--------|
+| TDD | 10.0% | 4.94% | 5.06% |
+| DDD | 5.0% | 3.61% | 1.39% |
 
 ---
 
-## Configuration (ftmo_config.py)
-
-```python
-FIVEERS_CONFIG = {
-    "daily_loss_warning_pct": 2.0,
-    "daily_loss_reduce_pct": 3.0,
-    "daily_loss_halt_pct": 3.2,
-    "total_dd_emergency_pct": 7.0,
-    "friday_close_hour_utc": 16,
-}
-```
-
----
-
-**Last Updated**: February 3, 2026
+**Last Updated**: January 20, 2026
