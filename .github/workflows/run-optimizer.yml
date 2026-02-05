@@ -1,0 +1,85 @@
+name: Run Optimizer
+
+on:
+  workflow_dispatch:
+    inputs:
+      trials:
+        description: 'Number of trials'
+        required: true
+        default: '25'
+        type: string
+      start_date:
+        description: 'Start date (YYYY-MM-DD)'
+        required: true
+        default: '2024-03-01'
+        type: string
+      end_date:
+        description: 'End date (YYYY-MM-DD)'
+        required: true
+        default: '2024-04-30'
+        type: string
+      balance:
+        description: 'Starting balance'
+        required: true
+        default: '20000'
+        type: string
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6 hours max
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install optuna
+
+      - name: Create output directories
+        run: |
+          mkdir -p backtest/logs
+          mkdir -p backtest/optimization_results
+
+      - name: Run Optimizer
+        run: |
+          python backtest/optimize_main_live_bot.py \
+            --trials ${{ inputs.trials }} \
+            --start ${{ inputs.start_date }} \
+            --end ${{ inputs.end_date }} \
+            --balance ${{ inputs.balance }} \
+            2>&1 | tee backtest/logs/optimizer_cloud_run.log
+
+      - name: Upload optimizer results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: optimizer-results-${{ github.run_id }}
+          path: |
+            backtest/logs/optimizer_cloud_run.log
+            backtest/optimization_results/
+            ftmo_analysis_output/
+          retention-days: 30
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Optimizer Run Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trials**: ${{ inputs.trials }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Period**: ${{ inputs.start_date }} to ${{ inputs.end_date }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Balance**: \$${{ inputs.balance }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Last 30 lines of log:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -30 backtest/logs/optimizer_cloud_run.log >> $GITHUB_STEP_SUMMARY || echo "No log found"
+          echo '```' >> $GITHUB_STEP_SUMMARY
