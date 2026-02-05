@@ -227,8 +227,12 @@ def get_next_daily_close() -> datetime:
 
 def get_next_scan_time(include_today: bool = False) -> datetime:
     """
-    Get next scheduled scan time (10 min after daily close).
+    Get next scheduled scan time.
     Returns datetime in UTC for comparison.
+    
+    SCHEDULE:
+    - Tuesday-Friday: 00:15 server time (15 min after daily close)
+    - Monday: 01:00 server time (1 hour after market open, avoids wide spreads)
 
     Args:
         include_today: If True, returns today's scan time even if it's in the past.
@@ -236,9 +240,14 @@ def get_next_scan_time(include_today: bool = False) -> datetime:
     """
     server_now = get_server_time()
 
-    # Daily close is at 00:00 server time, scan at 01:00 server time
-    # (1 hour after close to avoid wide spreads on Monday open)
-    today_scan = server_now.replace(hour=1, minute=0, second=0, microsecond=0)
+    # Monday (weekday=0) scans at 01:00, all other weekdays at 00:15
+    def _scan_time_for(dt):
+        if dt.weekday() == 0:  # Monday
+            return dt.replace(hour=1, minute=0, second=0, microsecond=0)
+        else:  # Tue-Fri
+            return dt.replace(hour=0, minute=15, second=0, microsecond=0)
+
+    today_scan = _scan_time_for(server_now)
 
     # If include_today is True and we haven't passed today's scan yet, return it
     if include_today and server_now < today_scan:
@@ -248,14 +257,39 @@ def get_next_scan_time(include_today: bool = False) -> datetime:
 
     # If we're past today's scan (or it's weekend), get tomorrow's
     if server_now >= today_scan or today_scan.weekday() >= 5:
-        tomorrow_scan = today_scan + timedelta(days=1)
+        tomorrow = server_now + timedelta(days=1)
+        tomorrow = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
         # Skip weekends
-        while tomorrow_scan.weekday() >= 5:
-            tomorrow_scan += timedelta(days=1)
+        while tomorrow.weekday() >= 5:
+            tomorrow += timedelta(days=1)
+        tomorrow_scan = _scan_time_for(tomorrow)
         return tomorrow_scan.astimezone(timezone.utc)
 
     # Return today's scan (handles case where include_today=False but it's before scan time)
     return today_scan.astimezone(timezone.utc)
+
+
+def get_next_midnight_sync_time() -> datetime:
+    """
+    Get next midnight sync time (00:00 server time).
+    This is when 5ers takes the equity/balance snapshot for DDD calculation.
+    
+    The bot syncs at exactly 00:00 to capture MAX(equity, balance) matching 5ers.
+    Skips weekends (Saturday/Sunday).
+    
+    Returns datetime in UTC.
+    """
+    server_now = get_server_time()
+    today_midnight = server_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    if server_now >= today_midnight or today_midnight.weekday() >= 5:
+        # Already past midnight today (or weekend), get next weekday midnight
+        next_day = today_midnight + timedelta(days=1)
+        while next_day.weekday() >= 5:  # Skip Sat/Sun
+            next_day += timedelta(days=1)
+        return next_day.astimezone(timezone.utc)
+    
+    return today_midnight.astimezone(timezone.utc)
 
 
 def is_market_open() -> bool:
@@ -758,6 +792,8 @@ class LiveTradingBot:
         self.params = load_best_params_from_file()
         self.last_scan_time: Optional[datetime] = None
         self.next_scan_time: Optional[datetime] = None  # Store next scheduled scan time
+        self.next_midnight_sync_time: Optional[datetime] = None  # 00:00 equity sync for 5ers DDD
+        self.last_midnight_sync_date: Optional[str] = None  # Track which date we last synced
         self.last_validate_time: Optional[datetime] = None
         self.last_spread_check_time: Optional[datetime] = None
         self.last_entry_check_time: Optional[datetime] = None  # Track entry proximity checks
@@ -799,7 +835,7 @@ class LiveTradingBot:
     # ═══════════════════════════════════════════════════════════════════════════
     
     def _load_scan_state(self):
-        """Load last scan time from file to prevent duplicate scans after restart."""
+        """Load last scan time and midnight sync state from file."""
         try:
             if Path(self.SCAN_STATE_FILE).exists():
                 with open(self.SCAN_STATE_FILE, 'r') as f:
@@ -808,21 +844,83 @@ class LiveTradingBot:
                 if last_scan_str:
                     self.last_scan_time = datetime.fromisoformat(last_scan_str.replace("Z", "+00:00"))
                     log.info(f"Loaded last scan time: {self.last_scan_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+                self.last_midnight_sync_date = data.get("last_midnight_sync_date")
+                if self.last_midnight_sync_date:
+                    log.info(f"Loaded last midnight sync date: {self.last_midnight_sync_date}")
         except Exception as e:
             log.error(f"Error loading scan state: {e}")
             self.last_scan_time = None
     
     def _save_scan_state(self):
-        """Save scan state to file."""
+        """Save scan state and midnight sync state to file."""
         try:
             data = {
                 "last_scan_time": self.last_scan_time.isoformat() if self.last_scan_time else None,
+                "last_midnight_sync_date": self.last_midnight_sync_date,
                 "last_update": datetime.now(timezone.utc).isoformat()
             }
             with open(self.SCAN_STATE_FILE, 'w') as f:
                 json.dump(data, f, indent=2)
         except Exception as e:
             log.error(f"Error saving scan state: {e}")
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # MIDNIGHT EQUITY SYNC - Captures MAX(equity, balance) at 00:00 for 5ers DDD
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _do_midnight_equity_sync(self):
+        """
+        Sync day_start_equity at 00:00 server time (5ers DDD snapshot moment).
+        
+        5ers determines the Daily Loss Level as the HIGHER of equity or balance
+        at midnight server time. This sync captures that exact value so our DDD
+        limit matches the 5ers dashboard.
+        """
+        if not self.challenge_manager:
+            log.warning("⏰ Midnight sync skipped - challenge_manager not initialized")
+            return
+        
+        account = self.mt5.get_account_info()
+        if not account:
+            log.error("⏰ Midnight sync FAILED - could not get MT5 account info")
+            return
+        
+        current_equity = account.get("equity", 0)
+        current_balance = account.get("balance", 0)
+        old_day_start = self.challenge_manager.day_start_equity
+        today = get_server_date().isoformat()
+        
+        # Check if manually overridden for today
+        manually_set_date = self.challenge_manager.day_start_equity_manually_set_date
+        if manually_set_date == today:
+            log.info(f"⏰ MIDNIGHT SYNC: Day start equity PRESERVED (manually set today): ${old_day_start:,.2f}")
+        elif manually_set_date:
+            # Manual set from previous day - clear it and update
+            log.info(f"⏰ MIDNIGHT SYNC: Manual override from {manually_set_date} expired - updating now")
+            self.challenge_manager.day_start_equity_manually_set_date = ""
+            self.challenge_manager.update_day_start_equity(current_equity, current_balance)
+            new_value = max(current_equity, current_balance)
+            log.info(f"⏰ MIDNIGHT SYNC: ${old_day_start:,.2f} → ${new_value:,.2f} (MAX of equity ${current_equity:,.2f} / balance ${current_balance:,.2f})")
+        else:
+            # Normal midnight sync per 5ers rules
+            self.challenge_manager.update_day_start_equity(current_equity, current_balance)
+            new_value = max(current_equity, current_balance)
+            log.info("=" * 70)
+            log.info(f"⏰ MIDNIGHT EQUITY SYNC (5ers DDD baseline)")
+            log.info(f"  Previous day_start_equity: ${old_day_start:,.2f}")
+            log.info(f"  Midnight equity: ${current_equity:,.2f}")
+            log.info(f"  Midnight balance: ${current_balance:,.2f}")
+            log.info(f"  → NEW day_start_equity = MAX(equity, balance) = ${new_value:,.2f}")
+            log.info(f"  → DDD limit (5%) = ${new_value * 0.95:,.2f}")
+            log.info("=" * 70)
+        
+        # Track that we've done today's sync
+        self.last_midnight_sync_date = today
+        self._save_scan_state()
+        
+        # Schedule next midnight sync
+        self.next_midnight_sync_time = get_next_midnight_sync_time()
+        log.info(f"⏰ Next midnight sync: {self.next_midnight_sync_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
 
     # ═══════════════════════════════════════════════════════════════════════════
     # DDD HALT STATE PERSISTENCE - Survives bot restarts within same day
@@ -4610,6 +4708,22 @@ class LiveTradingBot:
         # Weekend gap check (only on Monday morning)
         self.handle_weekend_gap_positions()
         
+        # ═══════════════════════════════════════════════════════════════════
+        # MIDNIGHT EQUITY SYNC - Schedule 00:00 server time sync for 5ers DDD
+        # ═══════════════════════════════════════════════════════════════════
+        self.next_midnight_sync_time = get_next_midnight_sync_time()
+        today_server_date = get_server_date().isoformat()
+        if self.last_midnight_sync_date == today_server_date:
+            log.info(f"✓ Midnight equity sync already done for {today_server_date}")
+        else:
+            # If we just started after midnight but before scan, do sync now
+            server_now = get_server_time()
+            today_midnight = server_now.replace(hour=0, minute=0, second=0, microsecond=0)
+            if server_now >= today_midnight and server_now.weekday() < 5:
+                log.info(f"⏰ Missed midnight sync for {today_server_date} - syncing now")
+                self._do_midnight_equity_sync()
+        log.info(f"Next midnight sync: {self.next_midnight_sync_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+        
         self.last_validate_time = datetime.now(timezone.utc)
         self.last_spread_check_time = datetime.now(timezone.utc)
         last_protection_check = datetime.now(timezone.utc)
@@ -4702,55 +4816,42 @@ class LiveTradingBot:
                 #         self.validate_all_setups()
                 
                 # ═══════════════════════════════════════════════════════════════
-                # DAILY SCAN - 1 hour after daily close (01:00 server time)
+                # MIDNIGHT EQUITY SYNC - 00:00 server time (5ers DDD snapshot)
+                # ═══════════════════════════════════════════════════════════════
+                if self.next_midnight_sync_time and now >= self.next_midnight_sync_time:
+                    if is_market_open():
+                        self._do_midnight_equity_sync()
+                        
+                        # CRITICAL: Reset DDD halt at midnight (new trading day)
+                        if self.ddd_halted:
+                            log.info("✅ NEW TRADING DAY (midnight) - Resetting DDD halt from previous day")
+                            self.ddd_halted = False
+                            self.ddd_halt_reason = ""
+                            self.ddd_halt_date = None
+                            self._save_ddd_halt_state()
+                            log.info("✅ Trading re-enabled!")
+                    else:
+                        # Weekend - schedule next weekday
+                        self.next_midnight_sync_time = get_next_midnight_sync_time()
+
+                # ═══════════════════════════════════════════════════════════════
+                # DAILY SCAN - 00:15 server time (Tue-Fri), 01:00 (Monday)
                 # ═══════════════════════════════════════════════════════════════
                 if self.next_scan_time and now >= self.next_scan_time:
                     if is_market_open():
                         log.info("=" * 70)
                         log.info(f"📊 DAILY SCAN - {get_server_time().strftime('%Y-%m-%d %H:%M')} Server Time")
                         log.info("=" * 70)
-                        
-                        # CRITICAL: Reset DDD halt at daily scan time (new trading day)
-                        if self.ddd_halted:
-                            log.info("✅ NEW TRADING DAY - Resetting DDD halt from previous day")
-                            self.ddd_halted = False
-                            self.ddd_halt_reason = ""
-                            self.ddd_halt_date = None
-                            self._save_ddd_halt_state()
-                            log.info("✅ Trading re-enabled!")
 
                         # Update daily tracking and reset for new day
                         self.risk_manager._check_new_day()
                         
-                        # Update day_start_equity BEFORE scan (use current equity as new day start)
-                        # This is the equity at daily close which becomes the new day's starting point
-                        # SKIP if day_start_equity was manually set TODAY via --set-day-start-equity
-                        # BUGFIX: Use date comparison to ensure equity is updated the NEXT day
-                        account = self.mt5.get_account_info()
-                        if account and self.challenge_manager:
-                            current_equity = account.get("equity", 0)
-                            old_day_start = self.challenge_manager.day_start_equity
-                            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-                            
-                            manually_set_date = self.challenge_manager.day_start_equity_manually_set_date
-                            current_balance = account.get("balance", 0)
-                            
-                            if manually_set_date == today:
-                                # Manually set TODAY - preserve and don't update
-                                log.info(f"Day start equity PRESERVED (manually set today): ${old_day_start:,.2f} (current equity: ${current_equity:,.2f})")
-                                # Keep the date - it will only be skipped for today
-                            elif manually_set_date:
-                                # Manually set on a PREVIOUS day - update now and clear the date
-                                log.info(f"Day start equity was manually set on {manually_set_date}, but today is {today} - updating now")
-                                self.challenge_manager.day_start_equity_manually_set_date = ""
-                                self.challenge_manager.update_day_start_equity(current_equity, current_balance)
-                                new_value = max(current_equity, current_balance)
-                                log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${new_value:,.2f} (MAX of equity/balance per 5ers)")
-                            else:
-                                # Normal update per 5ers rules: MAX(equity, balance)
-                                self.challenge_manager.update_day_start_equity(current_equity, current_balance)
-                                new_value = max(current_equity, current_balance)
-                                log.info(f"Day start equity updated: ${old_day_start:,.2f} → ${new_value:,.2f} (MAX of equity/balance per 5ers)")
+                        # NOTE: day_start_equity is now updated at 00:00 by midnight sync
+                        # If midnight sync was missed (bot restart), do it now as fallback
+                        today = get_server_date().isoformat()
+                        if self.last_midnight_sync_date != today:
+                            log.warning("⚠️ Midnight sync was missed - doing fallback equity sync now")
+                            self._do_midnight_equity_sync()
 
                         self.scan_all_symbols()
 

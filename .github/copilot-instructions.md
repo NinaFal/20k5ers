@@ -10,7 +10,7 @@ Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accoun
 - **5ers Compliance**: Max TDD 4.94%, Max DDD 3.61% (both within limits)
 - **Exit System**: 3 Take Profit levels (35%/30%/35% at 0.6R/1.2R/2.0R)
 - **Entry Queue**: Signals wait for 0.3R proximity, spread protection active
-- **Scan Timing**: Daily at 01:00 server time (1 hour after close, avoids Monday spread issues)
+- **Scan Timing**: Daily at 00:15 server time (Tue-Fri), 01:00 Monday; midnight equity sync at 00:00
 
 ---
 
@@ -66,6 +66,7 @@ Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accoun
 
 ### Scan Timing
 - **Daily close**: 00:00 server time
+- **Midnight equity sync**: **00:00 server time** — captures MAX(equity, balance) for 5ers DDD baseline
 - **Scan time (Tue-Fri)**: **00:15 server time** (15 min after daily close)
 - **Scan time (Monday)**: **01:00 server time** (1 hour after market open, avoids wide spreads)
 

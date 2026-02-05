@@ -257,7 +257,7 @@ class ChallengeRiskManager:
             'current_equity': self.current_equity,
             'daily_pnl': self.daily_pnl,
             'daily_loss_pct': self.daily_loss_pct,
-            'ddd_limit': ddd_limit,  # 5% below day_start_equity
+            'ddd_limit': ddd_limit,  # 5% below day_start_equity (synced at 00:00)
             'total_dd_pct': self.total_drawdown_pct,
             'tdd_limit': tdd_limit,  # 10% below starting_balance
             'last_update': datetime.now().isoformat()
@@ -398,7 +398,7 @@ class ChallengeRiskManager:
         log.info("=" * 70)
         log.info("📊 RISK METRICS (Compare with 5ers Dashboard)")
         log.info(f"  Initial Balance: ${self.starting_balance:,.2f}")
-        log.info(f"  Day Start Equity: ${self.day_start_equity:,.2f}")
+        log.info(f"  Day Start Equity: ${self.day_start_equity:,.2f} (synced at 00:00 server time)")
         log.info(f"  Current Equity: ${equity:,.2f}")
         log.info(f"  Peak Equity: ${self.peak_equity:,.2f}")
         log.info("---")
