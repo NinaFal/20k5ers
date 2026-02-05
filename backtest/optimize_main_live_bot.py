@@ -391,55 +391,45 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
     print(f"    → Return: {result.net_return_pct:+.1f}%, Trades: {result.total_trades}, Win: {result.win_rate:.1f}%")
     print(f"    → TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%, DDD Halts: {result.ddd_halts}, Valid: {result.valid}")
     
-    # Calculate score - balanced multi-factor approach
-    # Penalize heavily if not within 5ers limits
+    # Calculate score - focused on RETURN × WIN RATE
+    # Hard reject only at absolute 5ers limits
     if not result.valid:
         return -1000 - result.max_ddd_pct * 10
     
-    # CRITICAL: If DDD >= 3.2% (safety halt triggered per ftmo_config), heavily penalize
-    if result.max_ddd_pct >= 3.2:
-        return -500 - result.max_ddd_pct * 20  # Safety halt is unacceptable
+    # HARD REJECT: DDD >= 5% = 5ers daily loss limit actually breached
+    if result.max_ddd_pct >= 5.0:
+        return -500 - result.max_ddd_pct * 20
     
     # Minimum trades required for statistical significance
     if result.total_trades < 10:
-        return -500 + result.total_trades  # Encourage more trades
+        return -500 + result.total_trades
     
     # === SCORING: Maximize Return & Win Rate ===
-    # Focus: highest return with high win rate, penalize safety breaches
     
-    win_rate_factor = result.win_rate / 100.0  # 0.0 to 1.0
+    win_rate_factor = result.win_rate / 100.0
     
-    # Return component (dominant factor)
-    return_score = result.net_return_pct
-    
-    # Win rate multiplier: reward high win rates exponentially
-    # 50% WR → 0.75x, 60% WR → 1.0x, 70% WR → 1.3x, 80% WR → 1.6x
+    # Win rate multiplier: reward high win rates
     if win_rate_factor >= 0.5:
         wr_multiplier = 0.5 + (win_rate_factor * 1.5)  
     else:
-        wr_multiplier = win_rate_factor  # Below 50% WR = heavy discount
+        wr_multiplier = win_rate_factor
     
-    # Trade count bonus: more trades = more statistically reliable
-    # 20 trades = 4pts, 50 = 10pts, 100+ = 20pts max
+    # Trade count bonus (statistical reliability)
     trade_bonus = min(result.total_trades / 5, 20)
     
     # === COMBINED SCORE ===
     score = (
-        return_score * wr_multiplier +      # Return weighted by win rate quality
-        trade_bonus                          # Statistical reliability bonus
+        result.net_return_pct * wr_multiplier +  # Return weighted by win rate
+        trade_bonus                               # Statistical reliability bonus
     )
     
-    # Soft penalty for DDD approaching halt level (graduated)
-    if result.max_ddd_pct >= 2.5:
-        score -= (result.max_ddd_pct - 2.5) * 8  # Graduated penalty approaching 3.2% halt
-    
-    # Heavy penalty if TDD exceeds 5%
+    # Only penalize if TDD > 5% (approaching 10% hard limit)
     if result.max_tdd_pct > 5.0:
-        score -= (result.max_tdd_pct - 5.0) * 15  # Strong penalty above 5% TDD
+        score -= (result.max_tdd_pct - 5.0) * 15
     
-    # Bonus for very clean runs (low DDD = safer for live)
-    if result.max_ddd_pct < 2.0 and result.max_tdd_pct < 4.0:
-        score += 5  # Clean run bonus
+    # Bonus for clean runs (no halts = smoother equity curve)
+    if result.ddd_halts == 0 and result.max_ddd_pct < 2.5:
+        score += 10
     
     return score
 
