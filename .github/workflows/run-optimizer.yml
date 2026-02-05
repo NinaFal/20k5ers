@@ -60,8 +60,10 @@ jobs:
           mkdir -p backtest/optimization_results
 
       - name: Run Optimizer
+        env:
+          PYTHONUNBUFFERED: "1"
         run: |
-          python backtest/optimize_main_live_bot.py \
+          python -u backtest/optimize_main_live_bot.py \
             --trials ${{ inputs.trials }} \
             --start ${{ inputs.start_date }} \
             --end ${{ inputs.end_date }} \
