@@ -23,6 +23,15 @@ on:
         required: true
         default: '20000'
         type: string
+      parallel_workers:
+        description: 'Parallel workers (2-3 recommended)'
+        required: true
+        default: '3'
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
 
 jobs:
   optimize:
@@ -58,6 +67,7 @@ jobs:
             --end ${{ inputs.end_date }} \
             --balance ${{ inputs.balance }} \
             --num-tps 5 \
+            --parallel ${{ inputs.parallel_workers }} \
             2>&1 | tee backtest/logs/optimizer_cloud_run.log
 
       - name: Upload optimizer results
