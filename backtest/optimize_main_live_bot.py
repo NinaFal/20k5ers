@@ -159,13 +159,13 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 
             "--quiet",  # Suppress verbose output for optimizer
         ]
         
-        # Use DEVNULL for stdout to prevent buffer overflow with parallel workers
+        # DEVNULL for both stdout AND stderr - results come from results.json
+        # stderr=PIPE caused RAM overflow: 3 parallel backtests × GBs of log output
         import subprocess
         result = subprocess.run(
             cmd,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            text=True,
+            stderr=subprocess.DEVNULL,
             timeout=1800,  # 30 minute timeout per backtest
             cwd=str(Path(__file__).parent.parent)
         )
