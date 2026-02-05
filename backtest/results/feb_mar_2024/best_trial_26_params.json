@@ -1,0 +1,20 @@
+{
+  "tp1_r_multiple": 0.4,
+  "tp2_r_multiple": 1.1,
+  "tp3_r_multiple": 2.4000000000000004,
+  "tp4_r_multiple": 3.9000000000000004,
+  "tp5_r_multiple": 5.0,
+  "tp1_close_pct_weight": 0.55,
+  "tp2_close_pct_weight": 0.35,
+  "tp3_close_pct_weight": 0.30000000000000004,
+  "tp4_close_pct_weight": 0.25,
+  "tp5_close_pct_weight": 0.35000000000000003,
+  "trail_activation_r": 1.1,
+  "atr_trail_multiplier": 3.7,
+  "use_atr_trailing": true,
+  "trend_min_confluence": 4,
+  "range_min_confluence": 7,
+  "min_quality_factors": 2,
+  "risk_per_trade_pct": 1.4000000000000001,
+  "compound_threshold_pct": 9.5
+}
