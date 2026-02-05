@@ -43,50 +43,51 @@ except ImportError:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# OPTIMIZATION PARAMETER RANGES
+# OPTIMIZATION PARAMETER RANGES - NARROW (around current good params)
+# Current params: tp1=0.6, tp2=1.6, tp3=2.1, tp4=2.4, tp5=3.6
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Take Profit R-Multiples (where to place each TP level) - EXPANDED RANGES
+# Take Profit R-Multiples - NARROW RANGES around current values
 TP_R_RANGES = {
-    'tp1_r_multiple': (0.3, 1.5),      # TP1 at 0.3R - 1.5R (was 0.4-1.0)
-    'tp2_r_multiple': (0.8, 3.0),      # TP2 at 0.8R - 3.0R (was 1.0-2.0)
-    'tp3_r_multiple': (1.2, 5.0),      # TP3 at 1.2R - 5.0R (was 1.5-3.0)
-    'tp4_r_multiple': (2.0, 6.0),      # TP4 at 2.0R - 6.0R (optional)
-    'tp5_r_multiple': (3.0, 8.0),      # TP5 at 3.0R - 8.0R (optional)
+    'tp1_r_multiple': (0.4, 0.9),      # Current: 0.6 (±0.3)
+    'tp2_r_multiple': (1.3, 2.0),      # Current: 1.6 (±0.4)
+    'tp3_r_multiple': (1.8, 2.5),      # Current: 2.1 (±0.4)
+    'tp4_r_multiple': (2.0, 3.0),      # Current: 2.4 (±0.5)
+    'tp5_r_multiple': (3.0, 4.5),      # Current: 3.6 (±0.6)
 }
 
-# Take Profit Close Percentages (must sum to ~1.0) - EXPANDED
+# Take Profit Close Percentages - NARROW (current: 20/30/20/20/10)
 TP_CLOSE_RANGES = {
-    'tp1_close_pct': (0.10, 0.60),     # Close 10-60% at TP1 (was 20-50)
-    'tp2_close_pct': (0.10, 0.50),     # Close 10-50% at TP2 (was 15-40)
-    'tp3_close_pct': (0.10, 0.60),     # Close 10-60% at TP3 (was 15-40)
-    'tp4_close_pct': (0.05, 0.30),     # Close 5-30% at TP4
-    'tp5_close_pct': (0.05, 0.40),     # Close 5-40% at TP5 (remainder)
+    'tp1_close_pct': (0.12, 0.30),     # Current: 0.20
+    'tp2_close_pct': (0.20, 0.40),     # Current: 0.30
+    'tp3_close_pct': (0.12, 0.30),     # Current: 0.20
+    'tp4_close_pct': (0.10, 0.30),     # Current: 0.20
+    'tp5_close_pct': (0.05, 0.20),     # Current: 0.10
 }
 
-# Trailing Stop Parameters - EXPANDED
+# Trailing Stop Parameters - NARROW around current (1.6, 2.8)
 TRAIL_RANGES = {
-    'trail_activation_r': (0.3, 2.0),          # Activate after 0.3R - 2.0R profit (was 0.5-1.5)
-    'atr_trail_multiplier': (0.5, 4.0),        # Trail distance: 0.5-4.0 ATR (was 1.0-3.0)
-    'use_atr_trailing': [True, False],         # Enable/disable trailing
+    'trail_activation_r': (1.2, 2.0),          # Current: 1.6 (±0.4)
+    'atr_trail_multiplier': (2.2, 3.4),        # Current: 2.8 (±0.6)
+    'use_atr_trailing': [True],                # Keep enabled (proven to work)
 }
 
-# Progressive Trailing Parameters (between TP1 and TP2) - EXPANDED
+# Progressive Trailing Parameters - FIXED (proven values)
 PROGRESSIVE_TRAIL_RANGES = {
-    'progressive_trigger_r': (0.4, 1.2),       # When to trigger progressive trail (was 0.6-1.0)
-    'progressive_trail_target_r': (0.2, 0.8),  # Trail SL to BE + this R (was 0.3-0.6)
+    'progressive_trigger_r': (0.8, 1.2),       # Current: 1.0 (±0.2)
+    'progressive_trail_target_r': (0.3, 0.5),  # Current: 0.4 (±0.1)
 }
 
-# Confluence / Entry Parameters - EXPANDED
+# Confluence / Entry Parameters - NARROW around current (5, 4, 5)
 ENTRY_RANGES = {
-    'trend_min_confluence': (3, 9),            # Min confluence in trend mode (was 4-8)
-    'range_min_confluence': (2, 7),            # Min confluence in range mode (was 3-6)
-    'min_quality_factors': (1, 6),             # Min quality factors (was 2-5)
+    'trend_min_confluence': (4, 6),            # Current: 5 (±1)
+    'range_min_confluence': (3, 5),            # Current: 4 (±1)
+    'min_quality_factors': (4, 6),             # Current: 5 (±1)
 }
 
-# Risk Parameters - AGGRESSIVE RANGE
+# Risk Parameters - NARROW around current (1.35)
 RISK_RANGES = {
-    'risk_per_trade_pct': (0.3, 1.5),          # 0.3% - 1.5% risk per trade (was 0.4-1.0)
+    'risk_per_trade_pct': (1.0, 1.5),          # Current: 1.35 (±0.35)
 }
 
 # Compounding Parameters - NEW
@@ -262,7 +263,7 @@ def parse_stdout_results(stdout: str, params: Dict[str, Any], balance: float) ->
     return result
 
 
-def sample_tp_params(trial: optuna.Trial, num_tps: int = 3) -> Dict[str, Any]:
+def sample_tp_params(trial: optuna.Trial, num_tps: int = 5) -> Dict[str, Any]:
     """
     Sample TP parameters ensuring:
     1. R-multiples are in increasing order
@@ -434,7 +435,7 @@ def run_optimization(
     start: str,
     end: str,
     balance: float = 20000,
-    num_tps: int = 3,
+    num_tps: int = 5,
     sampler: str = 'tpe',
     output_dir: str = 'backtest/optimization_results',
     n_jobs: int = 1
@@ -617,7 +618,7 @@ if __name__ == "__main__":
     parser.add_argument('--start', type=str, default='2024-01-01', help='Backtest start date')
     parser.add_argument('--end', type=str, default='2024-03-31', help='Backtest end date')
     parser.add_argument('--balance', type=float, default=20000, help='Initial balance')
-    parser.add_argument('--num-tps', type=int, default=3, choices=[3, 4, 5], help='Number of TP levels (3, 4, or 5)')
+    parser.add_argument('--num-tps', type=int, default=5, choices=[3, 4, 5], help='Number of TP levels (3, 4, or 5)')
     parser.add_argument('--sampler', type=str, default='tpe', choices=['tpe', 'nsga'], help='Optuna sampler')
     parser.add_argument('--output', type=str, default='backtest/optimization_results', help='Output directory')
     parser.add_argument('--apply', type=str, help='Apply parameters from results file')

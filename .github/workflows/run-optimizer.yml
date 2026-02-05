@@ -57,6 +57,7 @@ jobs:
             --start ${{ inputs.start_date }} \
             --end ${{ inputs.end_date }} \
             --balance ${{ inputs.balance }} \
+            --num-tps 5 \
             2>&1 | tee backtest/logs/optimizer_cloud_run.log
 
       - name: Upload optimizer results
