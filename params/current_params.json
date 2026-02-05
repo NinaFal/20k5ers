@@ -5,7 +5,7 @@
   "optimization_period": "2023-02-01 to 2023-04-30",
   "source": "Trial 34 - Optimizer Feb-Apr 2023 (ATR trail from previous config)",
   "parameters": {
-    "risk_per_trade_pct": 1.35,
+    "risk_per_trade_pct": 1,
     "min_confluence": 3,
     "min_quality_factors": 5,
     "adx_trend_threshold": 21.0,
