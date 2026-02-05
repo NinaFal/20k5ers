@@ -1762,31 +1762,29 @@ class LiveTradingBot:
                 cancel_result = self.mt5.cancel_pending_order(order.ticket)
                 
                 if cancel_result:
-                    # Place new order with updated lot size
-                    order_type = "BUY_LIMIT" if order.type in [2, 4] else "SELL_LIMIT"  # 2=BUY_LIMIT, 4=BUY_STOP
-                    if order.type in [3, 5]:  # 3=SELL_LIMIT, 5=SELL_STOP
-                        order_type = "SELL_LIMIT"
+                    # Determine direction from order type
+                    # MT5 order types: 2=BUY_LIMIT, 3=SELL_LIMIT, 4=BUY_STOP, 5=SELL_STOP
+                    direction = "bullish" if order.type in [2, 4] else "bearish"
                     
                     # Get TP from setup
                     tp = order.tp if hasattr(order, 'tp') and order.tp else 0
                     
                     new_order_result = self.mt5.place_pending_order(
                         symbol=symbol,
-                        order_type=order_type,
+                        direction=direction,
                         volume=new_lot_size,
-                        price=entry,
+                        entry_price=entry,
                         sl=sl,
                         tp=tp,
-                        comment=f"5ers_compound"
                     )
                     
-                    if new_order_result and hasattr(new_order_result, 'ticket'):
-                        log.info(f"  ✓ Replaced order: ticket {order.ticket} → {new_order_result.ticket}")
+                    if new_order_result and new_order_result.success:
+                        log.info(f"  ✓ Replaced order: ticket {order.ticket} → {new_order_result.order_id}")
                         orders_updated += 1
                         
                         # Update setup with new ticket
-                        if setup:
-                            setup.order_ticket = new_order_result.ticket
+                        if setup and hasattr(setup, 'order_ticket'):
+                            setup.order_ticket = new_order_result.order_id
                             self._save_pending_setups()
                     else:
                         log.error(f"  ✗ Failed to place new order - order cancelled but not replaced!")
