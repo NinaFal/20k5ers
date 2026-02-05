@@ -159,11 +159,14 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 
             "--quiet",  # Suppress verbose output for optimizer
         ]
         
+        # Use DEVNULL for stdout to prevent buffer overflow with parallel workers
+        import subprocess
         result = subprocess.run(
             cmd,
-            capture_output=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=1800,  # 30 minute timeout per backtest (was 15 min)
+            timeout=1800,  # 30 minute timeout per backtest
             cwd=str(Path(__file__).parent.parent)
         )
         
