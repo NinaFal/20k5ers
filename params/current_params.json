@@ -26,10 +26,10 @@
     "tp4_r_multiple": 2.4,
     "tp5_r_multiple": 3.6,
     "tp1_close_pct": 0.20,
-    "tp2_close_pct": 0.50,
-    "tp3_close_pct": 0.35,
-    "tp4_close_pct": 0.05,
-    "tp5_close_pct": 0.15,
+    "tp2_close_pct": 0.30,
+    "tp3_close_pct": 0.20,
+    "tp4_close_pct": 0.20,
+    "tp5_close_pct": 0.10,
     "progressive_trigger_r": 1.0,
     "progressive_trail_target_r": 0.4,
     "use_atr_trailing": true,
@@ -39,6 +39,7 @@
     "use_fib_filter": false,
     "use_displacement_filter": false,
     "use_candle_rejection": false,
-    "max_total_dd_warning": 9.0
+    "max_total_dd_warning": 9.0,
+    "compound_threshold_pct": 5.0
   }
 }

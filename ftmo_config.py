@@ -233,8 +233,8 @@ class Fiveers60KConfig:
 
     def __post_init__(self):
         """Validate configuration parameters"""
-        if self.risk_per_trade_pct > 1.5:  # Allow optimizer some room
-            raise ValueError("Risk per trade cannot exceed 1.5% for 5ers 60K")
+        if self.risk_per_trade_pct > 2.5:  # Allow optimizer wide range
+            raise ValueError("Risk per trade cannot exceed 2.5% for 5ers")
         if self.max_daily_loss_pct > 5.0:
             raise ValueError("Max daily loss cannot exceed 5% for 5ers")
         if self.max_total_drawdown_pct > 10.0:

@@ -2791,19 +2791,20 @@ class LiveTradingBot:
         win_streak = getattr(self.risk_manager.state, 'win_streak', 0) if hasattr(self.risk_manager, 'state') else 0
         loss_streak = getattr(self.risk_manager.state, 'loss_streak', 0) if hasattr(self.risk_manager, 'state') else 0
 
-        # Calculate risk percentage (dynamic or static)
-        if FIVEERS_CONFIG.use_dynamic_lot_sizing:
-            risk_pct = FIVEERS_CONFIG.get_dynamic_risk_pct(
-                confluence_score=confluence,
-                win_streak=win_streak,
-                loss_streak=loss_streak,
-                current_profit_pct=profit_pct,
-                daily_loss_pct=daily_loss_pct,
-                total_dd_pct=total_dd_pct,
-            )
-            log.info(f"[{symbol}] Dynamic risk: {risk_pct:.3f}% (confluence: {confluence}, streaks: +{win_streak}/-{loss_streak})")
+        # Calculate risk percentage
+        # Use risk_per_trade_pct from params (matches optimizer output)
+        # but still apply DDD/TDD safety reductions
+        base_risk = getattr(self.params, 'risk_per_trade_pct', FIVEERS_CONFIG.risk_per_trade_pct)
+        
+        # Apply safety reductions based on drawdown levels
+        if daily_loss_pct >= FIVEERS_CONFIG.daily_loss_reduce_pct or total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
+            risk_pct = min(base_risk, FIVEERS_CONFIG.ultra_safe_risk_pct)
+        elif daily_loss_pct >= FIVEERS_CONFIG.daily_loss_warning_pct or total_dd_pct >= FIVEERS_CONFIG.total_dd_warning_pct:
+            risk_pct = min(base_risk, FIVEERS_CONFIG.max_risk_conservative_pct)
         else:
-            risk_pct = FIVEERS_CONFIG.get_risk_pct(daily_loss_pct, total_dd_pct)
+            risk_pct = base_risk
+        
+        log.info(f"[{symbol}] Risk: {risk_pct:.3f}% (base from params: {base_risk:.3f}%, DDD safety applied)")
 
         if risk_pct <= 0:
             log.warning(f"[{symbol}] Risk percentage is 0 - trading halted (NO TRADE)")
@@ -3107,9 +3108,11 @@ class LiveTradingBot:
                 log.info(f"[{symbol}] SL adjusted to {FIVEERS_CONFIG.min_sl_atr_ratio} ATR: {sl:.5f}")
             
         # ════════════════════════════════════════════════════════════════════════
-        # 3-TP SYSTEM: Use tp*_r_multiple from current_params.json
-        # ALIGNED WITH SIMULATOR - uses tp1_r_multiple, tp2_r_multiple, tp3_r_multiple
-        # TP3 closes ALL remaining position (same as simulator)
+        # 5-TP SYSTEM: Use tp*_r_multiple from current_params.json
+        # ALIGNED WITH SIMULATOR - uses tp1-tp5_r_multiple parameters
+        # compute_confluence() returns all 5 TP levels
+        # NOTE: tp4/tp5 are calculated by compute_confluence(), tp1-tp3 are recalculated here
+        # for consistency, but all 5 levels are returned in the setup dictionary
         # ════════════════════════════════════════════════════════════════════════
         risk = abs(entry - sl)
         if direction == "bullish":
@@ -3138,7 +3141,13 @@ class LiveTradingBot:
         log.info(f"  SL: {sl:.5f} ({sl_pips:.1f} pips)")
         log.info(f"  TP1: {tp1:.5f} ({self.params.tp1_r_multiple}R) -> {self.params.tp1_close_pct*100:.0f}%")
         log.info(f"  TP2: {tp2:.5f} ({self.params.tp2_r_multiple}R) -> {self.params.tp2_close_pct*100:.0f}%")
-        log.info(f"  TP3: {tp3:.5f} ({self.params.tp3_r_multiple}R) -> CLOSE ALL remaining")
+        log.info(f"  TP3: {tp3:.5f} ({self.params.tp3_r_multiple}R) -> {self.params.tp3_close_pct*100:.0f}%")
+        tp4_r = getattr(self.params, 'tp4_r_multiple', 0)
+        tp5_r = getattr(self.params, 'tp5_r_multiple', 0)
+        if tp4_r > 0:
+            log.info(f"  TP4: {tp4:.5f} ({tp4_r}R) -> {getattr(self.params, 'tp4_close_pct', 0.05)*100:.0f}%")
+        if tp5_r > 0:
+            log.info(f"  TP5: {tp5:.5f} ({tp5_r}R) -> CLOSE ALL remaining ({getattr(self.params, 'tp5_close_pct', 0.15)*100:.0f}%)")
         
         return {
             "symbol": symbol,
@@ -3152,6 +3161,8 @@ class LiveTradingBot:
             "tp1": tp1,
             "tp2": tp2,
             "tp3": tp3,
+            "tp4": tp4,
+            "tp5": tp5,
             "entry_distance_r": entry_distance_r,
             "sl_pips": sl_pips,
             "flags": flags,

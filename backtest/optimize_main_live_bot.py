@@ -43,32 +43,32 @@ except ImportError:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# OPTIMIZATION PARAMETER RANGES - NARROW (around current good params)
-# Current params: tp1=0.6, tp2=1.6, tp3=2.1, tp4=2.4, tp5=3.6
+# OPTIMIZATION PARAMETER RANGES - WIDE (exploration around current params)
+# Current params (baseline): tp1=0.6, tp2=1.6, tp3=2.1, tp4=2.4, tp5=3.6
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Take Profit R-Multiples - NARROW RANGES around current values
+# Take Profit R-Multiples - WIDE RANGES for exploration
 TP_R_RANGES = {
-    'tp1_r_multiple': (0.4, 0.9),      # Current: 0.6 (±0.3)
-    'tp2_r_multiple': (1.3, 2.0),      # Current: 1.6 (±0.4)
-    'tp3_r_multiple': (1.8, 2.5),      # Current: 2.1 (±0.4)
-    'tp4_r_multiple': (2.0, 3.0),      # Current: 2.4 (±0.5)
-    'tp5_r_multiple': (3.0, 4.5),      # Current: 3.6 (±0.6)
+    'tp1_r_multiple': (0.3, 1.2),      # Baseline: 0.6
+    'tp2_r_multiple': (0.8, 2.6),      # Baseline: 1.6
+    'tp3_r_multiple': (1.2, 3.2),      # Baseline: 2.1
+    'tp4_r_multiple': (1.6, 4.2),      # Baseline: 2.4
+    'tp5_r_multiple': (2.2, 6.0),      # Baseline: 3.6
 }
 
-# Take Profit Close Percentages - NARROW (current: 20/30/20/20/10)
+# Take Profit Close Percentages - WIDE (current: 20/30/20/20/10)
 TP_CLOSE_RANGES = {
-    'tp1_close_pct': (0.12, 0.30),     # Current: 0.20
-    'tp2_close_pct': (0.20, 0.40),     # Current: 0.30
-    'tp3_close_pct': (0.12, 0.30),     # Current: 0.20
-    'tp4_close_pct': (0.10, 0.30),     # Current: 0.20
-    'tp5_close_pct': (0.05, 0.20),     # Current: 0.10
+    'tp1_close_pct': (0.05, 0.45),     # Current: 0.20
+    'tp2_close_pct': (0.10, 0.50),     # Current: 0.30
+    'tp3_close_pct': (0.05, 0.45),     # Current: 0.20
+    'tp4_close_pct': (0.05, 0.45),     # Current: 0.20
+    'tp5_close_pct': (0.05, 0.40),     # Current: 0.10
 }
 
-# Trailing Stop Parameters - NARROW around current (1.6, 2.8)
+# Trailing Stop Parameters - WIDE around current (1.6, 2.8)
 TRAIL_RANGES = {
-    'trail_activation_r': (1.2, 2.0),          # Current: 1.6 (±0.4)
-    'atr_trail_multiplier': (2.2, 3.4),        # Current: 2.8 (±0.6)
+    'trail_activation_r': (0.8, 3.0),          # Current: 1.6
+    'atr_trail_multiplier': (1.6, 4.2),        # Current: 2.8
     'use_atr_trailing': [True],                # Keep enabled (proven to work)
 }
 
@@ -78,21 +78,21 @@ PROGRESSIVE_TRAIL_RANGES = {
     'progressive_trail_target_r': (0.3, 0.5),  # Current: 0.4 (±0.1)
 }
 
-# Confluence / Entry Parameters - NARROW around current (5, 4, 5)
+# Confluence / Entry Parameters - WIDE around current (5, 4, 5)
 ENTRY_RANGES = {
-    'trend_min_confluence': (4, 6),            # Current: 5 (±1)
-    'range_min_confluence': (3, 5),            # Current: 4 (±1)
-    'min_quality_factors': (4, 6),             # Current: 5 (±1)
+    'trend_min_confluence': (3, 7),            # Current: 5
+    'range_min_confluence': (2, 6),            # Current: 4
+    'min_quality_factors': (3, 7),             # Current: 5
 }
 
-# Risk Parameters - NARROW around current (1.35)
+# Risk Parameters - WIDE around current (1.35)
 RISK_RANGES = {
-    'risk_per_trade_pct': (1.0, 1.5),          # Current: 1.35 (±0.35)
+    'risk_per_trade_pct': (0.6, 2.0),          # Current: 1.35
 }
 
-# Compounding Parameters - NEW
+# Compounding Parameters - WIDE
 COMPOUNDING_RANGES = {
-    'compound_threshold_pct': (2.0, 10.0),     # Update lot size when equity changes by 2-10%
+    'compound_threshold_pct': (1.0, 15.0),     # Update lot size when equity changes by 1-15%
 }
 
 
@@ -368,10 +368,10 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
     
     # Run backtest
     print(f"\n  Trial {trial.number}: Running backtest...")
-    print(f"    TPs: {params.get('tp1_r_multiple', 0):.1f}R/{params.get('tp2_r_multiple', 0):.1f}R/{params.get('tp3_r_multiple', 0):.1f}R")
-    print(f"    Trail: {params.get('trail_activation_r', 0):.1f}R, {params.get('atr_trail_multiplier', 0):.1f}x ATR")
-    print(f"    Compound: Update when equity changes ≥{params.get('compound_threshold_pct', 5):.1f}%")
-    print(f"    Confluence: T={params.get('trend_min_confluence', 0)}, R={params.get('range_min_confluence', 0)}")
+    print(f"    TPs: {params.get('tp1_r_multiple', 0):.1f}R/{params.get('tp2_r_multiple', 0):.1f}R/{params.get('tp3_r_multiple', 0):.1f}R/{params.get('tp4_r_multiple', 0):.1f}R/{params.get('tp5_r_multiple', 0):.1f}R")
+    print(f"    Close%: {params.get('tp1_close_pct', 0):.0%}/{params.get('tp2_close_pct', 0):.0%}/{params.get('tp3_close_pct', 0):.0%}/{params.get('tp4_close_pct', 0):.0%}/{params.get('tp5_close_pct', 0):.0%}")
+    print(f"    Risk: {params.get('risk_per_trade_pct', 0):.2f}%, Trail: {params.get('trail_activation_r', 0):.1f}R/{params.get('atr_trail_multiplier', 0):.1f}x ATR")
+    print(f"    Compound: ≥{params.get('compound_threshold_pct', 5):.1f}%, Confluence: T={params.get('trend_min_confluence', 0)}/R={params.get('range_min_confluence', 0)}/Q={params.get('min_quality_factors', 0)}")
     
     result = run_backtest(params, start, end, balance)
     
@@ -396,41 +396,93 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
     if not result.valid:
         return -1000 - result.max_ddd_pct * 10
     
-    # CRITICAL: If DDD >= 3.5% (safety halt triggered), heavily penalize
-    if result.max_ddd_pct >= 3.5:
+    # CRITICAL: If DDD >= 3.2% (safety halt triggered per ftmo_config), heavily penalize
+    if result.max_ddd_pct >= 3.2:
         return -500 - result.max_ddd_pct * 20  # Safety halt is unacceptable
     
     # Minimum trades required for statistical significance
     if result.total_trades < 10:
         return -500 + result.total_trades  # Encourage more trades
     
-    # === CORE METRICS: Return and Win Rate (most important) ===
-    # DDD below 3.5% is acceptable - don't penalize it in scoring
+    # === SCORING: Maximize Return & Win Rate ===
+    # Focus: highest return with high win rate, penalize safety breaches
     
-    # Win rate bonus (higher = better)
-    win_rate_factor = result.win_rate / 100.0
+    win_rate_factor = result.win_rate / 100.0  # 0.0 to 1.0
     
-    # Profit quality = return * win_rate
-    profit_quality = result.net_return_pct * win_rate_factor if result.net_return_pct > 0 else result.net_return_pct
+    # Return component (dominant factor)
+    return_score = result.net_return_pct
     
-    # === COMBINED SCORE - AGGRESSIVE RETURNS + HIGH WIN RATE ===
-    # Primary: Raw return (weight: ~60%) - AGGRESSIVE returns rewarded heavily
-    # Secondary: Win rate quality (weight: ~30%) - High win rate critical for consistency
-    # Tertiary: Trade frequency (weight: ~10%) - More trades = more reliable stats
-    # 
-    # Win = TP1 reached (correctly counted in backtest)
+    # Win rate multiplier: reward high win rates exponentially
+    # 50% WR → 0.75x, 60% WR → 1.0x, 70% WR → 1.3x, 80% WR → 1.6x
+    if win_rate_factor >= 0.5:
+        wr_multiplier = 0.5 + (win_rate_factor * 1.5)  
+    else:
+        wr_multiplier = win_rate_factor  # Below 50% WR = heavy discount
     
+    # Trade count bonus: more trades = more statistically reliable
+    # 20 trades = 4pts, 50 = 10pts, 100+ = 20pts max
+    trade_bonus = min(result.total_trades / 5, 20)
+    
+    # === COMBINED SCORE ===
     score = (
-        result.net_return_pct * 1.5 +           # 60% weight - MAXIMIZE returns
-        profit_quality * 0.8 +                  # 30% weight - Return × Win Rate
-        min(result.total_trades / 10, 10) * 2   # 10% weight - Trade frequency bonus
+        return_score * wr_multiplier +      # Return weighted by win rate quality
+        trade_bonus                          # Statistical reliability bonus
     )
     
-    # Only penalize TDD if it's getting dangerous (above 8%)
-    if result.max_tdd_pct > 8.0:
-        score -= (result.max_tdd_pct - 8.0) * 5  # Strong penalty above 8% TDD
+    # Soft penalty for DDD approaching halt level (graduated)
+    if result.max_ddd_pct >= 2.5:
+        score -= (result.max_ddd_pct - 2.5) * 8  # Graduated penalty approaching 3.2% halt
+    
+    # Heavy penalty if TDD exceeds 5%
+    if result.max_tdd_pct > 5.0:
+        score -= (result.max_tdd_pct - 5.0) * 15  # Strong penalty above 5% TDD
+    
+    # Bonus for very clean runs (low DDD = safer for live)
+    if result.max_ddd_pct < 2.0 and result.max_tdd_pct < 4.0:
+        score += 5  # Clean run bonus
     
     return score
+
+
+def _enqueue_current_params(study: optuna.Study, num_tps: int) -> None:
+    """Seed trial 0 with current_params.json values."""
+    from params.params_loader import load_params_dict
+
+    current = load_params_dict()
+    params = current.get('parameters', current)
+
+    enqueue_params: Dict[str, Any] = {}
+
+    # TP R-multiples
+    for i in range(1, num_tps + 1):
+        key = f'tp{i}_r_multiple'
+        if key in params:
+            enqueue_params[key] = params[key]
+
+    # Convert close %s to weights (normalization preserves ratios)
+    for i in range(1, num_tps + 1):
+        key = f'tp{i}_close_pct'
+        weight_key = f'{key}_weight'
+        if key in params:
+            enqueue_params[weight_key] = params[key]
+
+    # Trailing
+    for key in ['trail_activation_r', 'atr_trail_multiplier', 'use_atr_trailing']:
+        if key in params:
+            enqueue_params[key] = params[key]
+
+    # Entry / confluence
+    for key in ['trend_min_confluence', 'range_min_confluence', 'min_quality_factors']:
+        if key in params:
+            enqueue_params[key] = params[key]
+
+    # Risk / compounding
+    for key in ['risk_per_trade_pct', 'compound_threshold_pct']:
+        if key in params:
+            enqueue_params[key] = params[key]
+
+    if enqueue_params:
+        study.enqueue_trial(enqueue_params)
 
 
 def run_optimization(
@@ -468,6 +520,9 @@ def run_optimization(
         study_name=f"live_bot_optimizer_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     )
     
+    # Seed trial 0 with current params, then explore broadly
+    _enqueue_current_params(study, num_tps)
+
     # Run optimization
     study.optimize(
         lambda trial: objective(trial, start, end, balance, num_tps),
