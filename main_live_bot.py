@@ -1067,12 +1067,39 @@ class LiveTradingBot:
         return False
     
     def is_news_blackout(self) -> bool:
-        """Check if currently in news event blackout period."""
+        """
+        Check if currently in news event blackout period.
+        
+        Uses MT5's economic calendar to check for ACTUAL high-impact (red) news events.
+        This is better than hardcoded schedules because:
+        - FOMC is only ~8x/year, not every Wednesday
+        - NFP is first Friday of month, not every Friday
+        - Real event times from MT5 broker
+        
+        Falls back to hardcoded schedule if MT5 calendar fails.
+        """
         if not FIVEERS_CONFIG.block_trading_around_news:
             return False
+        
         now = datetime.now(timezone.utc)
         
-        # Check each major news event
+        # First try MT5's real economic calendar
+        try:
+            high_impact_events = self.mt5.get_high_impact_news(
+                hours_ahead=FIVEERS_CONFIG.news_blackout_minutes_before / 60,
+                hours_behind=FIVEERS_CONFIG.news_blackout_minutes_after / 60
+            )
+            
+            if high_impact_events:
+                # Found real high-impact events from MT5 calendar
+                for event in high_impact_events:
+                    log.warning(f"📰 NEWS BLACKOUT (MT5 Calendar): {event['name']} ({event['currency']}) at {event['time'].strftime('%H:%M UTC')}")
+                return True
+                
+        except Exception as e:
+            log.debug(f"MT5 calendar lookup failed, using fallback: {e}")
+        
+        # Fallback: hardcoded schedule (conservative - triggers on all potential days)
         for day_of_week, hour, minute in FIVEERS_CONFIG.major_news_events:
             if now.weekday() != day_of_week:
                 continue
@@ -1085,7 +1112,7 @@ class LiveTradingBot:
             blackout_end = news_time + timedelta(minutes=FIVEERS_CONFIG.news_blackout_minutes_after)
             
             if blackout_start <= now <= blackout_end:
-                log.warning(f"📰 NEWS BLACKOUT: {now.strftime('%H:%M UTC')} - Event at {news_time.strftime('%H:%M UTC')}")
+                log.warning(f"📰 NEWS BLACKOUT (Fallback): {now.strftime('%H:%M UTC')} - Scheduled event at {news_time.strftime('%H:%M UTC')}")
                 return True
         
         return False

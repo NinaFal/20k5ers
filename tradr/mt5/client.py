@@ -272,6 +272,70 @@ class MT5Client:
         info = self.get_account_info()
         return info.get("balance", 0.0)
     
+    def get_high_impact_news(self, hours_ahead: float = 2.0, hours_behind: float = 0.5) -> List[Dict]:
+        """
+        Get high-impact (red) news events from MT5 economic calendar.
+        
+        Uses MT5's built-in calendar to check for major news events.
+        This is better than hardcoded schedules because it only triggers
+        on ACTUAL event days (e.g., real FOMC dates, not every Wednesday).
+        
+        Args:
+            hours_ahead: Hours to look ahead for upcoming events (default: 2.0)
+            hours_behind: Hours to look behind for recent events (default: 0.5)
+            
+        Returns:
+            List of high-impact news events as dicts with:
+            - name: Event name (e.g., "FOMC Statement")
+            - currency: Currency code (e.g., "USD")
+            - time: Event time as datetime
+            - importance: Always 3 (high/red)
+            
+        Note: Returns empty list if calendar API fails (graceful degradation).
+        """
+        mt5 = self._import_mt5()
+        
+        if not self.connected:
+            return []
+        
+        try:
+            now = datetime.now(timezone.utc)
+            from_time = now - timedelta(hours=hours_behind)
+            to_time = now + timedelta(hours=hours_ahead)
+            
+            # Major currencies to check for high-impact events
+            currencies = ["USD", "EUR", "GBP", "JPY"]
+            high_impact_events = []
+            
+            for currency in currencies:
+                try:
+                    # MT5 calendar_value_history returns events for a country/currency
+                    events = mt5.calendar_value_history(currency, from_time, to_time)
+                    
+                    if events is None:
+                        continue
+                    
+                    for event in events:
+                        # importance: 0=none, 1=low(green), 2=medium(yellow), 3=high(red)
+                        if hasattr(event, 'importance') and event.importance == 3:
+                            high_impact_events.append({
+                                "name": getattr(event, 'event_name', getattr(event, 'name', 'Unknown')),
+                                "currency": currency,
+                                "time": datetime.fromtimestamp(event.time, tz=timezone.utc) if hasattr(event, 'time') else now,
+                                "importance": 3,
+                            })
+                except Exception as e:
+                    # Individual currency lookup failed, continue with others
+                    print(f"[MT5] Calendar lookup failed for {currency}: {e}")
+                    continue
+            
+            return high_impact_events
+            
+        except Exception as e:
+            # Calendar API not available or failed
+            print(f"[MT5] Calendar API error: {e}")
+            return []
+    
     def _get_filling_mode(self, symbol: str) -> int:
         """
         Get the appropriate filling mode for a symbol based on broker support.
