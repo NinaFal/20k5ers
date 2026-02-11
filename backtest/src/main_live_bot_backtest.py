@@ -3970,7 +3970,6 @@ class LiveTradingBot:
                         break
                     if attempt < 2:
                         log.warning(f"[{broker_symbol}] Partial close attempt {attempt+1} failed, retrying...")
-                        time.sleep(0.5 * (attempt + 1))
                 
                 if result and result.success:
                     log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
@@ -4034,7 +4033,6 @@ class LiveTradingBot:
                         break
                     if attempt < 2:
                         log.warning(f"[{broker_symbol}] Partial close attempt {attempt+1} failed, retrying...")
-                        time.sleep(0.5 * (attempt + 1))
                 
                 if result and result.success:
                     log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
@@ -4073,7 +4071,6 @@ class LiveTradingBot:
                         break
                     if attempt < 2:
                         log.warning(f"[{broker_symbol}] Partial close attempt {attempt+1} failed, retrying...")
-                        time.sleep(0.5 * (attempt + 1))
                 
                 if result and result.success:
                     log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
@@ -4111,7 +4108,6 @@ class LiveTradingBot:
                         break
                     if attempt < 2:
                         log.warning(f"[{broker_symbol}] Partial close attempt {attempt+1} failed, retrying...")
-                        time.sleep(0.5 * (attempt + 1))
                 
                 if result and result.success:
                     log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
@@ -4145,7 +4141,6 @@ class LiveTradingBot:
                         break
                     if attempt < 2:
                         log.warning(f"[{broker_symbol}] Close position attempt {attempt+1} failed, retrying...")
-                        time.sleep(0.5 * (attempt + 1))
                 
                 if result and result.success:
                     log.info(f"[{broker_symbol}] ✅ Position FULLY CLOSED at {result.price}")
@@ -4408,12 +4403,11 @@ class LiveTradingBot:
                     if self.place_setup_order(setup):
                         orders_placed += 1
                 
-                time.sleep(0.5)
+                # time.sleep removed - not needed in backtest simulation
                 
             except Exception as e:
                 log.error(f"[{symbol}] Error during scan: {e}")
                 continue
-            time.sleep(0.1)
         
         log.info("=" * 70)
         log.info("SCAN COMPLETE")
