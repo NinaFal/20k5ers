@@ -1469,51 +1469,17 @@ class LiveTradingBot:
     
     def check_market_conditions(self, symbol: str) -> Dict:
         """
-        Check volume en spread voor een symbol.
+        BACKTEST: Always return OK - no real spread/volume data in simulator.
         
-        Returns:
-            Dict met: spread_ok, volume_ok, spread_pips, reason
+        The CSV simulator doesn't have tick-level spread or M1 volume data.
+        In backtest we trust the signal and execute immediately.
         """
-        broker_symbol = self.symbol_map.get(symbol, symbol)
-        
-        tick = self.mt5.get_tick(broker_symbol)
-        if not tick:
-            return {
-                "spread_ok": False,
-                "volume_ok": False,
-                "spread_pips": 999,
-                "reason": "Cannot get tick data"
-            }
-        
-        # Calculate spread in pips
-        from ftmo_config import get_pip_size
-        pip_size = get_pip_size(symbol)
-        spread_pips = tick.spread / pip_size if pip_size > 0 else tick.spread
-        
-        # Get max allowed spread
-        max_spread = FIVEERS_CONFIG.get_max_spread_pips(symbol)
-        spread_ok = spread_pips <= max_spread
-        
-        # Volume check - basic tick volume check
-        candles = self.mt5.get_ohlcv(broker_symbol, "M1", 5)
-        if candles:
-            recent_volume = sum(c.get("volume", 0) for c in candles[-3:]) / 3
-            volume_ok = recent_volume > 0
-        else:
-            volume_ok = True  # Default to OK if we can't check
-        
-        reason = ""
-        if not spread_ok:
-            reason = f"Spread too wide: {spread_pips:.1f} > {max_spread:.1f} pips"
-        if not volume_ok:
-            reason = f"Low volume detected"
-        
         return {
-            "spread_ok": spread_ok,
-            "volume_ok": volume_ok,
-            "spread_pips": spread_pips,
-            "max_spread": max_spread,
-            "reason": reason
+            "spread_ok": True,
+            "volume_ok": True,
+            "spread_pips": 0.0,
+            "max_spread": 999,
+            "reason": ""
         }
     
     # ═══════════════════════════════════════════════════════════════════════════

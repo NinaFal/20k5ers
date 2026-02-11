@@ -1425,7 +1425,8 @@ class LiveTradingBot:
     
     def check_market_conditions(self, symbol: str) -> Dict:
         """
-        Check volume en spread voor een symbol.
+        Check spread voor een symbol. Volume check removed - unreliable
+        (M1 tick volume is 0 at daily scan time 00:15).
         
         Returns:
             Dict met: spread_ok, volume_ok, spread_pips, reason
@@ -1436,7 +1437,7 @@ class LiveTradingBot:
         if not tick:
             return {
                 "spread_ok": False,
-                "volume_ok": False,
+                "volume_ok": True,
                 "spread_pips": 999,
                 "reason": "Cannot get tick data"
             }
@@ -1450,19 +1451,15 @@ class LiveTradingBot:
         max_spread = FIVEERS_CONFIG.get_max_spread_pips(symbol)
         spread_ok = spread_pips <= max_spread
         
-        # Volume check - basic tick volume check
-        candles = self.mt5.get_ohlcv(broker_symbol, "M1", 5)
-        if candles:
-            recent_volume = sum(c.get("volume", 0) for c in candles[-3:]) / 3
-            volume_ok = recent_volume > 0
-        else:
-            volume_ok = True  # Default to OK if we can't check
+        # Volume check REMOVED - M1 tick volume is unreliable:
+        # - At 00:15 server time (scan time), tick volume is often 0
+        # - This was blocking valid signals with "Low volume detected"
+        # - Spread check is sufficient for market quality
+        volume_ok = True
         
         reason = ""
         if not spread_ok:
             reason = f"Spread too wide: {spread_pips:.1f} > {max_spread:.1f} pips"
-        if not volume_ok:
-            reason = f"Low volume detected"
         
         return {
             "spread_ok": spread_ok,
