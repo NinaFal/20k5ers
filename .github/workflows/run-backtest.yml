@@ -66,6 +66,17 @@ jobs:
             ftmo_analysis_output/main_live_bot_backtest/
           retention-days: 30
 
+      - name: Commit results to repo
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ftmo_analysis_output/main_live_bot_backtest/results.json \
+                  ftmo_analysis_output/main_live_bot_backtest/trades.csv \
+                  backtest/logs/backtest_cloud_run.log || true
+          git diff --cached --quiet || git commit -m "backtest: ${{ inputs.start_date }} → ${{ inputs.end_date }} (\$${{ inputs.balance }})"
+          git push || echo "Nothing to push"
+
       - name: Summary
         if: always()
         run: |
@@ -73,6 +84,13 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Period**: ${{ inputs.start_date }} to ${{ inputs.end_date }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Balance**: \$${{ inputs.balance }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f ftmo_analysis_output/main_live_bot_backtest/results.json ]; then
+            echo "### Results:" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat ftmo_analysis_output/main_live_bot_backtest/results.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Last 50 lines of log:" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
