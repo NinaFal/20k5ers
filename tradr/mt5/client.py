@@ -276,19 +276,61 @@ class MT5Client:
         """
         Get high-impact (red) news events from MT5 economic calendar.
         
-        NOTE: The MT5 Python library does NOT expose calendar functions.
-        The calendar_value_history() function does not exist in the Python API.
-        
-        This method always returns an empty list, causing the fallback to
-        the hardcoded schedule in ftmo_config.py to be used instead.
+        Tries MT5 calendar API if available, otherwise returns empty list
+        triggering fallback to hardcoded schedule.
         
         Returns:
-            Empty list (calendar API not available in Python MT5 library)
+            List of high-impact news events, or empty list if unavailable
         """
-        # MT5 Python library does not have calendar functions
-        # The functions mt5.calendar_value_history(), mt5.calendar_value_last() etc.
-        # are NOT available in the Python API (only in MQL5)
-        return []
+        mt5 = self._import_mt5()
+        
+        # Calculate time range
+        now = datetime.now(timezone.utc)
+        from_time = now - timedelta(hours=hours_behind)
+        to_time = now + timedelta(hours=hours_ahead)
+        
+        high_impact_events = []
+        
+        # Major currencies to check (5ers pairs)
+        currencies = ["USD", "EUR", "GBP", "JPY", "AUD", "NZD", "CAD", "CHF"]
+        
+        try:
+            # Try calendar API - requires MT5 >= 5.0.45
+            # Check if calendar functions exist
+            if not hasattr(mt5, 'calendar_value_history'):
+                self._log_debug("MT5 calendar API not available in this version")
+                return []
+            
+            for currency in currencies:
+                try:
+                    # Get calendar events for this currency
+                    events = mt5.calendar_value_history(currency, from_time, to_time)
+                    
+                    if events is None:
+                        continue
+                    
+                    for event in events:
+                        # Filter for high-impact (red) events only
+                        # Impact: 0=None, 1=Low, 2=Medium, 3=High
+                        if hasattr(event, 'impact_type') and event.impact_type >= 3:
+                            high_impact_events.append({
+                                'currency': currency,
+                                'name': getattr(event, 'event_name', 'Unknown'),
+                                'time': datetime.fromtimestamp(event.time, tz=timezone.utc),
+                                'impact': 'high',
+                            })
+                except Exception as e:
+                    self._log_debug(f"Calendar error for {currency}: {e}")
+                    continue
+            
+            if high_impact_events:
+                self._log_info(f"📅 Found {len(high_impact_events)} high-impact news events from MT5 calendar")
+            
+            return high_impact_events
+            
+        except Exception as e:
+            self._log_debug(f"MT5 calendar API error: {e}")
+            return []
     
     def _get_filling_mode(self, symbol: str) -> int:
         """
