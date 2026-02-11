@@ -2862,12 +2862,15 @@ class LiveTradingBot:
                     # pip_value = tick_value * (pip_size / tick_size)
                     pip_value = tick_value * (pip_size / tick_size)
                     
-                    # Sanity check - pip value should be reasonable
-                    if pip_value > 0 and pip_value < 10000:
-                        log.info(f"[{symbol}] MT5 tick_value=${tick_value:.4f}/tick, tick_size={tick_size}, pip_size={pip_size} -> pip_value=${pip_value:.4f}/pip")
+                    # Sanity check: compare with known specs (base_pip_value)
+                    # If MT5 value differs by more than 10x from specs, reject it
+                    # This catches per-mini-lot tick_values and other broker quirks
+                    ratio_to_specs = pip_value / base_pip_value if base_pip_value > 0 else 999
+                    if pip_value > 0 and 0.1 <= ratio_to_specs <= 10.0:
+                        log.info(f"[{symbol}] MT5 tick_value=${tick_value:.4f}/tick, tick_size={tick_size}, pip_size={pip_size} -> pip_value=${pip_value:.4f}/pip (specs: ${base_pip_value:.2f})")
                         return pip_value
                     else:
-                        log.warning(f"[{symbol}] MT5 pip_value ${pip_value:.4f} seems invalid, using fallback")
+                        log.warning(f"[{symbol}] MT5 pip_value ${pip_value:.4f} vs specs ${base_pip_value:.2f} ({ratio_to_specs:.1f}x off) - using specs fallback")
         except Exception as e:
             log.warning(f"[{symbol}] Error getting MT5 tick_value: {e}")
         
@@ -2895,7 +2898,23 @@ class LiveTradingBot:
             return base_pip_value
         
         # Metals and Crypto - already in USD
+        # CRITICAL: Validate against known ranges for metals
         if any(x in sym_upper for x in ["XAU", "XAG", "BTC", "ETH"]):
+            # Known correct pip values for metals (safety net):
+            # XAU: pip_size=0.01, 100oz → $1.00/pip/lot
+            # XAG: pip_size=0.001, 5000oz → $5.00/pip/lot
+            METAL_PIP_RANGES = {
+                "XAU": (0.5, 2.0),    # $1/pip ± margin for tick_value variation
+                "XAG": (3.0, 8.0),    # $5/pip ± margin
+                "BTC": (0.5, 2.0),
+                "ETH": (0.5, 2.0),
+            }
+            for metal, (low, high) in METAL_PIP_RANGES.items():
+                if metal in sym_upper:
+                    if not (low <= base_pip_value <= high):
+                        log.warning(f"[{symbol}] Specs pip_value ${base_pip_value:.2f} outside expected range ${low}-${high} for {metal}, using midpoint")
+                        base_pip_value = (low + high) / 2
+                    break
             return base_pip_value
         
         # FOREX - check quote currency
@@ -3108,12 +3127,43 @@ class LiveTradingBot:
                 lot_size = max(min_lot, round(lot_size / lot_step) * lot_step)
             lot_size = min(lot_size, max_lot)
 
+        # ═══════════════════════════════════════════════════════════════
+        # CRITICAL SAFETY: Validate actual $ risk vs intended $ risk
+        # This catches ANY miscalculation (wrong pip_value, wrong specs, etc.)
+        # ═══════════════════════════════════════════════════════════════
+        intended_risk_usd = current_balance * (risk_pct / 100)
+        # Recalculate actual risk with the final lot_size
+        stop_distance = abs(entry - sl)
+        from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
+        try:
+            _specs = get_fiveers_contract_specs(symbol)
+            _pip_size = _specs.get('pip_size', 0.0001)
+        except Exception:
+            _pip_size = 0.0001
+        _stop_pips = stop_distance / _pip_size if _pip_size > 0 else stop_distance
+        actual_risk_usd = lot_size * _stop_pips * dynamic_pip_value
+
+        risk_ratio = actual_risk_usd / intended_risk_usd if intended_risk_usd > 0 else 999
+
         log.info(f"[{symbol}] Lot size calculated at FILL MOMENT:")
         log.info(f"  Balance: ${current_balance:.2f}")
         log.info(f"  Risk %: {risk_pct:.2f}% (daily loss: {daily_loss_pct:.1f}%, DD: {total_dd_pct:.1f}%)")
-        log.info(f"  Risk $: ${risk_usd:.2f}")
+        log.info(f"  Intended risk $: ${intended_risk_usd:.2f}")
+        log.info(f"  Actual risk $: ${actual_risk_usd:.2f} (ratio: {risk_ratio:.2f}x)")
         log.info(f"  Stop pips: {risk_pips:.1f}")
+        log.info(f"  Pip value: ${dynamic_pip_value:.4f}")
         log.info(f"  Lot size: {lot_size}")
+
+        # HARD BLOCK: If actual risk exceeds 2x intended, something is wrong
+        if risk_ratio > 2.0:
+            log.error(f"[{symbol}] 🚨 RISK SAFETY BLOCK: Actual risk ${actual_risk_usd:.2f} is {risk_ratio:.1f}x intended ${intended_risk_usd:.2f}")
+            log.error(f"[{symbol}]   pip_value=${dynamic_pip_value:.4f}, stop_pips={_stop_pips:.1f}, lot={lot_size}")
+            log.error(f"[{symbol}]   ORDER REJECTED to protect account!")
+            return 0.0
+
+        # SOFT WARNING: If actual risk exceeds 1.5x intended
+        if risk_ratio > 1.5:
+            log.warning(f"[{symbol}] ⚠️ Risk slightly elevated: ${actual_risk_usd:.2f} vs intended ${intended_risk_usd:.2f} ({risk_ratio:.1f}x)")
 
         return lot_size
     
