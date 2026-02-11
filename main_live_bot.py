@@ -3677,6 +3677,16 @@ class LiveTradingBot:
             
             lot_size = risk_check.adjusted_lot
         
+        # ═══════════════════════════════════════════════════════════════
+        # NEWS BLACKOUT CHECK - Block ALL order placement during news events
+        # 5ers rule: No opening positions during high-impact news
+        # Signals stay queued, orders placed when blackout ends
+        # ═══════════════════════════════════════════════════════════════
+        if self.is_news_blackout():
+            log.warning(f"[{symbol}] NEWS BLACKOUT - order blocked, adding to entry queue")
+            self.add_to_awaiting_entry(setup)
+            return False
+        
         if entry_distance_r <= FIVEERS_CONFIG.immediate_entry_r:
             order_type = "MARKET"
             log.info(f"[{symbol}] Price at entry ({entry_distance_r:.2f}R) - using MARKET ORDER")
@@ -4617,10 +4627,8 @@ class LiveTradingBot:
         Now places pending limit orders instead of market orders
         to match backtest entry behavior exactly.
         """
-        # NEWS BLACKOUT CHECK
-        if self.is_news_blackout():
-            log.warning("Skipping scan - major news event blackout period")
-            return
+        # NOTE: News blackout no longer blocks scanning - only order placement
+        # Signals are detected and queued, orders placed when blackout ends
         
         # WEEKEND GAP PROTECTION CHECK
         if CHALLENGE_MODE and self.challenge_manager:

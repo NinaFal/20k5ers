@@ -37,6 +37,26 @@
 
 ## Bot Compliance Implementation
 
+### News Trading Protection
+
+**5ers High Stakes** allows news trading but bot implements safety blackouts:
+
+| Event | Day | Time (UTC) | Blackout Window |
+|-------|-----|------------|-----------------|
+| US NFP | 1st Friday | 13:30 | 12:30-14:00 |
+| FOMC | ~8x/year Wed | 19:00 | 18:00-19:30 |
+| US CPI | Monthly Tue | 13:30 | 12:30-14:00 |
+| ECB | ~8x/year Thu | 12:45 | 11:45-13:15 |
+
+**Bot Behavior**:
+- Scanning continues normally during news blackout
+- Order placement (both market & limit) blocked during blackout
+- Signals queued in `awaiting_entry` for later execution
+- Orders placed automatically when blackout ends
+
+> **Note**: Current implementation triggers blackout every week on event days.
+> For exact FOMC/ECB dates, manual calendar integration would be needed.
+
 ### DDD Safety System (3-Tier)
 
 | Tier | Daily DD | Action |
