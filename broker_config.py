@@ -252,7 +252,7 @@ def get_fiveers_live_config() -> BrokerConfig:
         
         # All symbols
         trade_forex=True,
-        trade_metals=False,  # DISABLED - XAU/XAG excluded from trading
+        trade_metals=True,  # ENABLED - XAU/XAG included
         trade_indices=True,
         trade_crypto=True,
         excluded_symbols=[],

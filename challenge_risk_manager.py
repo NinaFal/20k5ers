@@ -9,6 +9,7 @@ from enum import Enum, auto
 from typing import Optional, Dict, Any, Tuple
 from datetime import datetime, date
 import json
+import time
 from pathlib import Path
 import logging
 
@@ -154,6 +155,12 @@ class ChallengeRiskManager:
         
         # Trading days for 5ers minimum requirement
         self.trading_days: set = set()
+        
+        # Rate-limiting for warning logs (prevent spam)
+        self._last_ddd_warning_time: float = 0.0
+        self._last_ddd_warning_pct: float = 0.0
+        self._last_tdd_warning_time: float = 0.0
+        self._last_tdd_warning_pct: float = 0.0
         
         # Load persisted state
         self._load_state()
@@ -429,12 +436,29 @@ class ChallengeRiskManager:
             self.risk_mode = RiskMode.CONSERVATIVE
             log.warning(f"⚠️ DE-RISKING: Daily loss {self.daily_loss_pct:.1f}% >= {self.config.daily_loss_reduce_pct}%! Reducing risk to {self.config.conservative_risk_pct}%")
         elif self.daily_loss_pct >= self.config.daily_loss_warning_pct:
-            # Warning level - still normal mode but log warning
-            log.warning(f"⚠️ WARNING: Daily loss {self.daily_loss_pct:.1f}% approaching limit!")
+            # Warning level - still normal mode, rate-limited warning log
+            now = time.time()
+            pct_change = abs(self.daily_loss_pct - self._last_ddd_warning_pct)
+            time_since_last = now - self._last_ddd_warning_time
+            
+            # Only log warning if: (1) 1 hour passed, (2) DD changed by 0.5%+, or (3) first warning
+            if time_since_last >= 3600 or pct_change >= 0.5 or self._last_ddd_warning_time == 0:
+                log.warning(f"⚠️ WARNING: Daily loss {self.daily_loss_pct:.1f}% approaching limit!")
+                self._last_ddd_warning_time = now
+                self._last_ddd_warning_pct = self.daily_loss_pct
+            
             self.risk_mode = RiskMode.NORMAL
         elif self.total_drawdown_pct >= self.config.total_dd_warning_pct:
             self.risk_mode = RiskMode.CONSERVATIVE
-            log.warning(f"⚠️ DE-RISKING: Total DD {self.total_drawdown_pct:.1f}% >= {self.config.total_dd_warning_pct}%!")
+            # Rate-limited TDD warning
+            now = time.time()
+            pct_change = abs(self.total_drawdown_pct - self._last_tdd_warning_pct)
+            time_since_last = now - self._last_tdd_warning_time
+            
+            if time_since_last >= 3600 or pct_change >= 0.5 or self._last_tdd_warning_time == 0:
+                log.warning(f"⚠️ DE-RISKING: Total DD {self.total_drawdown_pct:.1f}% >= {self.config.total_dd_warning_pct}%!")
+                self._last_tdd_warning_time = now
+                self._last_tdd_warning_pct = self.total_drawdown_pct
         else:
             # Check for ultra-safe mode (near profit target)
             profit_pct = (self.current_balance - self.starting_balance) / self.starting_balance * 100
