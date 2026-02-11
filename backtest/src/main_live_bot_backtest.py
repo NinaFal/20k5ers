@@ -1212,8 +1212,8 @@ class LiveTradingBot:
         
         self.awaiting_entry[symbol] = {
             **setup,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "last_check": datetime.now(timezone.utc).isoformat(),
+            "created_at": (self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)).isoformat(),
+            "last_check": (self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)).isoformat(),
             "check_count": 0,
         }
         self._save_awaiting_entry()
@@ -1251,7 +1251,7 @@ class LiveTradingBot:
         if not self.awaiting_entry:
             return
         
-        now = datetime.now(timezone.utc)
+        now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
         signals_to_remove = []
         proximity_r = FIVEERS_CONFIG.limit_order_proximity_r  # 0.3R
         
@@ -1369,8 +1369,8 @@ class LiveTradingBot:
         
         self.awaiting_spread[symbol] = {
             **setup,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "last_check": datetime.now(timezone.utc).isoformat(),
+            "created_at": (self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)).isoformat(),
+            "last_check": (self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)).isoformat(),
             "check_count": 0,
         }
         self._save_awaiting_spread()
@@ -1389,7 +1389,7 @@ class LiveTradingBot:
         if not self.awaiting_spread:
             return
         
-        now = datetime.now(timezone.utc)
+        now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
         signals_to_remove = []
         
         log.info(f"Checking {len(self.awaiting_spread)} signals waiting for spread improvement...")
@@ -1622,7 +1622,7 @@ class LiveTradingBot:
         - Hold positions 0.5R-1.6R in sweet spot (max 2 per correlation group, max 5 total)
         - Hold ALL crypto (BTC/ETH - no weekend gap risk)
         """
-        now = datetime.now(timezone.utc)
+        now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
 
         # Only run Friday 16:00+ UTC
         if now.weekday() != 4 or now.hour < 16:
@@ -1992,7 +1992,7 @@ class LiveTradingBot:
         - Close positions where SL was gapped through
         - Close positions with catastrophic gaps (> 2% adverse)
         """
-        now = datetime.now(timezone.utc)
+        now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
 
         day_of_week = now.weekday()
         hour = now.hour
@@ -3413,7 +3413,7 @@ class LiveTradingBot:
                 confluence_score=confluence,
                 quality_factors=quality_factors,
                 entry_distance_r=entry_distance_r,
-                created_at=datetime.now(timezone.utc).isoformat(),
+                created_at=(self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)).isoformat(),
                 order_ticket=result.order_id,
                 status="filled",
                 lot_size=lot_size,  # Actual lot size used for market order
@@ -3479,7 +3479,7 @@ class LiveTradingBot:
                 confluence_score=confluence,
                 quality_factors=quality_factors,
                 entry_distance_r=entry_distance_r,
-                created_at=datetime.now(timezone.utc).isoformat(),
+                created_at=(self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)).isoformat(),
                 order_ticket=result.order_id,
                 status="pending",
                 lot_size=lot_size,  # Store calculated lot size (not 0.0)
@@ -3561,7 +3561,7 @@ class LiveTradingBot:
         pending_order_tickets = {o.ticket for o in my_pending_orders}
         
         setups_to_remove = []
-        now = datetime.now(timezone.utc)
+        now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
         expiry_hours = FIVEERS_CONFIG.pending_order_expiry_hours
         
         for symbol, setup in self.pending_setups.items():
