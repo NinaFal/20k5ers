@@ -1206,12 +1206,6 @@ class LiveTradingBot:
             log.debug("Skipping entry queue check - DDD halt active")
             return
         
-        # FRIDAY CLOSING: Don't place new orders after 16:00 UTC
-        # (place_setup_order also checks this, but skip processing entirely)
-        if is_friday_closing_period():
-            log.debug("Skipping entry queue check - Friday closing period (16:00+ UTC)")
-            return
-        
         if not self.awaiting_entry:
             return
         
@@ -1225,8 +1219,8 @@ class LiveTradingBot:
             # BUGFIX: Check if we already have a pending order or position for this symbol
             if symbol in self.pending_setups:
                 existing = self.pending_setups[symbol]
-                if existing.status in ("pending", "filled"):
-                    log.debug(f"[{symbol}] Already have {existing.status} setup - removing from entry queue")
+                if existing.status == "filled":
+                    log.debug(f"[{symbol}] Already have open position - removing from entry queue")
                     signals_to_remove.append(symbol)
                     continue
             
@@ -1315,11 +1309,11 @@ class LiveTradingBot:
         """Add setup to awaiting spread queue."""
         symbol = setup["symbol"]
         
-        # BUGFIX: Don't add if we already have a pending/filled setup
+        # Only block if we already have a FILLED position (open trade)
         if symbol in self.pending_setups:
             existing = self.pending_setups[symbol]
-            if existing.status in ("pending", "filled"):
-                log.info(f"[{symbol}] Not adding to spread queue - already have {existing.status} setup")
+            if existing.status == "filled":
+                log.info(f"[{symbol}] Not adding to spread queue - already have open position")
                 return
         
         # BUGFIX: Don't add if we have an open position
@@ -1345,11 +1339,6 @@ class LiveTradingBot:
         # CRITICAL: Don't place orders during DDD halt
         if getattr(self, 'ddd_halted', False):
             log.debug("Skipping spread queue check - DDD halt active")
-            return
-        
-        # FRIDAY CLOSING: Don't place new orders after 16:00 UTC
-        if is_friday_closing_period():
-            log.debug("Skipping spread queue check - Friday closing period (16:00+ UTC)")
             return
         
         if not self.awaiting_spread:
@@ -1394,11 +1383,11 @@ class LiveTradingBot:
                     signals_to_remove.append(symbol)
                     continue
             
-            # Check if we already have a pending order or position for this symbol
+            # Only block if we have a FILLED position (open trade)
             if symbol in self.pending_setups:
                 existing = self.pending_setups[symbol]
-                if existing.status in ("pending", "filled"):
-                    log.debug(f"[{symbol}] Already have {existing.status} setup - removing from spread queue")
+                if existing.status == "filled":
+                    log.debug(f"[{symbol}] Already have open position - removing from spread queue")
                     signals_to_remove.append(symbol)
                     continue
             
@@ -3507,14 +3496,6 @@ class LiveTradingBot:
         
         symbol = setup["symbol"]
         
-        # ═══════════════════════════════════════════════════════════════
-        # FRIDAY CLOSING PERIOD CHECK - No new orders after 16:00 UTC
-        # Weekend gap protection - crypto excluded (no gap risk)
-        # ═══════════════════════════════════════════════════════════════
-        if is_friday_closing_period() and not is_crypto_pair(symbol):
-            log.info(f"[{symbol}] ⏸️ Friday closing period (16:00+ UTC) - no new forex orders until Sunday")
-            return False
-        
         broker_symbol = setup.get("broker_symbol", self.symbol_map.get(symbol, symbol))
         direction = setup["direction"]
         current_price = setup.get("current_price", 0)
@@ -4670,26 +4651,16 @@ class LiveTradingBot:
         # ═══════════════════════════════════════════════════════════════════════════════
         # Use is_market_open() which correctly handles Sunday 22:00 UTC open
         forex_market_open = is_market_open()
-        friday_closing = is_friday_closing_period()  # Friday 16:00+ UTC = no new forex orders
-        
-        if friday_closing:
-            log.info("🌅 FRIDAY CLOSING PERIOD - Only crypto orders allowed (16:00+ UTC)")
         
         for symbol in available_symbols:
             try:
                 # ═══════════════════════════════════════════════════════════
                 # WEEKEND LOGIC - Skip forex when market closed, ALWAYS scan crypto
-                # FRIDAY CLOSING - Skip forex after 16:00 UTC (but still scan for info)
                 # ═══════════════════════════════════════════════════════════
                 is_crypto = is_crypto_pair(symbol)
                 
                 if not forex_market_open and not is_crypto:
                     log.debug(f"[{symbol}] Skipping - forex market closed")
-                    continue
-                
-                # Friday 16:00+ UTC: Skip forex, only allow crypto
-                if friday_closing and not is_crypto:
-                    log.debug(f"[{symbol}] Skipping - Friday closing period (no new forex orders)")
                     continue
                 
                 setup = self.scan_symbol(symbol)

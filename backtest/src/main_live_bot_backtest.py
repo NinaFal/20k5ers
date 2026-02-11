@@ -1261,11 +1261,10 @@ class LiveTradingBot:
         for symbol, setup in list(self.awaiting_entry.items()):
             # Only block if we have a FILLED position (open trade)
             # Pending setups should NOT block - the entry queue takes priority
-            # BUGFIX: Check if we already have a pending order or position for this symbol
             if symbol in self.pending_setups:
                 existing = self.pending_setups[symbol]
-                if existing.status in ("pending", "filled"):
-                    log.debug(f"[{symbol}] Already have {existing.status} setup - removing from entry queue")
+                if existing.status == "filled":
+                    log.debug(f"[{symbol}] Already have open position - removing from entry queue")
                     signals_to_remove.append(symbol)
                     continue
             
@@ -1354,11 +1353,11 @@ class LiveTradingBot:
         """Add setup to awaiting spread queue."""
         symbol = setup["symbol"]
         
-        # BUGFIX: Don't add if we already have a pending/filled setup
+        # Only block if we already have a FILLED position (open trade)
         if symbol in self.pending_setups:
             existing = self.pending_setups[symbol]
-            if existing.status in ("pending", "filled"):
-                log.info(f"[{symbol}] Not adding to spread queue - already have {existing.status} setup")
+            if existing.status == "filled":
+                log.info(f"[{symbol}] Not adding to spread queue - already have open position")
                 return
         
         # BUGFIX: Don't add if we have an open position
@@ -1428,11 +1427,11 @@ class LiveTradingBot:
                     signals_to_remove.append(symbol)
                     continue
             
-            # Check if we already have a pending order or position for this symbol
+            # Only block if we have a FILLED position (open trade)
             if symbol in self.pending_setups:
                 existing = self.pending_setups[symbol]
-                if existing.status in ("pending", "filled"):
-                    log.debug(f"[{symbol}] Already have {existing.status} setup - removing from spread queue")
+                if existing.status == "filled":
+                    log.debug(f"[{symbol}] Already have open position - removing from spread queue")
                     signals_to_remove.append(symbol)
                     continue
             
@@ -3204,14 +3203,6 @@ class LiveTradingBot:
         
         symbol = setup["symbol"]
         
-        # ═══════════════════════════════════════════════════════════════
-        # FRIDAY CLOSING PERIOD CHECK - No new orders after 16:00 UTC
-        # Weekend gap protection - crypto excluded (no gap risk)
-        # ═══════════════════════════════════════════════════════════════
-        if is_friday_closing_period() and not is_crypto_pair(symbol):
-            log.info(f"[{symbol}] ⏸️ Friday closing period (16:00+ UTC) - no new forex orders until Sunday")
-            return False
-        
         broker_symbol = setup.get("broker_symbol", self.symbol_map.get(symbol, symbol))
         direction = setup["direction"]
         current_price = setup.get("current_price", 0)
@@ -4398,26 +4389,15 @@ class LiveTradingBot:
         sim_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
         current_day = sim_time.weekday()  # 0=Monday, 6=Sunday
         is_weekend = current_day in [5, 6]  # Saturday=5, Sunday=6
-        is_friday_close = (current_day == 4 and sim_time.hour >= 16)  # Friday 16:00+ UTC
-        
-        if is_friday_close:
-            log.info("🌅 FRIDAY CLOSING PERIOD - Only crypto orders allowed (16:00+ UTC)")
-        
         for symbol in available_symbols:
             try:
                 # ═══════════════════════════════════════════════════════════
                 # WEEKEND LOGIC - Skip forex on weekends, ALWAYS scan crypto
-                # FRIDAY CLOSING - Skip forex after 16:00 UTC (but still scan for info)
                 # ═══════════════════════════════════════════════════════════
                 is_crypto = is_crypto_pair(symbol)
                 
                 if is_weekend and not is_crypto:
                     log.debug(f"[{symbol}] Skipping weekend scan - forex market closed")
-                    continue
-                
-                # Friday 16:00+ UTC: Skip forex, only allow crypto
-                if is_friday_close and not is_crypto:
-                    log.debug(f"[{symbol}] Skipping - Friday closing period (no new forex orders)")
                     continue
                 
                 setup = self.scan_symbol(symbol)
@@ -4937,18 +4917,6 @@ class LiveTradingBot:
             # PARTIAL TAKE PROFIT MANAGEMENT
             # ═══════════════════════════════════════════════════════════════
             self.manage_partial_takes()
-            
-            # ═══════════════════════════════════════════════════════════════
-            # WEEKEND GAP RISK MANAGEMENT
-            # ═══════════════════════════════════════════════════════════════
-            self.handle_friday_position_closing()  # Friday 16:00+ UTC
-            self.handle_sunday_gap_detection()  # Sunday 22:00+ UTC
-            self.handle_monday_order_resume(current_time)  # Monday 01:00+ re-place orders
-            
-            # ═══════════════════════════════════════════════════════════════
-            # LIMIT ORDER COMPOUNDING - update lot sizes every 30 min
-            # ═══════════════════════════════════════════════════════════════
-            self.update_limit_orders_for_compounding()
             
             # ═══════════════════════════════════════════════════════════════
             # CHECK PENDING ORDERS (from pending_setups)
