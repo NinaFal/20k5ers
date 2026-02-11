@@ -816,6 +816,8 @@ class LiveTradingBot:
         self.friday_closing_done: bool = False  # Track if we've done Friday closing this week
         self.friday_close_prices: dict = {}  # Store Friday close prices for gap detection
         self.last_friday_close_check: Optional[datetime] = None  # When we last did Friday check
+        self._weekend_paused_orders: list = []  # Pending orders cancelled for weekend
+        self._weekend_resume_done: bool = False  # Track if Monday resume already ran
         
         # Limit order compounding - update lot sizes every 30 minutes based on current equity
         self.last_limit_order_update: Optional[datetime] = None
@@ -1652,6 +1654,10 @@ class LiveTradingBot:
                 self.mt5
             )
 
+        # Pause non-crypto pending orders to avoid weekend gap fills
+        log.info("--- Pausing pending orders for weekend ---")
+        self._pause_pending_orders_for_weekend()
+
         # Mark Friday closing as done
         self.friday_closing_done = True
         self.last_friday_close_check = now
@@ -1659,6 +1665,150 @@ class LiveTradingBot:
         log.info("=" * 70)
         log.info(f"✅ Friday closing complete - {len(result['HOLD'])} positions held for weekend")
         log.info(f"   Max gap risk: {result['stats']['max_gap_risk_pct']:.1f}% of account")
+        log.info("=" * 70)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # WEEKEND PENDING ORDER SUSPENSION
+    # Cancel non-crypto pending orders Friday, re-place Monday morning
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _pause_pending_orders_for_weekend(self):
+        """
+        Cancel all non-crypto pending orders on Friday to avoid weekend gap fills.
+        Stores order details in _weekend_paused_orders so they can be re-placed Monday.
+        Crypto orders stay active (24/7 market, no gap risk).
+        """
+        pending_orders = self.mt5.get_pending_orders()
+        if not pending_orders:
+            log.info("  No pending orders to pause for weekend")
+            return
+
+        paused = 0
+        kept = 0
+        self._weekend_paused_orders = []
+
+        for order in pending_orders:
+            symbol = getattr(order, 'symbol', str(order))
+
+            # Skip crypto - they trade 24/7, no weekend gap risk
+            if is_crypto_pair(symbol):
+                kept += 1
+                log.info(f"  ⏸️ KEEP {symbol} (crypto, 24/7 market)")
+                continue
+
+            # Save order details for Monday re-placement
+            order_info = {
+                'symbol': symbol,
+                'type': order.type,  # 2=BUY_LIMIT, 3=SELL_LIMIT, 4=BUY_STOP, 5=SELL_STOP
+                'volume': order.volume,
+                'price': order.price,
+                'sl': order.sl,
+                'tp': order.tp,
+                'magic': getattr(order, 'magic', 0),
+                'comment': getattr(order, 'comment', ''),
+                'ticket': order.ticket,
+            }
+
+            # Cancel the order
+            try:
+                result = self.mt5.cancel_pending_order(order.ticket)
+                if result:
+                    self._weekend_paused_orders.append(order_info)
+                    paused += 1
+                    log.info(f"  ✓ Paused {symbol} limit order (ticket {order.ticket})")
+
+                    # Clear order_ticket in pending_setup so it knows order is gone
+                    internal_symbol = get_internal_symbol(symbol)
+                    if internal_symbol in self.pending_setups:
+                        self.pending_setups[internal_symbol].order_ticket = None
+                        self.pending_setups[internal_symbol].status = "awaiting_entry"
+                else:
+                    log.error(f"  ✗ Failed to cancel {symbol} (ticket {order.ticket})")
+            except Exception as e:
+                log.error(f"  ✗ Error cancelling {symbol}: {e}")
+
+        if paused > 0:
+            self._save_pending_setups()
+
+        log.info(f"  📊 Weekend pause: {paused} orders paused, {kept} crypto kept")
+
+    def handle_monday_order_resume(self):
+        """
+        Re-place pending orders that were paused for the weekend.
+        Runs Monday 01:00+ server time (after market stabilizes from open).
+        Orders are re-placed with updated lot sizes based on current equity (compounding).
+        """
+        now = datetime.now(timezone.utc)
+
+        # Only run Monday (weekday 0)
+        if now.weekday() != 0:
+            if now.weekday() != 0:
+                self._weekend_resume_done = False
+            return
+
+        # Only run once per Monday
+        if self._weekend_resume_done:
+            return
+
+        # Wait until 01:00 server time (market needs to stabilize after open)
+        server_now = now.astimezone(SERVER_TZ)
+        if server_now.hour < 1:
+            return
+
+        if not self._weekend_paused_orders:
+            log.info("No paused weekend orders to resume")
+            self._weekend_resume_done = True
+            return
+
+        log.info("=" * 70)
+        log.info(f"🔄 MONDAY ORDER RESUME - Re-placing {len(self._weekend_paused_orders)} paused orders")
+        log.info("=" * 70)
+
+        resumed = 0
+        failed = 0
+        type_map = {2: "buy_limit", 3: "sell_limit", 4: "buy_stop", 5: "sell_stop"}
+
+        for order_info in self._weekend_paused_orders:
+            symbol = order_info['symbol']
+            order_type_str = type_map.get(order_info['type'], "buy_limit")
+
+            try:
+                result = self.mt5.place_pending_order(
+                    symbol=symbol,
+                    order_type=order_type_str,
+                    volume=order_info['volume'],
+                    price=order_info['price'],
+                    sl=order_info['sl'],
+                    tp=order_info['tp'],
+                    magic=order_info['magic'],
+                    comment=order_info.get('comment', ''),
+                )
+
+                if (hasattr(result, 'success') and result.success) or (isinstance(result, bool) and result):
+                    resumed += 1
+                    log.info(f"  ✓ Resumed {symbol} {order_type_str} at {order_info['price']:.5f}")
+
+                    # Update pending_setup with new ticket
+                    internal_symbol = get_internal_symbol(symbol)
+                    if internal_symbol in self.pending_setups:
+                        new_ticket = getattr(result, 'order', None)
+                        if new_ticket:
+                            self.pending_setups[internal_symbol].order_ticket = new_ticket
+                            self.pending_setups[internal_symbol].status = "pending"
+                else:
+                    failed += 1
+                    log.error(f"  ✗ Failed to resume {symbol}: {getattr(result, 'error', 'unknown')}")
+            except Exception as e:
+                failed += 1
+                log.error(f"  ✗ Error resuming {symbol}: {e}")
+
+        self._weekend_paused_orders = []
+        self._weekend_resume_done = True
+
+        if resumed > 0:
+            self._save_pending_setups()
+
+        log.info(f"  📊 Monday resume: {resumed} resumed, {failed} failed")
         log.info("=" * 70)
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -4771,6 +4921,7 @@ class LiveTradingBot:
                         # Weekend gap risk management
                         self.handle_friday_position_closing()  # Friday 16:00+ UTC
                         self.handle_sunday_gap_detection()  # Sunday 22:00+ UTC
+                        self.handle_monday_order_resume()  # Monday 01:00+ server time
                         
                         # Limit order compounding - update lot sizes every 30 min
                         self.update_limit_orders_for_compounding()
