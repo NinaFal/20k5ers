@@ -259,8 +259,12 @@ def get_next_daily_close() -> datetime:
 
 def get_next_scan_time(include_today: bool = False) -> datetime:
     """
-    Get next scheduled scan time (10 min after daily close).
+    Get next scheduled scan time.
     Returns datetime in UTC for comparison.
+    
+    SCHEDULE:
+    - Tuesday-Friday: 00:15 server time (15 min after daily close)
+    - Monday: 01:00 server time (1 hour after market open, avoids wide spreads)
 
     Args:
         include_today: If True, returns today's scan time even if it's in the past.
@@ -268,8 +272,14 @@ def get_next_scan_time(include_today: bool = False) -> datetime:
     """
     server_now = get_server_time()
 
-    # Daily close is at 00:00 server time, scan at 00:10 server time
-    today_scan = server_now.replace(hour=0, minute=10, second=0, microsecond=0)
+    # Monday (weekday=0) scans at 01:00, all other weekdays at 00:15
+    def _scan_time_for(dt):
+        if dt.weekday() == 0:  # Monday
+            return dt.replace(hour=1, minute=0, second=0, microsecond=0)
+        else:  # Tue-Fri
+            return dt.replace(hour=0, minute=15, second=0, microsecond=0)
+
+    today_scan = _scan_time_for(server_now)
 
     # If include_today is True and we haven't passed today's scan yet, return it
     if include_today and server_now < today_scan:
@@ -279,14 +289,59 @@ def get_next_scan_time(include_today: bool = False) -> datetime:
 
     # If we're past today's scan (or it's weekend), get tomorrow's
     if server_now >= today_scan or today_scan.weekday() >= 5:
-        tomorrow_scan = today_scan + timedelta(days=1)
+        tomorrow = server_now + timedelta(days=1)
+        tomorrow = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
         # Skip weekends
-        while tomorrow_scan.weekday() >= 5:
-            tomorrow_scan += timedelta(days=1)
+        while tomorrow.weekday() >= 5:
+            tomorrow += timedelta(days=1)
+        tomorrow_scan = _scan_time_for(tomorrow)
         return tomorrow_scan.astimezone(timezone.utc)
 
     # Return today's scan (handles case where include_today=False but it's before scan time)
     return today_scan.astimezone(timezone.utc)
+
+
+def get_next_midnight_sync_time() -> datetime:
+    """
+    Get next midnight sync time (00:00 server time).
+    This is when 5ers takes the equity/balance snapshot for DDD calculation.
+    
+    The bot syncs at exactly 00:00 to capture MAX(equity, balance) matching 5ers.
+    Skips weekends (Saturday/Sunday).
+    
+    Returns datetime in UTC.
+    """
+    server_now = get_server_time()
+    today_midnight = server_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    if server_now >= today_midnight or today_midnight.weekday() >= 5:
+        # Already past midnight today (or weekend), get next weekday midnight
+        next_day = today_midnight + timedelta(days=1)
+        while next_day.weekday() >= 5:  # Skip Sat/Sun
+            next_day += timedelta(days=1)
+        return next_day.astimezone(timezone.utc)
+    
+    return today_midnight.astimezone(timezone.utc)
+
+
+def is_friday_closing_period() -> bool:
+    """
+    Check if we're in the Friday closing period (no new orders allowed).
+    Friday 16:00 UTC onwards = no new forex orders (weekend gap protection).
+    
+    Returns:
+        True if Friday 16:00+ UTC (no new orders)
+        False otherwise (orders allowed)
+    """
+    now = datetime.now(timezone.utc)
+    weekday = now.weekday()  # 0=Monday, 4=Friday
+    hour = now.hour
+    
+    # Friday 16:00+ UTC = closing period
+    if weekday == 4 and hour >= 16:
+        return True
+    
+    return False
 
 
 def is_market_open() -> bool:
@@ -860,6 +915,45 @@ class LiveTradingBot:
         self._auto_start_challenge()
     
     # ═══════════════════════════════════════════════════════════════════════════
+    # MIDNIGHT EQUITY SYNC - Captures MAX(equity, balance) at 00:00 for 5ers DDD
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _do_midnight_equity_sync(self, sim_time: datetime = None):
+        """
+        Sync day_start_equity at 00:00 server time (5ers DDD snapshot moment).
+        
+        5ers determines the Daily Loss Level as the HIGHER of equity or balance
+        at midnight server time. This sync captures that exact value so our DDD
+        limit matches the 5ers dashboard.
+        
+        Backtest version: uses sim_time parameter instead of datetime.now().
+        """
+        if not self.challenge_manager:
+            log.warning("⏰ Midnight sync skipped - challenge_manager not initialized")
+            return
+        
+        account = self.mt5.get_account_info()
+        if not account:
+            log.error("⏰ Midnight sync FAILED - could not get account info")
+            return
+        
+        current_equity = account.get("equity", 0)
+        current_balance = account.get("balance", 0)
+        old_day_start = self.challenge_manager.day_start_equity
+        
+        # Normal midnight sync per 5ers rules: MAX(equity, balance)
+        self.challenge_manager.update_day_start_equity(current_equity, current_balance)
+        new_value = max(current_equity, current_balance)
+        log.info("=" * 70)
+        log.info(f"⏰ MIDNIGHT EQUITY SYNC (5ers DDD baseline)")
+        log.info(f"  Previous day_start_equity: ${old_day_start:,.2f}")
+        log.info(f"  Midnight equity: ${current_equity:,.2f}")
+        log.info(f"  Midnight balance: ${current_balance:,.2f}")
+        log.info(f"  → NEW day_start_equity = MAX(equity, balance) = ${new_value:,.2f}")
+        log.info(f"  → DDD limit (5%) = ${new_value * 0.95:,.2f}")
+        log.info("=" * 70)
+
+    # ═══════════════════════════════════════════════════════════════════════════
     # DDD HALT STATE PERSISTENCE - Survives bot restarts within same day
     # ═══════════════════════════════════════════════════════════════════════════
     
@@ -1167,10 +1261,11 @@ class LiveTradingBot:
         for symbol, setup in list(self.awaiting_entry.items()):
             # Only block if we have a FILLED position (open trade)
             # Pending setups should NOT block - the entry queue takes priority
+            # BUGFIX: Check if we already have a pending order or position for this symbol
             if symbol in self.pending_setups:
                 existing = self.pending_setups[symbol]
-                if existing.status == "filled":
-                    log.debug(f"[{symbol}] Already have open position - removing from entry queue")
+                if existing.status in ("pending", "filled"):
+                    log.debug(f"[{symbol}] Already have {existing.status} setup - removing from entry queue")
                     signals_to_remove.append(symbol)
                     continue
             
@@ -3108,6 +3203,15 @@ class LiveTradingBot:
         from ftmo_config import FTMO_CONFIG, get_pip_size, get_sl_limits
         
         symbol = setup["symbol"]
+        
+        # ═══════════════════════════════════════════════════════════════
+        # FRIDAY CLOSING PERIOD CHECK - No new orders after 16:00 UTC
+        # Weekend gap protection - crypto excluded (no gap risk)
+        # ═══════════════════════════════════════════════════════════════
+        if is_friday_closing_period() and not is_crypto_pair(symbol):
+            log.info(f"[{symbol}] ⏸️ Friday closing period (16:00+ UTC) - no new forex orders until Sunday")
+            return False
+        
         broker_symbol = setup.get("broker_symbol", self.symbol_map.get(symbol, symbol))
         direction = setup["direction"]
         current_price = setup.get("current_price", 0)
@@ -4294,14 +4398,26 @@ class LiveTradingBot:
         sim_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
         current_day = sim_time.weekday()  # 0=Monday, 6=Sunday
         is_weekend = current_day in [5, 6]  # Saturday=5, Sunday=6
+        is_friday_close = (current_day == 4 and sim_time.hour >= 16)  # Friday 16:00+ UTC
+        
+        if is_friday_close:
+            log.info("🌅 FRIDAY CLOSING PERIOD - Only crypto orders allowed (16:00+ UTC)")
         
         for symbol in available_symbols:
             try:
                 # ═══════════════════════════════════════════════════════════
                 # WEEKEND LOGIC - Skip forex on weekends, ALWAYS scan crypto
+                # FRIDAY CLOSING - Skip forex after 16:00 UTC (but still scan for info)
                 # ═══════════════════════════════════════════════════════════
-                if is_weekend and not is_crypto_pair(symbol):
+                is_crypto = is_crypto_pair(symbol)
+                
+                if is_weekend and not is_crypto:
                     log.debug(f"[{symbol}] Skipping weekend scan - forex market closed")
+                    continue
+                
+                # Friday 16:00+ UTC: Skip forex, only allow crypto
+                if is_friday_close and not is_crypto:
+                    log.debug(f"[{symbol}] Skipping - Friday closing period (no new forex orders)")
                     continue
                 
                 setup = self.scan_symbol(symbol)
@@ -4510,7 +4626,7 @@ class LiveTradingBot:
                         # Weekend gap risk management
                         self.handle_friday_position_closing()  # Friday 16:00+ UTC
                         self.handle_sunday_gap_detection()  # Sunday 22:00+ UTC
-                        self.handle_monday_order_resume(current_time)  # Monday 01:00+ re-place orders
+                        self.handle_monday_order_resume(now)  # Monday 01:00+ re-place orders
                         
                         # Limit order compounding - update lot sizes every 30 min
                         self.update_limit_orders_for_compounding()
@@ -4697,13 +4813,17 @@ class LiveTradingBot:
                 
                 # Get current equity for new day start
                 account = self.mt5.get_account_info()
-                day_start_equity = account.get("equity", self.initial_balance)
+                day_equity = account.get("equity", self.initial_balance)
+                day_balance = account.get("balance", self.initial_balance)
+                
+                # CRITICAL: Use MAX(equity, balance) per 5ers rules
+                day_start_equity = max(day_equity, day_balance)
                 
                 # CRITICAL: Sync day_start_equity to challenge_manager
                 if self.challenge_manager:
                     self.challenge_manager.day_start_equity = day_start_equity
-                    self.challenge_manager.day_start_balance = account.get("balance", self.initial_balance)
-                    log.info(f"📊 New day {today}: day_start_equity = ${day_start_equity:,.2f}")
+                    self.challenge_manager.day_start_balance = day_balance
+                    log.info(f"📊 New day {today}: day_start_equity = MAX(${day_equity:,.2f}, ${day_balance:,.2f}) = ${day_start_equity:,.2f}")
                 
                 # Reset DDD halt for new day
                 trading_halted_today = False
@@ -4817,6 +4937,18 @@ class LiveTradingBot:
             # PARTIAL TAKE PROFIT MANAGEMENT
             # ═══════════════════════════════════════════════════════════════
             self.manage_partial_takes()
+            
+            # ═══════════════════════════════════════════════════════════════
+            # WEEKEND GAP RISK MANAGEMENT
+            # ═══════════════════════════════════════════════════════════════
+            self.handle_friday_position_closing()  # Friday 16:00+ UTC
+            self.handle_sunday_gap_detection()  # Sunday 22:00+ UTC
+            self.handle_monday_order_resume(current_time)  # Monday 01:00+ re-place orders
+            
+            # ═══════════════════════════════════════════════════════════════
+            # LIMIT ORDER COMPOUNDING - update lot sizes every 30 min
+            # ═══════════════════════════════════════════════════════════════
+            self.update_limit_orders_for_compounding()
             
             # ═══════════════════════════════════════════════════════════════
             # CHECK PENDING ORDERS (from pending_setups)
