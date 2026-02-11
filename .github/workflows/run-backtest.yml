@@ -1,0 +1,80 @@
+name: Run Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: 'Start date (YYYY-MM-DD)'
+        required: true
+        default: '2023-01-01'
+        type: string
+      end_date:
+        description: 'End date (YYYY-MM-DD)'
+        required: true
+        default: '2025-12-31'
+        type: string
+      balance:
+        description: 'Starting balance'
+        required: true
+        default: '20000'
+        type: string
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create output directories
+        run: |
+          mkdir -p backtest/logs
+          mkdir -p backtest/results
+          mkdir -p ftmo_analysis_output/main_live_bot_backtest
+
+      - name: Run Backtest
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python -u backtest/src/main_live_bot_backtest.py \
+            --start ${{ inputs.start_date }} \
+            --end ${{ inputs.end_date }} \
+            --balance ${{ inputs.balance }} \
+            2>&1 | tee backtest/logs/backtest_cloud_run.log
+
+      - name: Upload backtest results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backtest-results-${{ github.run_id }}
+          path: |
+            backtest/logs/backtest_cloud_run.log
+            backtest/results/
+            ftmo_analysis_output/main_live_bot_backtest/
+          retention-days: 30
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Backtest Run Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Period**: ${{ inputs.start_date }} to ${{ inputs.end_date }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Balance**: \$${{ inputs.balance }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Last 50 lines of log:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -50 backtest/logs/backtest_cloud_run.log >> $GITHUB_STEP_SUMMARY || echo "No log found"
+          echo '```' >> $GITHUB_STEP_SUMMARY
