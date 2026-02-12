@@ -993,7 +993,7 @@ class MT5Client:
         # Get current order to fill in missing values
         orders = mt5.orders_get(ticket=ticket)
         if not orders:
-            log.warning(f"Pending order {ticket} not found")
+            print(f"[MT5] Pending order {ticket} not found")
             return False
         
         order = orders[0]
@@ -1011,11 +1011,11 @@ class MT5Client:
         result = mt5.order_send(request)
         
         if result is None:
-            log.error(f"Modify pending order {ticket} returned None")
+            print(f"[MT5] Modify pending order {ticket} returned None")
             return False
         
         if result.retcode != mt5.TRADE_RETCODE_DONE:
-            log.error(f"Modify pending order {ticket} failed: {result.comment} (code: {result.retcode})")
+            print(f"[MT5] Modify pending order {ticket} failed: {result.comment} (code: {result.retcode})")
             return False
         
         return True

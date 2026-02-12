@@ -66,11 +66,11 @@ class ChallengeState:
     phase: int = 1
     live_flag: bool = False
     
-    initial_balance: float = 10000.0
-    current_balance: float = 10000.0
-    highest_balance: float = 10000.0
+    initial_balance: float = 20000.0
+    current_balance: float = 20000.0
+    highest_balance: float = 20000.0
     
-    day_start_balance: float = 10000.0
+    day_start_balance: float = 20000.0
     current_day: str = ""
     
     total_trades: int = 0
@@ -196,57 +196,51 @@ class RiskManager:
         except Exception as e:
             print(f"[RiskManager] Error saving state: {e}")
     
-    def sync_from_mt5(self, balance: float, equity: float):
+    def sync_from_mt5(self, balance: float, equity: float, configured_initial_balance: float = 20000.0):
         """
         Sync state with actual MT5 account values.
         
         Use this on startup to ensure risk manager uses real account values
         instead of potentially stale state file values.
+        
+        Args:
+            balance: Current MT5 account balance
+            equity: Current MT5 account equity
+            configured_initial_balance: The challenge starting balance from config
+                (5ers uses STATIC TDD from this value, never changes)
         """
         if abs(self.state.current_balance - balance) > 1.0:
             print(f"[RiskManager] Syncing balance: {self.state.current_balance:.2f} -> {balance:.2f}")
             self.state.current_balance = balance
         
-        # Sync initial balance if:
-        # 1. Not live yet (new challenge), OR
-        # 2. Balance is significantly different (>10% change = new account/reset)
-        balance_diff_pct = abs(self.state.initial_balance - balance) / max(self.state.initial_balance, 1) * 100
-        should_reset_initial = (
-            not self.state.live_flag or  # Not live yet
-            balance_diff_pct > 10  # Balance changed >10% = likely new account
-        )
+        # Fix initial_balance if it doesn't match the configured challenge starting balance
+        # 5ers uses STATIC TDD from the initial balance - it must always be the configured value
+        if abs(self.state.initial_balance - configured_initial_balance) > 1.0:
+            print(f"[RiskManager] Fixing initial balance: {self.state.initial_balance:.2f} -> {configured_initial_balance:.2f} (configured)")
+            self.state.initial_balance = configured_initial_balance
         
-        if abs(self.state.initial_balance - balance) > 1.0 and should_reset_initial:
-            print(f"[RiskManager] Syncing initial balance: {self.state.initial_balance:.2f} -> {balance:.2f}")
-            self.state.initial_balance = balance
-            self.state.highest_balance = max(self.state.highest_balance, balance)
-            self.state.day_start_balance = balance
-            # Reset profit tracking when initial balance changes significantly
-            if balance_diff_pct > 10:
-                print(f"[RiskManager] Significant balance change detected ({balance_diff_pct:.1f}%), resetting challenge state")
-                self.state.live_flag = False
-                self.state.phase = 1
-                self.state.profitable_days = 0
-                self.state.total_trades = 0
-                self.state.winning_trades = 0
-                self.state.losing_trades = 0
+        # Update highest balance tracking
+        self.state.highest_balance = max(self.state.highest_balance, balance, equity)
         
-        if self.state.highest_balance < equity:
-            self.state.highest_balance = equity
+        # If not live yet, sync day_start_balance to current balance
+        if not self.state.live_flag:
+            self.state.day_start_balance = max(balance, self.state.day_start_balance)
+            self.state.live_flag = True
+            print(f"[RiskManager] Challenge activated: initial=${configured_initial_balance:.2f}, current=${balance:.2f}")
         
         self.state.last_update = datetime.now(timezone.utc).isoformat()
         self.save_state()
     
-    def start_challenge(self, phase: int = 1):
+    def start_challenge(self, phase: int = 1, initial_balance: float = 20000.0):
         """Start or restart a challenge."""
         now = datetime.now(timezone.utc)
         self.state = ChallengeState(
             phase=phase,
             live_flag=True,
-            initial_balance=10000.0,
-            current_balance=10000.0,
-            highest_balance=10000.0,
-            day_start_balance=10000.0,
+            initial_balance=initial_balance,
+            current_balance=initial_balance,
+            highest_balance=initial_balance,
+            day_start_balance=initial_balance,
             current_day=now.strftime("%Y-%m-%d"),
             start_time=now.isoformat(),
             last_update=now.isoformat(),

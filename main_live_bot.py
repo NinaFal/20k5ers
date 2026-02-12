@@ -1873,30 +1873,40 @@ class LiveTradingBot:
         log.info(f"Current equity: ${current_equity:,.2f}")
         
         orders_updated = 0
+        orders_skipped = 0
         
         for order in pending_orders:
             symbol = order.symbol
             internal_symbol = get_internal_symbol(symbol)
             
-            # Get the setup for this order to get SL and confluence
+            # Get SL and confluence from setup or directly from the order
             setup = self.pending_setups.get(internal_symbol)
-            if not setup:
+            if setup:
+                sl = setup.stop_loss
+                confluence = setup.confluence_score
+            else:
                 # Try awaiting_entry
                 setup_dict = self.awaiting_entry.get(internal_symbol)
                 if setup_dict:
                     sl = setup_dict.get("stop_loss", 0)
                     confluence = setup_dict.get("confluence", 10)
                 else:
-                    log.debug(f"[{internal_symbol}] No setup found for pending order - skipping")
-                    continue
-            else:
-                sl = setup.stop_loss
-                confluence = setup.confluence_score
+                    # FALLBACK: Use SL directly from the MT5 order itself
+                    # This handles orders that exist on MT5 but have no local setup
+                    sl = order.sl if hasattr(order, 'sl') else 0
+                    confluence = 10  # Default confluence for lot sizing
+                    if sl and sl > 0:
+                        log.info(f"[{internal_symbol}] No local setup - using SL from MT5 order: {sl:.5f}")
+                    else:
+                        log.warning(f"[{internal_symbol}] No setup and no SL on order - skipping")
+                        orders_skipped += 1
+                        continue
             
             entry = order.price
             
             if not sl or not entry:
                 log.debug(f"[{internal_symbol}] Missing SL or entry - skipping")
+                orders_skipped += 1
                 continue
             
             # Calculate new lot size based on current equity
@@ -1958,10 +1968,13 @@ class LiveTradingBot:
         
         self.last_limit_order_update = now
         
+        total_checked = len(pending_orders) - orders_skipped
         if orders_updated > 0:
-            log.info(f"✅ Updated {orders_updated} limit orders for compounding")
+            log.info(f"✅ Updated {orders_updated}/{total_checked} limit orders for compounding")
         else:
-            log.info("✅ All limit orders have correct lot sizes")
+            log.info(f"✅ All {total_checked} checked limit orders have correct lot sizes")
+        if orders_skipped > 0:
+            log.warning(f"⚠️ Skipped {orders_skipped} orders (no SL or entry)")
         log.info("=" * 70)
 
     def handle_sunday_gap_detection(self):
