@@ -1203,8 +1203,16 @@ class LiveTradingBot:
         if symbol in self.pending_setups:
             existing = self.pending_setups[symbol]
             if existing.status != "filled":
+                # CRITICAL: Cancel the MT5 pending order BEFORE removing setup
+                if existing.order_ticket:
+                    cancel_ok = self.mt5.cancel_pending_order(existing.order_ticket)
+                    if cancel_ok:
+                        log.info(f"[{symbol}] Cancelled MT5 order {existing.order_ticket} before moving to entry queue")
+                    else:
+                        log.warning(f"[{symbol}] Failed to cancel MT5 order {existing.order_ticket} - may cause duplicate")
                 log.debug(f"[{symbol}] Removing old {existing.status} setup from pending_setups")
                 del self.pending_setups[symbol]
+                self._save_pending_setups()
         
         # Log if replacing existing entry in queue
         if symbol in self.awaiting_entry:
@@ -1259,18 +1267,29 @@ class LiveTradingBot:
         # log.info(f"Checking {len(self.awaiting_entry)} signals awaiting price proximity...")
         
         for symbol, setup in list(self.awaiting_entry.items()):
-            # Only block if we have a FILLED position (open trade)
-            # Pending setups should NOT block - the entry queue takes priority
+            # Block if we have a FILLED position or PENDING order
             if symbol in self.pending_setups:
                 existing = self.pending_setups[symbol]
                 if existing.status == "filled":
                     log.debug(f"[{symbol}] Already have open position - removing from entry queue")
                     signals_to_remove.append(symbol)
                     continue
+                elif existing.status == "pending":
+                    log.debug(f"[{symbol}] Already have pending order - removing from entry queue")
+                    signals_to_remove.append(symbol)
+                    continue
             
             broker_symbol = self.symbol_map.get(symbol, symbol)
             if self.check_existing_position(broker_symbol):
                 log.debug(f"[{symbol}] Already have open position - removing from entry queue")
+                signals_to_remove.append(symbol)
+                continue
+            
+            # DEDUP: Check for existing MT5 pending orders for this symbol
+            existing_mt5_orders = self.mt5.get_pending_orders(symbol=broker_symbol)
+            bot_orders = [o for o in existing_mt5_orders if getattr(o, 'magic', 0) == getattr(self.mt5, 'MAGIC_NUMBER', 0)]
+            if bot_orders:
+                log.debug(f"[{symbol}] Already have MT5 pending order - removing from entry queue")
                 signals_to_remove.append(symbol)
                 continue
             
@@ -1427,17 +1446,25 @@ class LiveTradingBot:
                     signals_to_remove.append(symbol)
                     continue
             
-            # Only block if we have a FILLED position (open trade)
+            # Block if we have a FILLED position or PENDING order
             if symbol in self.pending_setups:
                 existing = self.pending_setups[symbol]
-                if existing.status == "filled":
-                    log.debug(f"[{symbol}] Already have open position - removing from spread queue")
+                if existing.status in ("filled", "pending"):
+                    log.debug(f"[{symbol}] Already have {existing.status} setup - removing from spread queue")
                     signals_to_remove.append(symbol)
                     continue
             
             broker_symbol = self.symbol_map.get(symbol, symbol)
             if self.check_existing_position(broker_symbol):
                 log.debug(f"[{symbol}] Already have open position - removing from spread queue")
+                signals_to_remove.append(symbol)
+                continue
+            
+            # DEDUP: Check for existing MT5 pending orders for this symbol
+            existing_mt5_orders = self.mt5.get_pending_orders(symbol=broker_symbol)
+            bot_orders = [o for o in existing_mt5_orders if getattr(o, 'magic', 0) == getattr(self.mt5, 'MAGIC_NUMBER', 0)]
+            if bot_orders:
+                log.debug(f"[{symbol}] Already have MT5 pending order - removing from spread queue")
                 signals_to_remove.append(symbol)
                 continue
             
