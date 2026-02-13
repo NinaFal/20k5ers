@@ -2915,7 +2915,19 @@ class LiveTradingBot:
             log.info(f"[{symbol}] Already in position, skipping")
             return None
         
-        # BACKYBACK LOGIC: Don't skip pending setups - NEW signals replace OLD ones
+        # DEDUP CHECK: Also check awaiting_entry and awaiting_spread queues
+        # This prevents placing a new order if the symbol is already queued
+        if symbol in self.awaiting_entry:
+            log.debug(f"[{symbol}] Already in entry queue - removing old signal, will re-evaluate")
+            del self.awaiting_entry[symbol]
+            self._save_awaiting_entry()
+        
+        if symbol in self.awaiting_spread:
+            log.debug(f"[{symbol}] Already in spread queue - removing old signal, will re-evaluate")
+            del self.awaiting_spread[symbol]
+            self._save_awaiting_spread()
+        
+        # REPLACE LOGIC: New signals replace old pending setups
         # Rationale: New signal is based on latest market data, so it's likely better
         # Only skip if there's a FILLED position (handled above)
         if symbol in self.pending_setups:
@@ -2929,7 +2941,10 @@ class LiveTradingBot:
                 # IMPORTANT: Cancel the old MT5 pending order first!
                 if existing.order_ticket:
                     log.debug(f"[{symbol}] Cancelling old pending order (ticket {existing.order_ticket}) before replacing")
-                    self.mt5.cancel_pending_order(existing.order_ticket)
+                    cancel_ok = self.mt5.cancel_pending_order(existing.order_ticket)
+                    if not cancel_ok:
+                        log.error(f"[{symbol}] FAILED to cancel old order {existing.order_ticket} - keeping old setup to prevent duplicate")
+                        return None
                 log.info(f"[{symbol}] Replacing old {existing.status} setup with new signal")
                 del self.pending_setups[symbol]
         
@@ -3307,6 +3322,14 @@ class LiveTradingBot:
         broker_symbol = self.symbol_map.get(symbol, symbol)
         if self.check_existing_position(broker_symbol):
             log.info(f"[{symbol}] Already have open position, skipping")
+            return False
+        
+        # DEDUP: Check for existing MT5 pending orders for this symbol
+        # This catches orders that exist on MT5 but are not in pending_setups
+        existing_mt5_orders = self.mt5.get_pending_orders(symbol=broker_symbol)
+        bot_orders = [o for o in existing_mt5_orders if getattr(o, 'magic', 0) == getattr(self.mt5, 'MAGIC_NUMBER', 0)]
+        if bot_orders:
+            log.warning(f"[{symbol}] Already have {len(bot_orders)} MT5 pending order(s) for this symbol - blocking duplicate")
             return False
         
         if CHALLENGE_MODE and self.challenge_manager:

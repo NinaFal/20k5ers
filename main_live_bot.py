@@ -2483,9 +2483,12 @@ class LiveTradingBot:
             self._save_awaiting_spread()
             log.info(f"Cleaned up {len(expired_spread)} expired spread signals")
         
-        # 4. Log final state
+        # 4. DEDUP: Remove duplicate MT5 pending orders for same symbol + rescale lot sizes
+        deduped_count, rescaled_count = self._dedup_and_rescale_mt5_orders(my_pending_orders)
+        
+        # 5. Log final state
         log.info("=" * 70)
-        # 5. CRITICAL: Recover orphaned MT5 positions not in pending_setups
+        # 6. CRITICAL: Recover orphaned MT5 positions not in pending_setups
         # This handles positions opened when bot was down or crashed after fill
         recovered_count = self._recover_orphaned_positions(my_positions)
         
@@ -2495,11 +2498,131 @@ class LiveTradingBot:
         log.info(f"  Active awaiting_spread: {len(self.awaiting_spread)}")
         if recovered_count > 0:
             log.info(f"  ⚠️ Recovered orphaned positions: {recovered_count}")
+        if deduped_count > 0:
+            log.info(f"  🗑️ Removed {deduped_count} duplicate MT5 pending orders")
+        if rescaled_count > 0:
+            log.info(f"  📐 Rescaled {rescaled_count} limit orders to current balance")
         log.info("=" * 70)
         
         # 6. Sync TP levels to current params
         self._sync_tp_levels_to_current_params()
 
+    def _dedup_and_rescale_mt5_orders(self, pending_orders: list) -> tuple:
+        """
+        DEDUP & RESCALE: Remove duplicate MT5 pending orders and rescale lot sizes.
+        
+        Fixes the root cause of duplicate orders:
+        - Groups all MT5 pending orders by symbol
+        - If multiple orders exist for same symbol: KEEP newest, CANCEL the rest
+        - Rescale kept orders' lot sizes based on current balance
+        
+        Returns:
+            (deduped_count, rescaled_count) tuple
+        """
+        if not pending_orders:
+            return (0, 0)
+        
+        # Group orders by symbol
+        orders_by_symbol: Dict[str, list] = {}
+        for order in pending_orders:
+            sym = order.symbol
+            if sym not in orders_by_symbol:
+                orders_by_symbol[sym] = []
+            orders_by_symbol[sym].append(order)
+        
+        deduped_count = 0
+        rescaled_count = 0
+        
+        for broker_sym, orders in orders_by_symbol.items():
+            internal_symbol = get_internal_symbol(broker_sym)
+            
+            if len(orders) > 1:
+                # DUPLICATE DETECTED! Keep newest (highest ticket = most recent), cancel the rest
+                orders_sorted = sorted(orders, key=lambda o: o.ticket, reverse=True)
+                keeper = orders_sorted[0]
+                duplicates = orders_sorted[1:]
+                
+                log.warning(f"[{internal_symbol}] 🗑️ DUPLICATE ORDERS DETECTED: {len(orders)} orders for same symbol")
+                log.info(f"[{internal_symbol}]   Keeping: ticket {keeper.ticket} (lot {keeper.volume:.2f}, SL {keeper.sl:.5f})")
+                
+                for dup in duplicates:
+                    log.info(f"[{internal_symbol}]   Cancelling duplicate: ticket {dup.ticket} (lot {dup.volume:.2f}, SL {dup.sl:.5f})")
+                    cancel_ok = self.mt5.cancel_pending_order(dup.ticket)
+                    if cancel_ok:
+                        deduped_count += 1
+                        log.info(f"[{internal_symbol}]   ✓ Cancelled duplicate ticket {dup.ticket}")
+                    else:
+                        log.error(f"[{internal_symbol}]   ✗ FAILED to cancel duplicate ticket {dup.ticket}")
+                
+                # Now rescale the keeper
+                orders = [keeper]
+            
+            # Rescale lot size based on current balance
+            for order in orders:
+                setup = self.pending_setups.get(internal_symbol)
+                if setup:
+                    sl = setup.stop_loss
+                    confluence = setup.confluence_score
+                else:
+                    setup_dict = self.awaiting_entry.get(internal_symbol)
+                    if setup_dict:
+                        sl = setup_dict.get("stop_loss", 0)
+                        confluence = setup_dict.get("confluence", 10)
+                    else:
+                        sl = order.sl if hasattr(order, 'sl') and order.sl else 0
+                        confluence = 10
+                
+                if not sl or sl <= 0:
+                    log.debug(f"[{internal_symbol}] No SL for rescaling - skipping")
+                    continue
+                
+                new_lot = self._calculate_lot_size_at_fill(
+                    symbol=internal_symbol,
+                    broker_symbol=broker_sym,
+                    entry=order.price,
+                    sl=sl,
+                    confluence=confluence,
+                )
+                
+                if new_lot <= 0:
+                    continue
+                
+                old_lot = order.volume
+                compound_threshold = getattr(self.params, 'compound_threshold_pct', 5.0)
+                lot_change_pct = abs(new_lot - old_lot) / old_lot * 100 if old_lot > 0 else 100
+                
+                if lot_change_pct >= compound_threshold:
+                    log.info(f"[{internal_symbol}] 📐 Rescaling: {old_lot:.2f} → {new_lot:.2f} ({lot_change_pct:+.1f}%)")
+                    
+                    cancel_ok = self.mt5.cancel_pending_order(order.ticket)
+                    if cancel_ok:
+                        direction = "bullish" if order.type in [2, 4] else "bearish"
+                        tp = order.tp if hasattr(order, 'tp') and order.tp else 0
+                        
+                        new_result = self.mt5.place_pending_order(
+                            symbol=broker_sym,
+                            direction=direction,
+                            volume=new_lot,
+                            entry_price=order.price,
+                            sl=sl,
+                            tp=tp,
+                        )
+                        
+                        if new_result and new_result.success:
+                            rescaled_count += 1
+                            log.info(f"[{internal_symbol}]   ✓ Rescaled: ticket {order.ticket} → {new_result.order_id}")
+                            # Update pending_setups with new ticket
+                            if setup and hasattr(setup, 'order_ticket'):
+                                setup.order_ticket = new_result.order_id
+                                setup.lot_size = new_lot
+                                self._save_pending_setups()
+                        else:
+                            log.error(f"[{internal_symbol}]   ✗ Rescale FAILED - order cancelled but not replaced!")
+                    else:
+                        log.error(f"[{internal_symbol}]   ✗ Failed to cancel order for rescaling")
+        
+        return (deduped_count, rescaled_count)
+    
     def _recover_orphaned_positions(self, my_positions: list) -> int:
         """
         CRITICAL: Recover MT5 positions that are not in pending_setups.
@@ -3274,6 +3397,18 @@ class LiveTradingBot:
             log.info(f"[{symbol}] Already in position, skipping")
             return None
         
+        # DEDUP CHECK: Also check awaiting_entry and awaiting_spread queues
+        # This prevents placing a new order if the symbol is already queued
+        if symbol in self.awaiting_entry:
+            log.debug(f"[{symbol}] Already in entry queue - removing old signal, will re-evaluate")
+            del self.awaiting_entry[symbol]
+            self._save_awaiting_entry()
+        
+        if symbol in self.awaiting_spread:
+            log.debug(f"[{symbol}] Already in spread queue - removing old signal, will re-evaluate")
+            del self.awaiting_spread[symbol]
+            self._save_awaiting_spread()
+        
         # REPLACE LOGIC: New signals replace old pending setups
         # Rationale: New signal is based on latest market data, so it's likely better
         # Only skip if there's a FILLED position (handled above)
@@ -3288,9 +3423,11 @@ class LiveTradingBot:
                 # IMPORTANT: Cancel the old MT5 pending order first!
                 if existing.order_ticket:
                     log.info(f"[{symbol}] Cancelling old pending order (ticket {existing.order_ticket}) before replacing")
-                    cancel_result = self.mt5.cancel_pending_order(existing.order_ticket)
-                    if hasattr(cancel_result, 'success') and not cancel_result.success:
-                        log.warning(f"[{symbol}] Failed to cancel old order: {getattr(cancel_result, 'error', 'unknown')}")
+                    cancel_ok = self.mt5.cancel_pending_order(existing.order_ticket)
+                    if not cancel_ok:
+                        # Cancel FAILED - do NOT proceed, keep old order to avoid duplicates
+                        log.error(f"[{symbol}] FAILED to cancel old order {existing.order_ticket} - keeping old setup to prevent duplicate")
+                        return None
                 log.info(f"[{symbol}] Replacing old {existing.status} setup with new signal")
                 del self.pending_setups[symbol]
         
@@ -3658,6 +3795,14 @@ class LiveTradingBot:
         broker_symbol = self.symbol_map.get(symbol, symbol)
         if self.check_existing_position(broker_symbol):
             log.info(f"[{symbol}] Already have open position, skipping")
+            return False
+        
+        # DEDUP: Check for existing MT5 pending orders for this symbol
+        # This catches orders that exist on MT5 but are not in pending_setups
+        existing_mt5_orders = self.mt5.get_pending_orders(symbol=broker_symbol)
+        bot_orders = [o for o in existing_mt5_orders if o.magic == self.mt5.MAGIC_NUMBER]
+        if bot_orders:
+            log.warning(f"[{symbol}] Already have {len(bot_orders)} MT5 pending order(s) for this symbol - blocking duplicate")
             return False
         
         if CHALLENGE_MODE and self.challenge_manager:
