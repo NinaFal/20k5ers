@@ -52,13 +52,15 @@ Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accoun
 
 ---
 
-## 3-TP Exit System
+## 5-TP Exit System
 
 | Level | R-Multiple | Close % | SL Action |
 |-------|------------|---------|-----------|
-| TP1 | 0.6R | 35% | Move to breakeven |
-| TP2 | 1.2R | 30% | Trail to TP1+0.5R |
-| TP3 | 2.0R | 35% | Close remaining |
+| TP1 | 0.6R | 20% | Move to breakeven |
+| TP2 | 1.6R | 30% | Trail to TP1+0.5R |
+| TP3 | 2.1R | 20% | Trail to TP2 |
+| TP4 | 2.4R | 20% | Trail to TP3+0.5R |
+| TP5 | 3.6R | 10% | Close ALL remaining |
 
 ---
 
