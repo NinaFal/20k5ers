@@ -1202,11 +1202,19 @@ class LiveTradingBot:
         # Log if replacing existing entry in queue
         if symbol in self.awaiting_entry:
             log.debug(f"[{symbol}] Replacing old signal in entry queue with new one")
-        
+
+        now = datetime.now(timezone.utc)
+        # Preserve original created_at if re-queuing (e.g. news blackout cancel/re-add)
+        # so the 7-day expiry timer doesn't restart
+        existing_created = (
+            setup.get("created_at")
+            or (self.awaiting_entry[symbol].get("created_at") if symbol in self.awaiting_entry else None)
+            or now.isoformat()
+        )
         self.awaiting_entry[symbol] = {
             **setup,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "last_check": datetime.now(timezone.utc).isoformat(),
+            "created_at": existing_created,
+            "last_check": now.isoformat(),
             "check_count": 0,
         }
         self._save_awaiting_entry()
@@ -1675,13 +1683,16 @@ class LiveTradingBot:
         for pos in result['REDUCE_50']:
             symbol = get_internal_symbol(pos.symbol)
             current_volume = pos.volume
-            reduce_volume = current_volume / 2
+            reduce_volume = round(current_volume * 0.5, 2)
+
+            if reduce_volume < 0.01:
+                log.info(f"[{symbol}] Volume too small to reduce 50% ({current_volume:.2f}) - skipping")
+                continue
 
             log.info(f"⚠️ Reducing {symbol} by 50% (ticket {pos.ticket})")
-            log.info(f"  Current volume: {current_volume:.2f} → New volume: {reduce_volume:.2f}")
+            log.info(f"  Current volume: {current_volume:.2f} → Closing: {reduce_volume:.2f}")
 
-            # Close 50% by volume
-            close_result = self.mt5.close_position(pos.ticket, volume=reduce_volume)
+            close_result = self.mt5.partial_close(pos.ticket, reduce_volume)
             if hasattr(close_result, 'success') and close_result.success:
                 log.info(f"  ✓ Reduced successfully")
             else:
@@ -1813,6 +1824,18 @@ class LiveTradingBot:
             symbol = order_info['symbol']
             order_type_str = type_map.get(order_info['type'], "buy_limit")
 
+            # Calculate remaining expiry from the pending setup's created_at
+            internal_symbol = get_internal_symbol(symbol)
+            setup = self.pending_setups.get(internal_symbol)
+            remaining_expiry = int(FIVEERS_CONFIG.pending_order_expiry_hours)
+            if setup and setup.created_at:
+                try:
+                    created_time = datetime.fromisoformat(setup.created_at.replace("Z", "+00:00"))
+                    elapsed = (datetime.now(timezone.utc) - created_time).total_seconds() / 3600
+                    remaining_expiry = max(int(FIVEERS_CONFIG.pending_order_expiry_hours - elapsed), 1)
+                except (ValueError, TypeError):
+                    pass
+
             try:
                 result = self.mt5.place_pending_order(
                     symbol=symbol,
@@ -1823,6 +1846,7 @@ class LiveTradingBot:
                     tp=order_info['tp'],
                     magic=order_info['magic'],
                     comment=order_info.get('comment', ''),
+                    expiration_hours=remaining_expiry,
                 )
 
                 if (hasattr(result, 'success') and result.success) or (isinstance(result, bool) and result):
@@ -1970,6 +1994,16 @@ class LiveTradingBot:
                     # Get TP from setup
                     tp = order.tp if hasattr(order, 'tp') and order.tp else 0
                     
+                    # Calculate remaining expiry from original created_at
+                    remaining_expiry = int(FIVEERS_CONFIG.pending_order_expiry_hours)
+                    if setup and setup.created_at:
+                        try:
+                            created_time = datetime.fromisoformat(setup.created_at.replace("Z", "+00:00"))
+                            elapsed = (datetime.now(timezone.utc) - created_time).total_seconds() / 3600
+                            remaining_expiry = max(int(FIVEERS_CONFIG.pending_order_expiry_hours - elapsed), 1)
+                        except (ValueError, TypeError):
+                            pass
+
                     new_order_result = self.mt5.place_pending_order(
                         symbol=symbol,
                         direction=direction,
@@ -1977,12 +2011,13 @@ class LiveTradingBot:
                         entry_price=entry,
                         sl=sl,
                         tp=tp,
+                        expiration_hours=remaining_expiry,
                     )
-                    
+
                     if new_order_result and new_order_result.success:
-                        log.info(f"  ✓ Replaced order: ticket {order.ticket} → {new_order_result.order_id}")
+                        log.info(f"  ✓ Replaced order: ticket {order.ticket} → {new_order_result.order_id} (expiry: {remaining_expiry}h)")
                         orders_updated += 1
-                        
+
                         # Update setup with new ticket
                         if setup and hasattr(setup, 'order_ticket'):
                             setup.order_ticket = new_order_result.order_id
@@ -2626,7 +2661,17 @@ class LiveTradingBot:
                     if cancel_ok:
                         direction = "bullish" if order.type in [2, 4] else "bearish"
                         tp = order.tp if hasattr(order, 'tp') and order.tp else 0
-                        
+
+                        # Calculate remaining expiry from original created_at
+                        remaining_expiry = int(FIVEERS_CONFIG.pending_order_expiry_hours)
+                        if setup and setup.created_at:
+                            try:
+                                created_time = datetime.fromisoformat(setup.created_at.replace("Z", "+00:00"))
+                                elapsed = (datetime.now(timezone.utc) - created_time).total_seconds() / 3600
+                                remaining_expiry = max(int(FIVEERS_CONFIG.pending_order_expiry_hours - elapsed), 1)
+                            except (ValueError, TypeError):
+                                pass
+
                         new_result = self.mt5.place_pending_order(
                             symbol=broker_sym,
                             direction=direction,
@@ -2634,11 +2679,12 @@ class LiveTradingBot:
                             entry_price=order.price,
                             sl=sl,
                             tp=tp,
+                            expiration_hours=remaining_expiry,
                         )
-                        
+
                         if new_result and new_result.success:
                             rescaled_count += 1
-                            log.info(f"[{internal_symbol}]   ✓ Rescaled: ticket {order.ticket} → {new_result.order_id}")
+                            log.info(f"[{internal_symbol}]   ✓ Rescaled: ticket {order.ticket} → {new_result.order_id} (expiry: {remaining_expiry}h)")
                             # Update pending_setups with new ticket
                             if setup and hasattr(setup, 'order_ticket'):
                                 setup.order_ticket = new_result.order_id
@@ -3988,8 +4034,21 @@ class LiveTradingBot:
             log.info(f"  TP1: {tp1:.5f}")
             log.info(f"  TP3: {tp3:.5f} (closes ALL remaining)" if tp3 else "  TP3: N/A")
             log.info(f"  Lot Size: {lot_size} (calculated at signal time)")
-            log.info(f"  Expiration: {FIVEERS_CONFIG.pending_order_expiry_hours} hours")
-            
+
+            # Calculate remaining expiry from original created_at so the 7-day
+            # timer doesn't restart after news blackout cancel/re-queue
+            total_expiry = FIVEERS_CONFIG.pending_order_expiry_hours
+            created_at_str = setup.get("created_at", "")
+            remaining_expiry = total_expiry
+            if created_at_str:
+                try:
+                    created_time = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                    elapsed = (datetime.now(timezone.utc) - created_time).total_seconds() / 3600
+                    remaining_expiry = max(total_expiry - elapsed, 1.0)
+                except (ValueError, TypeError):
+                    pass
+            log.info(f"  Expiration: {remaining_expiry:.1f}h (of {total_expiry}h total)")
+
             result = self.mt5.place_pending_order(
                 symbol=broker_symbol,
                 direction=direction,
@@ -3997,18 +4056,18 @@ class LiveTradingBot:
                 entry_price=entry,
                 sl=sl,
                 tp=0,  # No auto-TP - bot manages partial closes at TP1/TP2/TP3 manually
-                expiration_hours=int(FIVEERS_CONFIG.pending_order_expiry_hours),
+                expiration_hours=int(remaining_expiry),
             )
-            
+
             if not result.success:
                 log.error(f"[{symbol}] Pending order FAILED: {result.error}")
                 return False
-            
+
             log.info(f"[{symbol}] PENDING ORDER PLACED SUCCESSFULLY!")
             log.info(f"  Order Ticket: {result.order_id}")
             log.info(f"  Entry Level: {result.price:.5f}")
             log.info(f"  Volume: {result.volume}")
-            
+
             pending_setup = PendingSetup(
                 symbol=symbol,
                 direction=direction,
@@ -4023,7 +4082,7 @@ class LiveTradingBot:
                 confluence_score=confluence,
                 quality_factors=quality_factors,
                 entry_distance_r=entry_distance_r,
-                created_at=datetime.now(timezone.utc).isoformat(),
+                created_at=created_at_str or datetime.now(timezone.utc).isoformat(),
                 order_ticket=result.order_id,
                 status="pending",
                 lot_size=lot_size,  # Lot size calculated at order placement
