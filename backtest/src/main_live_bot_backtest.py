@@ -5005,13 +5005,16 @@ class LiveTradingBot:
                     self.challenge_manager.day_start_balance = day_balance
                     log.info(f"📊 New day {today}: day_start_equity = MAX(${day_equity:,.2f}, ${day_balance:,.2f}) = ${day_start_equity:,.2f}")
                 
-                # Reset DDD halt for new day
+                # Reset DDD halt and tier flags for new day
                 was_halted = trading_halted_today
+                was_reduced = getattr(self, '_ddd_reduce_done_today', False)
                 trading_halted_today = False
                 self.ddd_halted = False
+                self._ddd_warning_done_today = False
+                self._ddd_reduce_done_today = False
 
-                # Resume paused orders from DDD halt (with remaining expiry)
-                if was_halted:
+                # Resume paused orders from DDD halt or reduce (with remaining expiry)
+                if was_halted or was_reduced:
                     self._resume_ddd_paused_orders()
             
             # ═══════════════════════════════════════════════════════════════
@@ -5045,54 +5048,84 @@ class LiveTradingBot:
                 continue
             
             # ═══════════════════════════════════════════════════════════════
-            # DRAWDOWN CHECKS
+            # DRAWDOWN CHECKS - Graduated tiers (same as live bot DDD protection)
+            # Tier 1: DDD >= 2.0% → Warning
+            # Tier 2: DDD >= 3.0% → Cancel pending orders, reduce risk
+            # Tier 3: DDD >= 3.5% → Emergency close all, halt trading
+            # TDD >= 10.0% → Account breached, stop backtest
             # ═══════════════════════════════════════════════════════════════
             account = self.mt5.get_account_info()
             equity = account.get("equity", self.initial_balance)
             balance = account.get("balance", self.initial_balance)
-            
+
             equity_low = min(equity_low, equity)
             equity_high = max(equity_high, equity)
-            
+
             # TDD check (static from initial balance)
             tdd_pct = max(0, (self.initial_balance - equity) / self.initial_balance * 100)
             max_tdd = max(max_tdd, tdd_pct)
-            
+
             if tdd_pct >= 10.0:
                 log.error(f"🚨 TDD STOP-OUT at {current_time}: {tdd_pct:.1f}%")
-                # Close all positions
-                for pos in self.mt5.get_my_positions():
-                    self.mt5.close_position(pos.ticket)
+                self._emergency_close_all()
+                safety_events.append({
+                    'time': str(current_time),
+                    'type': 'TDD_STOPOUT',
+                    'tdd_pct': tdd_pct,
+                })
                 break
-            
-            # DDD check
+
+            # DDD check - graduated tiers matching live bot
+            warning_pct = getattr(FIVEERS_CONFIG, "daily_loss_warning_pct", 2.0)
+            reduce_pct = getattr(FIVEERS_CONFIG, "daily_loss_reduce_pct", 3.0)
+            halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.5)
+
             ddd_pct = max(0, (day_start_equity - equity) / day_start_equity * 100) if day_start_equity > 0 else 0
             max_ddd = max(max_ddd, ddd_pct)
-            
-            if ddd_pct >= 3.5 and not trading_halted_today:
-                log.warning(f"🚨 DDD HALT at {current_time}: {ddd_pct:.1f}%")
-                # Close all positions
-                for pos in self.mt5.get_my_positions():
-                    self.mt5.close_position(pos.ticket)
-                # Cancel pending orders on MT5 but preserve setups with original expiry
-                for order in self.mt5.get_my_pending_orders():
-                    self.mt5.cancel_pending_order(order.ticket)
-                # Pause pending setups (preserve created_at for expiry continuity)
-                for sym, setup in self.pending_setups.items():
-                    if setup.status == "pending":
-                        setup.status = "paused_ddd"
-                        setup.order_ticket = None
-                    elif setup.status == "filled":
-                        setup.status = "closed_ddd"
-                self._save_pending_setups()
+
+            # === TIER 3: DDD >= 3.5% → CLOSE ALL + HALT ===
+            if ddd_pct >= halt_pct and not trading_halted_today:
+                log.warning(f"🚨 DDD TIER 3 HALT at {current_time}: {ddd_pct:.1f}% >= {halt_pct}%")
+                self._emergency_close_all()
                 trading_halted_today = True
+                self.ddd_halted = True
                 safety_events.append({
                     'time': str(current_time),
                     'type': 'DDD_HALT',
                     'ddd_pct': ddd_pct,
                 })
                 continue
-            
+
+            # === TIER 2: DDD >= 3.0% → CANCEL PENDING ORDERS (reduce risk) ===
+            elif ddd_pct >= reduce_pct and not trading_halted_today:
+                if not getattr(self, '_ddd_reduce_done_today', False):
+                    log.warning(f"⚠️ DDD TIER 2 REDUCE at {current_time}: {ddd_pct:.1f}% >= {reduce_pct}%")
+                    # Cancel pending orders to reduce exposure, but preserve setups
+                    for order in self.mt5.get_my_pending_orders():
+                        self.mt5.cancel_pending_order(order.ticket)
+                    for sym, setup in self.pending_setups.items():
+                        if setup.status == "pending":
+                            setup.status = "paused_ddd"
+                            setup.order_ticket = None
+                    self._save_pending_setups()
+                    self._ddd_reduce_done_today = True
+                    safety_events.append({
+                        'time': str(current_time),
+                        'type': 'DDD_REDUCE',
+                        'ddd_pct': ddd_pct,
+                    })
+
+            # === TIER 1: DDD >= 2.0% → WARNING ===
+            elif ddd_pct >= warning_pct:
+                if not getattr(self, '_ddd_warning_done_today', False):
+                    log.warning(f"⚠️ DDD TIER 1 WARNING at {current_time}: {ddd_pct:.1f}% >= {warning_pct}%")
+                    self._ddd_warning_done_today = True
+                    safety_events.append({
+                        'time': str(current_time),
+                        'type': 'DDD_WARNING',
+                        'ddd_pct': ddd_pct,
+                    })
+
             if trading_halted_today:
                 continue
             
@@ -5252,8 +5285,10 @@ class LiveTradingBot:
             'max_tdd_pct': round(max_tdd, 2),
             'max_ddd_pct': round(max_ddd, 2),
             'safety_events': len(safety_events),
-            'ddd_halts': len(safety_events),
-            'tdd_warnings': sum(1 for e in safety_events if e.get('type') == 'TDD_WARNING'),
+            'ddd_halts': sum(1 for e in safety_events if e.get('type') == 'DDD_HALT'),
+            'ddd_reduces': sum(1 for e in safety_events if e.get('type') == 'DDD_REDUCE'),
+            'ddd_warnings': sum(1 for e in safety_events if e.get('type') == 'DDD_WARNING'),
+            'tdd_stopouts': sum(1 for e in safety_events if e.get('type') == 'TDD_STOPOUT'),
             'monthly_stats': monthly_stats,
         }
         
@@ -5279,7 +5314,10 @@ class LiveTradingBot:
         print(f"   Max DDD: {max_ddd:.2f}%")
         
         print(f"\n🚨 SAFETY:")
-        print(f"   DDD halt events: {len(safety_events)}")
+        print(f"   DDD warnings (>=2%): {results['ddd_warnings']}")
+        print(f"   DDD reduces (>=3%): {results['ddd_reduces']}")
+        print(f"   DDD halts (>=3.5%): {results['ddd_halts']}")
+        print(f"   TDD stop-outs (>=10%): {results['tdd_stopouts']}")
         
         # Monthly breakdown
         if monthly_stats:
