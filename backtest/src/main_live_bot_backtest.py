@@ -4922,8 +4922,34 @@ class LiveTradingBot:
                 trading_halted_today = False
                 self.ddd_halted = False
             
-            # Skip weekends
-            if current_time.weekday() >= 5:
+            # ═══════════════════════════════════════════════════════════════
+            # WEEKEND HANDLING - Same as live bot
+            # Friday 16:00+: Close/reduce positions, pause pending orders
+            # Sunday 22:00+: Gap detection on reopening
+            # Monday 01:00+: Resume paused pending orders
+            # Saturday + Sunday <22:00: Skip (market closed)
+            # ═══════════════════════════════════════════════════════════════
+            weekday = current_time.weekday()
+            hour = current_time.hour
+
+            # Friday 16:00+ UTC: Close/reduce positions for weekend
+            if weekday == 4 and hour >= 16:
+                self.handle_friday_position_closing()
+
+            # Sunday 22:00+: Gap detection (forex markets reopen)
+            if weekday == 6 and hour >= 22:
+                self.handle_sunday_gap_detection()
+
+            # Monday morning: Resume paused orders + gap check
+            if weekday == 0 and hour < 2:
+                self.handle_weekend_gap_positions()
+            if weekday == 0:
+                self.handle_monday_order_resume(current_time)
+
+            # Skip Saturday entirely + Sunday before 22:00 (market closed)
+            if weekday == 5:
+                continue
+            if weekday == 6 and hour < 22:
                 continue
             
             # ═══════════════════════════════════════════════════════════════
