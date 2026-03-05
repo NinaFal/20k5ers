@@ -1,13 +1,42 @@
 {
   "initial_balance": 20000.0,
-  "final_balance": 28572.64,
-  "net_pnl": 3656.37,
-  "return_pct": 42.86,
-  "total_trades": 156,
-  "winners": 99,
-  "losers": 57,
-  "win_rate": 63.5,
-  "max_tdd_pct": 1.75,
-  "max_ddd_pct": 4.46,
-  "safety_events": 1
+  "final_balance": 27420.37,
+  "net_pnl": 7420.37,
+  "closed_trades_pnl": 7420.37,
+  "return_pct": 37.1,
+  "total_trades": 136,
+  "winners": 77,
+  "losers": 59,
+  "win_rate": 56.6,
+  "max_tdd_pct": 1.24,
+  "max_ddd_pct": 3.86,
+  "safety_events": 2,
+  "ddd_halts": 2,
+  "tdd_warnings": 0,
+  "monthly_stats": {
+    "2024-01": {
+      "trades": 25,
+      "winners": 15,
+      "losers": 10,
+      "pnl": 1846.77,
+      "partial_closes": 37,
+      "win_rate": 60.0
+    },
+    "2024-02": {
+      "trades": 62,
+      "winners": 35,
+      "losers": 27,
+      "pnl": 3196.45,
+      "partial_closes": 50,
+      "win_rate": 56.5
+    },
+    "2024-03": {
+      "trades": 49,
+      "winners": 27,
+      "losers": 22,
+      "pnl": 2377.16,
+      "partial_closes": 49,
+      "win_rate": 55.1
+    }
+  }
 }
