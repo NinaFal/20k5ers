@@ -1,9 +1,9 @@
 {
   "initial_balance": 20000.0,
-  "final_balance": 27420.37,
-  "net_pnl": 7420.37,
-  "closed_trades_pnl": 7420.37,
-  "return_pct": 37.1,
+  "final_balance": 27400.33,
+  "net_pnl": 7400.33,
+  "closed_trades_pnl": 7400.33,
+  "return_pct": 37.0,
   "total_trades": 136,
   "winners": 77,
   "losers": 59,
@@ -34,7 +34,7 @@
       "trades": 49,
       "winners": 27,
       "losers": 22,
-      "pnl": 2377.16,
+      "pnl": 2357.11,
       "partial_closes": 49,
       "win_rate": 55.1
     }
