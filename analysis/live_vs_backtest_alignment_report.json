@@ -1,0 +1,113 @@
+{
+  "report": "Live Bot vs Backtest Bot Alignment Analysis",
+  "date": "2026-03-05",
+  "files_compared": {
+    "live": "main_live_bot.py",
+    "backtest": "backtest/src/main_live_bot_backtest.py"
+  },
+  "summary": "The backtest has TWO run methods: run() (copy of live) and run_backtest() (simplified M15 stepper). run_backtest() is the one actually used and has significant behavioral differences from the live run() loop.",
+
+  "critical_misalignments": [
+    {
+      "id": 1,
+      "area": "run_backtest() vs run() - completely different implementations",
+      "severity": "HIGH",
+      "description": "run_backtest() is a simplified M15 bar stepper that does NOT use most of the methods from run(). The run() in backtest is a near-copy of live but is NEVER CALLED during backtesting.",
+      "impact": "Backtest results may not reflect live trading behavior accurately"
+    },
+    {
+      "id": 2,
+      "area": "Weekend handling missing from run_backtest()",
+      "severity": "MEDIUM",
+      "live_behavior": "run() calls handle_friday_position_closing(), handle_sunday_gap_detection(), _pause_pending_orders_for_weekend(), handle_monday_order_resume()",
+      "backtest_behavior": "run_backtest() skips weekends entirely with 'if weekday >= 5: continue'. No Friday position closing, no order pausing, no Monday resume.",
+      "impact": "Backtest never experiences weekend gap risk or forced Friday closes. Positions carry through weekends without the half-lot size reduction that live bot applies."
+    },
+    {
+      "id": 3,
+      "area": "Spread queue never checked in run_backtest()",
+      "severity": "MEDIUM",
+      "live_behavior": "run() calls check_awaiting_spread_signals() every SPREAD_CHECK_INTERVAL_MINUTES",
+      "backtest_behavior": "run_backtest() never calls check_awaiting_spread_signals(). Setups added to spread queue are lost.",
+      "impact": "Trades that would be placed after spread improves are never placed in backtest. Understates trade count."
+    },
+    {
+      "id": 4,
+      "area": "Limit order compounding missing from run_backtest()",
+      "severity": "LOW",
+      "live_behavior": "run() calls update_limit_orders_for_compounding() every 30 min",
+      "backtest_behavior": "run_backtest() never updates lot sizes on pending orders",
+      "impact": "Pending orders in backtest use original lot size, not compounded. Minor impact unless equity changes significantly before fill."
+    },
+    {
+      "id": 5,
+      "area": "DDD/TDD monitoring uses local vars vs challenge_manager",
+      "severity": "MEDIUM",
+      "live_behavior": "run() uses self.monitor_5ers_drawdown(), self.execute_protection_actions(), DDD protection loop thread, and challenge_manager",
+      "backtest_behavior": "run_backtest() uses local day_start_equity, trading_halted_today vars with inline TDD/DDD checks",
+      "impact": "Different DDD calculation method. Live uses challenge_manager.day_start_equity (synced at midnight), backtest uses local var reset each new day. Functionally similar but not identical code paths."
+    },
+    {
+      "id": 6,
+      "area": "DDD halt threshold differs",
+      "severity": "LOW",
+      "live_behavior": "DDD protection loop has graduated tiers: warn at 2.0%, reduce risk at 3.0%, halt at 3.5%",
+      "backtest_behavior": "run_backtest() only halts at 3.5% (no graduated response)",
+      "impact": "Backtest doesn't reduce risk at 3.0% DDD like live does. May take larger positions than live would in drawdown scenarios."
+    },
+    {
+      "id": 7,
+      "area": "News blackout not checked in run_backtest()",
+      "severity": "LOW",
+      "live_behavior": "is_news_blackout() checked before placing orders (blocks order placement during high-impact news)",
+      "backtest_behavior": "No news blackout check in run_backtest() loop",
+      "impact": "Backtest places orders during news events that live bot would skip. May overstate trade count."
+    },
+    {
+      "id": 8,
+      "area": "Midnight equity sync - different implementations",
+      "severity": "LOW",
+      "live_behavior": "Separate _do_midnight_equity_sync() at 00:00 with manual override support, DDD reset at midnight",
+      "backtest_behavior": "run_backtest() resets day_start_equity inline at each new day. Simpler but functionally equivalent.",
+      "impact": "Minimal - both use MAX(equity, balance) for new day start"
+    }
+  ],
+
+  "expected_differences": [
+    {
+      "area": "MT5-specific functions absent from backtest",
+      "functions": ["_dedup_and_rescale_mt5_orders", "_recover_orphaned_positions", "_sync_tp_levels_to_current_params", "_load_scan_state", "_save_scan_state"],
+      "reason": "These handle live MT5 state management that doesn't apply to simulation"
+    },
+    {
+      "area": "Backtest-specific additions",
+      "functions": ["run_backtest", "formatTime", "set_simulator_for_logging"],
+      "reason": "Needed for simulation infrastructure"
+    },
+    {
+      "area": "Signature differences for simulator time",
+      "functions": [
+        "handle_monday_order_resume(self) vs handle_monday_order_resume(self, current_time)",
+        "record_trading_day(self) vs record_trading_day(self, sim_time=None)",
+        "check_trading_days_warning(self) vs check_trading_days_warning(self, sim_time=None)",
+        "_do_midnight_equity_sync(self) vs _do_midnight_equity_sync(self, sim_time=None)",
+        "load_best_params_from_file() vs load_best_params_from_file(custom_params=None)"
+      ],
+      "reason": "Backtest needs to pass simulated time instead of using datetime.now()"
+    }
+  ],
+
+  "function_count": {
+    "live_only": 5,
+    "backtest_only": 3,
+    "shared_with_differences": 5,
+    "shared_identical": "~50"
+  },
+
+  "recommendations": [
+    "HIGH: Add check_awaiting_spread_signals() calls to run_backtest() entry queue section",
+    "MEDIUM: Add graduated DDD response (risk reduction at 3.0%) to run_backtest()",
+    "LOW: Consider adding simplified Friday close logic to run_backtest() for realistic weekend gap modeling",
+    "LOW: Add news blackout simulation using historical news calendar data"
+  ]
+}
