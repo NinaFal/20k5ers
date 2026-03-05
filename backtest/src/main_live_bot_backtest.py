@@ -790,22 +790,25 @@ class LiveTradingBot:
         except Exception as e:
             log.error(f"  ✗ Failed to get/close positions: {e}")
         
-        # CRITICAL: Only clear ACTIVE setups (pending orders, filled positions)
-        # KEEP awaiting_entry and awaiting_spread - these are untriggered signals that should persist!
-        # Signals in queues are still valid and can trigger after halt resets (within 120h expiry)
+        # CRITICAL: Preserve pending order setups so they can be re-placed next day
+        # with their ORIGINAL created_at (remaining expiry, not fresh 7 days).
+        # Same pattern as weekend pause and news blackout.
         try:
-            # Mark pending_setups with active orders/positions as "halted"
-            # This prevents them from re-triggering but doesn't affect untriggered signals in queues
             if hasattr(self, 'pending_setups') and self.pending_setups:
-                halted_count = 0
+                paused_count = 0
                 for symbol, setup in self.pending_setups.items():
-                    if setup.status in ("pending", "filled"):
-                        setup.status = "halted"
-                        halted_count += 1
-                        log.info(f"  ✓ Marked {symbol} setup as halted (was {setup.status})")
-                if halted_count > 0:
+                    if setup.status == "pending":
+                        setup.status = "paused_ddd"
+                        setup.order_ticket = None  # MT5 order was cancelled above
+                        paused_count += 1
+                        log.info(f"  ✓ Paused {symbol} pending order (preserving {setup.created_at} expiry)")
+                    elif setup.status == "filled":
+                        setup.status = "closed_ddd"
+                        paused_count += 1
+                        log.info(f"  ✓ Marked {symbol} filled position as closed by DDD")
+                if paused_count > 0:
                     self._save_pending_setups()
-                    log.info(f"  ✓ Halted {halted_count} active setups")
+                    log.info(f"  ✓ Paused {paused_count} active setups (expiry preserved)")
             
             # Log what we're KEEPING (not clearing)
             if hasattr(self, 'awaiting_entry') and self.awaiting_entry:
@@ -1857,13 +1860,93 @@ class LiveTradingBot:
         log.info("=" * 70)
 
     # ═══════════════════════════════════════════════════════════════════════════
+    # DDD HALT RESUME - Re-place pending orders after DDD halt resets
+    # Preserves original created_at so expiry timer continues from where it was
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _resume_ddd_paused_orders(self):
+        """
+        Re-place pending orders that were paused by DDD halt.
+        Preserves original created_at so the 7-day expiry continues, not resets.
+        """
+        paused = [
+            (sym, setup) for sym, setup in self.pending_setups.items()
+            if setup.status == "paused_ddd"
+        ]
+
+        if not paused:
+            log.info("No DDD-paused orders to resume")
+            return
+
+        log.info("=" * 70)
+        log.info(f"🔄 DDD RESUME - Re-placing {len(paused)} paused orders")
+        log.info("=" * 70)
+
+        resumed = 0
+        expired = 0
+        now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
+        expiry_hours = FIVEERS_CONFIG.pending_order_expiry_hours
+
+        for symbol, setup in paused:
+            # Check if original expiry has run out
+            remaining_expiry = expiry_hours
+            if setup.created_at:
+                try:
+                    created_time = datetime.fromisoformat(setup.created_at.replace("Z", "+00:00"))
+                    elapsed = (now - created_time).total_seconds() / 3600
+                    remaining_expiry = expiry_hours - elapsed
+                except (ValueError, TypeError):
+                    pass
+
+            if remaining_expiry <= 0:
+                log.info(f"  [{symbol}] Paused order EXPIRED (created {setup.created_at}) - removing")
+                del self.pending_setups[symbol]
+                expired += 1
+                continue
+
+            broker_symbol = self.symbol_map.get(symbol, symbol)
+
+            # Re-place the pending order with remaining expiry
+            try:
+                result = self.mt5.place_pending_order(
+                    symbol=broker_symbol,
+                    direction=setup.direction,
+                    volume=setup.lot_size,
+                    entry_price=setup.entry_price,
+                    sl=setup.stop_loss,
+                    tp=0,
+                    expiration_hours=int(remaining_expiry),
+                )
+
+                if result.success:
+                    setup.status = "pending"
+                    setup.order_ticket = result.order_id
+                    resumed += 1
+                    log.info(f"  ✓ Resumed [{symbol}] {setup.direction} at {setup.entry_price:.5f} ({remaining_expiry:.0f}h remaining)")
+                else:
+                    log.error(f"  ✗ Failed to resume [{symbol}]: {result.error}")
+            except Exception as e:
+                log.error(f"  ✗ Error resuming [{symbol}]: {e}")
+
+        # Clean up closed_ddd setups (positions that were force-closed)
+        closed_ddd = [sym for sym, s in self.pending_setups.items() if s.status == "closed_ddd"]
+        for sym in closed_ddd:
+            del self.pending_setups[sym]
+
+        if resumed > 0 or expired > 0 or closed_ddd:
+            self._save_pending_setups()
+
+        log.info(f"  📊 DDD resume: {resumed} resumed, {expired} expired, {len(closed_ddd)} closed positions cleared")
+        log.info("=" * 70)
+
+    # ═══════════════════════════════════════════════════════════════════════════
     # LIMIT ORDER COMPOUNDING - Update lot sizes based on current equity
     # ═══════════════════════════════════════════════════════════════════════════
-    
+
     def update_limit_orders_for_compounding(self):
         """
         Update pending limit orders to reflect current equity (compounding).
-        
+
         This runs every 30 minutes (simulated) to ensure limit orders have correct
         lot sizes based on current equity, not the equity at order placement time.
         
@@ -2999,8 +3082,12 @@ class LiveTradingBot:
                 # Already have open position - don't stack
                 log.info(f"[{symbol}] Already have filled position, skipping")
                 return None
-            elif existing.status in ("pending", "halted"):
-                # Replace old pending with new signal
+            elif existing.status == "paused_ddd":
+                # DDD halt preserved this order - keep it (preserves expiry timer)
+                log.info(f"[{symbol}] Paused DDD order exists ({existing.direction}) - keeping with original expiry")
+                return None
+            elif existing.status in ("pending", "halted", "closed_ddd"):
+                # Replace old pending/halted/closed with new signal
                 # IMPORTANT: Cancel the old MT5 pending order first!
                 if existing.order_ticket:
                     log.debug(f"[{symbol}] Cancelling old pending order (ticket {existing.order_ticket}) before replacing")
@@ -4919,8 +5006,13 @@ class LiveTradingBot:
                     log.info(f"📊 New day {today}: day_start_equity = MAX(${day_equity:,.2f}, ${day_balance:,.2f}) = ${day_start_equity:,.2f}")
                 
                 # Reset DDD halt for new day
+                was_halted = trading_halted_today
                 trading_halted_today = False
                 self.ddd_halted = False
+
+                # Resume paused orders from DDD halt (with remaining expiry)
+                if was_halted:
+                    self._resume_ddd_paused_orders()
             
             # ═══════════════════════════════════════════════════════════════
             # WEEKEND HANDLING - Same as live bot
@@ -4982,9 +5074,17 @@ class LiveTradingBot:
                 # Close all positions
                 for pos in self.mt5.get_my_positions():
                     self.mt5.close_position(pos.ticket)
-                # Cancel pending orders
+                # Cancel pending orders on MT5 but preserve setups with original expiry
                 for order in self.mt5.get_my_pending_orders():
                     self.mt5.cancel_pending_order(order.ticket)
+                # Pause pending setups (preserve created_at for expiry continuity)
+                for sym, setup in self.pending_setups.items():
+                    if setup.status == "pending":
+                        setup.status = "paused_ddd"
+                        setup.order_ticket = None
+                    elif setup.status == "filled":
+                        setup.status = "closed_ddd"
+                self._save_pending_setups()
                 trading_halted_today = True
                 safety_events.append({
                     'time': str(current_time),
