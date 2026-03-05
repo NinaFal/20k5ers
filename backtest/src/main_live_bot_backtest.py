@@ -5543,16 +5543,22 @@ def main():
     parser.add_argument('--params-file', type=str, default=None, help='Custom params JSON file (for optimizer)')
     parser.add_argument('--quiet', action='store_true', help='Suppress verbose output (for optimizer)')
     parser.add_argument('--no-metals', action='store_true', help='Disable XAU/XAG trading')
+    parser.add_argument('--with-metals', action='store_true', help='Enable XAU/XAG trading (overrides broker config)')
+    parser.add_argument('--with-crypto', action='store_true', help='Enable BTC/ETH trading (overrides broker config)')
 
     args = parser.parse_args()
 
-    # Disable metals if requested
+    # Asset class overrides
+    global TRADABLE_SYMBOLS
     if args.no_metals:
         BROKER_CONFIG.trade_metals = False
-        # Rebuild tradable symbols without metals
-        global TRADABLE_SYMBOLS
+    if args.with_metals:
+        BROKER_CONFIG.trade_metals = True
+    if args.with_crypto:
+        BROKER_CONFIG.trade_crypto = True
+    if args.no_metals or args.with_metals or args.with_crypto:
         TRADABLE_SYMBOLS = BROKER_CONFIG.get_tradable_symbols()
-        print(f"  Metals DISABLED - {len(TRADABLE_SYMBOLS)} symbols")
+        print(f"  Asset overrides applied - {len(TRADABLE_SYMBOLS)} symbols")
     
     # Load custom params if provided (for optimizer)
     custom_params = None
