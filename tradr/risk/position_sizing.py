@@ -62,6 +62,10 @@ CONTRACT_SPECS = {
     "NAS100USD": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 20.0},
     "UK100": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 1.40},  # FTSE: £1/point * GBPUSD(~1.40)
     
+    # Oil / Energy
+    "XBRUSD": {"pip_size": 0.01, "contract_size": 100, "pip_value_per_lot": 1.0},   # Brent Crude
+    "XTIUSD": {"pip_size": 0.01, "contract_size": 100, "pip_value_per_lot": 1.0},   # WTI Crude
+
     # Crypto
     "BTCUSD": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 1.0},
     "ETHUSD": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 1.0},

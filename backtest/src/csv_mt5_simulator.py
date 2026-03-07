@@ -124,6 +124,9 @@ SYMBOL_SPECS = {
     "NAS100": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
     "US30": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
     "UK100": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
+    # Oil / Energy
+    "XBRUSD": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
+    "XTIUSD": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
     # Crypto
     "BTCUSD": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
     "ETHUSD": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
@@ -515,10 +518,12 @@ class CSVMT5Simulator:
         patterns = [
             f"{symbol}_{timeframe}.csv",
             f"{symbol}_{timeframe}_2020_2025.csv",
+            f"{symbol}_{timeframe}_2022_2025.csv",
             f"{symbol}_{timeframe}_2003_2025.csv",
             f"{symbol}_{timeframe}_2014_2025.csv",
             f"{symbol_no_underscore}_{timeframe}.csv",
             f"{symbol_no_underscore}_{timeframe}_2020_2025.csv",
+            f"{symbol_no_underscore}_{timeframe}_2022_2025.csv",
             f"{symbol_no_underscore}_{timeframe}_2003_2025.csv",
             f"{symbol_no_underscore}_{timeframe}_2014_2025.csv",
         ]
@@ -557,7 +562,7 @@ class CSVMT5Simulator:
         symbols = set()
         for f in self.data_dir.glob("*_M15*.csv"):
             name = f.stem
-            name = name.replace("_M15", "").replace("_2020_2025", "").replace("_2003_2025", "")
+            name = name.replace("_M15", "").replace("_2020_2025", "").replace("_2022_2025", "").replace("_2003_2025", "")
             symbols.add(name)
         
         self._available_symbols = sorted(symbols)

@@ -154,6 +154,12 @@ INDICES = [
     "UK100_USD",   # FTSE 100 (OPTIMIZED: Added for diversity)
 ]
 
+# Oil / Energy
+OIL_ASSETS = [
+    "XBR_USD",   # Brent Crude (BCO_USD on OANDA)
+    "XTI_USD",   # WTI Crude (WTICO_USD on OANDA)
+]
+
 # Crypto (FTMO tradable)
 CRYPTO_ASSETS = [
     "BTC_USD",   # Bitcoin (BTCUSD on FTMO) - High volatility
@@ -167,5 +173,5 @@ CRYPTO_ASSETS = [
 def all_market_instruments() -> list[str]:
     """All instruments Blueprint can scan (OANDA format)."""
     return sorted(set(
-        FOREX_PAIRS + METALS + INDICES + CRYPTO_ASSETS
+        FOREX_PAIRS + METALS + OIL_ASSETS + INDICES + CRYPTO_ASSETS
     ))

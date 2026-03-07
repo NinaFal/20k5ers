@@ -65,6 +65,22 @@ FIVEERS_CONTRACT_SPECS = {
         "lot_step": 0.01,
     },
     
+    # OIL / ENERGY
+    "XBR": {  # Brent Crude - 100 barrels per lot
+        "pip_size": 0.01,             # $0.01 tick
+        "pip_value_per_lot": 1.0,     # $1.00 per pip per lot (100 barrels × $0.01)
+        "min_lot": 0.01,
+        "max_lot": 100.0,
+        "lot_step": 0.01,
+    },
+    "XTI": {  # WTI Crude - 100 barrels per lot
+        "pip_size": 0.01,             # $0.01 tick
+        "pip_value_per_lot": 1.0,     # $1.00 per pip per lot (100 barrels × $0.01)
+        "min_lot": 0.01,
+        "max_lot": 100.0,
+        "lot_step": 0.01,
+    },
+
     # CRYPTO
     "BTC": {
         "pip_size": 1.0,
@@ -110,6 +126,12 @@ def get_fiveers_contract_specs(symbol: str) -> dict:
     elif "XAG" in symbol_upper:
         return FIVEERS_CONTRACT_SPECS["XAG"]
     
+    # Oil / Energy
+    elif "XBR" in symbol_upper or "BCO" in symbol_upper:
+        return FIVEERS_CONTRACT_SPECS["XBR"]
+    elif "XTI" in symbol_upper or "WTICO" in symbol_upper:
+        return FIVEERS_CONTRACT_SPECS["XTI"]
+
     # Crypto
     elif "BTC" in symbol_upper:
         return FIVEERS_CONTRACT_SPECS["BTC"]

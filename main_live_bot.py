@@ -3220,15 +3220,16 @@ class LiveTradingBot:
         if any(x in sym_upper for x in ["NAS100", "SPX500", "SP500", "US100", "US500", "US30"]):
             return base_pip_value
         
-        # Metals and Crypto - already in USD
-        # CRITICAL: Validate against known ranges for metals
-        if any(x in sym_upper for x in ["XAU", "XAG", "BTC", "ETH"]):
-            # Known correct pip values for metals (safety net):
-            # XAU: pip_size=0.01, 100oz → $1.00/pip/lot
-            # XAG: pip_size=0.001, 5000oz → $5.00/pip/lot
+        # Metals, Oil, and Crypto - already in USD
+        # CRITICAL: Validate against known ranges
+        if any(x in sym_upper for x in ["XAU", "XAG", "XBR", "XTI", "BCO", "WTICO", "BTC", "ETH"]):
             METAL_PIP_RANGES = {
                 "XAU": (0.5, 2.0),    # $1/pip ± margin for tick_value variation
                 "XAG": (3.0, 8.0),    # $5/pip ± margin
+                "XBR": (0.5, 2.0),    # Brent $1/pip
+                "XTI": (0.5, 2.0),    # WTI $1/pip
+                "BCO": (0.5, 2.0),
+                "WTICO": (0.5, 2.0),
                 "BTC": (0.5, 2.0),
                 "ETH": (0.5, 2.0),
             }

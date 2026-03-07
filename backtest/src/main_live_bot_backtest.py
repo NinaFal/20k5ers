@@ -2377,8 +2377,8 @@ class LiveTradingBot:
             return False
         
         # BACKTEST: Load M15 data for all symbols
-        from config import FOREX_PAIRS, METALS, INDICES, CRYPTO_ASSETS
-        all_symbols = FOREX_PAIRS + METALS + INDICES + CRYPTO_ASSETS
+        from config import FOREX_PAIRS, METALS, OIL_ASSETS, INDICES, CRYPTO_ASSETS
+        all_symbols = FOREX_PAIRS + METALS + OIL_ASSETS + INDICES + CRYPTO_ASSETS
         self.mt5.load_m15_data(all_symbols)
         
         account = self.mt5.get_account_info()
@@ -2728,12 +2728,16 @@ class LiveTradingBot:
         if any(x in sym_upper for x in ["NAS100", "SPX500", "SP500", "US100", "US500", "US30"]):
             return base_pip_value
         
-        # Metals and Crypto - already in USD
-        # CRITICAL: Validate against known ranges for metals
-        if any(x in sym_upper for x in ["XAU", "XAG", "BTC", "ETH"]):
+        # Metals, Oil, and Crypto - already in USD
+        # CRITICAL: Validate against known ranges
+        if any(x in sym_upper for x in ["XAU", "XAG", "XBR", "XTI", "BCO", "WTICO", "BTC", "ETH"]):
             METAL_PIP_RANGES = {
                 "XAU": (0.5, 2.0),
                 "XAG": (3.0, 8.0),
+                "XBR": (0.5, 2.0),
+                "XTI": (0.5, 2.0),
+                "BCO": (0.5, 2.0),
+                "WTICO": (0.5, 2.0),
                 "BTC": (0.5, 2.0),
                 "ETH": (0.5, 2.0),
             }
@@ -5545,6 +5549,7 @@ def main():
     parser.add_argument('--no-metals', action='store_true', help='Disable XAU/XAG trading')
     parser.add_argument('--with-metals', action='store_true', help='Enable XAU/XAG trading (overrides broker config)')
     parser.add_argument('--with-crypto', action='store_true', help='Enable BTC/ETH trading (overrides broker config)')
+    parser.add_argument('--with-oil', action='store_true', help='Enable XBR/XTI oil trading (overrides broker config)')
 
     args = parser.parse_args()
 
@@ -5556,7 +5561,9 @@ def main():
         BROKER_CONFIG.trade_metals = True
     if args.with_crypto:
         BROKER_CONFIG.trade_crypto = True
-    if args.no_metals or args.with_metals or args.with_crypto:
+    if args.with_oil:
+        BROKER_CONFIG.trade_oil = True
+    if args.no_metals or args.with_metals or args.with_crypto or args.with_oil:
         TRADABLE_SYMBOLS = BROKER_CONFIG.get_tradable_symbols()
         print(f"  Asset overrides applied - {len(TRADABLE_SYMBOLS)} symbols")
     
