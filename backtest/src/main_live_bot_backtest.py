@@ -2725,7 +2725,7 @@ class LiveTradingBot:
             return 1.40  # Safe estimate
         
         # US indices - already in USD
-        if any(x in sym_upper for x in ["NAS100", "SPX500", "SP500", "US100", "US500", "US30"]):
+        if any(x in sym_upper for x in ["NAS100", "US100", "US30"]):
             return base_pip_value
         
         # Metals, Oil, and Crypto - already in USD
@@ -5550,7 +5550,7 @@ def main():
     parser.add_argument('--with-metals', action='store_true', help='Enable XAU/XAG trading (overrides broker config)')
     parser.add_argument('--with-crypto', action='store_true', help='Enable BTC/ETH trading (overrides broker config)')
     parser.add_argument('--with-oil', action='store_true', help='Enable XBR/XTI oil trading (overrides broker config)')
-    parser.add_argument('--symbols', type=str, default=None, help='Comma-separated list of symbols to trade (e.g. SPX500_USD,NAS100_USD)')
+    parser.add_argument('--symbols', type=str, default=None, help='Comma-separated list of symbols to trade (e.g. NAS100_USD,UK100_USD)')
 
     args = parser.parse_args()
 

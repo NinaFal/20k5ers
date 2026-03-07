@@ -15,13 +15,6 @@ FIVEERS_CONTRACT_SPECS = {
         "max_lot": 100.0,
         "lot_step": 0.01,
     },
-    "SPX500": {
-        "pip_size": 1.0,              # 1 point = 1.0 index point
-        "pip_value_per_lot": 1.0,     # $1 per point per lot (MINI contract)
-        "min_lot": 0.01,
-        "max_lot": 100.0,
-        "lot_step": 0.01,
-    },
     "UK100": {
         "pip_size": 1.0,
         "pip_value_per_lot": 1.40,    # £1/point * GBPUSD(~1.40) = $1.40/point (GBP-denominated index)
@@ -115,8 +108,6 @@ def get_fiveers_contract_specs(symbol: str) -> dict:
     # Indices
     if "NAS100" in symbol_upper or "NDX" in symbol_upper:
         return FIVEERS_CONTRACT_SPECS["NAS100"]
-    elif "SPX500" in symbol_upper or "SP500" in symbol_upper or "SPX" in symbol_upper:
-        return FIVEERS_CONTRACT_SPECS["SPX500"]
     elif "UK100" in symbol_upper or "FTSE" in symbol_upper:
         return FIVEERS_CONTRACT_SPECS["UK100"]
     

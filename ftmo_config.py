@@ -220,7 +220,6 @@ class Fiveers60KConfig:
         # Indices - Increased 50-60%
         "US30": 8.0,      # Was 5.0
         "NAS100": 5.0,    # Was 3.0
-        "SPX500": 3.0,    # Was 1.5
         
         # Default - Doubled for unlisted symbols
         "DEFAULT": 10.0,  # Was 5.0
@@ -581,7 +580,6 @@ PIP_SIZES = {
     # Indices (if traded)
     "US30": 1.0,
     "NAS100": 1.0,
-    "SPX500": 0.1,
     "UK100": 1.0,
     "GER40": 1.0,
     "FRA40": 1.0,
@@ -622,8 +620,6 @@ def get_pip_size(symbol: str) -> float:
     elif "ETH" in base_symbol:
         return 1.0  # $1 move = 1 pip for Ethereum
     # Indices
-    elif any(i in base_symbol for i in ["SPX", "US500"]):
-        return 0.1  # SPX500
     elif any(i in base_symbol for i in ["NAS", "US100", "US30", "UK100", "GER40", "FRA40", "JPN225"]):
         return 1.0  # Other indices
     # Oil / Energy

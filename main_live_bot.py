@@ -3217,7 +3217,7 @@ class LiveTradingBot:
             return 1.40  # Safe estimate
         
         # US indices - already in USD
-        if any(x in sym_upper for x in ["NAS100", "SPX500", "SP500", "US100", "US500", "US30"]):
+        if any(x in sym_upper for x in ["NAS100", "US100", "US30"]):
             return base_pip_value
         
         # Metals, Oil, and Crypto - already in USD

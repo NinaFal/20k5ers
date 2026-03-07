@@ -55,10 +55,7 @@ CONTRACT_SPECS = {
     # Indices - 5ers uses $20 per point for NAS100, $10 for SP500/US30
     "US30": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 10.0},  # Dow Jones $10/point
     "US100": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 20.0},  # Nasdaq $20/point
-    "US500": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 10.0},  # S&P 500 $10/point
-    "SP500": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 10.0},  # 5ers S&P 500 $10/point
     "NAS100": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 20.0},  # 5ers Nasdaq $20/point
-    "SPX500USD": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 10.0},
     "NAS100USD": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 20.0},
     "UK100": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 1.40},  # FTSE: £1/point * GBPUSD(~1.40)
     
