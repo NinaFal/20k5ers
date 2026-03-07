@@ -538,9 +538,11 @@ class LiveTradingBot:
                         self.ddd_halt_date = None
                         self._save_ddd_halt_state()
                         log.info(f"[DDD Protection] ✅ Trading re-enabled for new day with fresh DDD baseline: ${current_equity:,.2f}")
+                        # Re-place pending orders that were paused by DDD halt (with remaining expiry)
+                        self._resume_ddd_paused_orders()
                         sleep(5)
                         continue
-                    
+
                     # CRITICAL FIX: Check if new day and sync
                     if today != self.challenge_manager.current_date:
                         log.warning(f"[DDD Protection] New day detected! {self.challenge_manager.current_date} -> {today}")
@@ -560,6 +562,8 @@ class LiveTradingBot:
                             self.ddd_halt_date = None
                             self._save_ddd_halt_state()
                             log.info(f"[DDD Protection] ✅ Trading re-enabled for new day with fresh DDD baseline")
+                            # Re-place pending orders that were paused by DDD halt (with remaining expiry)
+                            self._resume_ddd_paused_orders()
                         else:
                             # Normal new day transition - sync with MT5
                             self.challenge_manager.sync_with_mt5(current_balance, current_equity)
@@ -737,22 +741,25 @@ class LiveTradingBot:
         except Exception as e:
             log.error(f"  ✗ Failed to get/close positions: {e}")
         
-        # CRITICAL: Only clear ACTIVE setups (pending orders, filled positions)
-        # KEEP awaiting_entry and awaiting_spread - these are untriggered signals that should persist!
-        # Signals in queues are still valid and can trigger after halt resets (within 120h expiry)
+        # CRITICAL: Preserve pending order setups so they can be re-placed next day
+        # with their ORIGINAL created_at (remaining expiry, not fresh 7 days).
+        # Same pattern as weekend pause and news blackout.
         try:
-            # Mark pending_setups with active orders/positions as "halted"
-            # This prevents them from re-triggering but doesn't affect untriggered signals in queues
             if hasattr(self, 'pending_setups') and self.pending_setups:
-                halted_count = 0
+                paused_count = 0
                 for symbol, setup in self.pending_setups.items():
-                    if setup.status in ("pending", "filled"):
-                        setup.status = "halted"
-                        halted_count += 1
-                        log.info(f"  ✓ Marked {symbol} setup as halted (was {setup.status})")
-                if halted_count > 0:
+                    if setup.status == "pending":
+                        setup.status = "paused_ddd"
+                        setup.order_ticket = None  # MT5 order was cancelled above
+                        paused_count += 1
+                        log.info(f"  ✓ Paused {symbol} pending order (preserving {setup.created_at} expiry)")
+                    elif setup.status == "filled":
+                        setup.status = "closed_ddd"
+                        paused_count += 1
+                        log.info(f"  ✓ Marked {symbol} filled position as closed by DDD")
+                if paused_count > 0:
                     self._save_pending_setups()
-                    log.info(f"  ✓ Halted {halted_count} active setups")
+                    log.info(f"  ✓ Paused {paused_count} active setups (expiry preserved)")
             
             # Log what we're KEEPING (not clearing)
             if hasattr(self, 'awaiting_entry') and self.awaiting_entry:
@@ -1202,11 +1209,19 @@ class LiveTradingBot:
         # Log if replacing existing entry in queue
         if symbol in self.awaiting_entry:
             log.debug(f"[{symbol}] Replacing old signal in entry queue with new one")
-        
+
+        now = datetime.now(timezone.utc)
+        # Preserve original created_at if re-queuing (e.g. news blackout cancel/re-add)
+        # so the 7-day expiry timer doesn't restart
+        existing_created = (
+            setup.get("created_at")
+            or (self.awaiting_entry[symbol].get("created_at") if symbol in self.awaiting_entry else None)
+            or now.isoformat()
+        )
         self.awaiting_entry[symbol] = {
             **setup,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "last_check": datetime.now(timezone.utc).isoformat(),
+            "created_at": existing_created,
+            "last_check": now.isoformat(),
             "check_count": 0,
         }
         self._save_awaiting_entry()
@@ -1675,13 +1690,16 @@ class LiveTradingBot:
         for pos in result['REDUCE_50']:
             symbol = get_internal_symbol(pos.symbol)
             current_volume = pos.volume
-            reduce_volume = current_volume / 2
+            reduce_volume = round(current_volume * 0.5, 2)
+
+            if reduce_volume < 0.01:
+                log.info(f"[{symbol}] Volume too small to reduce 50% ({current_volume:.2f}) - skipping")
+                continue
 
             log.info(f"⚠️ Reducing {symbol} by 50% (ticket {pos.ticket})")
-            log.info(f"  Current volume: {current_volume:.2f} → New volume: {reduce_volume:.2f}")
+            log.info(f"  Current volume: {current_volume:.2f} → Closing: {reduce_volume:.2f}")
 
-            # Close 50% by volume
-            close_result = self.mt5.close_position(pos.ticket, volume=reduce_volume)
+            close_result = self.mt5.partial_close(pos.ticket, reduce_volume)
             if hasattr(close_result, 'success') and close_result.success:
                 log.info(f"  ✓ Reduced successfully")
             else:
@@ -1813,6 +1831,18 @@ class LiveTradingBot:
             symbol = order_info['symbol']
             order_type_str = type_map.get(order_info['type'], "buy_limit")
 
+            # Calculate remaining expiry from the pending setup's created_at
+            internal_symbol = get_internal_symbol(symbol)
+            setup = self.pending_setups.get(internal_symbol)
+            remaining_expiry = int(FIVEERS_CONFIG.pending_order_expiry_hours)
+            if setup and setup.created_at:
+                try:
+                    created_time = datetime.fromisoformat(setup.created_at.replace("Z", "+00:00"))
+                    elapsed = (datetime.now(timezone.utc) - created_time).total_seconds() / 3600
+                    remaining_expiry = max(int(FIVEERS_CONFIG.pending_order_expiry_hours - elapsed), 1)
+                except (ValueError, TypeError):
+                    pass
+
             try:
                 result = self.mt5.place_pending_order(
                     symbol=symbol,
@@ -1823,6 +1853,7 @@ class LiveTradingBot:
                     tp=order_info['tp'],
                     magic=order_info['magic'],
                     comment=order_info.get('comment', ''),
+                    expiration_hours=remaining_expiry,
                 )
 
                 if (hasattr(result, 'success') and result.success) or (isinstance(result, bool) and result):
@@ -1853,9 +1884,91 @@ class LiveTradingBot:
         log.info("=" * 70)
 
     # ═══════════════════════════════════════════════════════════════════════════
+    # DDD HALT RESUME - Re-place pending orders after DDD halt resets
+    # Preserves original created_at so expiry timer continues from where it was
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _resume_ddd_paused_orders(self):
+        """
+        Re-place pending orders that were paused by DDD halt.
+        Called when DDD halt resets at new day.
+        Preserves original created_at so the 7-day expiry continues, not resets.
+        """
+        paused = [
+            (sym, setup) for sym, setup in self.pending_setups.items()
+            if setup.status == "paused_ddd"
+        ]
+
+        if not paused:
+            log.info("No DDD-paused orders to resume")
+            return
+
+        log.info("=" * 70)
+        log.info(f"🔄 DDD RESUME - Re-placing {len(paused)} paused orders")
+        log.info("=" * 70)
+
+        resumed = 0
+        expired = 0
+        now = datetime.now(timezone.utc)
+        expiry_hours = FIVEERS_CONFIG.pending_order_expiry_hours
+
+        for symbol, setup in paused:
+            # Check if original expiry has run out
+            remaining_expiry = expiry_hours
+            if setup.created_at:
+                try:
+                    created_time = datetime.fromisoformat(setup.created_at.replace("Z", "+00:00"))
+                    elapsed = (now - created_time).total_seconds() / 3600
+                    remaining_expiry = expiry_hours - elapsed
+                except (ValueError, TypeError):
+                    pass
+
+            if remaining_expiry <= 0:
+                log.info(f"  [{symbol}] Paused order EXPIRED (created {setup.created_at}) - removing")
+                del self.pending_setups[symbol]
+                expired += 1
+                continue
+
+            broker_symbol = self.symbol_map.get(symbol, symbol)
+            direction = setup.direction
+
+            # Re-place the pending order with remaining expiry
+            try:
+                result = self.mt5.place_pending_order(
+                    symbol=broker_symbol,
+                    direction=direction,
+                    volume=setup.lot_size,
+                    entry_price=setup.entry_price,
+                    sl=setup.stop_loss,
+                    tp=0,
+                    expiration_hours=int(remaining_expiry),
+                )
+
+                if result.success:
+                    setup.status = "pending"
+                    setup.order_ticket = result.order_id
+                    resumed += 1
+                    log.info(f"  ✓ Resumed [{symbol}] {direction} at {setup.entry_price:.5f} ({remaining_expiry:.0f}h remaining)")
+                else:
+                    log.error(f"  ✗ Failed to resume [{symbol}]: {result.error}")
+            except Exception as e:
+                log.error(f"  ✗ Error resuming [{symbol}]: {e}")
+
+        # Clean up closed_ddd setups (positions that were force-closed)
+        closed_ddd = [sym for sym, s in self.pending_setups.items() if s.status == "closed_ddd"]
+        for sym in closed_ddd:
+            del self.pending_setups[sym]
+
+        if resumed > 0 or expired > 0 or closed_ddd:
+            self._save_pending_setups()
+
+        log.info(f"  📊 DDD resume: {resumed} resumed, {expired} expired, {len(closed_ddd)} closed positions cleared")
+        log.info("=" * 70)
+
+    # ═══════════════════════════════════════════════════════════════════════════
     # LIMIT ORDER COMPOUNDING - Update lot sizes based on current equity
     # ═══════════════════════════════════════════════════════════════════════════
-    
+
     def update_limit_orders_for_compounding(self):
         """
         Update pending limit orders to reflect current equity (compounding).
@@ -1970,6 +2083,16 @@ class LiveTradingBot:
                     # Get TP from setup
                     tp = order.tp if hasattr(order, 'tp') and order.tp else 0
                     
+                    # Calculate remaining expiry from original created_at
+                    remaining_expiry = int(FIVEERS_CONFIG.pending_order_expiry_hours)
+                    if setup and setup.created_at:
+                        try:
+                            created_time = datetime.fromisoformat(setup.created_at.replace("Z", "+00:00"))
+                            elapsed = (datetime.now(timezone.utc) - created_time).total_seconds() / 3600
+                            remaining_expiry = max(int(FIVEERS_CONFIG.pending_order_expiry_hours - elapsed), 1)
+                        except (ValueError, TypeError):
+                            pass
+
                     new_order_result = self.mt5.place_pending_order(
                         symbol=symbol,
                         direction=direction,
@@ -1977,12 +2100,13 @@ class LiveTradingBot:
                         entry_price=entry,
                         sl=sl,
                         tp=tp,
+                        expiration_hours=remaining_expiry,
                     )
-                    
+
                     if new_order_result and new_order_result.success:
-                        log.info(f"  ✓ Replaced order: ticket {order.ticket} → {new_order_result.order_id}")
+                        log.info(f"  ✓ Replaced order: ticket {order.ticket} → {new_order_result.order_id} (expiry: {remaining_expiry}h)")
                         orders_updated += 1
-                        
+
                         # Update setup with new ticket
                         if setup and hasattr(setup, 'order_ticket'):
                             setup.order_ticket = new_order_result.order_id
@@ -2626,7 +2750,17 @@ class LiveTradingBot:
                     if cancel_ok:
                         direction = "bullish" if order.type in [2, 4] else "bearish"
                         tp = order.tp if hasattr(order, 'tp') and order.tp else 0
-                        
+
+                        # Calculate remaining expiry from original created_at
+                        remaining_expiry = int(FIVEERS_CONFIG.pending_order_expiry_hours)
+                        if setup and setup.created_at:
+                            try:
+                                created_time = datetime.fromisoformat(setup.created_at.replace("Z", "+00:00"))
+                                elapsed = (datetime.now(timezone.utc) - created_time).total_seconds() / 3600
+                                remaining_expiry = max(int(FIVEERS_CONFIG.pending_order_expiry_hours - elapsed), 1)
+                            except (ValueError, TypeError):
+                                pass
+
                         new_result = self.mt5.place_pending_order(
                             symbol=broker_sym,
                             direction=direction,
@@ -2634,11 +2768,12 @@ class LiveTradingBot:
                             entry_price=order.price,
                             sl=sl,
                             tp=tp,
+                            expiration_hours=remaining_expiry,
                         )
-                        
+
                         if new_result and new_result.success:
                             rescaled_count += 1
-                            log.info(f"[{internal_symbol}]   ✓ Rescaled: ticket {order.ticket} → {new_result.order_id}")
+                            log.info(f"[{internal_symbol}]   ✓ Rescaled: ticket {order.ticket} → {new_result.order_id} (expiry: {remaining_expiry}h)")
                             # Update pending_setups with new ticket
                             if setup and hasattr(setup, 'order_ticket'):
                                 setup.order_ticket = new_result.order_id
@@ -3082,18 +3217,19 @@ class LiveTradingBot:
             return 1.40  # Safe estimate
         
         # US indices - already in USD
-        if any(x in sym_upper for x in ["NAS100", "SPX500", "SP500", "US100", "US500", "US30"]):
+        if any(x in sym_upper for x in ["NAS100", "US100", "US30"]):
             return base_pip_value
         
-        # Metals and Crypto - already in USD
-        # CRITICAL: Validate against known ranges for metals
-        if any(x in sym_upper for x in ["XAU", "XAG", "BTC", "ETH"]):
-            # Known correct pip values for metals (safety net):
-            # XAU: pip_size=0.01, 100oz → $1.00/pip/lot
-            # XAG: pip_size=0.001, 5000oz → $5.00/pip/lot
+        # Metals, Oil, and Crypto - already in USD
+        # CRITICAL: Validate against known ranges
+        if any(x in sym_upper for x in ["XAU", "XAG", "XBR", "XTI", "BCO", "WTICO", "BTC", "ETH"]):
             METAL_PIP_RANGES = {
                 "XAU": (0.5, 2.0),    # $1/pip ± margin for tick_value variation
                 "XAG": (3.0, 8.0),    # $5/pip ± margin
+                "XBR": (0.5, 2.0),    # Brent $1/pip
+                "XTI": (0.5, 2.0),    # WTI $1/pip
+                "BCO": (0.5, 2.0),
+                "WTICO": (0.5, 2.0),
                 "BTC": (0.5, 2.0),
                 "ETH": (0.5, 2.0),
             }
@@ -3446,8 +3582,15 @@ class LiveTradingBot:
                 # Already have open position - don't stack
                 log.info(f"[{symbol}] Already have filled position, skipping")
                 return None
-            elif existing.status in ("pending", "halted"):
-                # Replace old pending with new signal
+            elif existing.status == "paused_ddd":
+                # DDD halt preserved this order - keep it if same direction (preserves expiry)
+                # Replace if direction changed (market structure shifted)
+                # Note: scan_symbol hasn't run yet, so we peek at direction later
+                # For now, keep the paused setup - it will be re-placed by _resume_ddd_paused_orders
+                log.info(f"[{symbol}] Paused DDD order exists ({existing.direction}) - keeping with original expiry")
+                return None
+            elif existing.status in ("pending", "halted", "closed_ddd"):
+                # Replace old pending/halted/closed with new signal
                 # IMPORTANT: Cancel the old MT5 pending order first!
                 if existing.order_ticket:
                     log.info(f"[{symbol}] Cancelling old pending order (ticket {existing.order_ticket}) before replacing")
@@ -3988,8 +4131,21 @@ class LiveTradingBot:
             log.info(f"  TP1: {tp1:.5f}")
             log.info(f"  TP3: {tp3:.5f} (closes ALL remaining)" if tp3 else "  TP3: N/A")
             log.info(f"  Lot Size: {lot_size} (calculated at signal time)")
-            log.info(f"  Expiration: {FIVEERS_CONFIG.pending_order_expiry_hours} hours")
-            
+
+            # Calculate remaining expiry from original created_at so the 7-day
+            # timer doesn't restart after news blackout cancel/re-queue
+            total_expiry = FIVEERS_CONFIG.pending_order_expiry_hours
+            created_at_str = setup.get("created_at", "")
+            remaining_expiry = total_expiry
+            if created_at_str:
+                try:
+                    created_time = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                    elapsed = (datetime.now(timezone.utc) - created_time).total_seconds() / 3600
+                    remaining_expiry = max(total_expiry - elapsed, 1.0)
+                except (ValueError, TypeError):
+                    pass
+            log.info(f"  Expiration: {remaining_expiry:.1f}h (of {total_expiry}h total)")
+
             result = self.mt5.place_pending_order(
                 symbol=broker_symbol,
                 direction=direction,
@@ -3997,18 +4153,18 @@ class LiveTradingBot:
                 entry_price=entry,
                 sl=sl,
                 tp=0,  # No auto-TP - bot manages partial closes at TP1/TP2/TP3 manually
-                expiration_hours=int(FIVEERS_CONFIG.pending_order_expiry_hours),
+                expiration_hours=int(remaining_expiry),
             )
-            
+
             if not result.success:
                 log.error(f"[{symbol}] Pending order FAILED: {result.error}")
                 return False
-            
+
             log.info(f"[{symbol}] PENDING ORDER PLACED SUCCESSFULLY!")
             log.info(f"  Order Ticket: {result.order_id}")
             log.info(f"  Entry Level: {result.price:.5f}")
             log.info(f"  Volume: {result.volume}")
-            
+
             pending_setup = PendingSetup(
                 symbol=symbol,
                 direction=direction,
@@ -4023,7 +4179,7 @@ class LiveTradingBot:
                 confluence_score=confluence,
                 quality_factors=quality_factors,
                 entry_distance_r=entry_distance_r,
-                created_at=datetime.now(timezone.utc).isoformat(),
+                created_at=created_at_str or datetime.now(timezone.utc).isoformat(),
                 order_ticket=result.order_id,
                 status="pending",
                 lot_size=lot_size,  # Lot size calculated at order placement
@@ -5233,6 +5389,8 @@ class LiveTradingBot:
                             self.ddd_halt_date = None
                             self._save_ddd_halt_state()
                             log.info("✅ Trading re-enabled!")
+                            # Re-place pending orders that were paused by DDD halt
+                            self._resume_ddd_paused_orders()
                     else:
                         # Weekend - schedule next weekday
                         self.next_midnight_sync_time = get_next_midnight_sync_time()

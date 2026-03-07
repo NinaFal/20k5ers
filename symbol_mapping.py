@@ -16,10 +16,10 @@ Usage:
     from symbol_mapping import get_broker_symbol, get_internal_symbol
     
     # Convert internal -> broker
-    broker_sym = get_broker_symbol("SPX500_USD", "fiveers")  # -> "SP500"
-    
+    broker_sym = get_broker_symbol("NAS100_USD", "fiveers")  # -> "NAS100"
+
     # Convert broker -> internal
-    internal_sym = get_internal_symbol("SP500", "fiveers")  # -> "SPX500_USD"
+    internal_sym = get_internal_symbol("NAS100", "fiveers")  # -> "NAS100_USD"
 """
 
 from typing import Dict, List, Tuple, Optional
@@ -47,7 +47,7 @@ ALL_FOREX_PAIRS_OANDA: List[str] = [
 
 ALL_METALS_OANDA: List[str] = ["XAU_USD", "XAG_USD"]
 ALL_CRYPTO_OANDA: List[str] = ["BTC_USD", "ETH_USD"]
-ALL_INDICES_OANDA: List[str] = ["SPX500_USD", "NAS100_USD", "UK100_USD"]
+ALL_INDICES_OANDA: List[str] = ["NAS100_USD", "UK100_USD"]
 
 ALL_TRADABLE_OANDA: List[str] = (
     ALL_FOREX_PAIRS_OANDA + ALL_METALS_OANDA + ALL_CRYPTO_OANDA + ALL_INDICES_OANDA
@@ -107,9 +107,8 @@ OANDA_TO_FIVEERS: Dict[str, str] = {
     "BTC_USD": "BTCUSD",
     "ETH_USD": "ETHUSD",
     
-    # ============ INDICES (3) ============
+    # ============ INDICES (2) ============
     # CRITICAL: 5ers uses direct names WITHOUT .cash suffix!
-    "SPX500_USD": "SP500",    # S&P 500 - NOT US500.cash!
     "NAS100_USD": "NAS100",   # Nasdaq 100 - NOT US100.cash!
     "UK100_USD": "UK100",     # FTSE 100 - NOT UK100.cash!
 }
@@ -172,9 +171,7 @@ OANDA_TO_FOREXCOM: Dict[str, str] = {
     "BTC_USD": "BTCUSD",
     "ETH_USD": "ETHUSD",
     
-    # ============ INDICES (3) ============
-    # Forex.com variations: US500, SPX500, USA500 - verify!
-    "SPX500_USD": "US500",
+    # ============ INDICES (2) ============
     "NAS100_USD": "USTEC",  # or NAS100, US100, USTEC100
     "UK100_USD": "UK100",
 }
@@ -341,7 +338,6 @@ def get_contract_specs() -> Dict[str, Dict]:
         "XAG_USD": {"pip_value": 0.001, "contract_size": 5000, "pip_location": 3},
         "BTC_USD": {"pip_value": 1.0, "contract_size": 1, "pip_location": 0},
         "ETH_USD": {"pip_value": 0.01, "contract_size": 1, "pip_location": 2},
-        "SPX500_USD": {"pip_value": 0.1, "contract_size": 1, "pip_location": 1},
         "NAS100_USD": {"pip_value": 0.1, "contract_size": 1, "pip_location": 1},
         "UK100_USD": {"pip_value": 0.1, "contract_size": 1, "pip_location": 1},
     }

@@ -101,6 +101,7 @@ class BrokerConfig:
     trade_forex: bool = True
     trade_metals: bool = True
     trade_indices: bool = True
+    trade_oil: bool = True                  # Brent & WTI crude
     trade_crypto: bool = True               # May not be available on all brokers
     
     # Symbols to exclude (broker doesn't offer or testing purposes)
@@ -114,13 +115,15 @@ class BrokerConfig:
     
     def get_tradable_symbols(self) -> List[str]:
         """Get list of tradable symbols based on config."""
-        from config import FOREX_PAIRS, METALS, INDICES, CRYPTO_ASSETS
-        
+        from config import FOREX_PAIRS, METALS, OIL_ASSETS, INDICES, CRYPTO_ASSETS
+
         symbols = []
         if self.trade_forex:
             symbols.extend(FOREX_PAIRS)
         if self.trade_metals:
             symbols.extend(METALS)
+        if self.trade_oil:
+            symbols.extend(OIL_ASSETS)
         if self.trade_indices:
             symbols.extend(INDICES)
         if self.trade_crypto:
@@ -203,6 +206,7 @@ def get_forexcom_demo_config() -> BrokerConfig:
         # Symbols - crypto may not be available
         trade_forex=True,
         trade_metals=False,  # DISABLED - XAU/XAG excluded from trading
+        trade_oil=False,     # DISABLED - oil excluded from demo
         trade_indices=True,
         trade_crypto=False,  # Forex.com demo may not have crypto
         excluded_symbols=[],
@@ -253,6 +257,7 @@ def get_fiveers_live_config() -> BrokerConfig:
         # All symbols
         trade_forex=True,
         trade_metals=True,  # ENABLED - XAU/XAG included
+        trade_oil=True,     # ENABLED - Brent & WTI
         trade_indices=True,
         trade_crypto=True,
         excluded_symbols=[],

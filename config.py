@@ -4,7 +4,7 @@ Configuration for the trading bot
 
 SYMBOL FORMATS:
 - All symbols in this file use OANDA format (with underscores)
-- Examples: EUR_USD, XAU_USD, SPX500_USD
+- Examples: EUR_USD, XAU_USD, NAS100_USD
 - These are converted to broker format (EURUSD, XAUUSD, US500.cash) via symbol_mapping.py
 - Conversion happens automatically in main_live_bot.py using the symbol_map
 """
@@ -82,7 +82,6 @@ CONTRACT_SPECS = {
     "XAG_USD": {"pip_value": 0.001, "contract_size": 5000, "pip_location": 3},
     "BTC_USD": {"pip_value": 1.0, "contract_size": 1, "pip_location": 0},
     "ETH_USD": {"pip_value": 0.01, "contract_size": 1, "pip_location": 2},
-    "SPX500_USD": {"pip_value": 1.0, "contract_size": 1, "pip_location": 0},
     "NAS100_USD": {"pip_value": 1.0, "contract_size": 1, "pip_location": 0},
 }
 
@@ -149,9 +148,14 @@ METALS = [
 
 # Indices (FTMO tradable)
 INDICES = [
-    "SPX500_USD",  # S&P 500 (US500 on FTMO)
     "NAS100_USD",  # Nasdaq 100 (US100 on FTMO) - High volatility
     "UK100_USD",   # FTSE 100 (OPTIMIZED: Added for diversity)
+]
+
+# Oil / Energy
+OIL_ASSETS = [
+    "XBR_USD",   # Brent Crude (BCO_USD on OANDA)
+    "XTI_USD",   # WTI Crude (WTICO_USD on OANDA)
 ]
 
 # Crypto (FTMO tradable)
@@ -167,5 +171,5 @@ CRYPTO_ASSETS = [
 def all_market_instruments() -> list[str]:
     """All instruments Blueprint can scan (OANDA format)."""
     return sorted(set(
-        FOREX_PAIRS + METALS + INDICES + CRYPTO_ASSETS
+        FOREX_PAIRS + METALS + OIL_ASSETS + INDICES + CRYPTO_ASSETS
     ))

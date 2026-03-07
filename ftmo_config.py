@@ -220,7 +220,6 @@ class Fiveers60KConfig:
         # Indices - Increased 50-60%
         "US30": 8.0,      # Was 5.0
         "NAS100": 5.0,    # Was 3.0
-        "SPX500": 3.0,    # Was 1.5
         
         # Default - Doubled for unlisted symbols
         "DEFAULT": 10.0,  # Was 5.0
@@ -581,7 +580,6 @@ PIP_SIZES = {
     # Indices (if traded)
     "US30": 1.0,
     "NAS100": 1.0,
-    "SPX500": 0.1,
     "UK100": 1.0,
     "GER40": 1.0,
     "FRA40": 1.0,
@@ -622,10 +620,13 @@ def get_pip_size(symbol: str) -> float:
     elif "ETH" in base_symbol:
         return 1.0  # $1 move = 1 pip for Ethereum
     # Indices
-    elif any(i in base_symbol for i in ["SPX", "US500"]):
-        return 0.1  # SPX500
     elif any(i in base_symbol for i in ["NAS", "US100", "US30", "UK100", "GER40", "FRA40", "JPN225"]):
         return 1.0  # Other indices
+    # Oil / Energy
+    elif "XBR" in base_symbol or "BCO" in base_symbol:
+        return 0.01  # Brent Crude: 1 pip = $0.01
+    elif "XTI" in base_symbol or "WTICO" in base_symbol:
+        return 0.01  # WTI Crude: 1 pip = $0.01
     # Metals - ALIGNED WITH SIMULATOR
     elif "XAU" in base_symbol or "GOLD" in base_symbol:
         return 0.01  # FIXED: Gold 1 pip = $0.01 (matches simulator)
@@ -664,7 +665,13 @@ def get_sl_limits(symbol: str) -> Tuple[float, float]:
     if any(i in base_symbol for i in ["SPX", "US500", "NAS", "US100"]):
         return (50.0, 3000.0)
 
-    # Priority 3: Metals (highest priority to avoid XAU matching with AUD)
+    # Priority 3: Oil / Energy
+    if "XBR" in base_symbol or "BCO" in base_symbol:
+        return (50.0, 500.0)  # 50-500 pips ($0.50-$5.00) for Brent H4 structure
+    if "XTI" in base_symbol or "WTICO" in base_symbol:
+        return (50.0, 500.0)  # 50-500 pips ($0.50-$5.00) for WTI H4 structure
+
+    # Priority 4: Metals (highest priority to avoid XAU matching with AUD)
     if "XAU" in base_symbol or "GOLD" in base_symbol:
         return (50.0, 500.0)  # 50-500 pips for gold H4 structure
     if "XAG" in base_symbol or "SILVER" in base_symbol:
