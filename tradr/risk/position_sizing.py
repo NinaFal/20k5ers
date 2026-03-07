@@ -64,7 +64,7 @@ CONTRACT_SPECS = {
     
     # Crypto
     "BTCUSD": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 1.0},
-    "ETHUSD": {"pip_size": 0.01, "contract_size": 1, "pip_value_per_lot": 0.01},
+    "ETHUSD": {"pip_size": 1.0, "contract_size": 1, "pip_value_per_lot": 1.0},
 }
 
 # Default specs for unknown symbols

@@ -74,8 +74,8 @@ FIVEERS_CONTRACT_SPECS = {
         "lot_step": 0.01,
     },
     "ETH": {
-        "pip_size": 0.01,
-        "pip_value_per_lot": 1.0,
+        "pip_size": 1.0,              # $1 per pip (same as BTC) - 1 lot = 1 ETH
+        "pip_value_per_lot": 1.0,     # $1 per pip per lot
         "min_lot": 0.01,
         "max_lot": 100.0,
         "lot_step": 0.01,

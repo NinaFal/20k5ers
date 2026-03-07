@@ -126,7 +126,7 @@ SYMBOL_SPECS = {
     "UK100": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
     # Crypto
     "BTCUSD": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "ETHUSD": {"point": 0.01, "digits": 2, "pip_size": 0.1, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
+    "ETHUSD": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
 }
 
 DEFAULT_SPEC = {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01}
