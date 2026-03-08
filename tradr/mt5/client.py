@@ -914,18 +914,27 @@ class MT5Client:
     def cancel_pending_order(self, ticket: int) -> bool:
         """Cancel a pending order by ticket."""
         if not self.connected:
+            log.warning(f"Cannot cancel order {ticket}: not connected to MT5")
             return False
-        
+
         mt5 = self._import_mt5()
-        
+
         request = {
             "action": mt5.TRADE_ACTION_REMOVE,
             "order": ticket,
         }
-        
+
         result = mt5.order_send(request)
-        
-        return result is not None and result.retcode == mt5.TRADE_RETCODE_DONE
+
+        if result is None:
+            log.error(f"cancel_pending_order({ticket}): order_send returned None — MT5 error {mt5.last_error()}")
+            return False
+
+        if result.retcode != mt5.TRADE_RETCODE_DONE:
+            log.error(f"cancel_pending_order({ticket}): rejected with retcode={result.retcode}, comment='{result.comment}'")
+            return False
+
+        return True
     
     def get_pending_orders(self, symbol: str = None) -> List[PendingOrder]:
         """Get pending orders, optionally filtered by symbol."""
