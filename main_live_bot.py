@@ -1933,6 +1933,8 @@ class LiveTradingBot:
             direction = setup.direction
 
             # Re-place the pending order with remaining expiry
+            # Use TP5 (or TP3 fallback) as the MT5 TP for safety
+            final_tp = setup.tp5 or setup.tp3 or 0
             try:
                 result = self.mt5.place_pending_order(
                     symbol=broker_symbol,
@@ -1940,7 +1942,7 @@ class LiveTradingBot:
                     volume=setup.lot_size,
                     entry_price=setup.entry_price,
                     sl=setup.stop_loss,
-                    tp=0,
+                    tp=final_tp,
                     expiration_hours=int(remaining_expiry),
                 )
 
@@ -2082,6 +2084,8 @@ class LiveTradingBot:
                     
                     # Get TP from setup
                     tp = order.tp if hasattr(order, 'tp') and order.tp else 0
+                    if not tp and setup:
+                        tp = setup.tp5 or setup.tp3 or 0
                     
                     # Calculate remaining expiry from original created_at
                     remaining_expiry = int(FIVEERS_CONFIG.pending_order_expiry_hours)
@@ -2750,6 +2754,9 @@ class LiveTradingBot:
                     if cancel_ok:
                         direction = "bullish" if order.type in [2, 4] else "bearish"
                         tp = order.tp if hasattr(order, 'tp') and order.tp else 0
+                        # Fallback: use TP5 from setup if order had tp=0
+                        if not tp and setup:
+                            tp = setup.tp5 or setup.tp3 or 0
 
                         # Calculate remaining expiry from original created_at
                         remaining_expiry = int(FIVEERS_CONFIG.pending_order_expiry_hours)
@@ -4098,7 +4105,7 @@ class LiveTradingBot:
                 direction=direction,
                 volume=lot_size,
                 sl=sl,
-                tp=0,  # No auto-TP - bot manages partial closes at TP1/TP2/TP3 manually
+                tp=tp5 or tp3 or 0,  # Set TP5 (final TP) on MT5 as safety net
             )
             
             if not result.success:
@@ -4185,7 +4192,7 @@ class LiveTradingBot:
                 volume=lot_size,  # Correct lot size at order placement
                 entry_price=entry,
                 sl=sl,
-                tp=0,  # No auto-TP - bot manages partial closes at TP1/TP2/TP3 manually
+                tp=tp5 or tp3 or 0,  # Set TP5 (final TP) on MT5 as safety net
                 expiration_hours=int(remaining_expiry),
             )
 
@@ -4354,6 +4361,14 @@ class LiveTradingBot:
                         lot_size=setup.lot_size,
                         order_id=setup.order_ticket or 0,
                     )
+
+                    # Ensure TP5 is set on the filled position (pending orders may have had tp=0)
+                    final_tp = setup.tp5 or setup.tp3 or 0
+                    if final_tp and (filled_position.tp == 0 or abs(filled_position.tp - final_tp) > 0.001):
+                        if self.mt5.modify_sl_tp(filled_position.ticket, tp=final_tp):
+                            log.info(f"[{symbol}] ✅ TP5 set on filled position: {final_tp:.5f}")
+                        else:
+                            log.warning(f"[{symbol}] Failed to set TP5 on filled position")
                 else:
                     log.error(f"[{symbol}] Position marked as filled but not found in MT5!")
                     setup.status = "filled"
