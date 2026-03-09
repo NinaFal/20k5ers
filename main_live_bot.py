@@ -1933,6 +1933,8 @@ class LiveTradingBot:
             direction = setup.direction
 
             # Re-place the pending order with remaining expiry
+            # Use TP5 (or TP3 fallback) as the MT5 TP for safety
+            final_tp = setup.tp5 or setup.tp3 or 0
             try:
                 result = self.mt5.place_pending_order(
                     symbol=broker_symbol,
@@ -1940,7 +1942,7 @@ class LiveTradingBot:
                     volume=setup.lot_size,
                     entry_price=setup.entry_price,
                     sl=setup.stop_loss,
-                    tp=0,
+                    tp=final_tp,
                     expiration_hours=int(remaining_expiry),
                 )
 
@@ -2082,6 +2084,8 @@ class LiveTradingBot:
                     
                     # Get TP from setup
                     tp = order.tp if hasattr(order, 'tp') and order.tp else 0
+                    if not tp and setup:
+                        tp = setup.tp5 or setup.tp3 or 0
                     
                     # Calculate remaining expiry from original created_at
                     remaining_expiry = int(FIVEERS_CONFIG.pending_order_expiry_hours)
@@ -2750,6 +2754,9 @@ class LiveTradingBot:
                     if cancel_ok:
                         direction = "bullish" if order.type in [2, 4] else "bearish"
                         tp = order.tp if hasattr(order, 'tp') and order.tp else 0
+                        # Fallback: use TP5 from setup if order had tp=0
+                        if not tp and setup:
+                            tp = setup.tp5 or setup.tp3 or 0
 
                         # Calculate remaining expiry from original created_at
                         remaining_expiry = int(FIVEERS_CONFIG.pending_order_expiry_hours)
@@ -3040,7 +3047,7 @@ class LiveTradingBot:
                     log.warning(f"  [{pos.symbol}] Position {pos.ticket}: Zero risk (entry={entry:.5f}, SL={original_sl:.5f}), skipping TP update")
                     continue
 
-                # Calculate new final TP
+                # Calculate new final TP from params (matches backtest)
                 if is_buy:
                     new_tp = entry + (risk * final_tp_r)
                 else:
@@ -3051,9 +3058,9 @@ class LiveTradingBot:
                 if abs(current_tp - new_tp) < 0.00001:
                     continue  # Already correct
 
-                # Modify the position
+                # Only set TP if position currently has no TP or wrong TP
                 if self.mt5.modify_sl_tp(pos.ticket, tp=new_tp):
-                    log.info(f"  ✅ [{pos.symbol}] Position {pos.ticket}: TP updated {current_tp:.5f} → {new_tp:.5f} ({final_tp_name}={final_tp_r}R)")
+                    log.info(f"  ✅ [{pos.symbol}] Position {pos.ticket}: TP updated {current_tp:.5f} → {new_tp:.5f}")
                     updated_positions += 1
                 else:
                     log.warning(f"  ❌ [{pos.symbol}] Position {pos.ticket}: Failed to update TP")
@@ -3066,41 +3073,41 @@ class LiveTradingBot:
         tp1_r = getattr(self.params, 'tp1_r_multiple', 0.4)
         tp2_r = getattr(self.params, 'tp2_r_multiple', 1.6)
         tp3_r = getattr(self.params, 'tp3_r_multiple', 2.1)
-        
+
         for symbol, setup in self.pending_setups.items():
             if setup.stop_loss is None or setup.entry_price is None:
                 continue
-            
+
             # Calculate risk
             risk = abs(setup.entry_price - setup.stop_loss)
             if risk == 0:
                 continue
-            
+
             is_bullish = setup.direction == "bullish"
             needs_update = False
-            
+
             # Check and update tp4 if null or incorrect
             if tp4_r and tp4_r > 0:
                 if is_bullish:
                     correct_tp4 = setup.entry_price + (tp4_r * risk)
                 else:
                     correct_tp4 = setup.entry_price - (tp4_r * risk)
-                
+
                 if setup.tp4 is None or abs(setup.tp4 - correct_tp4) > 0.00001:
                     setup.tp4 = correct_tp4
                     needs_update = True
-            
+
             # Check and update tp5 if null or incorrect
             if tp5_r and tp5_r > 0:
                 if is_bullish:
                     correct_tp5 = setup.entry_price + (tp5_r * risk)
                 else:
                     correct_tp5 = setup.entry_price - (tp5_r * risk)
-                
+
                 if setup.tp5 is None or abs(setup.tp5 - correct_tp5) > 0.00001:
                     setup.tp5 = correct_tp5
                     needs_update = True
-            
+
             # Also update tp1/tp2/tp3 if they don't match current params
             if is_bullish:
                 correct_tp1 = setup.entry_price + (tp1_r * risk)
@@ -3110,7 +3117,7 @@ class LiveTradingBot:
                 correct_tp1 = setup.entry_price - (tp1_r * risk)
                 correct_tp2 = setup.entry_price - (tp2_r * risk)
                 correct_tp3 = setup.entry_price - (tp3_r * risk)
-            
+
             if setup.tp1 is None or abs(setup.tp1 - correct_tp1) > 0.00001:
                 setup.tp1 = correct_tp1
                 needs_update = True
@@ -3120,7 +3127,7 @@ class LiveTradingBot:
             if setup.tp3 is None or abs(setup.tp3 - correct_tp3) > 0.00001:
                 setup.tp3 = correct_tp3
                 needs_update = True
-            
+
             if needs_update:
                 updated_setups += 1
                 log.info(f"  ✅ [{symbol}] pending_setup TP levels synced: TP4={setup.tp4:.5f}, TP5={setup.tp5:.5f}")
@@ -4098,7 +4105,7 @@ class LiveTradingBot:
                 direction=direction,
                 volume=lot_size,
                 sl=sl,
-                tp=0,  # No auto-TP - bot manages partial closes at TP1/TP2/TP3 manually
+                tp=tp5 or tp3 or 0,  # Set TP5 (final TP) on MT5 as safety net
             )
             
             if not result.success:
@@ -4185,7 +4192,7 @@ class LiveTradingBot:
                 volume=lot_size,  # Correct lot size at order placement
                 entry_price=entry,
                 sl=sl,
-                tp=0,  # No auto-TP - bot manages partial closes at TP1/TP2/TP3 manually
+                tp=tp5 or tp3 or 0,  # Set TP5 (final TP) on MT5 as safety net
                 expiration_hours=int(remaining_expiry),
             )
 
@@ -4354,6 +4361,14 @@ class LiveTradingBot:
                         lot_size=setup.lot_size,
                         order_id=setup.order_ticket or 0,
                     )
+
+                    # Ensure TP5 is set on the filled position (pending orders may have had tp=0)
+                    final_tp = setup.tp5 or setup.tp3 or 0
+                    if final_tp and (filled_position.tp == 0 or abs(filled_position.tp - final_tp) > 0.001):
+                        if self.mt5.modify_sl_tp(filled_position.ticket, tp=final_tp):
+                            log.info(f"[{symbol}] ✅ TP5 set on filled position: {final_tp:.5f}")
+                        else:
+                            log.warning(f"[{symbol}] Failed to set TP5 on filled position")
                 else:
                     log.error(f"[{symbol}] Position marked as filled but not found in MT5!")
                     setup.status = "filled"
@@ -4703,13 +4718,13 @@ class LiveTradingBot:
             else:
                 current_r = (entry - current_price) / risk
             
-            # Get TP levels from params (5-TP system for optimization)
+            # Get TP levels from params (5-TP system for optimization) - matches backtest
             tp1_r = self.params.tp1_r_multiple
             tp2_r = self.params.tp2_r_multiple
             tp3_r = self.params.tp3_r_multiple
             tp4_r = getattr(self.params, 'tp4_r_multiple', 2.5)  # Default 2.5R
             tp5_r = getattr(self.params, 'tp5_r_multiple', 3.5)  # Default 3.5R
-            
+
             # Get close percentages
             tp4_close_pct = getattr(self.params, 'tp4_close_pct', 0.20)
             tp5_close_pct = getattr(self.params, 'tp5_close_pct', 0.45)
