@@ -1,0 +1,116 @@
+{
+  "initial_balance": 20000.0,
+  "final_balance": 75111.17,
+  "net_pnl": 55111.17,
+  "closed_trades_pnl": 55111.17,
+  "return_pct": 275.56,
+  "total_trades": 557,
+  "winners": 350,
+  "losers": 207,
+  "win_rate": 62.8,
+  "max_tdd_pct": 2.28,
+  "max_ddd_pct": 4.54,
+  "safety_events": 47,
+  "ddd_halts": 6,
+  "ddd_reduces": 11,
+  "ddd_warnings": 30,
+  "tdd_stopouts": 0,
+  "monthly_stats": {
+    "2025-01": {
+      "trades": 58,
+      "winners": 26,
+      "losers": 32,
+      "pnl": 651.77,
+      "partial_closes": 48,
+      "win_rate": 44.8
+    },
+    "2025-02": {
+      "trades": 59,
+      "winners": 41,
+      "losers": 18,
+      "pnl": 3185.84,
+      "partial_closes": 58,
+      "win_rate": 69.5
+    },
+    "2025-03": {
+      "trades": 37,
+      "winners": 22,
+      "losers": 15,
+      "pnl": 1824.72,
+      "partial_closes": 41,
+      "win_rate": 59.5
+    },
+    "2025-04": {
+      "trades": 54,
+      "winners": 37,
+      "losers": 17,
+      "pnl": 6133.88,
+      "partial_closes": 72,
+      "win_rate": 68.5
+    },
+    "2025-05": {
+      "trades": 53,
+      "winners": 27,
+      "losers": 26,
+      "pnl": 1038.9,
+      "partial_closes": 38,
+      "win_rate": 50.9
+    },
+    "2025-06": {
+      "trades": 45,
+      "winners": 29,
+      "losers": 16,
+      "pnl": 5265.7,
+      "partial_closes": 59,
+      "win_rate": 64.4
+    },
+    "2025-07": {
+      "trades": 45,
+      "winners": 28,
+      "losers": 17,
+      "pnl": 3363.34,
+      "partial_closes": 39,
+      "win_rate": 62.2
+    },
+    "2025-08": {
+      "trades": 38,
+      "winners": 25,
+      "losers": 13,
+      "pnl": 3913.04,
+      "partial_closes": 43,
+      "win_rate": 65.8
+    },
+    "2025-09": {
+      "trades": 39,
+      "winners": 24,
+      "losers": 15,
+      "pnl": 5255.08,
+      "partial_closes": 51,
+      "win_rate": 61.5
+    },
+    "2025-10": {
+      "trades": 48,
+      "winners": 29,
+      "losers": 19,
+      "pnl": 3138.35,
+      "partial_closes": 47,
+      "win_rate": 60.4
+    },
+    "2025-11": {
+      "trades": 53,
+      "winners": 38,
+      "losers": 15,
+      "pnl": 11307.14,
+      "partial_closes": 56,
+      "win_rate": 71.7
+    },
+    "2025-12": {
+      "trades": 28,
+      "winners": 24,
+      "losers": 4,
+      "pnl": 10033.4,
+      "partial_closes": 37,
+      "win_rate": 85.7
+    }
+  }
+}

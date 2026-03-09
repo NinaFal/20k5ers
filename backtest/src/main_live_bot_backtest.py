@@ -5551,6 +5551,7 @@ def main():
     parser.add_argument('--with-crypto', action='store_true', help='Enable BTC/ETH trading (overrides broker config)')
     parser.add_argument('--with-oil', action='store_true', help='Enable XBR/XTI oil trading (overrides broker config)')
     parser.add_argument('--symbols', type=str, default=None, help='Comma-separated list of symbols to trade (e.g. NAS100_USD,UK100_USD)')
+    parser.add_argument('--exclude-symbols', type=str, default=None, help='Comma-separated list of symbols to exclude (e.g. BTC_USD,ETH_USD)')
 
     args = parser.parse_args()
 
@@ -5572,6 +5573,13 @@ def main():
         if args.no_metals or args.with_metals or args.with_crypto or args.with_oil:
             TRADABLE_SYMBOLS = BROKER_CONFIG.get_tradable_symbols()
             print(f"  Asset overrides applied - {len(TRADABLE_SYMBOLS)} symbols")
+
+    # Exclude specific symbols
+    if args.exclude_symbols:
+        exclude_list = [s.strip() for s in args.exclude_symbols.split(',')]
+        before_count = len(TRADABLE_SYMBOLS)
+        TRADABLE_SYMBOLS = [s for s in TRADABLE_SYMBOLS if s not in exclude_list]
+        print(f"  Excluded symbols: {exclude_list} ({before_count - len(TRADABLE_SYMBOLS)} removed, {len(TRADABLE_SYMBOLS)} remaining)")
     
     # Load custom params if provided (for optimizer)
     custom_params = None
