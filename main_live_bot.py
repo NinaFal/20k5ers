@@ -2989,42 +2989,75 @@ class LiveTradingBot:
                 log.error(f"  ❌ [{order.symbol}] Order {order.ticket}: Error - {e}")
         
         # 2. Update open positions
+        # IMPORTANT: Use ORIGINAL stop_loss from pending_setups, NOT the current
+        # MT5 SL which may have been trailed (breakeven, TP1+0.5R, etc.).
+        # Using trailed SL gives wrong risk → wrong TP → TP gets deleted!
         positions = self.mt5.get_my_positions()
         log.info(f"  Found {len(positions)} open positions to check")
-        
+
+        # Build reverse symbol map for lookup
+        reverse_symbol_map = {v: k for k, v in self.symbol_map.items()}
+
         for pos in positions:
             try:
                 entry = pos.price_open
-                sl = pos.sl
-                
-                if sl == 0:
-                    log.warning(f"  [{pos.symbol}] Position {pos.ticket}: No SL set, skipping TP update")
+
+                # Find matching pending_setup to get ORIGINAL stop_loss
+                original_sl = None
+                matching_setup = None
+                broker_symbol = pos.symbol
+
+                # Try to match by ticket first, then by symbol
+                for sym, s in self.pending_setups.items():
+                    if s.order_ticket == pos.ticket and s.status == "filled":
+                        matching_setup = s
+                        break
+                    mapped_broker = self.symbol_map.get(sym, sym)
+                    if mapped_broker == broker_symbol and s.status == "filled":
+                        matching_setup = s
+                        break
+
+                if matching_setup and matching_setup.stop_loss:
+                    original_sl = matching_setup.stop_loss
+                    log.debug(f"  [{pos.symbol}] Using original SL from pending_setup: {original_sl:.5f} (MT5 current SL: {pos.sl:.5f})")
+                else:
+                    # Fallback: use MT5 SL only if no setup found
+                    # But SKIP if SL has clearly been trailed (could produce wrong TP)
+                    original_sl = pos.sl
+                    log.warning(f"  [{pos.symbol}] Position {pos.ticket}: No matching setup found, using MT5 SL: {original_sl:.5f}")
+
+                if not original_sl or original_sl == 0:
+                    log.warning(f"  [{pos.symbol}] Position {pos.ticket}: No SL available, skipping TP update")
                     continue
-                
+
                 # Determine direction
                 is_buy = pos.type == 0  # POSITION_TYPE_BUY
-                
-                # Calculate risk
-                risk = abs(entry - sl)
-                
+
+                # Calculate risk using ORIGINAL stop loss
+                risk = abs(entry - original_sl)
+
+                if risk == 0:
+                    log.warning(f"  [{pos.symbol}] Position {pos.ticket}: Zero risk (entry={entry:.5f}, SL={original_sl:.5f}), skipping TP update")
+                    continue
+
                 # Calculate new final TP
                 if is_buy:
                     new_tp = entry + (risk * final_tp_r)
                 else:
                     new_tp = entry - (risk * final_tp_r)
-                
+
                 # Check if update needed
                 current_tp = pos.tp
                 if abs(current_tp - new_tp) < 0.00001:
                     continue  # Already correct
-                
+
                 # Modify the position
                 if self.mt5.modify_sl_tp(pos.ticket, tp=new_tp):
                     log.info(f"  ✅ [{pos.symbol}] Position {pos.ticket}: TP updated {current_tp:.5f} → {new_tp:.5f} ({final_tp_name}={final_tp_r}R)")
                     updated_positions += 1
                 else:
                     log.warning(f"  ❌ [{pos.symbol}] Position {pos.ticket}: Failed to update TP")
-                    
+
             except Exception as e:
                 log.error(f"  ❌ [{pos.symbol}] Position {pos.ticket}: Error - {e}")
         
@@ -4573,22 +4606,62 @@ class LiveTradingBot:
         
         return False
     
+    def _update_ticket_after_partial_close(self, old_ticket: int, broker_symbol: str, setup, tp_price: float) -> int:
+        """
+        After a partial close, some brokers create a new ticket for the remaining position.
+        This method detects that and updates the setup + re-applies TP.
+
+        Returns the current valid ticket (new or old).
+        """
+        import time as _time
+        # Small delay to let MT5 process the partial close
+        _time.sleep(0.3)
+
+        # Check if old ticket still exists
+        positions = self.mt5.get_my_positions()
+        old_exists = any(p.ticket == old_ticket for p in positions)
+
+        if old_exists:
+            # Same ticket, just verify TP is still set
+            pos_check = next((p for p in positions if p.ticket == old_ticket), None)
+            if pos_check and (pos_check.tp == 0 or abs(pos_check.tp - tp_price) > 0.001):
+                log.warning(f"[{broker_symbol}] TP missing/wrong after partial close, re-applying: {tp_price:.5f}")
+                self.mt5.modify_sl_tp(old_ticket, tp=tp_price)
+            return old_ticket
+
+        # Old ticket gone - find new position for same symbol
+        new_pos = next((p for p in positions if p.symbol == broker_symbol), None)
+        if new_pos:
+            new_ticket = new_pos.ticket
+            log.warning(f"[{broker_symbol}] Ticket changed after partial close: {old_ticket} → {new_ticket}")
+            setup.order_ticket = new_ticket
+
+            # Re-apply TP to new position (new positions often lose TP)
+            if new_pos.tp == 0 or abs(new_pos.tp - tp_price) > 0.001:
+                log.info(f"[{broker_symbol}] Re-applying TP to new ticket {new_ticket}: {tp_price:.5f}")
+                self.mt5.modify_sl_tp(new_ticket, tp=tp_price)
+
+            return new_ticket
+
+        log.error(f"[{broker_symbol}] Position disappeared after partial close! Old ticket: {old_ticket}")
+        return old_ticket
+
     def manage_partial_takes(self):
         """
         Manage partial take profits for active positions.
-        
+
         3-TP SYSTEM (ALIGNED WITH SIMULATOR):
         - TP1: Close tp1_close_pct at tp1_r_multiple
-        - TP2: Close tp2_close_pct at tp2_r_multiple  
+        - TP2: Close tp2_close_pct at tp2_r_multiple
         - TP3: Close ALL REMAINING at tp3_r_multiple
-        
+
         All closes via MARKET ORDERS with position=ticket!
-        
+
         TRAILING STOP LOGIC (matches simulator):
         - TP1 hit: SL → Breakeven
         - TP2 hit: SL → TP1 + 0.5R
         - TP3 hit: Close ALL remaining position
-        
+
         Tracks partial close state in pending_setups.partial_closes (0-3).
         """
         positions = self.mt5.get_my_positions()
@@ -4640,7 +4713,13 @@ class LiveTradingBot:
             # Get close percentages
             tp4_close_pct = getattr(self.params, 'tp4_close_pct', 0.20)
             tp5_close_pct = getattr(self.params, 'tp5_close_pct', 0.45)
-            
+
+            # Calculate final TP price (TP5) for re-application after partial closes
+            if setup.direction == "bullish":
+                final_tp_price = entry + (risk * tp5_r)
+            else:
+                final_tp_price = entry - (risk * tp5_r)
+
             original_volume = setup.lot_size
             current_volume = pos.volume
             partial_state = setup.partial_closes if hasattr(setup, 'partial_closes') else 0
@@ -4669,16 +4748,21 @@ class LiveTradingBot:
                     log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
                     setup.partial_closes = 1
                     setup.tp1_hit = True
-                    
+
+                    # Handle ticket change + re-apply TP after partial close
+                    current_ticket = self._update_ticket_after_partial_close(
+                        pos.ticket, broker_symbol, setup, final_tp_price
+                    )
+
                     # Move SL to breakeven (matches simulator)
                     new_sl = entry
-                    self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
+                    self.mt5.modify_sl_tp(current_ticket, sl=new_sl)
                     log.info(f"[{broker_symbol}] SL moved to breakeven: {new_sl:.5f}")
-                    
+
                     self._save_pending_setups()
                 else:
                     log.error(f"[{broker_symbol}] Partial close failed: {result.error}")
-            
+
             # ═══════════════════════════════════════════════════════════════
             # PROGRESSIVE TRAILING: Between TP1 and TP2, at progressive_trigger_r move SL
             # This locks in more profit earlier, improving risk-adjusted returns
@@ -4733,20 +4817,25 @@ class LiveTradingBot:
                     log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
                     setup.partial_closes = 2
                     setup.tp2_hit = True
-                    
+
+                    # Handle ticket change + re-apply TP after partial close
+                    current_ticket = self._update_ticket_after_partial_close(
+                        pos.ticket, broker_symbol, setup, final_tp_price
+                    )
+
                     # Trail SL to TP1 + 0.5R (matches simulator)
                     if setup.direction == "bullish":
                         new_sl = entry + (risk * tp1_r) + (0.5 * risk)
                     else:
                         new_sl = entry - (risk * tp1_r) - (0.5 * risk)
-                    
-                    self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
+
+                    self.mt5.modify_sl_tp(current_ticket, sl=new_sl)
                     log.info(f"[{broker_symbol}] SL trailed to TP1+0.5R: {new_sl:.5f}")
-                    
+
                     self._save_pending_setups()
                 else:
                     log.error(f"[{broker_symbol}] Partial close failed: {result.error}")
-            
+
             # ═══════════════════════════════════════════════════════════════
             # TP3 HIT - Close tp3_close_pct, trail SL to TP2 + 0.5R
             # (5-TP system: continues to TP4/TP5 instead of closing all)
@@ -4772,20 +4861,25 @@ class LiveTradingBot:
                     log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
                     setup.partial_closes = 3
                     setup.tp3_hit = True
-                    
+
+                    # Handle ticket change + re-apply TP after partial close
+                    current_ticket = self._update_ticket_after_partial_close(
+                        pos.ticket, broker_symbol, setup, final_tp_price
+                    )
+
                     # Trail SL to TP2 + 0.5R
                     if setup.direction == "bullish":
                         new_sl = entry + (risk * tp2_r) + (0.5 * risk)
                     else:
                         new_sl = entry - (risk * tp2_r) - (0.5 * risk)
-                    
-                    self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
+
+                    self.mt5.modify_sl_tp(current_ticket, sl=new_sl)
                     log.info(f"[{broker_symbol}] SL trailed to TP2+0.5R: {new_sl:.5f}")
-                    
+
                     self._save_pending_setups()
                 else:
                     log.error(f"[{broker_symbol}] Partial close failed: {result.error}")
-            
+
             # ═══════════════════════════════════════════════════════════════
             # TP4 HIT - Close tp4_close_pct, trail SL to TP3 + 0.5R
             # ═══════════════════════════════════════════════════════════════
@@ -4810,14 +4904,19 @@ class LiveTradingBot:
                     log.info(f"[{broker_symbol}] ✅ Partial close at {result.price}")
                     setup.partial_closes = 4
                     setup.tp4_hit = True
-                    
+
+                    # Handle ticket change + re-apply TP after partial close
+                    current_ticket = self._update_ticket_after_partial_close(
+                        pos.ticket, broker_symbol, setup, final_tp_price
+                    )
+
                     # Trail SL to TP3 + 0.5R
                     if setup.direction == "bullish":
                         new_sl = entry + (risk * tp3_r) + (0.5 * risk)
                     else:
                         new_sl = entry - (risk * tp3_r) - (0.5 * risk)
-                    
-                    self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
+
+                    self.mt5.modify_sl_tp(current_ticket, sl=new_sl)
                     log.info(f"[{broker_symbol}] SL trailed to TP3+0.5R: {new_sl:.5f}")
                     
                     self._save_pending_setups()
