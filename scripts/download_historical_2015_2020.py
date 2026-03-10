@@ -353,7 +353,7 @@ def process_symbol_tf(
     existing = load_existing(symbol, tf_key)
     if not existing.empty:
         existing_start = existing["time"].min()
-        if existing_start <= START_DATE:
+        if existing_start <= START_DATE + timedelta(days=7):
             print(f"    ✓ Al aanwezig vanaf {existing_start.date()} — overgeslagen")
             return True
 
