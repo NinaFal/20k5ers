@@ -5119,6 +5119,10 @@ class LiveTradingBot:
                 log.warning("🌅 WEEKEND GAP PROTECTION TRIGGERED - closing all positions")
                 positions = self.mt5.get_my_positions()
                 for pos in positions:
+                    # Skip NAS100 - manually managed, excluded from Friday safety
+                    if wgm.is_manual_excluded(pos.symbol):
+                        log.info(f"  ⛔ Skipping {pos.symbol} (manually excluded)")
+                        continue
                     result = self.mt5.close_position(pos.ticket)
                     if result.success:
                         log.info(f"  ✓ Closed {pos.symbol} for weekend protection")
@@ -5128,7 +5132,7 @@ class LiveTradingBot:
                             pnl_usd=pos.profit,
                         )
                 return
-        
+
         # DDD/TDD CHECK BEFORE SCAN - Block new orders if in danger zone
         if CHALLENGE_MODE and self.challenge_manager:
             # Sync with MT5 to get current equity
