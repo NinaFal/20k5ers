@@ -66,6 +66,10 @@ CORRELATION_GROUPS = {
 # All crypto symbols (no weekend gap risk)
 CRYPTO_SYMBOLS = ['BTC_USD', 'ETH_USD', 'XRP_USD', 'ADA_USD']
 
+# Symbols manually managed by the trader - excluded from Friday safety check.
+# These positions will NOT be closed, reduced, or counted toward position limits.
+MANUAL_EXCLUDED_SYMBOLS = ['NAS100_USD']
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SYMBOL MAPPING (Broker format <-> OANDA format)
@@ -141,6 +145,16 @@ def is_crypto_pair(symbol: str) -> bool:
     """
     oanda_symbol = convert_broker_to_oanda(symbol)
     return oanda_symbol in CRYPTO_SYMBOLS
+
+
+def is_manual_excluded(symbol: str) -> bool:
+    """
+    Check if symbol is manually excluded from the Friday safety check.
+    These positions are manually managed by the trader and will not be
+    auto-closed, volume-reduced, or counted toward position limits.
+    """
+    oanda_symbol = convert_broker_to_oanda(symbol)
+    return oanda_symbol in MANUAL_EXCLUDED_SYMBOLS
 
 
 def get_correlation_group(symbol: str) -> str:
@@ -310,6 +324,13 @@ def select_positions_for_weekend_tier1(
         current_r = get_current_r(pos, mt5_client)
         symbol = pos.symbol
         oanda_symbol = convert_broker_to_oanda(symbol)
+
+        # MANUAL EXCLUDED (e.g. NAS100): Manually managed by trader - skip entirely
+        # Do NOT close, reduce, or count toward position limits
+        if is_manual_excluded(symbol):
+            hold.append(pos)
+            logger.info(f"⛔ HOLD {oanda_symbol}: MANUALLY EXCLUDED ({current_r:+.2f}R) - Not touched by Friday check")
+            continue
 
         # CRYPTO: Always hold (no gap risk, trades 24/7)
         if is_crypto_pair(symbol):
