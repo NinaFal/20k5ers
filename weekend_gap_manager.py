@@ -291,8 +291,8 @@ def select_positions_for_weekend_tier1(
     if current_time is None:
         current_time = datetime.now(timezone.utc)
 
-    # Only run Friday 16:00+ UTC (4 hours before forex close)
-    if current_time.weekday() != 4 or current_time.hour < 16:
+    # Only run Friday 20:00+ UTC (2 hours before forex close at 22:00 UTC)
+    if current_time.weekday() != 4 or current_time.hour < 20:
         return {
             'HOLD': list(positions),
             'CLOSE': [],

@@ -337,8 +337,8 @@ def is_friday_closing_period() -> bool:
     weekday = now.weekday()  # 0=Monday, 4=Friday
     hour = now.hour
     
-    # Friday 16:00+ UTC = closing period
-    if weekday == 4 and hour >= 16:
+    # Friday 20:00+ UTC = closing period (2h before forex close at 22:00 UTC)
+    if weekday == 4 and hour >= 20:
         return True
     
     return False
@@ -1627,9 +1627,9 @@ class LiveTradingBot:
         """
         now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
 
-        # Only run Friday 16:00+ UTC
-        if now.weekday() != 4 or now.hour < 16:
-            # Reset flag on non-Friday or before 16:00
+        # Only run Friday 20:00+ UTC (2h before forex close)
+        if now.weekday() != 4 or now.hour < 20:
+            # Reset flag on non-Friday or before 20:00
             if now.weekday() != 4:
                 self.friday_closing_done = False
             return
@@ -5035,8 +5035,8 @@ class LiveTradingBot:
             weekday = current_time.weekday()
             hour = current_time.hour
 
-            # Friday 16:00+ UTC: Close/reduce positions for weekend
-            if weekday == 4 and hour >= 16:
+            # Friday 20:00+ UTC: Close/reduce positions for weekend
+            if weekday == 4 and hour >= 20:
                 self.handle_friday_position_closing()
 
             # Sunday 22:00+: Gap detection (forex markets reopen)
