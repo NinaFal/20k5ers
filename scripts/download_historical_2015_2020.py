@@ -79,17 +79,11 @@ TRADED_SYMBOLS = [
 ]
 
 # OANDA-only symbols (werken op practice account)
-OANDA_FOREX_SYMBOLS = [s for s in TRADED_SYMBOLS
-                       if s not in ("XAU_USD", "XAG_USD", "NAS100_USD",
-                                    "BCO_USD", "XTI_USD")]
+# XAU_USD, XAG_USD, BCO_USD, NAS100_USD werken ook op practice; XTI_USD niet
+OANDA_FOREX_SYMBOLS = [s for s in TRADED_SYMBOLS if s != "XTI_USD"]
 
-# Yahoo Finance fallback (metalen, indices, olie) voor D1/W1/MN
-# Tuple: (oanda_naam, yahoo_ticker, beschrijving)
+# Yahoo Finance fallback — alleen XTI_USD (WTI olie niet beschikbaar op OANDA practice)
 YAHOO_SYMBOLS = {
-    "XAU_USD":   ("GC=F",  "Gold Futures"),
-    "XAG_USD":   ("SI=F",  "Silver Futures"),
-    "NAS100_USD": ("NQ=F", "Nasdaq 100 E-mini Futures"),
-    "BCO_USD":   ("BZ=F",  "Brent Crude Futures"),
     "XTI_USD":   ("CL=F",  "WTI Crude Futures"),
 }
 
