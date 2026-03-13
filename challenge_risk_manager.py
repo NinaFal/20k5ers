@@ -617,6 +617,10 @@ class ChallengeRiskManager:
         if self.mt5:
             try:
                 positions = self.mt5.get_my_positions()
+                # Exclude manually managed NAS100 positions from the count
+                _nas100_ids = {'NAS100', 'NAS100.cash', 'NAS100_USD'}
+                positions = [p for p in (positions or [])
+                             if getattr(p, 'symbol', '') not in _nas100_ids]
                 open_positions = len(positions) if positions else 0
                 
                 # Calculate total risk from open positions
