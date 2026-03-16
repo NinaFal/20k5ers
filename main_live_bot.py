@@ -3616,6 +3616,8 @@ class LiveTradingBot:
         # REPLACE LOGIC: New signals replace old pending setups
         # Rationale: New signal is based on latest market data, so it's likely better
         # Only skip if there's a FILLED position (handled above)
+        # IMPORTANT: We preserve the original created_at so the expiry timer doesn't reset
+        _preserved_created_at = None  # Will be passed through to place_setup_order
         if symbol in self.pending_setups:
             existing = self.pending_setups[symbol]
             if existing.status == "filled":
@@ -3629,8 +3631,8 @@ class LiveTradingBot:
                 # For now, keep the paused setup - it will be re-placed by _resume_ddd_paused_orders
                 log.info(f"[{symbol}] Paused DDD order exists ({existing.direction}) - keeping with original expiry")
                 return None
-            elif existing.status in ("pending", "halted", "closed_ddd"):
-                # Replace old pending/halted/closed with new signal
+            elif existing.status in ("pending", "halted", "closed_ddd", "awaiting_entry"):
+                # Replace old pending/halted/closed/awaiting with new signal
                 # IMPORTANT: Cancel the old MT5 pending order first!
                 if existing.order_ticket:
                     log.info(f"[{symbol}] Cancelling old pending order (ticket {existing.order_ticket}) before replacing")
@@ -3639,7 +3641,9 @@ class LiveTradingBot:
                         # Cancel FAILED - do NOT proceed, keep old order to avoid duplicates
                         log.error(f"[{symbol}] FAILED to cancel old order {existing.order_ticket} - keeping old setup to prevent duplicate")
                         return None
-                log.info(f"[{symbol}] Replacing old {existing.status} setup with new signal")
+                # Preserve original created_at so expiry timer continues
+                _preserved_created_at = existing.created_at
+                log.info(f"[{symbol}] Replacing old {existing.status} setup with new signal (preserving created_at: {_preserved_created_at})")
                 del self.pending_setups[symbol]
         
         data = self.get_candle_data(symbol)
@@ -3819,7 +3823,7 @@ class LiveTradingBot:
         if tp5_r > 0:
             log.info(f"  TP5: {tp5:.5f} ({tp5_r}R) -> CLOSE ALL remaining ({getattr(self.params, 'tp5_close_pct', 0.15)*100:.0f}%)")
         
-        return {
+        result = {
             "symbol": symbol,
             "broker_symbol": broker_symbol,
             "direction": direction,
@@ -3838,6 +3842,11 @@ class LiveTradingBot:
             "flags": flags,
             "notes": notes,
         }
+        # Preserve original created_at when replacing existing pending setup
+        # so the expiry timer doesn't reset on each daily scan
+        if _preserved_created_at:
+            result["created_at"] = _preserved_created_at
+        return result
     
     def _calculate_pending_orders_risk(self) -> float:
         """Calculate total risk from all pending setups."""
@@ -3998,7 +4007,7 @@ class LiveTradingBot:
         # This prevents re-entry when position is still open (filled) or recently closed
         if symbol in self.pending_setups:
             existing = self.pending_setups[symbol]
-            if existing.status in ("pending", "filled"):
+            if existing.status in ("pending", "filled", "awaiting_entry"):
                 log.info(f"[{symbol}] Already have {existing.status} setup at {existing.entry_price:.5f}, skipping")
                 return False
         
