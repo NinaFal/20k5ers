@@ -719,8 +719,8 @@ class LiveTradingBot:
     MAIN_LOOP_INTERVAL_SECONDS = 10
     SPREAD_CHECK_INTERVAL_MINUTES = 5
     ENTRY_CHECK_INTERVAL_MINUTES = 5  # Check entry proximity every 5 min
-    MAX_SPREAD_WAIT_HOURS = 120  # 5 days - matches backtest max_wait_bars=5
-    MAX_ENTRY_WAIT_HOURS = 120  # 5 days - matches backtest max_wait_bars=5
+    MAX_SPREAD_WAIT_HOURS = FIVEERS_CONFIG.pending_order_expiry_hours  # Same expiry for all stages
+    MAX_ENTRY_WAIT_HOURS = FIVEERS_CONFIG.pending_order_expiry_hours   # Same expiry for all stages
     WEEKEND_GAP_THRESHOLD_PCT = 1.0  # 1% gap threshold
     
     def __init__(self, immediate_scan: bool = False):
