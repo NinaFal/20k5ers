@@ -406,20 +406,40 @@ class CSVDataProvider:
         if symbol in self._data_cache and timeframe in self._data_cache[symbol]:
             return self._data_cache[symbol][timeframe]
         
-        # Find file
-        file_patterns = [
+        # Find file — check expliciete namen en daarna alle jaar-suffixes via glob
+        file_path = None
+
+        # 1. Directe namen (snelste pad)
+        for name in [
             f"{symbol}_{timeframe}.csv",
             f"{symbol}_{timeframe}_2003_2025.csv",
+            f"{symbol}_{timeframe}_2015_2025.csv",
+            f"{symbol}_{timeframe}_2015_2020.csv",
             f"{symbol}_{timeframe}_2020_2025.csv",
-        ]
-        
-        file_path = None
-        for pattern in file_patterns:
-            path = self.data_dir / pattern
-            if path.exists():
-                file_path = path
+            f"{symbol}_{timeframe}_2022_2025.csv",
+        ]:
+            candidate = self.data_dir / name
+            if candidate.exists():
+                file_path = candidate
                 break
-        
+
+        # 2. Fallback: glob op {symbol}_{timeframe}_*.csv — voorkeur voor vroegste startjaar
+        if file_path is None:
+            sym_variants = [symbol, symbol.replace("_", "")]
+            candidates = []
+            for sv in sym_variants:
+                candidates.extend(self.data_dir.glob(f"{sv}_{timeframe}_*.csv"))
+                candidates.extend(self.data_dir.glob(f"{sv}_{timeframe}.csv"))
+
+            def _start_year(p: Path) -> int:
+                parts = p.stem.split("_")
+                years = [int(x) for x in parts if x.isdigit() and len(x) == 4]
+                return min(years) if years else 9999
+
+            if candidates:
+                candidates.sort(key=_start_year)
+                file_path = candidates[0]
+
         if file_path is None:
             return None
         

@@ -515,25 +515,24 @@ class CSVMT5Simulator:
         symbol_no_underscore = symbol.replace("_", "")
         
         # Try various file patterns
-        patterns = [
-            f"{symbol}_{timeframe}.csv",
-            f"{symbol}_{timeframe}_2020_2025.csv",
-            f"{symbol}_{timeframe}_2022_2025.csv",
-            f"{symbol}_{timeframe}_2003_2025.csv",
-            f"{symbol}_{timeframe}_2014_2025.csv",
-            f"{symbol_no_underscore}_{timeframe}.csv",
-            f"{symbol_no_underscore}_{timeframe}_2020_2025.csv",
-            f"{symbol_no_underscore}_{timeframe}_2022_2025.csv",
-            f"{symbol_no_underscore}_{timeframe}_2003_2025.csv",
-            f"{symbol_no_underscore}_{timeframe}_2014_2025.csv",
-        ]
-        
+        # Always pick the file with the earliest start year (most history)
         filepath = None
-        for pattern in patterns:
-            path = self.data_dir / pattern
-            if path.exists():
-                filepath = path
-                break
+        candidates = list(self.data_dir.glob(f"{symbol}_{timeframe}_*.csv"))
+        candidates += list(self.data_dir.glob(f"{symbol_no_underscore}_{timeframe}_*.csv"))
+        if not candidates:
+            # Try exact name without year suffix
+            for name in [f"{symbol}_{timeframe}.csv", f"{symbol_no_underscore}_{timeframe}.csv"]:
+                p = self.data_dir / name
+                if p.exists():
+                    filepath = p
+                    break
+        else:
+            # Pick the file whose name contains the earliest start year
+            import re
+            def _start_year(p):
+                m = re.search(r'_(\d{4})_\d{4}', p.stem)
+                return int(m.group(1)) if m else 9999
+            filepath = min(candidates, key=_start_year)
         
         if filepath is None:
             return None
@@ -560,9 +559,11 @@ class CSVMT5Simulator:
         
         # Discover from M15 files
         symbols = set()
+        import re
         for f in self.data_dir.glob("*_M15*.csv"):
             name = f.stem
-            name = name.replace("_M15", "").replace("_2020_2025", "").replace("_2022_2025", "").replace("_2003_2025", "")
+            # Strip timeframe + any year-range suffix (e.g. _2015_2025, _2022_2025)
+            name = re.sub(r'_M15.*', '', name)
             symbols.add(name)
         
         self._available_symbols = sorted(symbols)
