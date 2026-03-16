@@ -4331,7 +4331,17 @@ class LiveTradingBot:
                 filled_position = next((p for p in my_positions if p.symbol == broker_symbol), None)
 
                 if filled_position:
-                    # Recalculate lot size with current balance for proper compounding
+                    # BUGFIX: Always use the ACTUAL MT5 position volume as lot_size.
+                    # The recalculated lot_size (compounding) is only for logging -
+                    # the filled position volume cannot be changed after fill.
+                    # Using recalculated value caused TP partial close volumes to be
+                    # wrong (e.g., closing 0.05 instead of 0.03 on a 0.16 lot).
+                    actual_volume = filled_position.volume
+                    setup.lot_size = actual_volume
+                    setup.status = "filled"
+                    setup.order_ticket = filled_position.ticket
+
+                    # Log compounding info for diagnostics only
                     new_lot_size = self._calculate_lot_size_at_fill(
                         symbol=symbol,
                         broker_symbol=broker_symbol,
@@ -4339,19 +4349,10 @@ class LiveTradingBot:
                         sl=setup.stop_loss,
                         confluence=setup.confluence_score if hasattr(setup, 'confluence_score') else 10,
                     )
-                    
-                    if new_lot_size > 0:
-                        old_lot = filled_position.volume
-                        setup.lot_size = new_lot_size
-                        setup.status = "filled"
-                        setup.order_ticket = filled_position.ticket
-                        log.info(f"[{symbol}] ✅ Lot size recalculated at fill: {old_lot:.2f} -> {new_lot_size:.2f} (compounding)")
+                    if new_lot_size > 0 and abs(new_lot_size - actual_volume) > 0.005:
+                        log.info(f"[{symbol}] ✅ Lot size at fill: {actual_volume:.2f} (compounding would suggest {new_lot_size:.2f})")
                     else:
-                        # Risk check failed at fill - use original lot size
-                        setup.lot_size = filled_position.volume
-                        setup.status = "filled"
-                        setup.order_ticket = filled_position.ticket
-                        log.warning(f"[{symbol}] Lot size recalc returned 0, using original: {setup.lot_size:.2f}")
+                        log.info(f"[{symbol}] ✅ Lot size at fill: {actual_volume:.2f} (compounding)")
                     
                     self.risk_manager.record_trade_open(
                         symbol=broker_symbol,
@@ -4746,8 +4747,8 @@ class LiveTradingBot:
                 close_pct = self.params.tp1_close_pct
                 close_volume = max(0.01, round(original_volume * close_pct, 2))
                 close_volume = min(close_volume, current_volume)
-                
-                log.info(f"[{broker_symbol}] TP1 HIT at {current_r:.2f}R! Closing {close_pct*100:.0f}%")
+
+                log.info(f"[{broker_symbol}] TP1 HIT at {current_r:.2f}R! Closing {close_pct*100:.0f}% = {close_volume:.2f} lots (original={original_volume:.2f}, current={current_volume:.2f})")
                 
                 # Retry logic for partial close (up to 3 attempts)
                 result = None
