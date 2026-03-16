@@ -54,8 +54,8 @@ OANDA_BASE_URL = (
 )
 
 # ─── Periodes ────────────────────────────────────────────────────────────────
-START_DATE = datetime(2015, 1, 1, tzinfo=timezone.utc)
-END_DATE   = datetime(2020, 12, 31, 23, 59, tzinfo=timezone.utc)
+START_DATE = datetime(2021, 1, 1, tzinfo=timezone.utc)
+END_DATE   = datetime(2022, 12, 31, 23, 59, tzinfo=timezone.utc)
 
 # ─── Alle getraden assets (OANDA formaat) ────────────────────────────────────
 # BTC_USD en ETH_USD zijn op verzoek uitgesloten
@@ -347,7 +347,9 @@ def process_symbol_tf(
     existing = load_existing(symbol, tf_key)
     if not existing.empty:
         existing_start = existing["time"].min()
-        if existing_start <= START_DATE + timedelta(days=7):
+        # Check if data in the requested range is sufficiently present
+        in_range = existing[(existing["time"] >= START_DATE) & (existing["time"] <= END_DATE)]
+        if len(in_range) >= 100:  # at least 100 bars in range = data present
             print(f"    ✓ Al aanwezig vanaf {existing_start.date()} — overgeslagen")
             return True
 
