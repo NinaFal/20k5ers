@@ -780,8 +780,8 @@ class LiveTradingBot:
     MAIN_LOOP_INTERVAL_SECONDS = 10
     SPREAD_CHECK_INTERVAL_MINUTES = 5
     ENTRY_CHECK_INTERVAL_MINUTES = 5  # Check entry proximity every 5 min
-    MAX_SPREAD_WAIT_HOURS = 120  # 5 days - matches backtest max_wait_bars=5
-    MAX_ENTRY_WAIT_HOURS = 120  # 5 days - matches backtest max_wait_bars=5
+    MAX_SPREAD_WAIT_HOURS = FIVEERS_CONFIG.pending_order_expiry_hours  # Same expiry for all stages
+    MAX_ENTRY_WAIT_HOURS = FIVEERS_CONFIG.pending_order_expiry_hours   # Same expiry for all stages
     WEEKEND_GAP_THRESHOLD_PCT = 1.0  # 1% gap threshold
     
     def __init__(self, immediate_scan: bool = False):
@@ -3616,6 +3616,8 @@ class LiveTradingBot:
         # REPLACE LOGIC: New signals replace old pending setups
         # Rationale: New signal is based on latest market data, so it's likely better
         # Only skip if there's a FILLED position (handled above)
+        # IMPORTANT: We preserve the original created_at so the expiry timer doesn't reset
+        _preserved_created_at = None  # Will be passed through to place_setup_order
         if symbol in self.pending_setups:
             existing = self.pending_setups[symbol]
             if existing.status == "filled":
@@ -3629,8 +3631,8 @@ class LiveTradingBot:
                 # For now, keep the paused setup - it will be re-placed by _resume_ddd_paused_orders
                 log.info(f"[{symbol}] Paused DDD order exists ({existing.direction}) - keeping with original expiry")
                 return None
-            elif existing.status in ("pending", "halted", "closed_ddd"):
-                # Replace old pending/halted/closed with new signal
+            elif existing.status in ("pending", "halted", "closed_ddd", "awaiting_entry"):
+                # Replace old pending/halted/closed/awaiting with new signal
                 # IMPORTANT: Cancel the old MT5 pending order first!
                 if existing.order_ticket:
                     log.info(f"[{symbol}] Cancelling old pending order (ticket {existing.order_ticket}) before replacing")
@@ -3639,7 +3641,9 @@ class LiveTradingBot:
                         # Cancel FAILED - do NOT proceed, keep old order to avoid duplicates
                         log.error(f"[{symbol}] FAILED to cancel old order {existing.order_ticket} - keeping old setup to prevent duplicate")
                         return None
-                log.info(f"[{symbol}] Replacing old {existing.status} setup with new signal")
+                # Preserve original created_at so expiry timer continues
+                _preserved_created_at = existing.created_at
+                log.info(f"[{symbol}] Replacing old {existing.status} setup with new signal (preserving created_at: {_preserved_created_at})")
                 del self.pending_setups[symbol]
         
         data = self.get_candle_data(symbol)
@@ -3819,7 +3823,7 @@ class LiveTradingBot:
         if tp5_r > 0:
             log.info(f"  TP5: {tp5:.5f} ({tp5_r}R) -> CLOSE ALL remaining ({getattr(self.params, 'tp5_close_pct', 0.15)*100:.0f}%)")
         
-        return {
+        result = {
             "symbol": symbol,
             "broker_symbol": broker_symbol,
             "direction": direction,
@@ -3838,6 +3842,11 @@ class LiveTradingBot:
             "flags": flags,
             "notes": notes,
         }
+        # Preserve original created_at when replacing existing pending setup
+        # so the expiry timer doesn't reset on each daily scan
+        if _preserved_created_at:
+            result["created_at"] = _preserved_created_at
+        return result
     
     def _calculate_pending_orders_risk(self) -> float:
         """Calculate total risk from all pending setups."""
@@ -3998,7 +4007,7 @@ class LiveTradingBot:
         # This prevents re-entry when position is still open (filled) or recently closed
         if symbol in self.pending_setups:
             existing = self.pending_setups[symbol]
-            if existing.status in ("pending", "filled"):
+            if existing.status in ("pending", "filled", "awaiting_entry"):
                 log.info(f"[{symbol}] Already have {existing.status} setup at {existing.entry_price:.5f}, skipping")
                 return False
         
@@ -4331,7 +4340,17 @@ class LiveTradingBot:
                 filled_position = next((p for p in my_positions if p.symbol == broker_symbol), None)
 
                 if filled_position:
-                    # Recalculate lot size with current balance for proper compounding
+                    # BUGFIX: Always use the ACTUAL MT5 position volume as lot_size.
+                    # The recalculated lot_size (compounding) is only for logging -
+                    # the filled position volume cannot be changed after fill.
+                    # Using recalculated value caused TP partial close volumes to be
+                    # wrong (e.g., closing 0.05 instead of 0.03 on a 0.16 lot).
+                    actual_volume = filled_position.volume
+                    setup.lot_size = actual_volume
+                    setup.status = "filled"
+                    setup.order_ticket = filled_position.ticket
+
+                    # Log compounding info for diagnostics only
                     new_lot_size = self._calculate_lot_size_at_fill(
                         symbol=symbol,
                         broker_symbol=broker_symbol,
@@ -4339,19 +4358,10 @@ class LiveTradingBot:
                         sl=setup.stop_loss,
                         confluence=setup.confluence_score if hasattr(setup, 'confluence_score') else 10,
                     )
-                    
-                    if new_lot_size > 0:
-                        old_lot = filled_position.volume
-                        setup.lot_size = new_lot_size
-                        setup.status = "filled"
-                        setup.order_ticket = filled_position.ticket
-                        log.info(f"[{symbol}] ✅ Lot size recalculated at fill: {old_lot:.2f} -> {new_lot_size:.2f} (compounding)")
+                    if new_lot_size > 0 and abs(new_lot_size - actual_volume) > 0.005:
+                        log.info(f"[{symbol}] ✅ Lot size at fill: {actual_volume:.2f} (compounding would suggest {new_lot_size:.2f})")
                     else:
-                        # Risk check failed at fill - use original lot size
-                        setup.lot_size = filled_position.volume
-                        setup.status = "filled"
-                        setup.order_ticket = filled_position.ticket
-                        log.warning(f"[{symbol}] Lot size recalc returned 0, using original: {setup.lot_size:.2f}")
+                        log.info(f"[{symbol}] ✅ Lot size at fill: {actual_volume:.2f} (compounding)")
                     
                     self.risk_manager.record_trade_open(
                         symbol=broker_symbol,
@@ -4746,8 +4756,8 @@ class LiveTradingBot:
                 close_pct = self.params.tp1_close_pct
                 close_volume = max(0.01, round(original_volume * close_pct, 2))
                 close_volume = min(close_volume, current_volume)
-                
-                log.info(f"[{broker_symbol}] TP1 HIT at {current_r:.2f}R! Closing {close_pct*100:.0f}%")
+
+                log.info(f"[{broker_symbol}] TP1 HIT at {current_r:.2f}R! Closing {close_pct*100:.0f}% = {close_volume:.2f} lots (original={original_volume:.2f}, current={current_volume:.2f})")
                 
                 # Retry logic for partial close (up to 3 attempts)
                 result = None

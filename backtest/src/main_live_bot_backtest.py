@@ -828,8 +828,8 @@ class LiveTradingBot:
     MAIN_LOOP_INTERVAL_SECONDS = 10
     SPREAD_CHECK_INTERVAL_MINUTES = 5
     ENTRY_CHECK_INTERVAL_MINUTES = 5  # Check entry proximity every 5 min
-    MAX_SPREAD_WAIT_HOURS = 120  # 5 days - matches backtest max_wait_bars=5
-    MAX_ENTRY_WAIT_HOURS = 120  # 5 days - matches backtest max_wait_bars=5
+    MAX_SPREAD_WAIT_HOURS = FIVEERS_CONFIG.pending_order_expiry_hours  # Same expiry for all stages
+    MAX_ENTRY_WAIT_HOURS = FIVEERS_CONFIG.pending_order_expiry_hours   # Same expiry for all stages
     WEEKEND_GAP_THRESHOLD_PCT = 1.0  # 1% gap threshold
     
     # NOTE: Correlation filter REMOVED - was never in main_live_bot.py
@@ -3080,6 +3080,8 @@ class LiveTradingBot:
         # REPLACE LOGIC: New signals replace old pending setups
         # Rationale: New signal is based on latest market data, so it's likely better
         # Only skip if there's a FILLED position (handled above)
+        # IMPORTANT: We preserve the original created_at so the expiry timer doesn't reset
+        _preserved_created_at = None  # Will be passed through to place_setup_order
         if symbol in self.pending_setups:
             existing = self.pending_setups[symbol]
             if existing.status == "filled":
@@ -3090,8 +3092,8 @@ class LiveTradingBot:
                 # DDD halt preserved this order - keep it (preserves expiry timer)
                 log.info(f"[{symbol}] Paused DDD order exists ({existing.direction}) - keeping with original expiry")
                 return None
-            elif existing.status in ("pending", "halted", "closed_ddd"):
-                # Replace old pending/halted/closed with new signal
+            elif existing.status in ("pending", "halted", "closed_ddd", "awaiting_entry"):
+                # Replace old pending/halted/closed/awaiting with new signal
                 # IMPORTANT: Cancel the old MT5 pending order first!
                 if existing.order_ticket:
                     log.debug(f"[{symbol}] Cancelling old pending order (ticket {existing.order_ticket}) before replacing")
@@ -3099,7 +3101,9 @@ class LiveTradingBot:
                     if not cancel_ok:
                         log.error(f"[{symbol}] FAILED to cancel old order {existing.order_ticket} - keeping old setup to prevent duplicate")
                         return None
-                log.info(f"[{symbol}] Replacing old {existing.status} setup with new signal")
+                # Preserve original created_at so expiry timer continues
+                _preserved_created_at = existing.created_at
+                log.info(f"[{symbol}] Replacing old {existing.status} setup with new signal (preserving created_at: {_preserved_created_at})")
                 del self.pending_setups[symbol]
         
         data = self.get_candle_data(symbol)
@@ -3279,7 +3283,7 @@ class LiveTradingBot:
         if tp5_r > 0:
             log.info(f"  TP5: {tp5:.5f} ({tp5_r}R) -> CLOSE ALL remaining ({getattr(self.params, 'tp5_close_pct', 0.15)*100:.0f}%)")
         
-        return {
+        result = {
             "symbol": symbol,
             "broker_symbol": broker_symbol,
             "direction": direction,
@@ -3298,7 +3302,12 @@ class LiveTradingBot:
             "flags": flags,
             "notes": notes,
         }
-    
+        # Preserve original created_at when replacing existing pending setup
+        # so the expiry timer doesn't reset on each daily scan
+        if _preserved_created_at:
+            result["created_at"] = _preserved_created_at
+        return result
+
     def _calculate_pending_orders_risk(self) -> float:
         """Calculate total risk from all pending setups."""
         pending_list = []
@@ -3468,7 +3477,7 @@ class LiveTradingBot:
         # This prevents re-entry when position is still open (filled) or recently closed
         if symbol in self.pending_setups:
             existing = self.pending_setups[symbol]
-            if existing.status in ("pending", "filled"):
+            if existing.status in ("pending", "filled", "awaiting_entry"):
                 log.info(f"[{symbol}] Already have {existing.status} setup at {existing.entry_price:.5f}, skipping")
                 return False
         

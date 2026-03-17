@@ -2,7 +2,7 @@
 CSV Data Provider - Simulates MT5 API using historical CSV data
 
 This class provides the EXACT same interface as MT5Wrapper, but reads from CSV files.
-It allows main_backtest_bot.py to run with minimal code changes.
+It allows main_live_bot_backtest.py to run with minimal code changes.
 
 Usage:
     provider = CSVDataProvider(data_dir="data/ohlcv", timeframe="M15")
