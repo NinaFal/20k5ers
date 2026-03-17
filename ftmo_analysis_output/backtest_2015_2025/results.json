@@ -1,0 +1,1076 @@
+{
+  "initial_balance": 20000.0,
+  "final_balance": 51530623.36,
+  "net_pnl": 51510623.36,
+  "closed_trades_pnl": 51510623.36,
+  "return_pct": 257553.12,
+  "total_trades": 5250,
+  "winners": 3047,
+  "losers": 2203,
+  "win_rate": 58.0,
+  "max_tdd_pct": 0.01,
+  "max_ddd_pct": 4.63,
+  "safety_events": 316,
+  "ddd_halts": 46,
+  "ddd_reduces": 49,
+  "ddd_warnings": 221,
+  "tdd_stopouts": 0,
+  "monthly_stats": {
+    "2015-01": {
+      "trades": 45,
+      "winners": 26,
+      "losers": 19,
+      "pnl": 2409.59,
+      "partial_closes": 49,
+      "win_rate": 57.8
+    },
+    "2015-02": {
+      "trades": 19,
+      "winners": 13,
+      "losers": 6,
+      "pnl": 616.72,
+      "partial_closes": 21,
+      "win_rate": 68.4
+    },
+    "2015-03": {
+      "trades": 41,
+      "winners": 28,
+      "losers": 13,
+      "pnl": 1804.41,
+      "partial_closes": 41,
+      "win_rate": 68.3
+    },
+    "2015-04": {
+      "trades": 59,
+      "winners": 28,
+      "losers": 31,
+      "pnl": -1.45,
+      "partial_closes": 41,
+      "win_rate": 47.5
+    },
+    "2015-05": {
+      "trades": 17,
+      "winners": 11,
+      "losers": 6,
+      "pnl": 1272.03,
+      "partial_closes": 26,
+      "win_rate": 64.7
+    },
+    "2015-06": {
+      "trades": 39,
+      "winners": 26,
+      "losers": 13,
+      "pnl": 3130.93,
+      "partial_closes": 46,
+      "win_rate": 66.7
+    },
+    "2015-07": {
+      "trades": 35,
+      "winners": 22,
+      "losers": 13,
+      "pnl": 1752.1,
+      "partial_closes": 35,
+      "win_rate": 62.9
+    },
+    "2015-08": {
+      "trades": 47,
+      "winners": 26,
+      "losers": 21,
+      "pnl": 3578.18,
+      "partial_closes": 58,
+      "win_rate": 55.3
+    },
+    "2015-09": {
+      "trades": 64,
+      "winners": 36,
+      "losers": 28,
+      "pnl": 3213.49,
+      "partial_closes": 39,
+      "win_rate": 56.2
+    },
+    "2015-10": {
+      "trades": 44,
+      "winners": 13,
+      "losers": 31,
+      "pnl": -2022.72,
+      "partial_closes": 30,
+      "win_rate": 29.5
+    },
+    "2015-11": {
+      "trades": 28,
+      "winners": 15,
+      "losers": 13,
+      "pnl": -76.41,
+      "partial_closes": 25,
+      "win_rate": 53.6
+    },
+    "2015-12": {
+      "trades": 40,
+      "winners": 20,
+      "losers": 20,
+      "pnl": 747.14,
+      "partial_closes": 37,
+      "win_rate": 50.0
+    },
+    "2016-01": {
+      "trades": 43,
+      "winners": 24,
+      "losers": 19,
+      "pnl": 2562.41,
+      "partial_closes": 33,
+      "win_rate": 55.8
+    },
+    "2016-02": {
+      "trades": 33,
+      "winners": 22,
+      "losers": 11,
+      "pnl": 4126.34,
+      "partial_closes": 42,
+      "win_rate": 66.7
+    },
+    "2016-03": {
+      "trades": 29,
+      "winners": 18,
+      "losers": 11,
+      "pnl": 2552.97,
+      "partial_closes": 34,
+      "win_rate": 62.1
+    },
+    "2016-04": {
+      "trades": 49,
+      "winners": 30,
+      "losers": 19,
+      "pnl": 7564.15,
+      "partial_closes": 63,
+      "win_rate": 61.2
+    },
+    "2016-05": {
+      "trades": 28,
+      "winners": 17,
+      "losers": 11,
+      "pnl": 2896.23,
+      "partial_closes": 30,
+      "win_rate": 60.7
+    },
+    "2016-06": {
+      "trades": 62,
+      "winners": 47,
+      "losers": 15,
+      "pnl": 15675.32,
+      "partial_closes": 87,
+      "win_rate": 75.8
+    },
+    "2016-07": {
+      "trades": 47,
+      "winners": 23,
+      "losers": 24,
+      "pnl": 1770.56,
+      "partial_closes": 35,
+      "win_rate": 48.9
+    },
+    "2016-08": {
+      "trades": 35,
+      "winners": 21,
+      "losers": 14,
+      "pnl": 5592.02,
+      "partial_closes": 34,
+      "win_rate": 60.0
+    },
+    "2016-09": {
+      "trades": 46,
+      "winners": 27,
+      "losers": 19,
+      "pnl": 6071.69,
+      "partial_closes": 46,
+      "win_rate": 58.7
+    },
+    "2016-10": {
+      "trades": 27,
+      "winners": 10,
+      "losers": 17,
+      "pnl": 330.51,
+      "partial_closes": 24,
+      "win_rate": 37.0
+    },
+    "2016-11": {
+      "trades": 38,
+      "winners": 21,
+      "losers": 17,
+      "pnl": 3497.25,
+      "partial_closes": 43,
+      "win_rate": 55.3
+    },
+    "2016-12": {
+      "trades": 22,
+      "winners": 12,
+      "losers": 10,
+      "pnl": 1481.08,
+      "partial_closes": 19,
+      "win_rate": 54.5
+    },
+    "2017-01": {
+      "trades": 30,
+      "winners": 20,
+      "losers": 10,
+      "pnl": 5646.2,
+      "partial_closes": 34,
+      "win_rate": 66.7
+    },
+    "2017-02": {
+      "trades": 36,
+      "winners": 26,
+      "losers": 10,
+      "pnl": 12617.21,
+      "partial_closes": 44,
+      "win_rate": 72.2
+    },
+    "2017-03": {
+      "trades": 37,
+      "winners": 19,
+      "losers": 18,
+      "pnl": -2052.98,
+      "partial_closes": 26,
+      "win_rate": 51.4
+    },
+    "2017-04": {
+      "trades": 32,
+      "winners": 11,
+      "losers": 21,
+      "pnl": -6262.14,
+      "partial_closes": 22,
+      "win_rate": 34.4
+    },
+    "2017-05": {
+      "trades": 37,
+      "winners": 19,
+      "losers": 18,
+      "pnl": 1622.41,
+      "partial_closes": 41,
+      "win_rate": 51.4
+    },
+    "2017-06": {
+      "trades": 34,
+      "winners": 22,
+      "losers": 12,
+      "pnl": 5457.4,
+      "partial_closes": 32,
+      "win_rate": 64.7
+    },
+    "2017-07": {
+      "trades": 39,
+      "winners": 23,
+      "losers": 16,
+      "pnl": 4762.05,
+      "partial_closes": 43,
+      "win_rate": 59.0
+    },
+    "2017-08": {
+      "trades": 48,
+      "winners": 27,
+      "losers": 21,
+      "pnl": 7301.91,
+      "partial_closes": 51,
+      "win_rate": 56.2
+    },
+    "2017-09": {
+      "trades": 47,
+      "winners": 27,
+      "losers": 20,
+      "pnl": 11865.24,
+      "partial_closes": 45,
+      "win_rate": 57.4
+    },
+    "2017-10": {
+      "trades": 35,
+      "winners": 23,
+      "losers": 12,
+      "pnl": 19618.75,
+      "partial_closes": 53,
+      "win_rate": 65.7
+    },
+    "2017-11": {
+      "trades": 29,
+      "winners": 15,
+      "losers": 14,
+      "pnl": 11267.94,
+      "partial_closes": 34,
+      "win_rate": 51.7
+    },
+    "2017-12": {
+      "trades": 51,
+      "winners": 21,
+      "losers": 30,
+      "pnl": -3968.08,
+      "partial_closes": 30,
+      "win_rate": 41.2
+    },
+    "2018-01": {
+      "trades": 37,
+      "winners": 26,
+      "losers": 11,
+      "pnl": 12603.5,
+      "partial_closes": 39,
+      "win_rate": 70.3
+    },
+    "2018-02": {
+      "trades": 34,
+      "winners": 20,
+      "losers": 14,
+      "pnl": 8156.22,
+      "partial_closes": 33,
+      "win_rate": 58.8
+    },
+    "2018-03": {
+      "trades": 38,
+      "winners": 26,
+      "losers": 12,
+      "pnl": 29166.73,
+      "partial_closes": 55,
+      "win_rate": 68.4
+    },
+    "2018-04": {
+      "trades": 33,
+      "winners": 17,
+      "losers": 16,
+      "pnl": 3156.38,
+      "partial_closes": 31,
+      "win_rate": 51.5
+    },
+    "2018-05": {
+      "trades": 37,
+      "winners": 19,
+      "losers": 18,
+      "pnl": -659.62,
+      "partial_closes": 32,
+      "win_rate": 51.4
+    },
+    "2018-06": {
+      "trades": 37,
+      "winners": 21,
+      "losers": 16,
+      "pnl": 5274.12,
+      "partial_closes": 30,
+      "win_rate": 56.8
+    },
+    "2018-07": {
+      "trades": 31,
+      "winners": 18,
+      "losers": 13,
+      "pnl": 13580.96,
+      "partial_closes": 31,
+      "win_rate": 58.1
+    },
+    "2018-08": {
+      "trades": 30,
+      "winners": 21,
+      "losers": 9,
+      "pnl": 35790.31,
+      "partial_closes": 50,
+      "win_rate": 70.0
+    },
+    "2018-09": {
+      "trades": 26,
+      "winners": 16,
+      "losers": 10,
+      "pnl": 14095.12,
+      "partial_closes": 27,
+      "win_rate": 61.5
+    },
+    "2018-10": {
+      "trades": 57,
+      "winners": 26,
+      "losers": 31,
+      "pnl": 9083.2,
+      "partial_closes": 47,
+      "win_rate": 45.6
+    },
+    "2018-11": {
+      "trades": 27,
+      "winners": 16,
+      "losers": 11,
+      "pnl": 23066.65,
+      "partial_closes": 38,
+      "win_rate": 59.3
+    },
+    "2018-12": {
+      "trades": 46,
+      "winners": 23,
+      "losers": 23,
+      "pnl": 18349.33,
+      "partial_closes": 45,
+      "win_rate": 50.0
+    },
+    "2019-01": {
+      "trades": 37,
+      "winners": 21,
+      "losers": 16,
+      "pnl": 14343.6,
+      "partial_closes": 39,
+      "win_rate": 56.8
+    },
+    "2019-02": {
+      "trades": 33,
+      "winners": 22,
+      "losers": 11,
+      "pnl": 30529.82,
+      "partial_closes": 36,
+      "win_rate": 66.7
+    },
+    "2019-03": {
+      "trades": 47,
+      "winners": 29,
+      "losers": 18,
+      "pnl": 42762.71,
+      "partial_closes": 55,
+      "win_rate": 61.7
+    },
+    "2019-04": {
+      "trades": 38,
+      "winners": 27,
+      "losers": 11,
+      "pnl": 32487.6,
+      "partial_closes": 35,
+      "win_rate": 71.1
+    },
+    "2019-05": {
+      "trades": 29,
+      "winners": 18,
+      "losers": 11,
+      "pnl": 28476.61,
+      "partial_closes": 38,
+      "win_rate": 62.1
+    },
+    "2019-06": {
+      "trades": 46,
+      "winners": 27,
+      "losers": 19,
+      "pnl": 44797.49,
+      "partial_closes": 49,
+      "win_rate": 58.7
+    },
+    "2019-07": {
+      "trades": 36,
+      "winners": 21,
+      "losers": 15,
+      "pnl": 67950.62,
+      "partial_closes": 54,
+      "win_rate": 58.3
+    },
+    "2019-08": {
+      "trades": 33,
+      "winners": 24,
+      "losers": 9,
+      "pnl": 76594.03,
+      "partial_closes": 47,
+      "win_rate": 72.7
+    },
+    "2019-09": {
+      "trades": 45,
+      "winners": 19,
+      "losers": 26,
+      "pnl": -2094.09,
+      "partial_closes": 37,
+      "win_rate": 42.2
+    },
+    "2019-10": {
+      "trades": 60,
+      "winners": 32,
+      "losers": 28,
+      "pnl": 61793.77,
+      "partial_closes": 43,
+      "win_rate": 53.3
+    },
+    "2019-11": {
+      "trades": 33,
+      "winners": 14,
+      "losers": 19,
+      "pnl": 4031.68,
+      "partial_closes": 32,
+      "win_rate": 42.4
+    },
+    "2019-12": {
+      "trades": 45,
+      "winners": 28,
+      "losers": 17,
+      "pnl": 100988.18,
+      "partial_closes": 70,
+      "win_rate": 62.2
+    },
+    "2020-01": {
+      "trades": 43,
+      "winners": 25,
+      "losers": 18,
+      "pnl": 100332.92,
+      "partial_closes": 48,
+      "win_rate": 58.1
+    },
+    "2020-02": {
+      "trades": 39,
+      "winners": 29,
+      "losers": 10,
+      "pnl": 152153.54,
+      "partial_closes": 53,
+      "win_rate": 74.4
+    },
+    "2020-03": {
+      "trades": 38,
+      "winners": 27,
+      "losers": 11,
+      "pnl": 100402.86,
+      "partial_closes": 40,
+      "win_rate": 71.1
+    },
+    "2020-04": {
+      "trades": 50,
+      "winners": 17,
+      "losers": 33,
+      "pnl": -91370.17,
+      "partial_closes": 13,
+      "win_rate": 34.0
+    },
+    "2020-05": {
+      "trades": 56,
+      "winners": 27,
+      "losers": 29,
+      "pnl": 77268.18,
+      "partial_closes": 39,
+      "win_rate": 48.2
+    },
+    "2020-06": {
+      "trades": 29,
+      "winners": 21,
+      "losers": 8,
+      "pnl": 135903.19,
+      "partial_closes": 39,
+      "win_rate": 72.4
+    },
+    "2020-07": {
+      "trades": 46,
+      "winners": 33,
+      "losers": 13,
+      "pnl": 286487.15,
+      "partial_closes": 64,
+      "win_rate": 71.7
+    },
+    "2020-08": {
+      "trades": 42,
+      "winners": 30,
+      "losers": 12,
+      "pnl": 249485.27,
+      "partial_closes": 56,
+      "win_rate": 71.4
+    },
+    "2020-09": {
+      "trades": 46,
+      "winners": 24,
+      "losers": 22,
+      "pnl": -43340.85,
+      "partial_closes": 24,
+      "win_rate": 52.2
+    },
+    "2020-10": {
+      "trades": 45,
+      "winners": 27,
+      "losers": 18,
+      "pnl": 94614.32,
+      "partial_closes": 45,
+      "win_rate": 60.0
+    },
+    "2020-11": {
+      "trades": 41,
+      "winners": 25,
+      "losers": 16,
+      "pnl": 170483.34,
+      "partial_closes": 49,
+      "win_rate": 61.0
+    },
+    "2020-12": {
+      "trades": 46,
+      "winners": 31,
+      "losers": 15,
+      "pnl": 284337.36,
+      "partial_closes": 56,
+      "win_rate": 67.4
+    },
+    "2021-01": {
+      "trades": 58,
+      "winners": 26,
+      "losers": 32,
+      "pnl": 54349.87,
+      "partial_closes": 34,
+      "win_rate": 44.8
+    },
+    "2021-02": {
+      "trades": 42,
+      "winners": 24,
+      "losers": 18,
+      "pnl": 287049.43,
+      "partial_closes": 49,
+      "win_rate": 57.1
+    },
+    "2021-03": {
+      "trades": 27,
+      "winners": 10,
+      "losers": 17,
+      "pnl": -71114.33,
+      "partial_closes": 24,
+      "win_rate": 37.0
+    },
+    "2021-04": {
+      "trades": 53,
+      "winners": 22,
+      "losers": 31,
+      "pnl": 59017.25,
+      "partial_closes": 33,
+      "win_rate": 41.5
+    },
+    "2021-05": {
+      "trades": 41,
+      "winners": 22,
+      "losers": 19,
+      "pnl": 208750.78,
+      "partial_closes": 42,
+      "win_rate": 53.7
+    },
+    "2021-06": {
+      "trades": 43,
+      "winners": 22,
+      "losers": 21,
+      "pnl": 78379.56,
+      "partial_closes": 34,
+      "win_rate": 51.2
+    },
+    "2021-07": {
+      "trades": 53,
+      "winners": 29,
+      "losers": 24,
+      "pnl": 243587.94,
+      "partial_closes": 55,
+      "win_rate": 54.7
+    },
+    "2021-08": {
+      "trades": 48,
+      "winners": 24,
+      "losers": 24,
+      "pnl": 132514.58,
+      "partial_closes": 34,
+      "win_rate": 50.0
+    },
+    "2021-09": {
+      "trades": 38,
+      "winners": 20,
+      "losers": 18,
+      "pnl": 124580.09,
+      "partial_closes": 40,
+      "win_rate": 52.6
+    },
+    "2021-10": {
+      "trades": 24,
+      "winners": 15,
+      "losers": 9,
+      "pnl": 155642.22,
+      "partial_closes": 25,
+      "win_rate": 62.5
+    },
+    "2021-11": {
+      "trades": 42,
+      "winners": 21,
+      "losers": 21,
+      "pnl": -112043.91,
+      "partial_closes": 26,
+      "win_rate": 50.0
+    },
+    "2021-12": {
+      "trades": 22,
+      "winners": 10,
+      "losers": 12,
+      "pnl": -16511.82,
+      "partial_closes": 24,
+      "win_rate": 45.5
+    },
+    "2022-01": {
+      "trades": 28,
+      "winners": 14,
+      "losers": 14,
+      "pnl": 221985.8,
+      "partial_closes": 32,
+      "win_rate": 50.0
+    },
+    "2022-02": {
+      "trades": 56,
+      "winners": 36,
+      "losers": 20,
+      "pnl": 260725.24,
+      "partial_closes": 47,
+      "win_rate": 64.3
+    },
+    "2022-03": {
+      "trades": 31,
+      "winners": 22,
+      "losers": 9,
+      "pnl": 385857.96,
+      "partial_closes": 38,
+      "win_rate": 71.0
+    },
+    "2022-04": {
+      "trades": 31,
+      "winners": 21,
+      "losers": 10,
+      "pnl": 269327.42,
+      "partial_closes": 32,
+      "win_rate": 67.7
+    },
+    "2022-05": {
+      "trades": 31,
+      "winners": 15,
+      "losers": 16,
+      "pnl": -91718.21,
+      "partial_closes": 26,
+      "win_rate": 48.4
+    },
+    "2022-06": {
+      "trades": 44,
+      "winners": 34,
+      "losers": 10,
+      "pnl": 920655.81,
+      "partial_closes": 67,
+      "win_rate": 77.3
+    },
+    "2022-07": {
+      "trades": 51,
+      "winners": 26,
+      "losers": 25,
+      "pnl": 107914.11,
+      "partial_closes": 32,
+      "win_rate": 51.0
+    },
+    "2022-08": {
+      "trades": 50,
+      "winners": 33,
+      "losers": 17,
+      "pnl": 716521.25,
+      "partial_closes": 59,
+      "win_rate": 66.0
+    },
+    "2022-09": {
+      "trades": 44,
+      "winners": 34,
+      "losers": 10,
+      "pnl": 1702688.73,
+      "partial_closes": 77,
+      "win_rate": 77.3
+    },
+    "2022-10": {
+      "trades": 39,
+      "winners": 13,
+      "losers": 26,
+      "pnl": -112691.77,
+      "partial_closes": 24,
+      "win_rate": 33.3
+    },
+    "2022-11": {
+      "trades": 48,
+      "winners": 29,
+      "losers": 19,
+      "pnl": 313302.71,
+      "partial_closes": 36,
+      "win_rate": 60.4
+    },
+    "2022-12": {
+      "trades": 31,
+      "winners": 20,
+      "losers": 11,
+      "pnl": 567533.46,
+      "partial_closes": 37,
+      "win_rate": 64.5
+    },
+    "2023-01": {
+      "trades": 47,
+      "winners": 25,
+      "losers": 22,
+      "pnl": 526541.15,
+      "partial_closes": 44,
+      "win_rate": 53.2
+    },
+    "2023-02": {
+      "trades": 34,
+      "winners": 26,
+      "losers": 8,
+      "pnl": 1292399.59,
+      "partial_closes": 45,
+      "win_rate": 76.5
+    },
+    "2023-03": {
+      "trades": 48,
+      "winners": 35,
+      "losers": 13,
+      "pnl": 1514367.95,
+      "partial_closes": 59,
+      "win_rate": 72.9
+    },
+    "2023-04": {
+      "trades": 27,
+      "winners": 20,
+      "losers": 7,
+      "pnl": 1722537.99,
+      "partial_closes": 45,
+      "win_rate": 74.1
+    },
+    "2023-05": {
+      "trades": 60,
+      "winners": 34,
+      "losers": 26,
+      "pnl": 876900.33,
+      "partial_closes": 43,
+      "win_rate": 56.7
+    },
+    "2023-06": {
+      "trades": 37,
+      "winners": 23,
+      "losers": 14,
+      "pnl": 1092256.8,
+      "partial_closes": 39,
+      "win_rate": 62.2
+    },
+    "2023-07": {
+      "trades": 49,
+      "winners": 26,
+      "losers": 23,
+      "pnl": 805763.54,
+      "partial_closes": 48,
+      "win_rate": 53.1
+    },
+    "2023-08": {
+      "trades": 25,
+      "winners": 18,
+      "losers": 7,
+      "pnl": 1823495.76,
+      "partial_closes": 33,
+      "win_rate": 72.0
+    },
+    "2023-09": {
+      "trades": 66,
+      "winners": 25,
+      "losers": 41,
+      "pnl": -1034807.46,
+      "partial_closes": 35,
+      "win_rate": 37.9
+    },
+    "2023-10": {
+      "trades": 39,
+      "winners": 19,
+      "losers": 20,
+      "pnl": 164513.28,
+      "partial_closes": 38,
+      "win_rate": 48.7
+    },
+    "2023-11": {
+      "trades": 38,
+      "winners": 23,
+      "losers": 15,
+      "pnl": 754113.74,
+      "partial_closes": 34,
+      "win_rate": 60.5
+    },
+    "2023-12": {
+      "trades": 31,
+      "winners": 20,
+      "losers": 11,
+      "pnl": 962249.6,
+      "partial_closes": 39,
+      "win_rate": 64.5
+    },
+    "2024-01": {
+      "trades": 27,
+      "winners": 16,
+      "losers": 11,
+      "pnl": 735605.29,
+      "partial_closes": 29,
+      "win_rate": 59.3
+    },
+    "2024-02": {
+      "trades": 45,
+      "winners": 23,
+      "losers": 22,
+      "pnl": 660809.82,
+      "partial_closes": 46,
+      "win_rate": 51.1
+    },
+    "2024-03": {
+      "trades": 44,
+      "winners": 26,
+      "losers": 18,
+      "pnl": 534425.52,
+      "partial_closes": 40,
+      "win_rate": 59.1
+    },
+    "2024-04": {
+      "trades": 46,
+      "winners": 29,
+      "losers": 17,
+      "pnl": 2062058.16,
+      "partial_closes": 61,
+      "win_rate": 63.0
+    },
+    "2024-05": {
+      "trades": 46,
+      "winners": 28,
+      "losers": 18,
+      "pnl": 1607165.84,
+      "partial_closes": 37,
+      "win_rate": 60.9
+    },
+    "2024-06": {
+      "trades": 52,
+      "winners": 28,
+      "losers": 24,
+      "pnl": 997855.09,
+      "partial_closes": 51,
+      "win_rate": 53.8
+    },
+    "2024-07": {
+      "trades": 33,
+      "winners": 17,
+      "losers": 16,
+      "pnl": 332322.76,
+      "partial_closes": 38,
+      "win_rate": 51.5
+    },
+    "2024-08": {
+      "trades": 22,
+      "winners": 12,
+      "losers": 10,
+      "pnl": 693552.37,
+      "partial_closes": 30,
+      "win_rate": 54.5
+    },
+    "2024-09": {
+      "trades": 33,
+      "winners": 20,
+      "losers": 13,
+      "pnl": 706597.53,
+      "partial_closes": 34,
+      "win_rate": 60.6
+    },
+    "2024-10": {
+      "trades": 45,
+      "winners": 28,
+      "losers": 17,
+      "pnl": 1477210.04,
+      "partial_closes": 50,
+      "win_rate": 62.2
+    },
+    "2024-11": {
+      "trades": 50,
+      "winners": 29,
+      "losers": 21,
+      "pnl": -455216.62,
+      "partial_closes": 43,
+      "win_rate": 58.0
+    },
+    "2024-12": {
+      "trades": 33,
+      "winners": 19,
+      "losers": 14,
+      "pnl": 986603.76,
+      "partial_closes": 38,
+      "win_rate": 57.6
+    },
+    "2025-01": {
+      "trades": 42,
+      "winners": 22,
+      "losers": 20,
+      "pnl": 936101.92,
+      "partial_closes": 39,
+      "win_rate": 52.4
+    },
+    "2025-02": {
+      "trades": 48,
+      "winners": 36,
+      "losers": 12,
+      "pnl": 2870057.11,
+      "partial_closes": 58,
+      "win_rate": 75.0
+    },
+    "2025-03": {
+      "trades": 33,
+      "winners": 20,
+      "losers": 13,
+      "pnl": 1582848.81,
+      "partial_closes": 38,
+      "win_rate": 60.6
+    },
+    "2025-04": {
+      "trades": 51,
+      "winners": 35,
+      "losers": 16,
+      "pnl": 3088738.36,
+      "partial_closes": 64,
+      "win_rate": 68.6
+    },
+    "2025-05": {
+      "trades": 48,
+      "winners": 24,
+      "losers": 24,
+      "pnl": 71264.8,
+      "partial_closes": 33,
+      "win_rate": 50.0
+    },
+    "2025-06": {
+      "trades": 40,
+      "winners": 27,
+      "losers": 13,
+      "pnl": 2198985.15,
+      "partial_closes": 56,
+      "win_rate": 67.5
+    },
+    "2025-07": {
+      "trades": 34,
+      "winners": 21,
+      "losers": 13,
+      "pnl": 1224459.87,
+      "partial_closes": 33,
+      "win_rate": 61.8
+    },
+    "2025-08": {
+      "trades": 30,
+      "winners": 20,
+      "losers": 10,
+      "pnl": 1756684.82,
+      "partial_closes": 36,
+      "win_rate": 66.7
+    },
+    "2025-09": {
+      "trades": 34,
+      "winners": 20,
+      "losers": 14,
+      "pnl": 2534543.65,
+      "partial_closes": 43,
+      "win_rate": 58.8
+    },
+    "2025-10": {
+      "trades": 43,
+      "winners": 25,
+      "losers": 18,
+      "pnl": 837697.47,
+      "partial_closes": 43,
+      "win_rate": 58.1
+    },
+    "2025-11": {
+      "trades": 42,
+      "winners": 33,
+      "losers": 9,
+      "pnl": 3138287.94,
+      "partial_closes": 55,
+      "win_rate": 78.6
+    },
+    "2025-12": {
+      "trades": 25,
+      "winners": 17,
+      "losers": 8,
+      "pnl": 1695825.01,
+      "partial_closes": 22,
+      "win_rate": 68.0
+    }
+  }
+}
