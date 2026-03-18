@@ -152,8 +152,10 @@ class Fiveers60KConfig:
     major_news_events: List[Tuple[int, int, int]] = field(default_factory=lambda: [
         # US NFP (First Friday of month, 13:30 UTC)
         (4, 13, 30),  # Friday NFP
-        # FOMC Rate Decision (8x per year, typically 19:00 UTC Wednesday)
-        (2, 19, 0),   # Wednesday FOMC
+        # FOMC Rate Decision (8x per year, always 14:00 ET / 19:00 EST / 18:00 EDT)
+        # Both times covered: EST (UTC-5) winter = 19:00 UTC, EDT (UTC-4) summer = 18:00 UTC
+        (2, 18, 0),   # Wednesday FOMC (EDT, Mar-Nov)
+        (2, 19, 0),   # Wednesday FOMC (EST, Nov-Mar)
         # US CPI (Monthly, typically Tuesday 13:30 UTC)
         (1, 13, 30),  # Tuesday CPI
         # ECB Rate Decision (8x per year, typically Thursday 12:45 UTC)
