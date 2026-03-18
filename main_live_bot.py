@@ -1337,13 +1337,19 @@ class LiveTradingBot:
             if entry_distance_r > FIVEERS_CONFIG.max_entry_distance_r:
                 log.debug(f"[{symbol}] Entry {entry_distance_r:.2f}R away (beyond {FIVEERS_CONFIG.max_entry_distance_r}R) - keeping order, price may return")
             
-            # Check if price is close enough to place limit order
-            if entry_distance_r <= proximity_r:
-                log.info(f"[{symbol}] ✅ Price within {proximity_r}R of entry ({entry_distance_r:.2f}R)")
-                
+            # Check if price is close enough to place limit order.
+            # News-paused orders skip proximity: they were already valid when cancelled,
+            # so re-place them directly as limit orders regardless of current distance.
+            is_news_paused = setup.get("news_paused", False)
+            if entry_distance_r <= proximity_r or is_news_paused:
+                if is_news_paused:
+                    log.info(f"[{symbol}] 📰 News-paused order - re-placing as limit order ({entry_distance_r:.2f}R from entry)")
+                else:
+                    log.info(f"[{symbol}] ✅ Price within {proximity_r}R of entry ({entry_distance_r:.2f}R)")
+
                 # Check spread before placing order
                 conditions = self.check_market_conditions(symbol)
-                
+
                 if conditions["spread_ok"]:
                     log.info(f"[{symbol}] Placing limit order!")
                     if self.place_setup_order(setup, check_spread=False, skip_proximity_check=True):
@@ -4089,6 +4095,7 @@ class LiveTradingBot:
         # ═══════════════════════════════════════════════════════════════
         if self.is_news_blackout():
             log.warning(f"[{symbol}] NEWS BLACKOUT - order blocked, adding to entry queue")
+            setup["news_paused"] = True  # Skip proximity check when re-placing after blackout
             self.add_to_awaiting_entry(setup)
             return False
         
