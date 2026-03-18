@@ -1990,13 +1990,19 @@ class LiveTradingBot:
         3. If lot size differs by >5%, cancel and replace the order
         """
         now = datetime.now(timezone.utc)
-        
+
+        # Skip during news blackout - cancelling and re-placing orders during FOMC/NFP
+        # risks the broker rejecting the new order, leaving us with no order at all.
+        if self.is_news_blackout():
+            log.debug("Skipping compounding update - news blackout active")
+            return
+
         # Skip if checked recently
         if self.last_limit_order_update:
             time_since = (now - self.last_limit_order_update).total_seconds() / 60
             if time_since < self.LIMIT_ORDER_UPDATE_INTERVAL_MINUTES:
                 return
-        
+
         pending_orders = self.mt5.get_my_pending_orders()
         if not pending_orders:
             self.last_limit_order_update = now
@@ -2122,7 +2128,25 @@ class LiveTradingBot:
                             setup.order_ticket = new_order_result.order_id
                             self._save_pending_setups()
                     else:
+                        # Old order was cancelled but new placement failed (e.g. broker freeze during news).
+                        # Save to awaiting_entry so the bot re-places it after conditions normalise.
                         log.error(f"  ✗ Failed to place new order - order cancelled but not replaced!")
+                        rescue_setup = {
+                            "symbol": internal_symbol,
+                            "direction": direction,
+                            "entry": entry,
+                            "stop_loss": sl,
+                            "tp3": tp,
+                            "tp5": tp,
+                            "news_paused": True,
+                        }
+                        if setup:
+                            if hasattr(setup, '__dict__'):
+                                rescue_setup.update({k: v for k, v in vars(setup).items() if v is not None})
+                            elif isinstance(setup, dict):
+                                rescue_setup.update(setup)
+                        self.add_to_awaiting_entry(rescue_setup)
+                        log.warning(f"  ↩ Saved {internal_symbol} to awaiting_entry for re-placement")
                 else:
                     log.error(f"  ✗ Failed to cancel old order {order.ticket}")
             else:
