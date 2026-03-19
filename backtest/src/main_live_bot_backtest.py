@@ -2375,11 +2375,16 @@ class LiveTradingBot:
         if not self.mt5.connect():
             log.error("Failed to connect (simulated)")
             return False
-        
-        # BACKTEST: Load M15 data for all symbols
+
+        # BACKTEST: Set date filter for optimized data loading
+        self.mt5.set_date_filter(self.start_date, self.end_date)
+
+        # BACKTEST: Load M15 data for all symbols (filtered by date range)
         from config import FOREX_PAIRS, METALS, OIL_ASSETS, INDICES, CRYPTO_ASSETS
         all_symbols = FOREX_PAIRS + METALS + OIL_ASSETS + INDICES + CRYPTO_ASSETS
-        self.mt5.load_m15_data(all_symbols)
+        self.mt5.load_m15_data(all_symbols,
+                               start_date=self.start_date,
+                               end_date=self.end_date)
         
         account = self.mt5.get_account_info()
         log.info(f"Connected: {account.get('login')} @ {account.get('server')}")
