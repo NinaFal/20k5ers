@@ -174,7 +174,11 @@ class StrategyParams:
     
     fib_low: float = 0.382
     fib_high: float = 0.886
-    
+
+    # Entry refinement (Optuna-optimizable for better entry prices)
+    entry_fib_level: float = 0.618      # Fib retracement level for entry (0.5-0.786)
+    entry_limit_offset_atr: float = 0.0 # Extra ATR offset toward better price (0-0.3)
+
     structure_sl_lookback: int = 35
     
     # DISABLED: All indicator filters temporarily disabled for baseline testing
@@ -2324,17 +2328,21 @@ def compute_trade_levels(
         span = hi - lo
         if span > 0:
             if direction == "bullish":
-                gp_mid = hi - span * 0.618
+                fib_level = getattr(params, 'entry_fib_level', 0.618)
+                offset = getattr(params, 'entry_limit_offset_atr', 0.0)
+                gp_mid = hi - span * fib_level
+                # Apply ATR offset: bullish = enter lower (better price)
+                gp_mid -= atr * offset
                 entry = current if abs(current - gp_mid) < atr * 0.3 else gp_mid
-                
+
                 base_sl = lo - atr * 0.5
                 if structure_sl is not None:
                     sl = min(base_sl, structure_sl - atr * 0.4)
                 else:
                     sl = base_sl
-                
+
                 risk = entry - sl
-                
+
                 if risk > 0:
                     # Use tp_r_multiple from Optuna optimization (not atr_tp_multiplier)
                     tp1 = entry + risk * params.tp1_r_multiple
@@ -2342,21 +2350,25 @@ def compute_trade_levels(
                     tp3 = entry + risk * params.tp3_r_multiple
                     tp4 = entry + risk * (params.tp3_r_multiple + 1.0)  # TP3 + 1R
                     tp5 = entry + risk * (params.tp3_r_multiple + 2.0)  # TP3 + 2R
-                    
+
                     note = f"R/R: Entry near {entry:.5f}, SL at {sl:.5f}"
                     return note, True, entry, sl, tp1, tp2, tp3, tp4, tp5
             else:
-                gp_mid = lo + span * 0.618
+                fib_level = getattr(params, 'entry_fib_level', 0.618)
+                offset = getattr(params, 'entry_limit_offset_atr', 0.0)
+                gp_mid = lo + span * fib_level
+                # Apply ATR offset: bearish = enter higher (better price)
+                gp_mid += atr * offset
                 entry = current if abs(current - gp_mid) < atr * 0.3 else gp_mid
-                
+
                 base_sl = hi + atr * 0.5
                 if structure_sl is not None:
                     sl = max(base_sl, structure_sl + atr * 0.4)
                 else:
                     sl = base_sl
-                
+
                 risk = sl - entry
-                
+
                 if risk > 0:
                     # Use tp_r_multiple from Optuna optimization (not atr_tp_multiplier)
                     tp1 = entry - risk * params.tp1_r_multiple

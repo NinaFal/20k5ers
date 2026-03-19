@@ -1,0 +1,51 @@
+{
+  "optimization_mode": "ENTRY_ONLY",
+  "timestamp": "2026-03-19T17:23:00.264069",
+  "config": {
+    "trials": 1,
+    "start": "2024-01-01",
+    "end": "2024-01-31",
+    "balance": 20000,
+    "fib_range": [
+      0.5,
+      0.786
+    ],
+    "offset_range": [
+      0.0,
+      0.5
+    ]
+  },
+  "best_score": -2000.0,
+  "best_parameters": {
+    "entry_fib_level": 0.618,
+    "entry_limit_offset_atr": 0.0
+  },
+  "best_metrics": {
+    "net_return_pct": -100,
+    "total_trades": 0,
+    "win_rate": 0,
+    "max_tdd_pct": 100,
+    "max_ddd_pct": 100,
+    "ddd_halts": 0,
+    "valid": false
+  },
+  "all_trials": [
+    {
+      "trial": 0,
+      "score": -2000.0,
+      "params": {
+        "entry_fib_level": 0.618,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "valid": false
+      }
+    }
+  ]
+}

@@ -87,6 +87,14 @@ class BacktestConfig:
     # Min quality factors for active signal
     min_quality_factors: int = 3
 
+    # Entry price shift (0.005 = 0.5%)
+    # Longs: limit/market shifted UP (worse), stop shifted DOWN (better)
+    # Shorts: limit/market shifted DOWN (worse), stop shifted UP (better)
+    entry_shift_pct: float = 0.0
+
+    # Disable TDD stop-out for comparison runs
+    disable_tdd_stopout: bool = False
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONTRACT SPECS
@@ -285,13 +293,15 @@ class DataLoader:
         
         # Try various file patterns (both OANDA and simple format)
         patterns = [
-            f"{symbol}_{timeframe}.csv",
+            f"{symbol}_{timeframe}_2015_2025.csv",
             f"{symbol}_{timeframe}_2003_2025.csv",
-            f"{symbol}_{timeframe}_2020_2025.csv",
             f"{symbol}_{timeframe}_2014_2025.csv",
-            f"{symbol_no_underscore}_{timeframe}.csv",
+            f"{symbol}_{timeframe}_2020_2025.csv",
+            f"{symbol}_{timeframe}.csv",
+            f"{symbol_no_underscore}_{timeframe}_2015_2025.csv",
             f"{symbol_no_underscore}_{timeframe}_2003_2025.csv",
             f"{symbol_no_underscore}_{timeframe}_2020_2025.csv",
+            f"{symbol_no_underscore}_{timeframe}.csv",
         ]
         
         filepath = None
@@ -307,6 +317,9 @@ class DataLoader:
         try:
             df = pd.read_csv(filepath, parse_dates=['time'])
             df.columns = [c.lower() for c in df.columns]
+            # Normalize to tz-naive for consistent comparisons
+            if df['time'].dt.tz is not None:
+                df['time'] = df['time'].dt.tz_localize(None)
             df = df.sort_values('time').reset_index(drop=True)
             
             # Cache
@@ -396,9 +409,13 @@ class M15BacktestBot:
         for symbol in self.symbols:
             df = self.data_loader.load(symbol, "M15")
             if df is not None:
-                # Filter to date range
-                mask = (df['time'] >= pd.Timestamp(self.start_date)) & \
-                       (df['time'] <= pd.Timestamp(self.end_date))
+                # Filter to date range (handle tz-aware/naive)
+                start_ts = pd.Timestamp(self.start_date)
+                end_ts = pd.Timestamp(self.end_date)
+                if df['time'].dt.tz is not None and start_ts.tzinfo is None:
+                    start_ts = start_ts.tz_localize('UTC')
+                    end_ts = end_ts.tz_localize('UTC')
+                mask = (df['time'] >= start_ts) & (df['time'] <= end_ts)
                 times = df.loc[mask, 'time'].tolist()
                 all_times.update(times)
         
@@ -406,19 +423,30 @@ class M15BacktestBot:
         print(f"  Timeline: {len(self.timeline)} M15 bars")
         print(f"  From {self.timeline[0]} to {self.timeline[-1]}")
         
-        # Index M15 data for fast lookup
-        self.m15_indexed: Dict[str, Dict[datetime, dict]] = {}
+        # Index M15 data for fast lookup (vectorized)
+        self.m15_indexed: Dict[str, Dict] = {}
         for symbol in self.symbols:
             df = self.data_loader.load(symbol, "M15")
             if df is not None:
-                self.m15_indexed[symbol] = {}
-                for _, row in df.iterrows():
-                    self.m15_indexed[symbol][row['time']] = {
-                        'open': row['open'],
-                        'high': row['high'],
-                        'low': row['low'],
-                        'close': row['close'],
+                # Filter to date range and build dict using vectorized ops
+                mask = (df['time'] >= self.timeline[0]) & (df['time'] <= self.timeline[-1])
+                subset = df.loc[mask]
+                indexed = {}
+                times = subset['time'].values
+                opens = subset['open'].values
+                highs = subset['high'].values
+                lows = subset['low'].values
+                closes = subset['close'].values
+                for i in range(len(times)):
+                    t = pd.Timestamp(times[i]).to_pydatetime()
+                    indexed[t] = {
+                        'open': float(opens[i]),
+                        'high': float(highs[i]),
+                        'low': float(lows[i]),
+                        'close': float(closes[i]),
                     }
+                self.m15_indexed[symbol] = indexed
+        print(f"  Indexed M15 data for {len(self.m15_indexed)} symbols")
     
     def get_bar(self, symbol: str, time: datetime) -> Optional[Dict]:
         """Get M15 bar for symbol at time."""
@@ -512,14 +540,42 @@ class M15BacktestBot:
         )
         
         entry, sl, tp1, tp2, tp3, tp4, tp5 = trade_levels
-        
+
         if entry is None or sl is None:
             return None
-        
+
+        # Apply entry price shift if configured
+        if self.config.entry_shift_pct != 0:
+            shift = self.config.entry_shift_pct
+            # Get current price to determine order type (limit vs stop)
+            bar = self.get_bar(symbol, scan_time)
+            current_price = bar['close'] if bar else entry
+
+            if direction == "bullish":
+                if entry < current_price:
+                    # Buy limit → shift entry UP (worse fill)
+                    entry = entry * (1 + shift)
+                else:
+                    # Buy stop → shift entry DOWN (better trigger)
+                    entry = entry * (1 - shift)
+            else:
+                if entry > current_price:
+                    # Sell limit → shift entry DOWN (worse fill)
+                    entry = entry * (1 - shift)
+                else:
+                    # Sell stop → shift entry UP (better trigger)
+                    entry = entry * (1 + shift)
+
+            # Entry must not cross SL after shift
+            if direction == "bullish" and entry <= sl:
+                return None
+            if direction == "bearish" and entry >= sl:
+                return None
+
         risk = abs(entry - sl)
         if risk <= 0:
             return None
-        
+
         # Calculate confluence score
         confluence_score = sum(1 for v in flags.values() if v)
         
@@ -876,7 +932,7 @@ class M15BacktestBot:
             # Check TDD stop-out
             tdd_pct, tdd_breached = self.check_tdd(equity)
             max_tdd = max(max_tdd, tdd_pct)
-            if tdd_breached:
+            if tdd_breached and not self.config.disable_tdd_stopout:
                 print(f"\n🚨 TDD STOP-OUT at {current_dt}: {tdd_pct:.1f}%")
                 self.close_all_positions(current_dt, "TDD_STOP_OUT")
                 break
@@ -1002,10 +1058,12 @@ def main():
     parser.add_argument('--balance', type=float, default=20000, help='Initial balance')
     parser.add_argument('--data-dir', type=str, default='data/ohlcv', help='Data directory')
     parser.add_argument('--output', type=str, default='ftmo_analysis_output/m15_backtest', help='Output directory')
-    
+    parser.add_argument('--entry-shift', type=float, default=0.0, help='Entry price shift pct (0.005 = 0.5%%)')
+    parser.add_argument('--no-tdd-stopout', action='store_true', help='Disable TDD stop-out (for comparison runs)')
+
     args = parser.parse_args()
     
-    # Parse dates
+    # Parse dates (tz-naive)
     start_date = datetime.strptime(args.start, '%Y-%m-%d')
     end_date = datetime.strptime(args.end, '%Y-%m-%d')
     
@@ -1018,11 +1076,13 @@ def main():
     # Get symbols that have M15 data
     data_dir = Path(args.data_dir)
     available_symbols = []
+    import re
     for f in data_dir.glob("*_M15*.csv"):
-        # Extract symbol name
+        # Extract symbol name - remove _M15 and year suffixes like _2015_2025
         name = f.stem
-        name = name.replace("_M15", "").replace("_2003_2025", "").replace("_2020_2025", "")
-        available_symbols.append(name)
+        name = re.sub(r'_M15.*', '', name)
+        if name not in available_symbols:
+            available_symbols.append(name)
     
     print(f"✓ Found M15 data for {len(available_symbols)} symbols: {available_symbols[:5]}...")
     
@@ -1030,7 +1090,13 @@ def main():
     config = BacktestConfig(
         initial_balance=args.balance,
         min_quality_factors=FIVEERS_CONFIG.min_quality_factors,
+        entry_shift_pct=args.entry_shift,
+        disable_tdd_stopout=args.no_tdd_stopout,
     )
+    if args.entry_shift != 0:
+        print(f"  ENTRY SHIFT: {args.entry_shift*100:.2f}% applied")
+    if args.no_tdd_stopout:
+        print(f"  TDD STOP-OUT: DISABLED (comparison mode)")
     
     # Run backtest
     bot = M15BacktestBot(

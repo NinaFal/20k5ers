@@ -18,6 +18,14 @@ import numpy as np
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Tuple
+
+
+def _to_utc_ts(dt) -> pd.Timestamp:
+    """Convert any datetime/Timestamp to UTC-aware pd.Timestamp safely."""
+    ts = pd.Timestamp(dt)
+    if ts.tzinfo is None:
+        return ts.tz_localize('UTC')
+    return ts.tz_convert('UTC')
 from dataclasses import dataclass
 import logging
 
@@ -208,6 +216,10 @@ class CSVMT5Simulator:
         
         # Available symbols (discovered from M15 files)
         self._available_symbols: List[str] = []
+
+        # Date filter for optimized data loading (set via set_date_filter)
+        self._filter_start: Optional[datetime] = None
+        self._filter_end: Optional[datetime] = None
         
         # Closed trades log
         self._closed_trades: List[dict] = []
@@ -215,7 +227,13 @@ class CSVMT5Simulator:
     # ═══════════════════════════════════════════════════════════════════════
     # SIMULATION CONTROL (not in MT5Client, but needed for backtest)
     # ═══════════════════════════════════════════════════════════════════════
-    
+
+    def set_date_filter(self, start_date: datetime, end_date: datetime):
+        """Set date filter to optimize data loading — only load data in range."""
+        self._filter_start = start_date
+        self._filter_end = end_date
+        log.info(f"Date filter set: {start_date} to {end_date}")
+
     def set_current_time(self, time: datetime):
         """Set simulated current time."""
         if time.tzinfo is None:
@@ -234,23 +252,44 @@ class CSVMT5Simulator:
         """Get list of closed trades (for results)."""
         return self._closed_trades
     
-    def load_m15_data(self, symbols: List[str]):
-        """Pre-load M15 data for fast access during simulation (OPTIMIZED)."""
+    def load_m15_data(self, symbols: List[str],
+                      start_date: datetime = None, end_date: datetime = None):
+        """Pre-load M15 data for fast access during simulation (OPTIMIZED).
+
+        Args:
+            symbols: List of symbols to load
+            start_date: Only load data from this date (with lookback buffer for indicators)
+            end_date: Only load data up to this date
+        """
         log.info(f"Loading M15 data for {len(symbols)} symbols...")
+        if start_date or end_date:
+            log.info(f"  Date filter: {start_date} to {end_date}")
+
         for symbol in symbols:
             df = self._load_data(symbol, "M15")
             if df is not None and not df.empty:
                 self._available_symbols.append(symbol)
-                
+
                 # OPTIMIZED: Vectorized indexing instead of iterrows
                 # Convert time column to proper datetime with UTC
                 if df['time'].dt.tz is None:
                     df['time'] = df['time'].dt.tz_localize('UTC')
-                
+
+                # DATE FILTER: Only keep data in range (with 60-day lookback for indicators)
+                if start_date is not None:
+                    lookback_start = _to_utc_ts(start_date) - pd.Timedelta(days=60)
+                    df = df[df['time'] >= lookback_start]
+                if end_date is not None:
+                    filter_end = _to_utc_ts(end_date) + pd.Timedelta(days=1)
+                    df = df[df['time'] <= filter_end]
+
+                if df.empty:
+                    continue
+
                 # Create dict with timestamp as key using vectorized operations
                 df_indexed = df.set_index('time')[['open', 'high', 'low', 'close', 'volume']].to_dict('index')
                 self._m15_indexed[symbol] = df_indexed
-                
+
         log.info(f"Loaded M15 data for {len(self._available_symbols)} symbols")
     
     def get_m15_bar(self, symbol: str, time: datetime) -> Optional[dict]:
@@ -510,10 +549,10 @@ class CSVMT5Simulator:
         # Check cache
         if symbol in self._data_cache and timeframe in self._data_cache[symbol]:
             return self._data_cache[symbol][timeframe]
-        
+
         # Symbol formats: OANDA (AUD_USD) vs simple (AUDUSD)
         symbol_no_underscore = symbol.replace("_", "")
-        
+
         # Try various file patterns
         # Always pick the file with the earliest start year (most history)
         filepath = None
@@ -533,20 +572,36 @@ class CSVMT5Simulator:
                 m = re.search(r'_(\d{4})_\d{4}', p.stem)
                 return int(m.group(1)) if m else 9999
             filepath = min(candidates, key=_start_year)
-        
+
         if filepath is None:
             return None
-        
+
         try:
             df = pd.read_csv(filepath, parse_dates=['time'])
             df.columns = [c.lower() for c in df.columns]
             df = df.sort_values('time').reset_index(drop=True)
-            
+
+            # DATE FILTER: If date range is set, trim higher-TF data too
+            # Keep generous lookback (1 year) for indicator calculations (ATR, moving averages, etc.)
+            if hasattr(self, '_filter_start') and self._filter_start is not None:
+                # Higher timeframes need more lookback for indicators
+                lookback_days = {'D1': 365, 'H4': 180, 'H1': 90, 'W1': 730, 'MN': 1095}.get(timeframe, 60)
+                lookback_start = _to_utc_ts(self._filter_start) - pd.Timedelta(days=lookback_days)
+                if df['time'].dt.tz is None:
+                    df_times = df['time'].dt.tz_localize('UTC')
+                else:
+                    df_times = df['time']
+                mask = df_times >= lookback_start
+                if hasattr(self, '_filter_end') and self._filter_end is not None:
+                    filter_end = _to_utc_ts(self._filter_end) + pd.Timedelta(days=1)
+                    mask = mask & (df_times <= filter_end)
+                df = df[mask].reset_index(drop=True)
+
             # Cache
             if symbol not in self._data_cache:
                 self._data_cache[symbol] = {}
             self._data_cache[symbol][timeframe] = df
-            
+
             return df
         except Exception as e:
             log.error(f"Error loading {filepath}: {e}")

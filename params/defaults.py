@@ -87,6 +87,13 @@ PARAMETER_DEFAULTS: Dict[str, Any] = {
     'use_atr_trailing': True,         # Enable ATR trailing on runner
     
     # ═══════════════════════════════════════════════════════════════════════════
+    # ENTRY REFINEMENT (Optuna-optimizable for better entry prices)
+    # Same signals, but enter at a deeper retracement / better price
+    # ═══════════════════════════════════════════════════════════════════════════
+    'entry_fib_level': 0.618,         # Fib retracement level for entry (0.5=shallow, 0.786=deep)
+    'entry_limit_offset_atr': 0.0,    # Extra ATR offset for better entry (0=none, 0.3=aggressive)
+
+    # ═══════════════════════════════════════════════════════════════════════════
     # FIBONACCI PARAMETERS
     # ═══════════════════════════════════════════════════════════════════════════
     'fib_low': 0.382,                 # Lower Fib zone

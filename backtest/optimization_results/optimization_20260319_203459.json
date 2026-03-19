@@ -1,0 +1,3070 @@
+{
+  "optimization_mode": "TPE",
+  "timestamp": "2026-03-19T20:34:59.889725",
+  "config": {
+    "trials": 50,
+    "start": "2015-07-01",
+    "end": "2015-09-30",
+    "balance": 20000.0,
+    "num_tps": 5
+  },
+  "best_score": 165.3433,
+  "best_metrics": {
+    "net_return_pct": 106.09,
+    "total_trades": 250,
+    "win_rate": 58.0,
+    "max_tdd_pct": 0.01,
+    "max_ddd_pct": 4.78,
+    "valid": true
+  },
+  "best_parameters": {
+    "tp1_r_multiple": 1.0,
+    "tp2_r_multiple": 1.9000000000000001,
+    "tp3_r_multiple": 2.4,
+    "tp4_r_multiple": 2.9,
+    "tp5_r_multiple": 3.8,
+    "tp1_close_pct_weight": 0.45,
+    "tp2_close_pct_weight": 0.45000000000000007,
+    "tp3_close_pct_weight": 0.2,
+    "tp4_close_pct_weight": 0.1,
+    "tp5_close_pct_weight": 0.1,
+    "trail_activation_r": 1.6,
+    "atr_trail_multiplier": 2.5,
+    "use_atr_trailing": true,
+    "trend_min_confluence": 5,
+    "range_min_confluence": 4,
+    "min_quality_factors": 3,
+    "risk_per_trade_pct": 1.6,
+    "compound_threshold_pct": 13.0,
+    "entry_fib_level": 0.5,
+    "entry_limit_offset_atr": 0.0
+  },
+  "all_trials": [
+    {
+      "trial": 0,
+      "score": 14.90225,
+      "params": {
+        "tp1_r_multiple": 0.6,
+        "tp2_r_multiple": 1.6,
+        "tp3_r_multiple": 2.1,
+        "tp4_r_multiple": 2.4,
+        "tp5_r_multiple": 3.6,
+        "tp1_close_pct_weight": 0.2,
+        "tp2_close_pct_weight": 0.3,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.2,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.6,
+        "atr_trail_multiplier": 2.8,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 4,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 0.7,
+        "compound_threshold_pct": 5.0,
+        "entry_fib_level": 0.75,
+        "entry_limit_offset_atr": 0.1
+      },
+      "metrics": {
+        "net_return_pct": 8.25,
+        "total_trades": 55,
+        "win_rate": 47.3,
+        "max_tdd_pct": 3.34,
+        "max_ddd_pct": 3.1,
+        "ddd_halts": 0,
+        "final_balance": 21649.02,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 23,
+            "winners": 10,
+            "losers": 13,
+            "pnl": 2.69,
+            "partial_closes": 27,
+            "win_rate": 43.5
+          },
+          "2015-08": {
+            "trades": 17,
+            "winners": 10,
+            "losers": 7,
+            "pnl": 1131.09,
+            "partial_closes": 22,
+            "win_rate": 58.8
+          },
+          "2015-09": {
+            "trades": 15,
+            "winners": 6,
+            "losers": 9,
+            "pnl": 515.25,
+            "partial_closes": 7,
+            "win_rate": 40.0
+          }
+        },
+        "safety_events": 3,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 1,
+      "score": 74.76477499999999,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 0.8,
+        "tp3_r_multiple": 2.7,
+        "tp4_r_multiple": 2.9000000000000004,
+        "tp5_r_multiple": 5.4,
+        "tp1_close_pct_weight": 0.1,
+        "tp2_close_pct_weight": 0.1,
+        "tp3_close_pct_weight": 0.4,
+        "tp4_close_pct_weight": 0.2,
+        "tp5_close_pct_weight": 0.25,
+        "trail_activation_r": 2.1,
+        "atr_trail_multiplier": 2.9000000000000004,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 5,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 0.9,
+        "compound_threshold_pct": 4.5,
+        "entry_fib_level": 0.56,
+        "entry_limit_offset_atr": 0.14
+      },
+      "metrics": {
+        "net_return_pct": 36.39,
+        "total_trades": 65,
+        "win_rate": 61.5,
+        "max_tdd_pct": 0.66,
+        "max_ddd_pct": 2.26,
+        "ddd_halts": 0,
+        "final_balance": 27278.96,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 19,
+            "winners": 9,
+            "losers": 10,
+            "pnl": 411.1,
+            "partial_closes": 23,
+            "win_rate": 47.4
+          },
+          "2015-08": {
+            "trades": 22,
+            "winners": 13,
+            "losers": 9,
+            "pnl": 2557.0,
+            "partial_closes": 31,
+            "win_rate": 59.1
+          },
+          "2015-09": {
+            "trades": 24,
+            "winners": 18,
+            "losers": 6,
+            "pnl": 4310.87,
+            "partial_closes": 22,
+            "win_rate": 75.0
+          }
+        },
+        "safety_events": 4,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 2,
+      "score": 57.075,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 1.3,
+        "tp3_r_multiple": 2.0,
+        "tp4_r_multiple": 3.5,
+        "tp5_r_multiple": 5.800000000000001,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.1,
+        "tp3_close_pct_weight": 0.15000000000000002,
+        "tp4_close_pct_weight": 0.45,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.8,
+        "atr_trail_multiplier": 1.7000000000000002,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 6,
+        "range_min_confluence": 6,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.05,
+        "compound_threshold_pct": 1.5,
+        "entry_fib_level": 0.6799999999999999,
+        "entry_limit_offset_atr": 0.12
+      },
+      "metrics": {
+        "net_return_pct": 29.66,
+        "total_trades": 124,
+        "win_rate": 50.0,
+        "max_tdd_pct": 1.61,
+        "max_ddd_pct": 4.12,
+        "ddd_halts": 5,
+        "final_balance": 25932.13,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 26,
+            "winners": 9,
+            "losers": 17,
+            "pnl": 191.19,
+            "partial_closes": 32,
+            "win_rate": 34.6
+          },
+          "2015-08": {
+            "trades": 47,
+            "winners": 26,
+            "losers": 21,
+            "pnl": 3558.19,
+            "partial_closes": 59,
+            "win_rate": 55.3
+          },
+          "2015-09": {
+            "trades": 51,
+            "winners": 27,
+            "losers": 24,
+            "pnl": 2182.75,
+            "partial_closes": 35,
+            "win_rate": 52.9
+          }
+        },
+        "safety_events": 22,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 3,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 0.8,
+        "tp2_r_multiple": 2.1,
+        "tp3_r_multiple": 2.2,
+        "tp4_r_multiple": 3.5000000000000004,
+        "tp5_r_multiple": 4.200000000000001,
+        "tp1_close_pct_weight": 0.35000000000000003,
+        "tp2_close_pct_weight": 0.15000000000000002,
+        "tp3_close_pct_weight": 0.35000000000000003,
+        "tp4_close_pct_weight": 0.25,
+        "tp5_close_pct_weight": 0.2,
+        "trail_activation_r": 1.4000000000000001,
+        "atr_trail_multiplier": 2.2,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 6,
+        "risk_per_trade_pct": 0.65,
+        "compound_threshold_pct": 3.5,
+        "entry_fib_level": 0.5700000000000001,
+        "entry_limit_offset_atr": 0.06
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 4,
+      "score": 56.64826,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 1.1,
+        "tp3_r_multiple": 2.4000000000000004,
+        "tp4_r_multiple": 2.6000000000000005,
+        "tp5_r_multiple": 5.100000000000001,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.2,
+        "tp3_close_pct_weight": 0.05,
+        "tp4_close_pct_weight": 0.2,
+        "tp5_close_pct_weight": 0.3,
+        "trail_activation_r": 2.7,
+        "atr_trail_multiplier": 3.9000000000000004,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 3,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.7000000000000002,
+        "compound_threshold_pct": 10.0,
+        "entry_fib_level": 0.55,
+        "entry_limit_offset_atr": 0.04
+      },
+      "metrics": {
+        "net_return_pct": 76.67,
+        "total_trades": 205,
+        "win_rate": 47.8,
+        "max_tdd_pct": 0.07,
+        "max_ddd_pct": 4.51,
+        "ddd_halts": 13,
+        "final_balance": 35334.56,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 37,
+            "winners": 14,
+            "losers": 23,
+            "pnl": 1207.48,
+            "partial_closes": 34,
+            "win_rate": 37.8
+          },
+          "2015-08": {
+            "trades": 81,
+            "winners": 47,
+            "losers": 34,
+            "pnl": 11264.47,
+            "partial_closes": 69,
+            "win_rate": 58.0
+          },
+          "2015-09": {
+            "trades": 87,
+            "winners": 37,
+            "losers": 50,
+            "pnl": 2862.61,
+            "partial_closes": 33,
+            "win_rate": 42.5
+          }
+        },
+        "safety_events": 39,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 5,
+      "score": 14.18768,
+      "params": {
+        "tp1_r_multiple": 0.7000000000000001,
+        "tp2_r_multiple": 2.2,
+        "tp3_r_multiple": 2.5000000000000004,
+        "tp4_r_multiple": 4.000000000000001,
+        "tp5_r_multiple": 5.000000000000001,
+        "tp1_close_pct_weight": 0.05,
+        "tp2_close_pct_weight": 0.35,
+        "tp3_close_pct_weight": 0.15000000000000002,
+        "tp4_close_pct_weight": 0.4,
+        "tp5_close_pct_weight": 0.2,
+        "trail_activation_r": 0.9,
+        "atr_trail_multiplier": 4.2,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 7,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 0.75,
+        "compound_threshold_pct": 3.5,
+        "entry_fib_level": 0.73,
+        "entry_limit_offset_atr": 0.16
+      },
+      "metrics": {
+        "net_return_pct": 4.04,
+        "total_trades": 61,
+        "win_rate": 49.2,
+        "max_tdd_pct": 4.55,
+        "max_ddd_pct": 3.33,
+        "ddd_halts": 1,
+        "final_balance": 20807.58,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 21,
+            "winners": 8,
+            "losers": 13,
+            "pnl": -812.13,
+            "partial_closes": 19,
+            "win_rate": 38.1
+          },
+          "2015-08": {
+            "trades": 21,
+            "winners": 13,
+            "losers": 8,
+            "pnl": 1465.72,
+            "partial_closes": 22,
+            "win_rate": 61.9
+          },
+          "2015-09": {
+            "trades": 19,
+            "winners": 9,
+            "losers": 10,
+            "pnl": 153.99,
+            "partial_closes": 8,
+            "win_rate": 47.4
+          }
+        },
+        "safety_events": 7,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 6,
+      "score": 53.78622000000001,
+      "params": {
+        "tp1_r_multiple": 1.2,
+        "tp2_r_multiple": 2.4000000000000004,
+        "tp3_r_multiple": 2.6000000000000005,
+        "tp4_r_multiple": 4.000000000000001,
+        "tp5_r_multiple": 5.700000000000001,
+        "tp1_close_pct_weight": 0.4,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.15000000000000002,
+        "tp5_close_pct_weight": 0.4,
+        "trail_activation_r": 2.9000000000000004,
+        "atr_trail_multiplier": 1.9000000000000001,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 2,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 0.85,
+        "compound_threshold_pct": 13.0,
+        "entry_fib_level": 0.58,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 26.12,
+        "total_trades": 155,
+        "win_rate": 52.9,
+        "max_tdd_pct": 0.18,
+        "max_ddd_pct": 3.71,
+        "ddd_halts": 7,
+        "final_balance": 25224.5,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 13,
+            "winners": 4,
+            "losers": 9,
+            "pnl": -161.25,
+            "partial_closes": 15,
+            "win_rate": 30.8
+          },
+          "2015-08": {
+            "trades": 60,
+            "winners": 38,
+            "losers": 22,
+            "pnl": 4584.04,
+            "partial_closes": 39,
+            "win_rate": 63.3
+          },
+          "2015-09": {
+            "trades": 82,
+            "winners": 40,
+            "losers": 42,
+            "pnl": 801.71,
+            "partial_closes": 8,
+            "win_rate": 48.8
+          }
+        },
+        "safety_events": 25,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 7,
+      "score": 25.590549999999997,
+      "params": {
+        "tp1_r_multiple": 0.9,
+        "tp2_r_multiple": 1.8,
+        "tp3_r_multiple": 2.8000000000000003,
+        "tp4_r_multiple": 2.9000000000000004,
+        "tp5_r_multiple": 4.9,
+        "tp1_close_pct_weight": 0.35000000000000003,
+        "tp2_close_pct_weight": 0.1,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.35000000000000003,
+        "trail_activation_r": 2.3,
+        "atr_trail_multiplier": 3.1,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 6,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.2000000000000002,
+        "compound_threshold_pct": 3.5,
+        "entry_fib_level": 0.7,
+        "entry_limit_offset_atr": 0.22
+      },
+      "metrics": {
+        "net_return_pct": 17.41,
+        "total_trades": 107,
+        "win_rate": 57.0,
+        "max_tdd_pct": 6.2,
+        "max_ddd_pct": 3.39,
+        "ddd_halts": 7,
+        "final_balance": 23482.22,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 30,
+            "winners": 16,
+            "losers": 14,
+            "pnl": -907.52,
+            "partial_closes": 17,
+            "win_rate": 53.3
+          },
+          "2015-08": {
+            "trades": 34,
+            "winners": 19,
+            "losers": 15,
+            "pnl": 2045.45,
+            "partial_closes": 32,
+            "win_rate": 55.9
+          },
+          "2015-09": {
+            "trades": 43,
+            "winners": 26,
+            "losers": 17,
+            "pnl": 2344.29,
+            "partial_closes": 13,
+            "win_rate": 60.5
+          }
+        },
+        "safety_events": 23,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 8,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 2.5,
+        "tp3_r_multiple": 2.8000000000000003,
+        "tp4_r_multiple": 3.8000000000000003,
+        "tp5_r_multiple": 3.9000000000000004,
+        "tp1_close_pct_weight": 0.2,
+        "tp2_close_pct_weight": 0.35,
+        "tp3_close_pct_weight": 0.05,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.0,
+        "atr_trail_multiplier": 4.0,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 6,
+        "min_quality_factors": 6,
+        "risk_per_trade_pct": 1.15,
+        "compound_threshold_pct": 4.5,
+        "entry_fib_level": 0.78,
+        "entry_limit_offset_atr": 0.14
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 9,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 1.1,
+        "tp2_r_multiple": 1.8000000000000003,
+        "tp3_r_multiple": 1.9000000000000004,
+        "tp4_r_multiple": 2.0000000000000004,
+        "tp5_r_multiple": 4.9,
+        "tp1_close_pct_weight": 0.35000000000000003,
+        "tp2_close_pct_weight": 0.30000000000000004,
+        "tp3_close_pct_weight": 0.35000000000000003,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.4,
+        "trail_activation_r": 2.0,
+        "atr_trail_multiplier": 3.9000000000000004,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 7,
+        "range_min_confluence": 6,
+        "min_quality_factors": 6,
+        "risk_per_trade_pct": 1.4500000000000002,
+        "compound_threshold_pct": 2.0,
+        "entry_fib_level": 0.55,
+        "entry_limit_offset_atr": 0.06
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 10,
+      "score": -493.0,
+      "params": {
+        "tp1_r_multiple": 0.7000000000000001,
+        "tp2_r_multiple": 1.2000000000000002,
+        "tp3_r_multiple": 2.0000000000000004,
+        "tp4_r_multiple": 3.7000000000000006,
+        "tp5_r_multiple": 5.000000000000001,
+        "tp1_close_pct_weight": 0.2,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.45,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.4,
+        "trail_activation_r": 1.4000000000000001,
+        "atr_trail_multiplier": 1.9000000000000001,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 3,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.75,
+        "compound_threshold_pct": 6.0,
+        "entry_fib_level": 0.78,
+        "entry_limit_offset_atr": 0.24
+      },
+      "metrics": {
+        "net_return_pct": -7.13,
+        "total_trades": 7,
+        "win_rate": 14.3,
+        "max_tdd_pct": 7.13,
+        "max_ddd_pct": 3.42,
+        "ddd_halts": 1,
+        "final_balance": 18574.68,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 7,
+            "winners": 1,
+            "losers": 6,
+            "pnl": -1425.32,
+            "partial_closes": 2,
+            "win_rate": 14.3
+          }
+        },
+        "safety_events": 4,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 11,
+      "score": -65.04145999999999,
+      "params": {
+        "tp1_r_multiple": 0.8,
+        "tp2_r_multiple": 2.5,
+        "tp3_r_multiple": 3.2,
+        "tp4_r_multiple": 3.3000000000000003,
+        "tp5_r_multiple": 4.9,
+        "tp1_close_pct_weight": 0.35000000000000003,
+        "tp2_close_pct_weight": 0.35,
+        "tp3_close_pct_weight": 0.35000000000000003,
+        "tp4_close_pct_weight": 0.45,
+        "tp5_close_pct_weight": 0.3,
+        "trail_activation_r": 1.3,
+        "atr_trail_multiplier": 3.7,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 5,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.7000000000000002,
+        "compound_threshold_pct": 1.0,
+        "entry_fib_level": 0.77,
+        "entry_limit_offset_atr": 0.12
+      },
+      "metrics": {
+        "net_return_pct": -9.37,
+        "total_trades": 24,
+        "win_rate": 45.8,
+        "max_tdd_pct": 9.37,
+        "max_ddd_pct": 3.7,
+        "ddd_halts": 1,
+        "final_balance": 18126.44,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 19,
+            "winners": 8,
+            "losers": 11,
+            "pnl": -1782.38,
+            "partial_closes": 14,
+            "win_rate": 42.1
+          },
+          "2015-08": {
+            "trades": 5,
+            "winners": 3,
+            "losers": 2,
+            "pnl": -91.18,
+            "partial_closes": 0,
+            "win_rate": 60.0
+          }
+        },
+        "safety_events": 10,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 12,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 1.0,
+        "tp2_r_multiple": 1.5,
+        "tp3_r_multiple": 3.1,
+        "tp4_r_multiple": 4.2,
+        "tp5_r_multiple": 5.5,
+        "tp1_close_pct_weight": 0.05,
+        "tp2_close_pct_weight": 0.25,
+        "tp3_close_pct_weight": 0.45,
+        "tp4_close_pct_weight": 0.3,
+        "tp5_close_pct_weight": 0.25,
+        "trail_activation_r": 2.3,
+        "atr_trail_multiplier": 3.1,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 7,
+        "range_min_confluence": 5,
+        "min_quality_factors": 7,
+        "risk_per_trade_pct": 1.5,
+        "compound_threshold_pct": 8.5,
+        "entry_fib_level": 0.5,
+        "entry_limit_offset_atr": 0.3
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 13,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 0.8,
+        "tp3_r_multiple": 1.3,
+        "tp4_r_multiple": 3.2,
+        "tp5_r_multiple": 5.9,
+        "tp1_close_pct_weight": 0.05,
+        "tp2_close_pct_weight": 0.1,
+        "tp3_close_pct_weight": 0.45,
+        "tp4_close_pct_weight": 0.45,
+        "tp5_close_pct_weight": 0.15000000000000002,
+        "trail_activation_r": 2.2,
+        "atr_trail_multiplier": 2.8000000000000003,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 6,
+        "range_min_confluence": 5,
+        "min_quality_factors": 7,
+        "risk_per_trade_pct": 0.95,
+        "compound_threshold_pct": 8.0,
+        "entry_fib_level": 0.65,
+        "entry_limit_offset_atr": 0.18
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 14,
+      "score": -500.0,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 0.8,
+        "tp3_r_multiple": 1.4,
+        "tp4_r_multiple": 3.1,
+        "tp5_r_multiple": 6.0,
+        "tp1_close_pct_weight": 0.05,
+        "tp2_close_pct_weight": 0.2,
+        "tp3_close_pct_weight": 0.45,
+        "tp4_close_pct_weight": 0.35000000000000003,
+        "tp5_close_pct_weight": 0.15000000000000002,
+        "trail_activation_r": 2.1,
+        "atr_trail_multiplier": 2.6,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 6,
+        "range_min_confluence": 5,
+        "min_quality_factors": 7,
+        "risk_per_trade_pct": 1.0,
+        "compound_threshold_pct": 7.5,
+        "entry_fib_level": 0.64,
+        "entry_limit_offset_atr": 0.2
+      },
+      "metrics": {
+        "net_return_pct": 0.0,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 0.0,
+        "max_ddd_pct": 0.0,
+        "ddd_halts": 0,
+        "final_balance": 20000.0,
+        "monthly_stats": {},
+        "safety_events": 0,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 15,
+      "score": 25.42212,
+      "params": {
+        "tp1_r_multiple": 0.4,
+        "tp2_r_multiple": 0.9,
+        "tp3_r_multiple": 1.4,
+        "tp4_r_multiple": 3.1,
+        "tp5_r_multiple": 6.0,
+        "tp1_close_pct_weight": 0.1,
+        "tp2_close_pct_weight": 0.1,
+        "tp3_close_pct_weight": 0.15000000000000002,
+        "tp4_close_pct_weight": 0.35000000000000003,
+        "tp5_close_pct_weight": 0.15000000000000002,
+        "trail_activation_r": 1.9000000000000001,
+        "atr_trail_multiplier": 2.6,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 6,
+        "range_min_confluence": 5,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.0,
+        "compound_threshold_pct": 6.5,
+        "entry_fib_level": 0.66,
+        "entry_limit_offset_atr": 0.2
+      },
+      "metrics": {
+        "net_return_pct": 21.26,
+        "total_trades": 78,
+        "win_rate": 46.2,
+        "max_tdd_pct": 3.51,
+        "max_ddd_pct": 3.34,
+        "ddd_halts": 1,
+        "final_balance": 24252.55,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 28,
+            "winners": 10,
+            "losers": 18,
+            "pnl": 192.64,
+            "partial_closes": 34,
+            "win_rate": 35.7
+          },
+          "2015-08": {
+            "trades": 22,
+            "winners": 14,
+            "losers": 8,
+            "pnl": 2335.23,
+            "partial_closes": 38,
+            "win_rate": 63.6
+          },
+          "2015-09": {
+            "trades": 28,
+            "winners": 12,
+            "losers": 16,
+            "pnl": 1724.68,
+            "partial_closes": 25,
+            "win_rate": 42.9
+          }
+        },
+        "safety_events": 10,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 16,
+      "score": 60.22601,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 0.8,
+        "tp3_r_multiple": 1.6,
+        "tp4_r_multiple": 2.8000000000000003,
+        "tp5_r_multiple": 2.9000000000000004,
+        "tp1_close_pct_weight": 0.1,
+        "tp2_close_pct_weight": 0.1,
+        "tp3_close_pct_weight": 0.1,
+        "tp4_close_pct_weight": 0.3,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.8,
+        "atr_trail_multiplier": 2.4000000000000004,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 6,
+        "range_min_confluence": 5,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.0,
+        "compound_threshold_pct": 1.0,
+        "entry_fib_level": 0.64,
+        "entry_limit_offset_atr": 0.18
+      },
+      "metrics": {
+        "net_return_pct": 31.22,
+        "total_trades": 95,
+        "win_rate": 54.7,
+        "max_tdd_pct": 3.83,
+        "max_ddd_pct": 3.38,
+        "ddd_halts": 4,
+        "final_balance": 26244.82,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 19,
+            "winners": 7,
+            "losers": 12,
+            "pnl": -505.42,
+            "partial_closes": 21,
+            "win_rate": 36.8
+          },
+          "2015-08": {
+            "trades": 23,
+            "winners": 16,
+            "losers": 7,
+            "pnl": 2089.23,
+            "partial_closes": 32,
+            "win_rate": 69.6
+          },
+          "2015-09": {
+            "trades": 53,
+            "winners": 29,
+            "losers": 24,
+            "pnl": 4661.01,
+            "partial_closes": 46,
+            "win_rate": 54.7
+          }
+        },
+        "safety_events": 14,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 17,
+      "score": 37.052,
+      "params": {
+        "tp1_r_multiple": 0.5,
+        "tp2_r_multiple": 1.2000000000000002,
+        "tp3_r_multiple": 1.7000000000000002,
+        "tp4_r_multiple": 2.7,
+        "tp5_r_multiple": 5.4,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.15000000000000002,
+        "tp3_close_pct_weight": 0.1,
+        "tp4_close_pct_weight": 0.3,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.8,
+        "atr_trail_multiplier": 3.4000000000000004,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 6,
+        "range_min_confluence": 6,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.0,
+        "compound_threshold_pct": 1.5,
+        "entry_fib_level": 0.64,
+        "entry_limit_offset_atr": 0.1
+      },
+      "metrics": {
+        "net_return_pct": 34.8,
+        "total_trades": 157,
+        "win_rate": 49.0,
+        "max_tdd_pct": 2.13,
+        "max_ddd_pct": 3.39,
+        "ddd_halts": 6,
+        "final_balance": 26960.29,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 32,
+            "winners": 12,
+            "losers": 20,
+            "pnl": 286.88,
+            "partial_closes": 36,
+            "win_rate": 37.5
+          },
+          "2015-08": {
+            "trades": 59,
+            "winners": 31,
+            "losers": 28,
+            "pnl": 3236.84,
+            "partial_closes": 68,
+            "win_rate": 52.5
+          },
+          "2015-09": {
+            "trades": 66,
+            "winners": 34,
+            "losers": 32,
+            "pnl": 3436.57,
+            "partial_closes": 46,
+            "win_rate": 51.5
+          }
+        },
+        "safety_events": 21,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 18,
+      "score": 148.35504,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 1.3,
+        "tp3_r_multiple": 1.7000000000000002,
+        "tp4_r_multiple": 2.7,
+        "tp5_r_multiple": 3.2,
+        "tp1_close_pct_weight": 0.15000000000000002,
+        "tp2_close_pct_weight": 0.15000000000000002,
+        "tp3_close_pct_weight": 0.3,
+        "tp4_close_pct_weight": 0.25,
+        "tp5_close_pct_weight": 0.05,
+        "trail_activation_r": 1.7000000000000002,
+        "atr_trail_multiplier": 1.6,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 6,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 2.0,
+        "compound_threshold_pct": 11.0,
+        "entry_fib_level": 0.62,
+        "entry_limit_offset_atr": 0.1
+      },
+      "metrics": {
+        "net_return_pct": 100.16,
+        "total_trades": 188,
+        "win_rate": 52.1,
+        "max_tdd_pct": 1.57,
+        "max_ddd_pct": 3.84,
+        "ddd_halts": 14,
+        "final_balance": 40032.87,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 43,
+            "winners": 22,
+            "losers": 21,
+            "pnl": 3699.96,
+            "partial_closes": 37,
+            "win_rate": 51.2
+          },
+          "2015-08": {
+            "trades": 69,
+            "winners": 40,
+            "losers": 29,
+            "pnl": 12504.45,
+            "partial_closes": 64,
+            "win_rate": 58.0
+          },
+          "2015-09": {
+            "trades": 76,
+            "winners": 36,
+            "losers": 40,
+            "pnl": 3828.47,
+            "partial_closes": 30,
+            "win_rate": 47.4
+          }
+        },
+        "safety_events": 46,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 19,
+      "score": 118.76249999999999,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 1.0,
+        "tp3_r_multiple": 1.7,
+        "tp4_r_multiple": 2.7,
+        "tp5_r_multiple": 2.9000000000000004,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.2,
+        "tp3_close_pct_weight": 0.3,
+        "tp4_close_pct_weight": 0.25,
+        "tp5_close_pct_weight": 0.25,
+        "trail_activation_r": 2.6,
+        "atr_trail_multiplier": 2.3000000000000003,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 3,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 2.0,
+        "compound_threshold_pct": 11.5,
+        "entry_fib_level": 0.61,
+        "entry_limit_offset_atr": 0.26
+      },
+      "metrics": {
+        "net_return_pct": 86.21,
+        "total_trades": 154,
+        "win_rate": 50.0,
+        "max_tdd_pct": 5.6,
+        "max_ddd_pct": 4.12,
+        "ddd_halts": 13,
+        "final_balance": 37241.52,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 35,
+            "winners": 15,
+            "losers": 20,
+            "pnl": -115.11,
+            "partial_closes": 22,
+            "win_rate": 42.9
+          },
+          "2015-08": {
+            "trades": 51,
+            "winners": 29,
+            "losers": 22,
+            "pnl": 8889.38,
+            "partial_closes": 57,
+            "win_rate": 56.9
+          },
+          "2015-09": {
+            "trades": 68,
+            "winners": 33,
+            "losers": 35,
+            "pnl": 8467.24,
+            "partial_closes": 41,
+            "win_rate": 48.5
+          }
+        },
+        "safety_events": 36,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 20,
+      "score": -11.386869999999995,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 1.0,
+        "tp3_r_multiple": 1.7,
+        "tp4_r_multiple": 2.2,
+        "tp5_r_multiple": 2.3000000000000003,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.2,
+        "tp3_close_pct_weight": 0.3,
+        "tp4_close_pct_weight": 0.25,
+        "tp5_close_pct_weight": 0.25,
+        "trail_activation_r": 2.5,
+        "atr_trail_multiplier": 2.3000000000000003,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 3,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 2.0,
+        "compound_threshold_pct": 14.5,
+        "entry_fib_level": 0.6,
+        "entry_limit_offset_atr": 0.26
+      },
+      "metrics": {
+        "net_return_pct": 22.47,
+        "total_trades": 146,
+        "win_rate": 47.9,
+        "max_tdd_pct": 7.81,
+        "max_ddd_pct": 4.19,
+        "ddd_halts": 12,
+        "final_balance": 24494.61,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 36,
+            "winners": 14,
+            "losers": 22,
+            "pnl": -1080.35,
+            "partial_closes": 20,
+            "win_rate": 38.9
+          },
+          "2015-08": {
+            "trades": 41,
+            "winners": 20,
+            "losers": 21,
+            "pnl": 318.48,
+            "partial_closes": 39,
+            "win_rate": 48.8
+          },
+          "2015-09": {
+            "trades": 69,
+            "winners": 36,
+            "losers": 33,
+            "pnl": 5256.49,
+            "partial_closes": 40,
+            "win_rate": 52.2
+          }
+        },
+        "safety_events": 31,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 21,
+      "score": 93.2288,
+      "params": {
+        "tp1_r_multiple": 0.6000000000000001,
+        "tp2_r_multiple": 1.4000000000000001,
+        "tp3_r_multiple": 2.7,
+        "tp4_r_multiple": 3.0000000000000004,
+        "tp5_r_multiple": 3.1000000000000005,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.2,
+        "tp3_close_pct_weight": 0.3,
+        "tp4_close_pct_weight": 0.2,
+        "tp5_close_pct_weight": 0.25,
+        "trail_activation_r": 2.7,
+        "atr_trail_multiplier": 3.4000000000000004,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 3,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.4500000000000002,
+        "compound_threshold_pct": 12.0,
+        "entry_fib_level": 0.6,
+        "entry_limit_offset_atr": 0.26
+      },
+      "metrics": {
+        "net_return_pct": 57.21,
+        "total_trades": 127,
+        "win_rate": 52.0,
+        "max_tdd_pct": 3.1,
+        "max_ddd_pct": 3.88,
+        "ddd_halts": 7,
+        "final_balance": 31441.24,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 25,
+            "winners": 9,
+            "losers": 16,
+            "pnl": -160.82,
+            "partial_closes": 23,
+            "win_rate": 36.0
+          },
+          "2015-08": {
+            "trades": 46,
+            "winners": 25,
+            "losers": 21,
+            "pnl": 7688.36,
+            "partial_closes": 59,
+            "win_rate": 54.3
+          },
+          "2015-09": {
+            "trades": 56,
+            "winners": 32,
+            "losers": 24,
+            "pnl": 3913.7,
+            "partial_closes": 26,
+            "win_rate": 57.1
+          }
+        },
+        "safety_events": 30,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 22,
+      "score": 99.7,
+      "params": {
+        "tp1_r_multiple": 0.7000000000000001,
+        "tp2_r_multiple": 1.4000000000000001,
+        "tp3_r_multiple": 1.8000000000000003,
+        "tp4_r_multiple": 2.3000000000000003,
+        "tp5_r_multiple": 2.4000000000000004,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.2,
+        "tp3_close_pct_weight": 0.3,
+        "tp4_close_pct_weight": 0.25,
+        "tp5_close_pct_weight": 0.3,
+        "trail_activation_r": 2.6,
+        "atr_trail_multiplier": 2.1,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 2,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 2.0,
+        "compound_threshold_pct": 15.0,
+        "entry_fib_level": 0.6,
+        "entry_limit_offset_atr": 0.28
+      },
+      "metrics": {
+        "net_return_pct": 63.76,
+        "total_trades": 146,
+        "win_rate": 50.0,
+        "max_tdd_pct": 2.96,
+        "max_ddd_pct": 4.59,
+        "ddd_halts": 14,
+        "final_balance": 32752.54,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 36,
+            "winners": 15,
+            "losers": 21,
+            "pnl": 119.31,
+            "partial_closes": 18,
+            "win_rate": 41.7
+          },
+          "2015-08": {
+            "trades": 44,
+            "winners": 23,
+            "losers": 21,
+            "pnl": 5176.88,
+            "partial_closes": 39,
+            "win_rate": 52.3
+          },
+          "2015-09": {
+            "trades": 66,
+            "winners": 35,
+            "losers": 31,
+            "pnl": 7456.35,
+            "partial_closes": 29,
+            "win_rate": 53.0
+          }
+        },
+        "safety_events": 32,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 23,
+      "score": 95.03344,
+      "params": {
+        "tp1_r_multiple": 0.7000000000000001,
+        "tp2_r_multiple": 1.3,
+        "tp3_r_multiple": 1.8000000000000003,
+        "tp4_r_multiple": 2.5000000000000004,
+        "tp5_r_multiple": 3.2000000000000006,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.15000000000000002,
+        "tp3_close_pct_weight": 0.3,
+        "tp4_close_pct_weight": 0.2,
+        "tp5_close_pct_weight": 0.3,
+        "trail_activation_r": 2.9000000000000004,
+        "atr_trail_multiplier": 1.6,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 2,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 1.9500000000000002,
+        "compound_threshold_pct": 11.0,
+        "entry_fib_level": 0.61,
+        "entry_limit_offset_atr": 0.3
+      },
+      "metrics": {
+        "net_return_pct": 59.74,
+        "total_trades": 131,
+        "win_rate": 50.4,
+        "max_tdd_pct": 3.88,
+        "max_ddd_pct": 4.31,
+        "ddd_halts": 12,
+        "final_balance": 31947.83,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 35,
+            "winners": 15,
+            "losers": 20,
+            "pnl": -1.24,
+            "partial_closes": 19,
+            "win_rate": 42.9
+          },
+          "2015-08": {
+            "trades": 35,
+            "winners": 22,
+            "losers": 13,
+            "pnl": 7216.69,
+            "partial_closes": 41,
+            "win_rate": 62.9
+          },
+          "2015-09": {
+            "trades": 61,
+            "winners": 29,
+            "losers": 32,
+            "pnl": 4732.38,
+            "partial_closes": 22,
+            "win_rate": 47.5
+          }
+        },
+        "safety_events": 36,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 24,
+      "score": 80.67696000000001,
+      "params": {
+        "tp1_r_multiple": 0.7000000000000001,
+        "tp2_r_multiple": 1.4000000000000001,
+        "tp3_r_multiple": 1.8000000000000003,
+        "tp4_r_multiple": 2.6000000000000005,
+        "tp5_r_multiple": 3.2000000000000006,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.25,
+        "tp3_close_pct_weight": 0.3,
+        "tp4_close_pct_weight": 0.15000000000000002,
+        "tp5_close_pct_weight": 0.3,
+        "trail_activation_r": 3.0,
+        "atr_trail_multiplier": 1.6,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 2,
+        "min_quality_factors": 5,
+        "risk_per_trade_pct": 2.0,
+        "compound_threshold_pct": 11.5,
+        "entry_fib_level": 0.62,
+        "entry_limit_offset_atr": 0.3
+      },
+      "metrics": {
+        "net_return_pct": 48.08,
+        "total_trades": 126,
+        "win_rate": 50.8,
+        "max_tdd_pct": 3.1,
+        "max_ddd_pct": 3.98,
+        "ddd_halts": 13,
+        "final_balance": 29616.57,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 35,
+            "winners": 15,
+            "losers": 20,
+            "pnl": 165.86,
+            "partial_closes": 18,
+            "win_rate": 42.9
+          },
+          "2015-08": {
+            "trades": 33,
+            "winners": 19,
+            "losers": 14,
+            "pnl": 6675.67,
+            "partial_closes": 39,
+            "win_rate": 57.6
+          },
+          "2015-09": {
+            "trades": 58,
+            "winners": 30,
+            "losers": 28,
+            "pnl": 2775.04,
+            "partial_closes": 13,
+            "win_rate": 51.7
+          }
+        },
+        "safety_events": 38,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 25,
+      "score": 103.32555,
+      "params": {
+        "tp1_r_multiple": 0.7000000000000001,
+        "tp2_r_multiple": 1.4000000000000001,
+        "tp3_r_multiple": 1.8000000000000003,
+        "tp4_r_multiple": 2.5000000000000004,
+        "tp5_r_multiple": 2.7000000000000006,
+        "tp1_close_pct_weight": 0.25,
+        "tp2_close_pct_weight": 0.25,
+        "tp3_close_pct_weight": 0.3,
+        "tp4_close_pct_weight": 0.15000000000000002,
+        "tp5_close_pct_weight": 0.3,
+        "trail_activation_r": 3.0,
+        "atr_trail_multiplier": 1.6,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 2,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 2.0,
+        "compound_threshold_pct": 11.0,
+        "entry_fib_level": 0.61,
+        "entry_limit_offset_atr": 0.3
+      },
+      "metrics": {
+        "net_return_pct": 65.87,
+        "total_trades": 143,
+        "win_rate": 51.0,
+        "max_tdd_pct": 1.79,
+        "max_ddd_pct": 4.41,
+        "ddd_halts": 13,
+        "final_balance": 33174.95,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 36,
+            "winners": 16,
+            "losers": 20,
+            "pnl": 445.5,
+            "partial_closes": 20,
+            "win_rate": 44.4
+          },
+          "2015-08": {
+            "trades": 42,
+            "winners": 23,
+            "losers": 19,
+            "pnl": 5870.28,
+            "partial_closes": 42,
+            "win_rate": 54.8
+          },
+          "2015-09": {
+            "trades": 65,
+            "winners": 34,
+            "losers": 31,
+            "pnl": 6859.16,
+            "partial_closes": 25,
+            "win_rate": 52.3
+          }
+        },
+        "safety_events": 40,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 26,
+      "score": 163.44445,
+      "params": {
+        "tp1_r_multiple": 0.9,
+        "tp2_r_multiple": 1.6,
+        "tp3_r_multiple": 2.2,
+        "tp4_r_multiple": 2.4000000000000004,
+        "tp5_r_multiple": 2.5000000000000004,
+        "tp1_close_pct_weight": 0.3,
+        "tp2_close_pct_weight": 0.25,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.25,
+        "tp5_close_pct_weight": 0.35000000000000003,
+        "trail_activation_r": 2.5,
+        "atr_trail_multiplier": 2.0,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 2,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.85,
+        "compound_threshold_pct": 14.0,
+        "entry_fib_level": 0.52,
+        "entry_limit_offset_atr": 0.28
+      },
+      "metrics": {
+        "net_return_pct": 103.57,
+        "total_trades": 188,
+        "win_rate": 59.0,
+        "max_tdd_pct": 1.64,
+        "max_ddd_pct": 4.49,
+        "ddd_halts": 13,
+        "final_balance": 40714.26,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 40,
+            "winners": 18,
+            "losers": 22,
+            "pnl": 1501.68,
+            "partial_closes": 20,
+            "win_rate": 45.0
+          },
+          "2015-08": {
+            "trades": 66,
+            "winners": 38,
+            "losers": 28,
+            "pnl": 9885.01,
+            "partial_closes": 52,
+            "win_rate": 57.6
+          },
+          "2015-09": {
+            "trades": 82,
+            "winners": 55,
+            "losers": 27,
+            "pnl": 9327.58,
+            "partial_closes": 15,
+            "win_rate": 67.1
+          }
+        },
+        "safety_events": 46,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 27,
+      "score": 125.12670000000001,
+      "params": {
+        "tp1_r_multiple": 0.9,
+        "tp2_r_multiple": 1.6,
+        "tp3_r_multiple": 2.2,
+        "tp4_r_multiple": 2.4000000000000004,
+        "tp5_r_multiple": 2.5000000000000004,
+        "tp1_close_pct_weight": 0.3,
+        "tp2_close_pct_weight": 0.25,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.25,
+        "tp5_close_pct_weight": 0.35000000000000003,
+        "trail_activation_r": 2.5,
+        "atr_trail_multiplier": 2.0,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 2,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.85,
+        "compound_threshold_pct": 15.0,
+        "entry_fib_level": 0.51,
+        "entry_limit_offset_atr": 0.28
+      },
+      "metrics": {
+        "net_return_pct": 83.9,
+        "total_trades": 205,
+        "win_rate": 50.2,
+        "max_tdd_pct": 1.85,
+        "max_ddd_pct": 4.45,
+        "ddd_halts": 15,
+        "final_balance": 36780.79,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 44,
+            "winners": 20,
+            "losers": 24,
+            "pnl": 2893.45,
+            "partial_closes": 24,
+            "win_rate": 45.5
+          },
+          "2015-08": {
+            "trades": 68,
+            "winners": 40,
+            "losers": 28,
+            "pnl": 10936.82,
+            "partial_closes": 50,
+            "win_rate": 58.8
+          },
+          "2015-09": {
+            "trades": 93,
+            "winners": 43,
+            "losers": 50,
+            "pnl": 2950.51,
+            "partial_closes": 16,
+            "win_rate": 46.2
+          }
+        },
+        "safety_events": 48,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 28,
+      "score": 138.171085,
+      "params": {
+        "tp1_r_multiple": 0.9,
+        "tp2_r_multiple": 1.6,
+        "tp3_r_multiple": 2.2,
+        "tp4_r_multiple": 2.7,
+        "tp5_r_multiple": 3.5000000000000004,
+        "tp1_close_pct_weight": 0.3,
+        "tp2_close_pct_weight": 0.25,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.15000000000000002,
+        "tp5_close_pct_weight": 0.35000000000000003,
+        "trail_activation_r": 2.5,
+        "atr_trail_multiplier": 1.9000000000000001,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 3,
+        "min_quality_factors": 4,
+        "risk_per_trade_pct": 1.85,
+        "compound_threshold_pct": 9.5,
+        "entry_fib_level": 0.52,
+        "entry_limit_offset_atr": 0.26
+      },
+      "metrics": {
+        "net_return_pct": 91.57,
+        "total_trades": 201,
+        "win_rate": 52.7,
+        "max_tdd_pct": 1.86,
+        "max_ddd_pct": 4.4,
+        "ddd_halts": 15,
+        "final_balance": 38314.81,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 42,
+            "winners": 19,
+            "losers": 23,
+            "pnl": 2879.81,
+            "partial_closes": 24,
+            "win_rate": 45.2
+          },
+          "2015-08": {
+            "trades": 69,
+            "winners": 41,
+            "losers": 28,
+            "pnl": 11085.77,
+            "partial_closes": 50,
+            "win_rate": 59.4
+          },
+          "2015-09": {
+            "trades": 90,
+            "winners": 46,
+            "losers": 44,
+            "pnl": 4349.24,
+            "partial_closes": 16,
+            "win_rate": 51.1
+          }
+        },
+        "safety_events": 40,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 29,
+      "score": 55.52615,
+      "params": {
+        "tp1_r_multiple": 0.9,
+        "tp2_r_multiple": 1.6,
+        "tp3_r_multiple": 2.2,
+        "tp4_r_multiple": 2.7,
+        "tp5_r_multiple": 3.5000000000000004,
+        "tp1_close_pct_weight": 0.3,
+        "tp2_close_pct_weight": 0.30000000000000004,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.35000000000000003,
+        "tp5_close_pct_weight": 0.35000000000000003,
+        "trail_activation_r": 2.4000000000000004,
+        "atr_trail_multiplier": 1.9000000000000001,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 3,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.85,
+        "compound_threshold_pct": 13.5,
+        "entry_fib_level": 0.53,
+        "entry_limit_offset_atr": 0.24
+      },
+      "metrics": {
+        "net_return_pct": 71.77,
+        "total_trades": 212,
+        "win_rate": 49.5,
+        "max_tdd_pct": 1.84,
+        "max_ddd_pct": 4.45,
+        "ddd_halts": 17,
+        "final_balance": 34354.64,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 41,
+            "winners": 19,
+            "losers": 22,
+            "pnl": 2418.34,
+            "partial_closes": 22,
+            "win_rate": 46.3
+          },
+          "2015-08": {
+            "trades": 73,
+            "winners": 43,
+            "losers": 30,
+            "pnl": 10948.49,
+            "partial_closes": 48,
+            "win_rate": 58.9
+          },
+          "2015-09": {
+            "trades": 98,
+            "winners": 43,
+            "losers": 55,
+            "pnl": 987.81,
+            "partial_closes": 15,
+            "win_rate": 43.9
+          }
+        },
+        "safety_events": 46,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 30,
+      "score": 163.06184,
+      "params": {
+        "tp1_r_multiple": 0.9,
+        "tp2_r_multiple": 1.7000000000000002,
+        "tp3_r_multiple": 2.3000000000000003,
+        "tp4_r_multiple": 2.7,
+        "tp5_r_multiple": 3.5000000000000004,
+        "tp1_close_pct_weight": 0.3,
+        "tp2_close_pct_weight": 0.30000000000000004,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.35000000000000003,
+        "tp5_close_pct_weight": 0.35000000000000003,
+        "trail_activation_r": 2.4000000000000004,
+        "atr_trail_multiplier": 1.9000000000000001,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 2,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.85,
+        "compound_threshold_pct": 13.5,
+        "entry_fib_level": 0.5,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 109.71,
+        "total_trades": 267,
+        "win_rate": 53.6,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 4.81,
+        "ddd_halts": 16,
+        "final_balance": 41942.14,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 43,
+            "winners": 22,
+            "losers": 21,
+            "pnl": 1993.36,
+            "partial_closes": 22,
+            "win_rate": 51.2
+          },
+          "2015-08": {
+            "trades": 102,
+            "winners": 62,
+            "losers": 40,
+            "pnl": 16316.33,
+            "partial_closes": 57,
+            "win_rate": 60.8
+          },
+          "2015-09": {
+            "trades": 122,
+            "winners": 59,
+            "losers": 63,
+            "pnl": 3632.45,
+            "partial_closes": 17,
+            "win_rate": 48.4
+          }
+        },
+        "safety_events": 47,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 31,
+      "score": -1053.6,
+      "params": {
+        "tp1_r_multiple": 0.9,
+        "tp2_r_multiple": 1.9,
+        "tp3_r_multiple": 2.3,
+        "tp4_r_multiple": 2.8,
+        "tp5_r_multiple": 3.6,
+        "tp1_close_pct_weight": 0.45,
+        "tp2_close_pct_weight": 0.30000000000000004,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.35000000000000003,
+        "tp5_close_pct_weight": 0.35000000000000003,
+        "trail_activation_r": 1.5,
+        "atr_trail_multiplier": 1.8,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 3,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.6,
+        "compound_threshold_pct": 9.5,
+        "entry_fib_level": 0.53,
+        "entry_limit_offset_atr": 0.08
+      },
+      "metrics": {
+        "net_return_pct": 77.45,
+        "total_trades": 214,
+        "win_rate": 55.1,
+        "max_tdd_pct": 1.58,
+        "max_ddd_pct": 5.36,
+        "ddd_halts": 13,
+        "final_balance": 35489.17,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 36,
+            "winners": 15,
+            "losers": 21,
+            "pnl": 387.9,
+            "partial_closes": 18,
+            "win_rate": 41.7
+          },
+          "2015-08": {
+            "trades": 82,
+            "winners": 49,
+            "losers": 33,
+            "pnl": 10164.04,
+            "partial_closes": 49,
+            "win_rate": 59.8
+          },
+          "2015-09": {
+            "trades": 96,
+            "winners": 54,
+            "losers": 42,
+            "pnl": 4937.24,
+            "partial_closes": 16,
+            "win_rate": 56.2
+          }
+        },
+        "safety_events": 47,
+        "tdd_warnings": 0,
+        "valid": false
+      }
+    },
+    {
+      "trial": 32,
+      "score": 160.5761,
+      "params": {
+        "tp1_r_multiple": 1.0,
+        "tp2_r_multiple": 1.9000000000000001,
+        "tp3_r_multiple": 2.4,
+        "tp4_r_multiple": 2.9,
+        "tp5_r_multiple": 3.6,
+        "tp1_close_pct_weight": 0.4,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.6,
+        "atr_trail_multiplier": 1.8,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.6,
+        "compound_threshold_pct": 10.0,
+        "entry_fib_level": 0.51,
+        "entry_limit_offset_atr": 0.08
+      },
+      "metrics": {
+        "net_return_pct": 107.31,
+        "total_trades": 215,
+        "win_rate": 54.0,
+        "max_tdd_pct": 0.76,
+        "max_ddd_pct": 3.89,
+        "ddd_halts": 13,
+        "final_balance": 41461.45,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 45,
+            "winners": 23,
+            "losers": 22,
+            "pnl": 3099.46,
+            "partial_closes": 25,
+            "win_rate": 51.1
+          },
+          "2015-08": {
+            "trades": 72,
+            "winners": 42,
+            "losers": 30,
+            "pnl": 11473.11,
+            "partial_closes": 46,
+            "win_rate": 58.3
+          },
+          "2015-09": {
+            "trades": 98,
+            "winners": 51,
+            "losers": 47,
+            "pnl": 6888.88,
+            "partial_closes": 12,
+            "win_rate": 52.0
+          }
+        },
+        "safety_events": 42,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 33,
+      "score": 128.43835,
+      "params": {
+        "tp1_r_multiple": 1.0,
+        "tp2_r_multiple": 1.9000000000000001,
+        "tp3_r_multiple": 2.3,
+        "tp4_r_multiple": 2.8,
+        "tp5_r_multiple": 3.6,
+        "tp1_close_pct_weight": 0.45,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.4,
+        "tp5_close_pct_weight": 0.35000000000000003,
+        "trail_activation_r": 1.6,
+        "atr_trail_multiplier": 1.8,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.6,
+        "compound_threshold_pct": 9.5,
+        "entry_fib_level": 0.52,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 83.35,
+        "total_trades": 219,
+        "win_rate": 53.4,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 4.03,
+        "ddd_halts": 11,
+        "final_balance": 36670.29,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 27,
+            "winners": 14,
+            "losers": 13,
+            "pnl": 1148.48,
+            "partial_closes": 18,
+            "win_rate": 51.9
+          },
+          "2015-08": {
+            "trades": 93,
+            "winners": 56,
+            "losers": 37,
+            "pnl": 11029.31,
+            "partial_closes": 47,
+            "win_rate": 60.2
+          },
+          "2015-09": {
+            "trades": 99,
+            "winners": 47,
+            "losers": 52,
+            "pnl": 4492.5,
+            "partial_closes": 14,
+            "win_rate": 47.5
+          }
+        },
+        "safety_events": 40,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 34,
+      "score": -1053.3,
+      "params": {
+        "tp1_r_multiple": 1.0,
+        "tp2_r_multiple": 2.0,
+        "tp3_r_multiple": 2.4000000000000004,
+        "tp4_r_multiple": 2.9000000000000004,
+        "tp5_r_multiple": 3.8000000000000007,
+        "tp1_close_pct_weight": 0.45,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.4,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.6,
+        "atr_trail_multiplier": 1.8,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.6,
+        "compound_threshold_pct": 13.0,
+        "entry_fib_level": 0.53,
+        "entry_limit_offset_atr": 0.08
+      },
+      "metrics": {
+        "net_return_pct": 72.93,
+        "total_trades": 221,
+        "win_rate": 53.8,
+        "max_tdd_pct": 1.71,
+        "max_ddd_pct": 5.33,
+        "ddd_halts": 15,
+        "final_balance": 34586.74,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 37,
+            "winners": 17,
+            "losers": 20,
+            "pnl": 391.02,
+            "partial_closes": 14,
+            "win_rate": 45.9
+          },
+          "2015-08": {
+            "trades": 80,
+            "winners": 48,
+            "losers": 32,
+            "pnl": 10299.61,
+            "partial_closes": 44,
+            "win_rate": 60.0
+          },
+          "2015-09": {
+            "trades": 104,
+            "winners": 54,
+            "losers": 50,
+            "pnl": 3896.11,
+            "partial_closes": 12,
+            "win_rate": 51.9
+          }
+        },
+        "safety_events": 49,
+        "tdd_warnings": 0,
+        "valid": false
+      }
+    },
+    {
+      "trial": 35,
+      "score": 165.3433,
+      "params": {
+        "tp1_r_multiple": 1.0,
+        "tp2_r_multiple": 1.9000000000000001,
+        "tp3_r_multiple": 2.4,
+        "tp4_r_multiple": 2.9,
+        "tp5_r_multiple": 3.8,
+        "tp1_close_pct_weight": 0.45,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.6,
+        "atr_trail_multiplier": 2.5,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 5,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.6,
+        "compound_threshold_pct": 13.0,
+        "entry_fib_level": 0.5,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 106.09,
+        "total_trades": 250,
+        "win_rate": 58.0,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 4.78,
+        "ddd_halts": 14,
+        "final_balance": 41217.95,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 43,
+            "winners": 22,
+            "losers": 21,
+            "pnl": 1750.99,
+            "partial_closes": 18,
+            "win_rate": 51.2
+          },
+          "2015-08": {
+            "trades": 96,
+            "winners": 58,
+            "losers": 38,
+            "pnl": 11387.91,
+            "partial_closes": 50,
+            "win_rate": 60.4
+          },
+          "2015-09": {
+            "trades": 111,
+            "winners": 65,
+            "losers": 46,
+            "pnl": 8079.05,
+            "partial_closes": 13,
+            "win_rate": 58.6
+          }
+        },
+        "safety_events": 48,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 36,
+      "score": 153.83857500000002,
+      "params": {
+        "tp1_r_multiple": 1.0,
+        "tp2_r_multiple": 1.7000000000000002,
+        "tp3_r_multiple": 2.4000000000000004,
+        "tp4_r_multiple": 2.9000000000000004,
+        "tp5_r_multiple": 3.9000000000000004,
+        "tp1_close_pct_weight": 0.4,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.1,
+        "atr_trail_multiplier": 2.1,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.8000000000000003,
+        "compound_threshold_pct": 13.0,
+        "entry_fib_level": 0.5,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 102.05,
+        "total_trades": 259,
+        "win_rate": 54.1,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 4.98,
+        "ddd_halts": 15,
+        "final_balance": 40410.75,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 43,
+            "winners": 22,
+            "losers": 21,
+            "pnl": 1924.21,
+            "partial_closes": 20,
+            "win_rate": 51.2
+          },
+          "2015-08": {
+            "trades": 102,
+            "winners": 62,
+            "losers": 40,
+            "pnl": 13865.07,
+            "partial_closes": 51,
+            "win_rate": 60.8
+          },
+          "2015-09": {
+            "trades": 114,
+            "winners": 56,
+            "losers": 58,
+            "pnl": 4621.47,
+            "partial_closes": 14,
+            "win_rate": 49.1
+          }
+        },
+        "safety_events": 46,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 37,
+      "score": 147.640425,
+      "params": {
+        "tp1_r_multiple": 1.1,
+        "tp2_r_multiple": 1.7000000000000002,
+        "tp3_r_multiple": 2.1000000000000005,
+        "tp4_r_multiple": 2.400000000000001,
+        "tp5_r_multiple": 4.400000000000001,
+        "tp1_close_pct_weight": 0.4,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.15000000000000002,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.7000000000000002,
+        "atr_trail_multiplier": 2.1,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.8000000000000003,
+        "compound_threshold_pct": 14.0,
+        "entry_fib_level": 0.5,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 98.45,
+        "total_trades": 239,
+        "win_rate": 53.1,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 4.2,
+        "ddd_halts": 13,
+        "final_balance": 39690.55,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 34,
+            "winners": 17,
+            "losers": 17,
+            "pnl": 955.09,
+            "partial_closes": 14,
+            "win_rate": 50.0
+          },
+          "2015-08": {
+            "trades": 93,
+            "winners": 54,
+            "losers": 39,
+            "pnl": 11630.26,
+            "partial_closes": 48,
+            "win_rate": 58.1
+          },
+          "2015-09": {
+            "trades": 112,
+            "winners": 56,
+            "losers": 56,
+            "pnl": 7105.21,
+            "partial_closes": 12,
+            "win_rate": 50.0
+          }
+        },
+        "safety_events": 44,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 38,
+      "score": 132.0856,
+      "params": {
+        "tp1_r_multiple": 1.1,
+        "tp2_r_multiple": 1.7000000000000002,
+        "tp3_r_multiple": 2.5000000000000004,
+        "tp4_r_multiple": 3.0000000000000004,
+        "tp5_r_multiple": 4.4,
+        "tp1_close_pct_weight": 0.4,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.15000000000000002,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.2000000000000002,
+        "atr_trail_multiplier": 2.5,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.35,
+        "compound_threshold_pct": 14.0,
+        "entry_fib_level": 0.5,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 82.72,
+        "total_trades": 235,
+        "win_rate": 57.0,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 4.23,
+        "ddd_halts": 11,
+        "final_balance": 36543.53,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 30,
+            "winners": 14,
+            "losers": 16,
+            "pnl": 710.98,
+            "partial_closes": 15,
+            "win_rate": 46.7
+          },
+          "2015-08": {
+            "trades": 98,
+            "winners": 56,
+            "losers": 42,
+            "pnl": 8171.69,
+            "partial_closes": 47,
+            "win_rate": 57.1
+          },
+          "2015-09": {
+            "trades": 107,
+            "winners": 64,
+            "losers": 43,
+            "pnl": 7660.85,
+            "partial_closes": 10,
+            "win_rate": 59.8
+          }
+        },
+        "safety_events": 39,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 39,
+      "score": 86.717175,
+      "params": {
+        "tp1_r_multiple": 1.1,
+        "tp2_r_multiple": 2.1,
+        "tp3_r_multiple": 2.5,
+        "tp4_r_multiple": 3.4000000000000004,
+        "tp5_r_multiple": 4.4,
+        "tp1_close_pct_weight": 0.4,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.15000000000000002,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.2,
+        "trail_activation_r": 1.2000000000000002,
+        "atr_trail_multiplier": 2.5,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.3,
+        "compound_threshold_pct": 14.0,
+        "entry_fib_level": 0.55,
+        "entry_limit_offset_atr": 0.04
+      },
+      "metrics": {
+        "net_return_pct": 52.43,
+        "total_trades": 167,
+        "win_rate": 51.5,
+        "max_tdd_pct": 0.62,
+        "max_ddd_pct": 4.32,
+        "ddd_halts": 9,
+        "final_balance": 30486.86,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 13,
+            "winners": 4,
+            "losers": 9,
+            "pnl": -426.27,
+            "partial_closes": 13,
+            "win_rate": 30.8
+          },
+          "2015-08": {
+            "trades": 62,
+            "winners": 34,
+            "losers": 28,
+            "pnl": 7050.33,
+            "partial_closes": 38,
+            "win_rate": 54.8
+          },
+          "2015-09": {
+            "trades": 92,
+            "winners": 48,
+            "losers": 44,
+            "pnl": 3862.8,
+            "partial_closes": 13,
+            "win_rate": 52.2
+          }
+        },
+        "safety_events": 35,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 40,
+      "score": 82.147885,
+      "params": {
+        "tp1_r_multiple": 1.1,
+        "tp2_r_multiple": 2.1,
+        "tp3_r_multiple": 2.5,
+        "tp4_r_multiple": 3.0,
+        "tp5_r_multiple": 4.2,
+        "tp1_close_pct_weight": 0.4,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.15000000000000002,
+        "tp4_close_pct_weight": 0.1,
+        "tp5_close_pct_weight": 0.2,
+        "trail_activation_r": 1.2000000000000002,
+        "atr_trail_multiplier": 2.5,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 2,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.35,
+        "compound_threshold_pct": 14.0,
+        "entry_fib_level": 0.5700000000000001,
+        "entry_limit_offset_atr": 0.04
+      },
+      "metrics": {
+        "net_return_pct": 48.61,
+        "total_trades": 158,
+        "win_rate": 51.9,
+        "max_tdd_pct": 0.56,
+        "max_ddd_pct": 4.25,
+        "ddd_halts": 8,
+        "final_balance": 29721.06,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 13,
+            "winners": 4,
+            "losers": 9,
+            "pnl": -460.12,
+            "partial_closes": 14,
+            "win_rate": 30.8
+          },
+          "2015-08": {
+            "trades": 63,
+            "winners": 34,
+            "losers": 29,
+            "pnl": 6682.53,
+            "partial_closes": 37,
+            "win_rate": 54.0
+          },
+          "2015-09": {
+            "trades": 82,
+            "winners": 44,
+            "losers": 38,
+            "pnl": 3498.66,
+            "partial_closes": 15,
+            "win_rate": 53.7
+          }
+        },
+        "safety_events": 33,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 41,
+      "score": 126.74917500000001,
+      "params": {
+        "tp1_r_multiple": 0.8,
+        "tp2_r_multiple": 2.2,
+        "tp3_r_multiple": 2.5000000000000004,
+        "tp4_r_multiple": 3.5000000000000004,
+        "tp5_r_multiple": 4.200000000000001,
+        "tp1_close_pct_weight": 0.3,
+        "tp2_close_pct_weight": 0.45000000000000007,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.2,
+        "tp5_close_pct_weight": 0.2,
+        "trail_activation_r": 0.8,
+        "atr_trail_multiplier": 2.2,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 2,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.65,
+        "compound_threshold_pct": 12.5,
+        "entry_fib_level": 0.55,
+        "entry_limit_offset_atr": 0.04
+      },
+      "metrics": {
+        "net_return_pct": 84.89,
+        "total_trades": 210,
+        "win_rate": 50.5,
+        "max_tdd_pct": 0.72,
+        "max_ddd_pct": 4.08,
+        "ddd_halts": 13,
+        "final_balance": 36978.66,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 38,
+            "winners": 18,
+            "losers": 20,
+            "pnl": 1482.72,
+            "partial_closes": 22,
+            "win_rate": 47.4
+          },
+          "2015-08": {
+            "trades": 83,
+            "winners": 48,
+            "losers": 35,
+            "pnl": 11965.23,
+            "partial_closes": 54,
+            "win_rate": 57.8
+          },
+          "2015-09": {
+            "trades": 89,
+            "winners": 40,
+            "losers": 49,
+            "pnl": 3530.72,
+            "partial_closes": 21,
+            "win_rate": 44.9
+          }
+        },
+        "safety_events": 41,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 42,
+      "score": 53.25336,
+      "params": {
+        "tp1_r_multiple": 0.8,
+        "tp2_r_multiple": 2.3000000000000003,
+        "tp3_r_multiple": 2.6000000000000005,
+        "tp4_r_multiple": 3.000000000000001,
+        "tp5_r_multiple": 4.700000000000001,
+        "tp1_close_pct_weight": 0.3,
+        "tp2_close_pct_weight": 0.35,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.2,
+        "tp5_close_pct_weight": 0.2,
+        "trail_activation_r": 2.0,
+        "atr_trail_multiplier": 2.3000000000000003,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 4,
+        "range_min_confluence": 2,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.65,
+        "compound_threshold_pct": 12.5,
+        "entry_fib_level": 0.5700000000000001,
+        "entry_limit_offset_atr": 0.04
+      },
+      "metrics": {
+        "net_return_pct": 69.86,
+        "total_trades": 208,
+        "win_rate": 47.6,
+        "max_tdd_pct": 0.89,
+        "max_ddd_pct": 4.64,
+        "ddd_halts": 13,
+        "final_balance": 33972.36,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 39,
+            "winners": 15,
+            "losers": 24,
+            "pnl": 141.16,
+            "partial_closes": 20,
+            "win_rate": 38.5
+          },
+          "2015-08": {
+            "trades": 82,
+            "winners": 47,
+            "losers": 35,
+            "pnl": 10704.57,
+            "partial_closes": 56,
+            "win_rate": 57.3
+          },
+          "2015-09": {
+            "trades": 87,
+            "winners": 37,
+            "losers": 50,
+            "pnl": 3126.63,
+            "partial_closes": 20,
+            "win_rate": 42.5
+          }
+        },
+        "safety_events": 46,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 43,
+      "score": 154.49617999999998,
+      "params": {
+        "tp1_r_multiple": 1.0,
+        "tp2_r_multiple": 1.7000000000000002,
+        "tp3_r_multiple": 2.3000000000000003,
+        "tp4_r_multiple": 2.9000000000000004,
+        "tp5_r_multiple": 4.0,
+        "tp1_close_pct_weight": 0.45,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 0.9,
+        "atr_trail_multiplier": 2.2,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.7000000000000002,
+        "compound_threshold_pct": 12.5,
+        "entry_fib_level": 0.54,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 105.57,
+        "total_trades": 221,
+        "win_rate": 51.6,
+        "max_tdd_pct": 1.82,
+        "max_ddd_pct": 4.49,
+        "ddd_halts": 13,
+        "final_balance": 41113.13,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 51,
+            "winners": 28,
+            "losers": 23,
+            "pnl": 3363.25,
+            "partial_closes": 26,
+            "win_rate": 54.9
+          },
+          "2015-08": {
+            "trades": 85,
+            "winners": 48,
+            "losers": 37,
+            "pnl": 13102.91,
+            "partial_closes": 49,
+            "win_rate": 56.5
+          },
+          "2015-09": {
+            "trades": 85,
+            "winners": 38,
+            "losers": 47,
+            "pnl": 4646.97,
+            "partial_closes": 17,
+            "win_rate": 44.7
+          }
+        },
+        "safety_events": 41,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 44,
+      "score": 158.04654,
+      "params": {
+        "tp1_r_multiple": 1.0,
+        "tp2_r_multiple": 1.7000000000000002,
+        "tp3_r_multiple": 2.3000000000000003,
+        "tp4_r_multiple": 2.9000000000000004,
+        "tp5_r_multiple": 3.9000000000000004,
+        "tp1_close_pct_weight": 0.35000000000000003,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 2.0,
+        "atr_trail_multiplier": 2.1,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.75,
+        "compound_threshold_pct": 13.0,
+        "entry_fib_level": 0.52,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 104.66,
+        "total_trades": 229,
+        "win_rate": 54.6,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 3.9,
+        "ddd_halts": 13,
+        "final_balance": 40932.59,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 41,
+            "winners": 19,
+            "losers": 22,
+            "pnl": 1913.56,
+            "partial_closes": 21,
+            "win_rate": 46.3
+          },
+          "2015-08": {
+            "trades": 91,
+            "winners": 57,
+            "losers": 34,
+            "pnl": 13221.83,
+            "partial_closes": 49,
+            "win_rate": 62.6
+          },
+          "2015-09": {
+            "trades": 97,
+            "winners": 49,
+            "losers": 48,
+            "pnl": 5797.2,
+            "partial_closes": 14,
+            "win_rate": 50.5
+          }
+        },
+        "safety_events": 43,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 45,
+      "score": 156.8947,
+      "params": {
+        "tp1_r_multiple": 1.0,
+        "tp2_r_multiple": 1.7000000000000002,
+        "tp3_r_multiple": 2.3000000000000003,
+        "tp4_r_multiple": 2.6000000000000005,
+        "tp5_r_multiple": 3.900000000000001,
+        "tp1_close_pct_weight": 0.35000000000000003,
+        "tp2_close_pct_weight": 0.5,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.1,
+        "trail_activation_r": 1.0,
+        "atr_trail_multiplier": 2.1,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.9,
+        "compound_threshold_pct": 13.0,
+        "entry_fib_level": 0.52,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 106.45,
+        "total_trades": 252,
+        "win_rate": 52.4,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 4.77,
+        "ddd_halts": 15,
+        "final_balance": 41289.03,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 41,
+            "winners": 19,
+            "losers": 22,
+            "pnl": 1997.12,
+            "partial_closes": 22,
+            "win_rate": 46.3
+          },
+          "2015-08": {
+            "trades": 97,
+            "winners": 59,
+            "losers": 38,
+            "pnl": 13643.43,
+            "partial_closes": 52,
+            "win_rate": 60.8
+          },
+          "2015-09": {
+            "trades": 114,
+            "winners": 54,
+            "losers": 60,
+            "pnl": 5648.48,
+            "partial_closes": 17,
+            "win_rate": 47.4
+          }
+        },
+        "safety_events": 47,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 46,
+      "score": 108.94442500000001,
+      "params": {
+        "tp1_r_multiple": 1.2,
+        "tp2_r_multiple": 1.8,
+        "tp3_r_multiple": 2.3000000000000003,
+        "tp4_r_multiple": 2.6000000000000005,
+        "tp5_r_multiple": 4.000000000000001,
+        "tp1_close_pct_weight": 0.45,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.25,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.15000000000000002,
+        "trail_activation_r": 1.4000000000000001,
+        "atr_trail_multiplier": 2.0,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 3,
+        "range_min_confluence": 4,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.5,
+        "compound_threshold_pct": 10.5,
+        "entry_fib_level": 0.54,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 67.51,
+        "total_trades": 211,
+        "win_rate": 54.5,
+        "max_tdd_pct": 0.71,
+        "max_ddd_pct": 4.22,
+        "ddd_halts": 12,
+        "final_balance": 33501.61,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 35,
+            "winners": 15,
+            "losers": 20,
+            "pnl": 47.3,
+            "partial_closes": 10,
+            "win_rate": 42.9
+          },
+          "2015-08": {
+            "trades": 83,
+            "winners": 48,
+            "losers": 35,
+            "pnl": 7727.24,
+            "partial_closes": 42,
+            "win_rate": 57.8
+          },
+          "2015-09": {
+            "trades": 93,
+            "winners": 52,
+            "losers": 41,
+            "pnl": 5727.07,
+            "partial_closes": 11,
+            "win_rate": 55.9
+          }
+        },
+        "safety_events": 38,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 47,
+      "score": 145.068515,
+      "params": {
+        "tp1_r_multiple": 1.2,
+        "tp2_r_multiple": 1.8,
+        "tp3_r_multiple": 2.1,
+        "tp4_r_multiple": 3.2,
+        "tp5_r_multiple": 3.8000000000000003,
+        "tp1_close_pct_weight": 0.35000000000000003,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.15000000000000002,
+        "trail_activation_r": 2.2,
+        "atr_trail_multiplier": 2.0,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 7,
+        "range_min_confluence": 3,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.9,
+        "compound_threshold_pct": 10.0,
+        "entry_fib_level": 0.52,
+        "entry_limit_offset_atr": 0.06
+      },
+      "metrics": {
+        "net_return_pct": 96.69,
+        "total_trades": 240,
+        "win_rate": 52.9,
+        "max_tdd_pct": 0.74,
+        "max_ddd_pct": 4.11,
+        "ddd_halts": 16,
+        "final_balance": 39337.37,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 50,
+            "winners": 27,
+            "losers": 23,
+            "pnl": 3370.23,
+            "partial_closes": 21,
+            "win_rate": 54.0
+          },
+          "2015-08": {
+            "trades": 85,
+            "winners": 54,
+            "losers": 31,
+            "pnl": 13834.18,
+            "partial_closes": 40,
+            "win_rate": 63.5
+          },
+          "2015-09": {
+            "trades": 105,
+            "winners": 46,
+            "losers": 59,
+            "pnl": 2132.95,
+            "partial_closes": 5,
+            "win_rate": 43.8
+          }
+        },
+        "safety_events": 46,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 48,
+      "score": 113.01599999999999,
+      "params": {
+        "tp1_r_multiple": 1.2,
+        "tp2_r_multiple": 1.8,
+        "tp3_r_multiple": 2.1,
+        "tp4_r_multiple": 3.3000000000000003,
+        "tp5_r_multiple": 3.7,
+        "tp1_close_pct_weight": 0.35000000000000003,
+        "tp2_close_pct_weight": 0.4,
+        "tp3_close_pct_weight": 0.35000000000000003,
+        "tp4_close_pct_weight": 0.05,
+        "tp5_close_pct_weight": 0.15000000000000002,
+        "trail_activation_r": 2.2,
+        "atr_trail_multiplier": 2.0,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 7,
+        "range_min_confluence": 3,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.5,
+        "compound_threshold_pct": 10.5,
+        "entry_fib_level": 0.73,
+        "entry_limit_offset_atr": 0.06
+      },
+      "metrics": {
+        "net_return_pct": 66.44,
+        "total_trades": 130,
+        "win_rate": 60.0,
+        "max_tdd_pct": 4.14,
+        "max_ddd_pct": 3.81,
+        "ddd_halts": 11,
+        "final_balance": 33288.76,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 30,
+            "winners": 14,
+            "losers": 16,
+            "pnl": -589.66,
+            "partial_closes": 11,
+            "win_rate": 46.7
+          },
+          "2015-08": {
+            "trades": 45,
+            "winners": 30,
+            "losers": 15,
+            "pnl": 7593.25,
+            "partial_closes": 31,
+            "win_rate": 66.7
+          },
+          "2015-09": {
+            "trades": 55,
+            "winners": 34,
+            "losers": 21,
+            "pnl": 6285.17,
+            "partial_closes": 14,
+            "win_rate": 61.8
+          }
+        },
+        "safety_events": 35,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    },
+    {
+      "trial": 49,
+      "score": 145.05661000000003,
+      "params": {
+        "tp1_r_multiple": 0.9,
+        "tp2_r_multiple": 1.9,
+        "tp3_r_multiple": 2.4,
+        "tp4_r_multiple": 3.2,
+        "tp5_r_multiple": 3.7,
+        "tp1_close_pct_weight": 0.35000000000000003,
+        "tp2_close_pct_weight": 0.35,
+        "tp3_close_pct_weight": 0.2,
+        "tp4_close_pct_weight": 0.15000000000000002,
+        "tp5_close_pct_weight": 0.4,
+        "trail_activation_r": 2.2,
+        "atr_trail_multiplier": 2.7,
+        "use_atr_trailing": true,
+        "trend_min_confluence": 7,
+        "range_min_confluence": 3,
+        "min_quality_factors": 3,
+        "risk_per_trade_pct": 1.75,
+        "compound_threshold_pct": 12.0,
+        "entry_fib_level": 0.51,
+        "entry_limit_offset_atr": 0.06
+      },
+      "metrics": {
+        "net_return_pct": 97.93,
+        "total_trades": 226,
+        "win_rate": 51.8,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 4.31,
+        "ddd_halts": 13,
+        "final_balance": 39585.93,
+        "monthly_stats": {
+          "2015-07": {
+            "trades": 34,
+            "winners": 16,
+            "losers": 18,
+            "pnl": 1309.7,
+            "partial_closes": 18,
+            "win_rate": 47.1
+          },
+          "2015-08": {
+            "trades": 94,
+            "winners": 56,
+            "losers": 38,
+            "pnl": 14561.32,
+            "partial_closes": 51,
+            "win_rate": 59.6
+          },
+          "2015-09": {
+            "trades": 98,
+            "winners": 45,
+            "losers": 53,
+            "pnl": 3714.91,
+            "partial_closes": 13,
+            "win_rate": 45.9
+          }
+        },
+        "safety_events": 37,
+        "tdd_warnings": 0,
+        "valid": true
+      }
+    }
+  ]
+}

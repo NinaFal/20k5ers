@@ -1,0 +1,16 @@
+{
+  "initial_balance": 20000,
+  "final_balance": 27920.86,
+  "net_pnl": 7920.86,
+  "return_pct": 39.6,
+  "total_trades": 1865,
+  "signals_generated": 9324,
+  "winners": 1176,
+  "losers": 689,
+  "win_rate": 63.1,
+  "total_r": 56.79,
+  "total_commissions": 1879.48,
+  "max_tdd_pct": 13.77,
+  "max_ddd_pct": 4.1,
+  "safety_events": 14
+}
