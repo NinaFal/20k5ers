@@ -26,6 +26,9 @@ ftmo_optimization*.log
 ftmo_optimization*.txt
 optimization_output.log
 
+# Backtest runtime logs (large files)
+backtest/logs/
+
 # Backup files
 *.backup
 
