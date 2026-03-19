@@ -36,6 +36,28 @@ except ImportError:
 ENTRY_FIB_RANGE = (0.5, 0.786)           # 0.5=shallow, 0.786=deep retracement
 ENTRY_OFFSET_ATR_RANGE = (0.0, 0.5)      # 0=no offset, 0.5=aggressive ATR offset
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEFAULT SYMBOLS — All live bot symbols with data from 2015+
+# Excludes: NZD_JPY (user request), SPX500_USD (no 2015 data),
+#           UK100_USD (no 2015 data), crypto (no 2015 data),
+#           XBR_USD/XTI_USD oil (no 2015 data)
+# ═══════════════════════════════════════════════════════════════════════════════
+DEFAULT_SYMBOLS = [
+    # Forex majors
+    "EUR_USD", "GBP_USD", "USD_JPY", "USD_CHF", "USD_CAD", "AUD_USD", "NZD_USD",
+    # EUR crosses
+    "EUR_GBP", "EUR_JPY", "EUR_CHF", "EUR_AUD", "EUR_CAD", "EUR_NZD",
+    # GBP crosses
+    "GBP_JPY", "GBP_CHF", "GBP_AUD", "GBP_CAD", "GBP_NZD",
+    # Other crosses
+    "AUD_JPY", "AUD_CHF", "AUD_CAD", "AUD_NZD",
+    "NZD_CHF", "NZD_CAD", "CAD_JPY", "CAD_CHF", "CHF_JPY",
+    # Metals
+    "XAU_USD", "XAG_USD",
+    # Indices (NAS100 has 2015 data; UK100 does not)
+    "NAS100_USD",
+]
+
 
 @dataclass
 class Result:
@@ -57,7 +79,8 @@ def load_base_params() -> Dict[str, Any]:
     return data.get('parameters', data)
 
 
-def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float) -> Result:
+def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float,
+                 symbols: str = None) -> Result:
     """Run backtest — NO timeout for maximum speed."""
     temp_dir = Path(tempfile.gettempdir()) / "entry_optimizer"
     temp_dir.mkdir(exist_ok=True)
@@ -75,6 +98,7 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float) -
         }, f, indent=2)
 
     try:
+        symbols_str = symbols or ",".join(DEFAULT_SYMBOLS)
         cmd = [
             sys.executable,
             str(Path(__file__).parent / "src" / "main_live_bot_backtest.py"),
@@ -83,6 +107,7 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float) -
             "--balance", str(balance),
             "--output", str(output_dir),
             "--params-file", str(temp_file),
+            "--symbols", symbols_str,
             "--quiet",
         ]
 
@@ -118,7 +143,7 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float) -
 
 
 def objective(trial: optuna.Trial, base_params: Dict[str, Any],
-              start: str, end: str, balance: float) -> float:
+              start: str, end: str, balance: float, symbols: str = None) -> float:
     """Optimize ONLY entry parameters. Everything else is fixed."""
     params = base_params.copy()
 
@@ -133,7 +158,7 @@ def objective(trial: optuna.Trial, base_params: Dict[str, Any],
     offset = params['entry_limit_offset_atr']
     print(f"\n  Trial {trial.number}: fib={fib:.3f}, offset={offset:.2f}×ATR")
 
-    result = run_backtest(params, start, end, balance)
+    result = run_backtest(params, start, end, balance, symbols)
 
     trial.set_user_attr('net_return_pct', result.net_return_pct)
     trial.set_user_attr('total_trades', result.total_trades)
@@ -174,6 +199,8 @@ def main():
     parser.add_argument('--end', type=str, default='2024-12-31')
     parser.add_argument('--balance', type=float, default=20000)
     parser.add_argument('--parallel', '-j', type=int, default=1)
+    parser.add_argument('--symbols', type=str, default=None,
+        help='Comma-separated symbols. Default: 30 symbols with 2015+ data (no crypto/oil/UK100/NZD_JPY)')
     parser.add_argument('--apply', type=str, help='Apply results file to current_params.json')
     args = parser.parse_args()
 
@@ -190,10 +217,13 @@ def main():
     print(f"  Period:  {args.start} to {args.end}")
     print(f"  Balance: ${args.balance:,.0f}")
     print(f"  Workers: {args.parallel}")
+    symbols_str = args.symbols or ",".join(DEFAULT_SYMBOLS)
+    symbol_list = symbols_str.split(",")
     print(f"  Fib range:    {ENTRY_FIB_RANGE[0]} - {ENTRY_FIB_RANGE[1]}")
     print(f"  Offset range: {ENTRY_OFFSET_ATR_RANGE[0]} - {ENTRY_OFFSET_ATR_RANGE[1]} ATR")
     print(f"  Baseline:     fib={base_params.get('entry_fib_level', 0.618):.3f}, "
           f"offset={base_params.get('entry_limit_offset_atr', 0.0):.2f}")
+    print(f"  Symbols:      {len(symbol_list)} ({', '.join(symbol_list[:5])}...)")
     print("  ALL other params: FIXED at current values")
     print("=" * 70)
 
@@ -210,7 +240,7 @@ def main():
     })
 
     study.optimize(
-        lambda trial: objective(trial, base_params, args.start, args.end, args.balance),
+        lambda trial: objective(trial, base_params, args.start, args.end, args.balance, symbols_str),
         n_trials=args.trials,
         n_jobs=args.parallel,
         show_progress_bar=True,
@@ -274,6 +304,7 @@ def main():
             "start": args.start,
             "end": args.end,
             "balance": args.balance,
+            "symbols": symbol_list,
             "fib_range": list(ENTRY_FIB_RANGE),
             "offset_range": list(ENTRY_OFFSET_ATR_RANGE),
         },
