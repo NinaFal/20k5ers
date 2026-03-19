@@ -95,6 +95,12 @@ COMPOUNDING_RANGES = {
     'compound_threshold_pct': (1.0, 15.0),     # Update lot size when equity changes by 1-15%
 }
 
+# Entry Refinement Parameters - Same signals, better entry prices
+ENTRY_REFINEMENT_RANGES = {
+    'entry_fib_level': (0.5, 0.786),           # Current: 0.618 (deeper = better price, fewer fills)
+    'entry_limit_offset_atr': (0.0, 0.3),      # Current: 0.0 (ATR offset toward better price)
+}
+
 
 @dataclass
 class OptimizationResult:
@@ -365,14 +371,29 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
         COMPOUNDING_RANGES['compound_threshold_pct'][1],
         step=0.5
     )
-    
+
+    # Sample entry refinement parameters (better entries, same signals)
+    params['entry_fib_level'] = trial.suggest_float(
+        'entry_fib_level',
+        ENTRY_REFINEMENT_RANGES['entry_fib_level'][0],
+        ENTRY_REFINEMENT_RANGES['entry_fib_level'][1],
+        step=0.01
+    )
+    params['entry_limit_offset_atr'] = trial.suggest_float(
+        'entry_limit_offset_atr',
+        ENTRY_REFINEMENT_RANGES['entry_limit_offset_atr'][0],
+        ENTRY_REFINEMENT_RANGES['entry_limit_offset_atr'][1],
+        step=0.02
+    )
+
     # Run backtest
     print(f"\n  Trial {trial.number}: Running backtest...")
     print(f"    TPs: {params.get('tp1_r_multiple', 0):.1f}R/{params.get('tp2_r_multiple', 0):.1f}R/{params.get('tp3_r_multiple', 0):.1f}R/{params.get('tp4_r_multiple', 0):.1f}R/{params.get('tp5_r_multiple', 0):.1f}R")
     print(f"    Close%: {params.get('tp1_close_pct', 0):.0%}/{params.get('tp2_close_pct', 0):.0%}/{params.get('tp3_close_pct', 0):.0%}/{params.get('tp4_close_pct', 0):.0%}/{params.get('tp5_close_pct', 0):.0%}")
     print(f"    Risk: {params.get('risk_per_trade_pct', 0):.2f}%, Trail: {params.get('trail_activation_r', 0):.1f}R/{params.get('atr_trail_multiplier', 0):.1f}x ATR")
     print(f"    Compound: ≥{params.get('compound_threshold_pct', 5):.1f}%, Confluence: T={params.get('trend_min_confluence', 0)}/R={params.get('range_min_confluence', 0)}/Q={params.get('min_quality_factors', 0)}")
-    
+    print(f"    Entry: fib={params.get('entry_fib_level', 0.618):.3f}, offset={params.get('entry_limit_offset_atr', 0.0):.2f}×ATR")
+
     result = run_backtest(params, start, end, balance)
     
     # Store result metrics
@@ -468,6 +489,11 @@ def _enqueue_current_params(study: optuna.Study, num_tps: int) -> None:
 
     # Risk / compounding
     for key in ['risk_per_trade_pct', 'compound_threshold_pct']:
+        if key in params:
+            enqueue_params[key] = params[key]
+
+    # Entry refinement
+    for key in ['entry_fib_level', 'entry_limit_offset_atr']:
         if key in params:
             enqueue_params[key] = params[key]
 
