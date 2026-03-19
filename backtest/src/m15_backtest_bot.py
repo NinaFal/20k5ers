@@ -799,7 +799,11 @@ class M15BacktestBot:
                 self.balance += partial_profit
                 
                 pos.remaining_pct -= close_pct
-                pos.trailing_sl = pos.fill_price  # Move to breakeven
+                # Move SL to 0.1R
+                if signal.direction == 'bullish':
+                    pos.trailing_sl = signal.entry + (risk * 0.1)
+                else:
+                    pos.trailing_sl = signal.entry - (risk * 0.1)
         
         # TP2
         elif not pos.tp2_hit:
@@ -816,11 +820,11 @@ class M15BacktestBot:
                 
                 pos.remaining_pct -= close_pct
                 
-                # Trail to TP1 + 0.5R
+                # Trail SL to TP1 level
                 if signal.direction == 'bullish':
-                    pos.trailing_sl = signal.entry + risk * (self.params.tp1_r_multiple + 0.5)
+                    pos.trailing_sl = signal.entry + risk * self.params.tp1_r_multiple
                 else:
-                    pos.trailing_sl = signal.entry - risk * (self.params.tp1_r_multiple + 0.5)
+                    pos.trailing_sl = signal.entry - risk * self.params.tp1_r_multiple
         
         # TP3 - Close all remaining
         else:

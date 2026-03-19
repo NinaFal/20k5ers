@@ -150,7 +150,7 @@ class PendingSetup:
     tp3_hit: bool = False
     tp4_hit: bool = False  # Added for 5-TP system
     tp5_hit: bool = False  # Added for 5-TP system
-    progressive_trail_applied: bool = False  # Progressive trailing: SL moved to TP1 at 0.8R
+    progressive_trail_applied: bool = False  # Deprecated - kept for JSON compatibility
     
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -2997,7 +2997,7 @@ class LiveTradingBot:
         
         # 2. Update open positions
         # IMPORTANT: Use ORIGINAL stop_loss from pending_setups, NOT the current
-        # MT5 SL which may have been trailed (breakeven, TP1+0.5R, etc.).
+        # MT5 SL which may have been trailed (0.1R, TP1, TP2, etc.).
         # Using trailed SL gives wrong risk → wrong TP → TP gets deleted!
         positions = self.mt5.get_my_positions()
         log.info(f"  Found {len(positions)} open positions to check")
@@ -4675,19 +4675,15 @@ class LiveTradingBot:
         """
         Manage partial take profits for active positions.
 
-        3-TP SYSTEM (ALIGNED WITH SIMULATOR):
-        - TP1: Close tp1_close_pct at tp1_r_multiple
-        - TP2: Close tp2_close_pct at tp2_r_multiple
-        - TP3: Close ALL REMAINING at tp3_r_multiple
+        5-TP SYSTEM:
+        - TP1: Close 20% at 0.6R  → SL to 0.1R
+        - TP2: Close 60% at 1.1R  → SL to TP1 (0.6R)
+        - TP3: Close 10% at 1.8R  → SL to TP2 (1.1R)
+        - TP4: Close 5% at 2.3R   → SL to TP3 (1.8R)
+        - TP5: Close 5% at 2.8R   → SL to TP4 (2.3R)
 
-        All closes via MARKET ORDERS with position=ticket!
-
-        TRAILING STOP LOGIC (matches simulator):
-        - TP1 hit: SL → Breakeven
-        - TP2 hit: SL → TP1 + 0.5R
-        - TP3 hit: Close ALL remaining position
-
-        Tracks partial close state in pending_setups.partial_closes (0-3).
+        SL always trails to PREVIOUS TP level (never above current price).
+        Tracks partial close state in pending_setups.partial_closes (0-5).
         """
         positions = self.mt5.get_my_positions()
         if not positions:
@@ -4779,47 +4775,20 @@ class LiveTradingBot:
                         pos.ticket, broker_symbol, setup, final_tp_price
                     )
 
-                    # Move SL to breakeven (matches simulator)
-                    new_sl = entry
+                    # Move SL to 0.1R (lock in small profit)
+                    if setup.direction == "bullish":
+                        new_sl = entry + (risk * 0.1)
+                    else:
+                        new_sl = entry - (risk * 0.1)
                     self.mt5.modify_sl_tp(current_ticket, sl=new_sl)
-                    log.info(f"[{broker_symbol}] SL moved to breakeven: {new_sl:.5f}")
+                    log.info(f"[{broker_symbol}] SL moved to 0.1R: {new_sl:.5f}")
 
                     self._save_pending_setups()
                 else:
                     log.error(f"[{broker_symbol}] Partial close failed: {result.error}")
 
             # ═══════════════════════════════════════════════════════════════
-            # PROGRESSIVE TRAILING: Between TP1 and TP2, at progressive_trigger_r move SL
-            # This locks in more profit earlier, improving risk-adjusted returns
-            # Backtested: +$103K improvement (+25%) over standard trailing
-            # Now parameterized for optimization
-            # ═══════════════════════════════════════════════════════════════
-            progressive_trigger_r = getattr(self.params, 'progressive_trigger_r', 0.8)
-            progressive_trail_target_r = getattr(self.params, 'progressive_trail_target_r', 0.4)
-            
-            if (partial_state == 1 and 
-                current_r >= progressive_trigger_r and 
-                current_r < tp2_r and
-                not getattr(setup, 'progressive_trail_applied', False)):
-                
-                # Calculate BE + progressive_trail_target_r for trailing SL
-                if setup.direction == "bullish":
-                    new_sl = entry + (risk * progressive_trail_target_r)
-                else:
-                    new_sl = entry - (risk * progressive_trail_target_r)
-                
-                log.info(f"[{broker_symbol}] Progressive trail at {current_r:.2f}R! Moving SL to BE+{progressive_trail_target_r}R: {new_sl:.5f}")
-                
-                modify_result = self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
-                if modify_result:
-                    log.info(f"[{broker_symbol}] ✅ SL trailed to BE+{progressive_trail_target_r}R: {new_sl:.5f}")
-                    setup.progressive_trail_applied = True
-                    self._save_pending_setups()
-                else:
-                    log.warning(f"[{broker_symbol}] Failed to apply progressive trail")
-            
-            # ═══════════════════════════════════════════════════════════════
-            # TP2 HIT - Close tp2_close_pct, trail SL to TP1 + 0.5R
+            # TP2 HIT - Close tp2_close_pct, trail SL to TP1
             # ═══════════════════════════════════════════════════════════════
             if current_r >= tp2_r and partial_state == 1:
                 close_pct = self.params.tp2_close_pct
@@ -4848,22 +4817,21 @@ class LiveTradingBot:
                         pos.ticket, broker_symbol, setup, final_tp_price
                     )
 
-                    # Trail SL to TP1 + 0.5R (matches simulator)
+                    # Trail SL to TP1 level
                     if setup.direction == "bullish":
-                        new_sl = entry + (risk * tp1_r) + (0.5 * risk)
+                        new_sl = entry + (risk * tp1_r)
                     else:
-                        new_sl = entry - (risk * tp1_r) - (0.5 * risk)
+                        new_sl = entry - (risk * tp1_r)
 
                     self.mt5.modify_sl_tp(current_ticket, sl=new_sl)
-                    log.info(f"[{broker_symbol}] SL trailed to TP1+0.5R: {new_sl:.5f}")
+                    log.info(f"[{broker_symbol}] SL trailed to TP1 ({tp1_r}R): {new_sl:.5f}")
 
                     self._save_pending_setups()
                 else:
                     log.error(f"[{broker_symbol}] Partial close failed: {result.error}")
 
             # ═══════════════════════════════════════════════════════════════
-            # TP3 HIT - Close tp3_close_pct, trail SL to TP2 + 0.5R
-            # (5-TP system: continues to TP4/TP5 instead of closing all)
+            # TP3 HIT - Close tp3_close_pct, trail SL to TP2
             # ═══════════════════════════════════════════════════════════════
             if current_r >= tp3_r and partial_state == 2:
                 close_pct = self.params.tp3_close_pct
@@ -4892,21 +4860,21 @@ class LiveTradingBot:
                         pos.ticket, broker_symbol, setup, final_tp_price
                     )
 
-                    # Trail SL to TP2 + 0.5R
+                    # Trail SL to TP2 level
                     if setup.direction == "bullish":
-                        new_sl = entry + (risk * tp2_r) + (0.5 * risk)
+                        new_sl = entry + (risk * tp2_r)
                     else:
-                        new_sl = entry - (risk * tp2_r) - (0.5 * risk)
+                        new_sl = entry - (risk * tp2_r)
 
                     self.mt5.modify_sl_tp(current_ticket, sl=new_sl)
-                    log.info(f"[{broker_symbol}] SL trailed to TP2+0.5R: {new_sl:.5f}")
+                    log.info(f"[{broker_symbol}] SL trailed to TP2 ({tp2_r}R): {new_sl:.5f}")
 
                     self._save_pending_setups()
                 else:
                     log.error(f"[{broker_symbol}] Partial close failed: {result.error}")
 
             # ═══════════════════════════════════════════════════════════════
-            # TP4 HIT - Close tp4_close_pct, trail SL to TP3 + 0.5R
+            # TP4 HIT - Close tp4_close_pct, trail SL to TP3
             # ═══════════════════════════════════════════════════════════════
             if current_r >= tp4_r and partial_state == 3:
                 close_pct = tp4_close_pct
@@ -4935,14 +4903,14 @@ class LiveTradingBot:
                         pos.ticket, broker_symbol, setup, final_tp_price
                     )
 
-                    # Trail SL to TP3 + 0.5R
+                    # Trail SL to TP3 level
                     if setup.direction == "bullish":
-                        new_sl = entry + (risk * tp3_r) + (0.5 * risk)
+                        new_sl = entry + (risk * tp3_r)
                     else:
-                        new_sl = entry - (risk * tp3_r) - (0.5 * risk)
+                        new_sl = entry - (risk * tp3_r)
 
                     self.mt5.modify_sl_tp(current_ticket, sl=new_sl)
-                    log.info(f"[{broker_symbol}] SL trailed to TP3+0.5R: {new_sl:.5f}")
+                    log.info(f"[{broker_symbol}] SL trailed to TP3 ({tp3_r}R): {new_sl:.5f}")
                     
                     self._save_pending_setups()
                 else:

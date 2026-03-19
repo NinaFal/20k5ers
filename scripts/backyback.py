@@ -504,9 +504,6 @@ class BacktestMainLiveBot:
         initial_balance: float = 20_000,
         start_date: datetime = None,
         end_date: datetime = None,
-        use_progressive_trailing: bool = False,
-        progressive_trigger_r: float = 0.8,
-        progressive_trail_to_r: float = 0.6,
         intraday_tf: str = "H1",
     ):
         """Initialize bot with same structure as main_live_bot.py."""
@@ -514,11 +511,6 @@ class BacktestMainLiveBot:
         self.initial_balance = initial_balance
         self.balance = initial_balance
         self.day_start_equity = initial_balance
-        
-        # Progressive trailing stop toggle
-        self.use_progressive_trailing = use_progressive_trailing
-        self.progressive_trigger_r = progressive_trigger_r  # Configurable trigger R
-        self.progressive_trail_to_r = progressive_trail_to_r  # SL level to trail to (0.6R=TP1, 0.4R=aggressive)
         
         # Dates
         self.start_date = start_date or datetime(2023, 1, 1, tzinfo=timezone.utc)
@@ -1098,11 +1090,7 @@ class BacktestMainLiveBot:
     def _check_tp_levels(self, pos: Position, current_time: datetime, high: float, low: float):
         """
         Check TP levels and execute partial closes.
-        EXACT copy of main_live_bot.py's 3-TP exit system.
-        
-        OPTIONAL: Progressive trailing stop (if enabled):
-        - Between TP1 and TP2: At 0.9R, move SL to TP1 (0.6R)
-        - Prevents losing gains if price reverses before TP2
+        SL trails to previous TP level at each hit.
         """
         signal = pos.signal
         risk = signal.risk
@@ -1122,29 +1110,14 @@ class BacktestMainLiveBot:
                 self.balance += partial_profit
                 pos.remaining_pct -= close_pct
                 
-                # Move SL to breakeven
-                pos.trailing_sl = pos.fill_price
-                log.debug(f"  [{signal.symbol}] TP1 hit: +${partial_profit:.2f}, SL→BE")
-        
-        # PROGRESSIVE TRAILING: Between TP1 and TP2, at trigger R move SL to trail level
-        # Check BEFORE TP1 if trail_to_r < tp1_r, otherwise progressive trail gets skipped
-        if not pos.tp2_hit and self.use_progressive_trailing and not getattr(pos, 'progressive_trail_applied', False):
-            # Calculate current R
-            if signal.direction == 'bullish':
-                current_r = (high - signal.entry) / risk if risk > 0 else 0
-            else:
-                current_r = (signal.entry - low) / risk if risk > 0 else 0
-            
-            # If we've reached trigger R, set SL to trail level
-            if current_r >= self.progressive_trigger_r:
-                trail_r_level = signal.entry + (risk * self.progressive_trail_to_r) if signal.direction == 'bullish' else signal.entry - (risk * self.progressive_trail_to_r)
-                
-                # Update SL to trail level (only once)
-                pos.trailing_sl = trail_r_level
-                pos.progressive_trail_applied = True
-                log.debug(f"  [{signal.symbol}] Progressive trail: {current_r:.2f}R → SL to {self.progressive_trail_to_r}R ({trail_r_level:.5f})")
-        
-        # TP2: 1.2R -> Close 30%, trail SL to TP1 + 0.5R
+                # Move SL to 0.1R
+                if signal.direction == 'bullish':
+                    pos.trailing_sl = signal.entry + (risk * 0.1)
+                else:
+                    pos.trailing_sl = signal.entry - (risk * 0.1)
+                log.debug(f"  [{signal.symbol}] TP1 hit: +${partial_profit:.2f}, SL→0.1R")
+
+        # TP2: Close at tp2_r, trail SL to TP1
         if pos.tp1_hit and not pos.tp2_hit:  # Changed from elif to if
             tp2_hit = (signal.direction == 'bullish' and high >= signal.tp2) or \
                       (signal.direction == 'bearish' and low <= signal.tp2)
@@ -1158,11 +1131,11 @@ class BacktestMainLiveBot:
                 self.balance += partial_profit
                 pos.remaining_pct -= close_pct
                 
-                # Trail SL to TP1 + 0.5R
+                # Trail SL to TP1 level
                 if signal.direction == 'bullish':
-                    pos.trailing_sl = signal.entry + risk * (self.params.tp1_r_multiple + 0.5)
+                    pos.trailing_sl = signal.entry + risk * self.params.tp1_r_multiple
                 else:
-                    pos.trailing_sl = signal.entry - risk * (self.params.tp1_r_multiple + 0.5)
+                    pos.trailing_sl = signal.entry - risk * self.params.tp1_r_multiple
                 log.debug(f"  [{signal.symbol}] TP2 hit: +${partial_profit:.2f}")
         
         # TP3: 2.0R -> Close all remaining
@@ -1479,10 +1452,7 @@ def main():
     parser.add_argument("--end", type=str, default="2025-12-31", help="End date")
     parser.add_argument("--output", type=str, default=None, help="Output directory")
     parser.add_argument("--timeframe", type=str, default="H1", choices=["H1", "M15"], help="Intraday timeframe for execution simulation (default: H1)")
-    parser.add_argument("--progressive-trailing", action="store_true", help="Enable progressive trailing stop (0.8R → configurable SL)")
-    parser.add_argument("--trigger-r", type=float, default=0.8, help="Progressive trailing trigger R-multiple (default: 0.8)")
-    parser.add_argument("--trail-to", type=float, default=0.6, help="SL level to trail to at trigger (default: 0.6R = TP1, use 0.4R for aggressive)")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
+parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     
     args = parser.parse_args()
     
@@ -1503,23 +1473,18 @@ def main():
     end_date = datetime.strptime(args.end, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     
     # Log configuration
-    trailing_mode = f"PROGRESSIVE ({args.trigger_r}R→{args.trail_to}R)" if args.progressive_trailing else "STANDARD (BE until TP2)"
-    print(f"\n🚀 Starting Backtest: {trailing_mode}")
+    print(f"\n🚀 Starting Backtest")
     print(f"   Period: {args.start} to {args.end}")
     print(f"   Initial Balance: ${args.balance:,.0f}")
     print(f"   Timeframe: {args.timeframe} (intraday execution)")
     print()
-    log.info(f"Trailing Stop Mode: {trailing_mode}")
     log.info(f"Intraday Timeframe: {args.timeframe}")
-    
+
     # Create bot - now generates signals using compute_confluence() like main_live_bot.py
     bot = BacktestMainLiveBot(
         initial_balance=args.balance,
         start_date=start_date,
         end_date=end_date,
-        use_progressive_trailing=args.progressive_trailing,
-        progressive_trigger_r=args.trigger_r,
-        progressive_trail_to_r=args.trail_to,
         intraday_tf=args.timeframe,
     )
     
