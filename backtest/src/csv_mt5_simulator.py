@@ -18,6 +18,14 @@ import numpy as np
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Tuple
+
+
+def _to_utc_ts(dt) -> pd.Timestamp:
+    """Convert any datetime/Timestamp to UTC-aware pd.Timestamp safely."""
+    ts = pd.Timestamp(dt)
+    if ts.tzinfo is None:
+        return ts.tz_localize('UTC')
+    return ts.tz_convert('UTC')
 from dataclasses import dataclass
 import logging
 
@@ -269,10 +277,10 @@ class CSVMT5Simulator:
 
                 # DATE FILTER: Only keep data in range (with 60-day lookback for indicators)
                 if start_date is not None:
-                    lookback_start = pd.Timestamp(start_date, tz='UTC') - pd.Timedelta(days=60)
+                    lookback_start = _to_utc_ts(start_date) - pd.Timedelta(days=60)
                     df = df[df['time'] >= lookback_start]
                 if end_date is not None:
-                    filter_end = pd.Timestamp(end_date, tz='UTC') + pd.Timedelta(days=1)
+                    filter_end = _to_utc_ts(end_date) + pd.Timedelta(days=1)
                     df = df[df['time'] <= filter_end]
 
                 if df.empty:
@@ -578,14 +586,14 @@ class CSVMT5Simulator:
             if hasattr(self, '_filter_start') and self._filter_start is not None:
                 # Higher timeframes need more lookback for indicators
                 lookback_days = {'D1': 365, 'H4': 180, 'H1': 90, 'W1': 730, 'MN': 1095}.get(timeframe, 60)
-                lookback_start = pd.Timestamp(self._filter_start, tz='UTC') - pd.Timedelta(days=lookback_days)
+                lookback_start = _to_utc_ts(self._filter_start) - pd.Timedelta(days=lookback_days)
                 if df['time'].dt.tz is None:
                     df_times = df['time'].dt.tz_localize('UTC')
                 else:
                     df_times = df['time']
                 mask = df_times >= lookback_start
                 if hasattr(self, '_filter_end') and self._filter_end is not None:
-                    filter_end = pd.Timestamp(self._filter_end, tz='UTC') + pd.Timedelta(days=1)
+                    filter_end = _to_utc_ts(self._filter_end) + pd.Timedelta(days=1)
                     mask = mask & (df_times <= filter_end)
                 df = df[mask].reset_index(drop=True)
 
