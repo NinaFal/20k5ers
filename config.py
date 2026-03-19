@@ -72,7 +72,6 @@ CONTRACT_SPECS = {
     "AUD_CHF": {"pip_value": 0.0001, "contract_size": 100000, "pip_location": 4},
     "AUD_CAD": {"pip_value": 0.0001, "contract_size": 100000, "pip_location": 4},
     "AUD_NZD": {"pip_value": 0.0001, "contract_size": 100000, "pip_location": 4},
-    "NZD_JPY": {"pip_value": 0.01, "contract_size": 100000, "pip_location": 2},
     "NZD_CHF": {"pip_value": 0.0001, "contract_size": 100000, "pip_location": 4},
     "NZD_CAD": {"pip_value": 0.0001, "contract_size": 100000, "pip_location": 4},
     "CAD_JPY": {"pip_value": 0.01, "contract_size": 100000, "pip_location": 2},
@@ -131,12 +130,11 @@ FOREX_PAIRS = [
 
     # AUD / NZD / CAD / CHF / JPY crosses
     "AUD_JPY", "AUD_CHF", "AUD_CAD", "AUD_NZD",
-    "NZD_JPY", "NZD_CHF", "NZD_CAD",
+    "NZD_CHF", "NZD_CAD",
     "CAD_JPY", "CAD_CHF", "CHF_JPY",
-    
+
     # High volatility pairs (OPTIMIZED: Added for more setups daily)
     "GBP_JPY",  # Yen crosses for volatility
-    "NZD_JPY",
     "AUD_NZD",  # Commodity currency crosses
 ]
 
