@@ -1,5 +1,11 @@
 {
   "date": "2023-01-01",
-  "symbols": [],
+  "symbols": [
+    "NAS100_USD",
+    "CAD_JPY",
+    "EUR_AUD",
+    "EUR_USD",
+    "USD_CHF"
+  ],
   "last_update": "2023-01-01T00:00:00+00:00"
 }
