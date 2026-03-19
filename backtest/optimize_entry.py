@@ -123,7 +123,7 @@ def objective(trial: optuna.Trial, base_params: Dict[str, Any],
     params = base_params.copy()
 
     params['entry_fib_level'] = trial.suggest_float(
-        'entry_fib_level', ENTRY_FIB_RANGE[0], ENTRY_FIB_RANGE[1], step=0.01
+        'entry_fib_level', ENTRY_FIB_RANGE[0], ENTRY_FIB_RANGE[1], step=0.001
     )
     params['entry_limit_offset_atr'] = trial.suggest_float(
         'entry_limit_offset_atr', ENTRY_OFFSET_ATR_RANGE[0], ENTRY_OFFSET_ATR_RANGE[1], step=0.02
