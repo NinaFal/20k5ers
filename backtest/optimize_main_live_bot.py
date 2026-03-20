@@ -29,11 +29,14 @@ import json
 import argparse
 import subprocess
 import tempfile
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple
 from dataclasses import dataclass, asdict
 import copy
+
+_print_lock = threading.Lock()
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -300,17 +303,17 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
     tp_sl_params = sample_tp_and_sl_params(trial, num_tps)
     params.update(tp_sl_params)
 
-    # Print trial summary
-    print(f"\n  Trial {trial.number}: Running backtest...")
-    print(f"    TPs: {params.get('tp1_r_multiple', 0):.1f}R / {params.get('tp2_r_multiple', 0):.1f}R / "
-          f"{params.get('tp3_r_multiple', 0):.1f}R / {params.get('tp4_r_multiple', 0):.1f}R / "
-          f"{params.get('tp5_r_multiple', 0):.1f}R")
-    print(f"    Close%: {params.get('tp1_close_pct', 0):.0%} / {params.get('tp2_close_pct', 0):.0%} / "
-          f"{params.get('tp3_close_pct', 0):.0%} / {params.get('tp4_close_pct', 0):.0%} / "
-          f"{params.get('tp5_close_pct', 0):.0%}")
-    print(f"    SL after TP1=0.05R(fixed) | TP2={params.get('sl_after_tp2_r', 0):.2f}R | "
-          f"TP3={params.get('sl_after_tp3_r', 0):.2f}R | TP4={params.get('sl_after_tp4_r', 0):.2f}R | "
-          f"TP5={params.get('sl_after_tp5_r', 0):.2f}R")
+    with _print_lock:
+        print(f"\n  Trial {trial.number}: Running backtest...")
+        print(f"    TPs: {params.get('tp1_r_multiple', 0):.1f}R / {params.get('tp2_r_multiple', 0):.1f}R / "
+              f"{params.get('tp3_r_multiple', 0):.1f}R / {params.get('tp4_r_multiple', 0):.1f}R / "
+              f"{params.get('tp5_r_multiple', 0):.1f}R")
+        print(f"    Close%: {params.get('tp1_close_pct', 0):.0%} / {params.get('tp2_close_pct', 0):.0%} / "
+              f"{params.get('tp3_close_pct', 0):.0%} / {params.get('tp4_close_pct', 0):.0%} / "
+              f"{params.get('tp5_close_pct', 0):.0%}")
+        print(f"    SL after TP1=0.05R(fixed) | TP2={params.get('sl_after_tp2_r', 0):.2f}R | "
+              f"TP3={params.get('sl_after_tp3_r', 0):.2f}R | TP4={params.get('sl_after_tp4_r', 0):.2f}R | "
+              f"TP5={params.get('sl_after_tp5_r', 0):.2f}R")
 
     result = run_backtest(params, start, end, balance)
 
@@ -327,8 +330,9 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
     trial.set_user_attr('tdd_warnings', result.tdd_warnings)
     trial.set_user_attr('valid', result.valid)
 
-    print(f"    → Return: {result.net_return_pct:+.1f}%, Trades: {result.total_trades}, Win: {result.win_rate:.1f}%")
-    print(f"    → TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%, DDD Halts: {result.ddd_halts}, Valid: {result.valid}")
+    with _print_lock:
+        print(f"    → Return: {result.net_return_pct:+.1f}%, Trades: {result.total_trades}, Win: {result.win_rate:.1f}%")
+        print(f"    → TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%, DDD Halts: {result.ddd_halts}, Valid: {result.valid}")
 
     # ── Scoring ───────────────────────────────────────────────────────────────
     if not result.valid:
@@ -508,22 +512,23 @@ def run_optimization(
             print(f"  {month:<10} {trades:>8} {winners:>8} {wr:>7.1f}% ${pnl:>10,.0f}")
         print("  " + "-" * 60)
 
-    # All trials summary
-    print("\n" + "=" * 70)
+    # All trials summary — sorted by score, showing key trading metrics
+    print("\n" + "=" * 80)
     print("ALL TRIALS SUMMARY")
-    print("=" * 70)
-    print(f"{'#':>3} {'Score':>8} {'Return':>8} {'Trades':>7} {'WR%':>6} {'TDD':>6} {'DDD':>6} {'Safe':>5}")
-    print("-" * 70)
-    for t in sorted(study.trials, key=lambda x: x.value if x.value else -999, reverse=True)[:20]:
-        score = t.value if t.value else -999
+    print("=" * 80)
+    print(f"{'#':>3} {'Score':>8} {'Profit%':>8} {'WR%':>6} {'Trades':>7} {'Halts':>6} {'DDD%':>6} {'Valid':>6}")
+    print("-" * 80)
+    valid_trials = [t for t in study.trials if t.value is not None]
+    for t in sorted(valid_trials, key=lambda x: x.value, reverse=True)[:20]:
+        score = t.value
         ret = t.user_attrs.get('net_return_pct', 0)
-        trades = t.user_attrs.get('total_trades', 0)
         wr = t.user_attrs.get('win_rate', 0)
-        tdd = t.user_attrs.get('max_tdd_pct', 0)
+        trades = t.user_attrs.get('total_trades', 0)
+        halts = t.user_attrs.get('ddd_halts', t.user_attrs.get('safety_events', 0))
         ddd = t.user_attrs.get('max_ddd_pct', 0)
-        safe = t.user_attrs.get('safety_events', t.user_attrs.get('ddd_halts', 0))
-        print(f"{t.number:>3} {score:>8.1f} {ret:>+7.1f}% {trades:>7} {wr:>5.1f}% {tdd:>5.1f}% {ddd:>5.1f}% {safe:>5}")
-    print("-" * 70)
+        valid = 'YES' if t.user_attrs.get('valid', False) else 'NO'
+        print(f"{t.number:>3} {score:>8.1f} {ret:>+7.1f}% {wr:>5.1f}% {trades:>7} {halts:>6} {ddd:>5.1f}% {valid:>6}")
+    print("-" * 80)
     if len(study.trials) > 20:
         print(f"  (Showing top 20 of {len(study.trials)} trials)")
 
