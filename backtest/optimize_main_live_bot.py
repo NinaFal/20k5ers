@@ -72,11 +72,6 @@ TRAIL_RANGES = {
     'use_atr_trailing': [True],                # Keep enabled (proven to work)
 }
 
-# Progressive Trailing Parameters - FIXED (proven values)
-PROGRESSIVE_TRAIL_RANGES = {
-    'progressive_trigger_r': (0.8, 1.2),       # Current: 1.0 (±0.2)
-    'progressive_trail_target_r': (0.3, 0.5),  # Current: 0.4 (±0.1)
-}
 
 # Confluence / Entry Parameters - WIDE around current (5, 4, 5)
 ENTRY_RANGES = {
@@ -333,11 +328,6 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
         'use_atr_trailing',
         TRAIL_RANGES['use_atr_trailing']
     )
-    
-    # Progressive trailing parameters - FIXED VALUES (not optimized)
-    # These are proven to work well and should remain constant
-    params['progressive_trigger_r'] = 1.0      # Trigger at 1.0R (fixed)
-    params['progressive_trail_target_r'] = 0.4  # Trail to BE + 0.4R (fixed)
     
     # Sample confluence parameters
     params['trend_min_confluence'] = trial.suggest_int(
