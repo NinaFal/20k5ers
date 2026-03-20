@@ -269,6 +269,7 @@ class StrategyParams:
     partial_exit_at_1r: bool = True  # Take partial profit at 1R
     partial_exit_pct: float = 0.50  # Percentage to close at 1R (50%)
     atr_trail_multiplier: float = 1.5  # ATR multiplier for trailing stop distance
+    trail_offset_factor: float = 0.5  # Trailing SL offset: trail at prev_TP ± factor*risk (0=tight at TP, 1=full risk unit buffer)
     
     # ============================================================================
     # REGIME-ADAPTIVE V2 ENHANCED PARAMETERS
@@ -379,6 +380,7 @@ class StrategyParams:
             "partial_exit_at_1r": self.partial_exit_at_1r,
             "partial_exit_pct": self.partial_exit_pct,
             "atr_trail_multiplier": self.atr_trail_multiplier,
+            "trail_offset_factor": self.trail_offset_factor,
             # REGIME-ADAPTIVE V2 ENHANCED PARAMETERS
             "use_adx_regime_filter": self.use_adx_regime_filter,
             "use_adx_slope_rising": self.use_adx_slope_rising,
@@ -2663,6 +2665,7 @@ def simulate_trades(
     TP3_CLOSE_PCT = params.tp3_close_pct
     TP4_CLOSE_PCT = params.tp4_close_pct
     TP5_CLOSE_PCT = params.tp5_close_pct
+    TRAIL_OFFSET = params.trail_offset_factor
     
     signal_to_pending_entry = {}
     for sig in active_signals:
@@ -2758,22 +2761,22 @@ def simulate_trades(
                     tp2_hit = True
                     # Only activate trailing if we've reached trail_activation_r
                     if tp2_rr >= params.trail_activation_r and tp1 is not None:
-                        ot["trailing_sl"] = tp1 + 0.5 * risk
+                        ot["trailing_sl"] = tp1 + TRAIL_OFFSET * risk
                         ot["trailing_activated"] = True
-                
+
                 if not trade_closed and tp2_hit and tp3 is not None and high >= tp3 and not tp3_hit:
                     ot["tp3_hit"] = True
                     tp3_hit = True
                     # Only activate trailing if we've reached trail_activation_r
                     if tp3_rr >= params.trail_activation_r and tp2 is not None:
-                        ot["trailing_sl"] = tp2 + 0.5 * risk
+                        ot["trailing_sl"] = tp2 + TRAIL_OFFSET * risk
                         ot["trailing_activated"] = True
-                
+
                 if not trade_closed and tp3_hit and tp4 is not None and high >= tp4 and not tp4_hit:
                     ot["tp4_hit"] = True
                     tp4_hit = True
                     if tp3 is not None:
-                        ot["trailing_sl"] = tp3 + 0.5 * risk
+                        ot["trailing_sl"] = tp3 + TRAIL_OFFSET * risk
                 
                 if not trade_closed and tp4_hit and tp5 is not None and high >= tp5 and not tp5_hit:
                     ot["tp5_hit"] = True
@@ -2825,22 +2828,22 @@ def simulate_trades(
                     tp2_hit = True
                     # Only activate trailing if we've reached trail_activation_r
                     if tp2_rr >= params.trail_activation_r and tp1 is not None:
-                        ot["trailing_sl"] = tp1 - 0.5 * risk
+                        ot["trailing_sl"] = tp1 - TRAIL_OFFSET * risk
                         ot["trailing_activated"] = True
-                
+
                 if not trade_closed and tp2_hit and tp3 is not None and low <= tp3 and not tp3_hit:
                     ot["tp3_hit"] = True
                     tp3_hit = True
                     # Only activate trailing if we've reached trail_activation_r
                     if tp3_rr >= params.trail_activation_r and tp2 is not None:
-                        ot["trailing_sl"] = tp2 - 0.5 * risk
+                        ot["trailing_sl"] = tp2 - TRAIL_OFFSET * risk
                         ot["trailing_activated"] = True
-                
+
                 if not trade_closed and tp3_hit and tp4 is not None and low <= tp4 and not tp4_hit:
                     ot["tp4_hit"] = True
                     tp4_hit = True
                     if tp3 is not None:
-                        ot["trailing_sl"] = tp3 - 0.5 * risk
+                        ot["trailing_sl"] = tp3 - TRAIL_OFFSET * risk
                 
                 if not trade_closed and tp4_hit and tp5 is not None and low <= tp5 and not tp5_hit:
                     ot["tp5_hit"] = True

@@ -16,6 +16,7 @@
     "atr_vol_ratio_range": 0.8,
     "atr_min_percentile": 35.0,
     "trail_activation_r": 2.1,
+    "trail_offset_factor": 0.5,
     "partial_exit_at_1r": false,
     "partial_exit_pct": 0.9,
     "december_atr_multiplier": 1.8,
