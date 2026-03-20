@@ -44,6 +44,6 @@
     "use_displacement_filter": false,
     "use_candle_rejection": false,
     "max_total_dd_warning": 9.0,
-    "compound_threshold_pct": 4.5
+    "compound_threshold_pct": 6.0
   }
 }
