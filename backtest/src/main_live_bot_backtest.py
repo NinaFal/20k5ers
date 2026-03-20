@@ -4197,13 +4197,13 @@ class LiveTradingBot:
                     setup.partial_closes = 1
                     setup.tp1_hit = True
 
-                    # Move SL to 0.05R (breakeven + fees) - HARDCODED, not optimized
+                    # Move SL to 0.5R (halve original risk after TP1)
                     if setup.direction == "bullish":
-                        new_sl = entry + (risk * 0.05)
+                        new_sl = entry - (risk * 0.5)
                     else:
-                        new_sl = entry - (risk * 0.05)
+                        new_sl = entry + (risk * 0.5)
                     self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
-                    log.info(f"[{broker_symbol}] SL moved to 0.05R (breakeven+fees): {new_sl:.5f}")
+                    log.info(f"[{broker_symbol}] SL moved to -0.5R (half original risk): {new_sl:.5f}")
 
                     self._save_pending_setups()
                 else:
