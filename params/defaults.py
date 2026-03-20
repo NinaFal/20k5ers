@@ -79,12 +79,13 @@ PARAMETER_DEFAULTS: Dict[str, Any] = {
 
     # ═══════════════════════════════════════════════════════════════════════════
     # SL LEVELS AFTER EACH TP HIT (R-multiples from entry)
-    # TP1 hit: hardcoded to 0.05R (breakeven + fees) - NOT a param
+    # TP1 hit: sl_after_tp1_r * risk from entry (-1R=original SL, 0=breakeven, 0.2=profit lock)
     # TP2 hit: optimized between TP1 and TP2
     # TP3 hit: optimized between TP1 and TP3
     # TP4 hit: optimized between TP2 and TP4
     # TP5 hit: optimized between TP3 and TP5
     # ═══════════════════════════════════════════════════════════════════════════
+    'sl_after_tp1_r': 0.0,           # SL after TP1 hit (-1R=original, 0=breakeven, 0.2R=profit lock)
     'sl_after_tp2_r': 0.6,           # SL after TP2 hit (default = tp1_r = 0.6R)
     'sl_after_tp3_r': 0.6,           # SL after TP3 hit (default = tp1_r = 0.6R)
     'sl_after_tp4_r': 1.1,           # SL after TP4 hit (default = tp2_r = 1.1R)
