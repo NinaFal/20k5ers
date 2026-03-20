@@ -140,7 +140,6 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            timeout=1800,
             cwd=str(Path(__file__).parent.parent)
         )
 
@@ -166,12 +165,6 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 
         else:
             return parse_stdout_results(result.stdout, params, balance)
 
-    except subprocess.TimeoutExpired:
-        print(f"  ⚠️ Backtest timed out")
-        return OptimizationResult(
-            params=params, net_return_pct=-100, total_trades=0, win_rate=0,
-            max_tdd_pct=100, max_ddd_pct=100, final_balance=balance, ddd_halts=0, valid=False
-        )
     except Exception as e:
         print(f"  ⚠️ Backtest error: {e}")
         return OptimizationResult(
@@ -415,7 +408,8 @@ def run_optimization(
     num_tps: int = 5,
     sampler: str = 'tpe',
     output_dir: str = 'backtest/optimization_results',
-    n_jobs: int = 1
+    n_jobs: int = 1,
+    startup_trials: int = 10,
 ) -> Dict[str, Any]:
     """Run the optimization study."""
 
@@ -434,6 +428,7 @@ def run_optimization(
     print("  Optimizing: TP1-TP5 R-multiples, close%, SL after TP2/3/4/5")
     print("  Fixed (from current_params.json): all other params")
     print(f"  SL after TP1: 0.05R (hardcoded, not optimized)")
+    print(f"  Random startup trials: {startup_trials}")
     print("=" * 70)
 
     current_tps = [base_params.get(f'tp{i}_r_multiple', '?') for i in range(1, 6)]
@@ -444,7 +439,7 @@ def run_optimization(
     if sampler == 'nsga':
         study_sampler = NSGAIISampler(seed=42)
     else:
-        study_sampler = TPESampler(seed=42)
+        study_sampler = TPESampler(seed=42, n_startup_trials=startup_trials)
 
     study = optuna.create_study(
         direction='maximize',
@@ -639,6 +634,8 @@ if __name__ == "__main__":
     parser.add_argument('--output', type=str, default='backtest/optimization_results', help='Output directory')
     parser.add_argument('--apply', type=str, help='Apply parameters from results file')
     parser.add_argument('--parallel', '-j', type=int, default=1, help='Number of parallel workers')
+    parser.add_argument('--startup-trials', type=int, default=10,
+                        help='Number of random exploration trials before TPE kicks in (default: 10)')
 
     args = parser.parse_args()
 
@@ -653,5 +650,6 @@ if __name__ == "__main__":
             num_tps=args.num_tps,
             sampler=args.sampler,
             output_dir=args.output,
-            n_jobs=args.parallel
+            n_jobs=args.parallel,
+            startup_trials=args.startup_trials,
         )
