@@ -76,6 +76,19 @@ PARAMETER_DEFAULTS: Dict[str, Any] = {
     'tp3_close_pct': 0.10,            # Close 10% at TP3 (1.8R)
     'tp4_close_pct': 0.05,            # Close 5% at TP4 (2.3R)
     'tp5_close_pct': 0.05,            # Close 5% at TP5 (2.8R) - ALL remaining
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SL LEVELS AFTER EACH TP HIT (R-multiples from entry)
+    # TP1 hit: hardcoded to 0.05R (breakeven + fees) - NOT a param
+    # TP2 hit: optimized between TP1 and TP2
+    # TP3 hit: optimized between TP1 and TP3
+    # TP4 hit: optimized between TP2 and TP4
+    # TP5 hit: optimized between TP3 and TP5
+    # ═══════════════════════════════════════════════════════════════════════════
+    'sl_after_tp2_r': 0.6,           # SL after TP2 hit (default = tp1_r = 0.6R)
+    'sl_after_tp3_r': 0.6,           # SL after TP3 hit (default = tp1_r = 0.6R)
+    'sl_after_tp4_r': 1.1,           # SL after TP4 hit (default = tp2_r = 1.1R)
+    'sl_after_tp5_r': 1.8,           # SL after TP5 hit (default = tp3_r = 1.8R)
     
     # ═══════════════════════════════════════════════════════════════════════════
     # PARTIAL EXIT & TRAILING STOP

@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 """
-Optimizer for Main Live Bot Backtest
+Optimizer for Main Live Bot Backtest - TP/SL levels only
 
-Uses Optuna for hyperparameter optimization with the following objectives:
-1. Maximize net return
-2. Minimize max drawdown
-3. Keep within 5ers limits (TDD < 10%, DDD < 5%)
+Optimizes ONLY:
+- TP1..TP5 R-multiples (where to take partials)
+- TP1..TP5 close percentages (how much to close at each TP)
+- SL after TP2 (between TP1 and TP2)
+- SL after TP3 (between TP1 and TP3)
+- SL after TP4 (between TP2 and TP4)
+- SL after TP5 (between TP3 and TP5)
 
-Parameters to optimize:
-- TP levels (TP1 through TP5) - R-multiples
-- TP close percentages
-- Trailing stop settings
-- Confluence thresholds
-- Risk per trade
+HARDCODED (not optimized):
+- SL after TP1: always 0.05R (breakeven + fees)
+
+ALL other params (confluence, risk, trailing stop, entry refinement, compounding)
+are loaded from current_params.json and passed through unchanged.
+
+Starts from current params (trial 0 = current_params.json values).
 
 Usage:
     python backtest/optimize_main_live_bot.py --trials 50 --start 2024-01-01 --end 2024-03-31
@@ -43,57 +47,26 @@ except ImportError:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# OPTIMIZATION PARAMETER RANGES - WIDE (exploration around current params)
-# Current params (baseline): tp1=0.6, tp2=1.6, tp3=2.1, tp4=2.4, tp5=3.6
+# OPTIMIZATION PARAMETER RANGES
+# Current params (baseline): tp1=0.6, tp2=1.1, tp3=1.8, tp4=2.3, tp5=2.8
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Take Profit R-Multiples - WIDE RANGES for exploration
+# Take Profit R-Multiples
 TP_R_RANGES = {
     'tp1_r_multiple': (0.3, 1.2),      # Baseline: 0.6
-    'tp2_r_multiple': (0.8, 2.6),      # Baseline: 1.6
-    'tp3_r_multiple': (1.2, 3.2),      # Baseline: 2.1
-    'tp4_r_multiple': (1.6, 4.2),      # Baseline: 2.4
-    'tp5_r_multiple': (2.2, 6.0),      # Baseline: 3.6
+    'tp2_r_multiple': (0.8, 2.6),      # Baseline: 1.1
+    'tp3_r_multiple': (1.2, 3.2),      # Baseline: 1.8
+    'tp4_r_multiple': (1.6, 4.2),      # Baseline: 2.3
+    'tp5_r_multiple': (2.2, 6.0),      # Baseline: 2.8
 }
 
-# Take Profit Close Percentages - WIDE (current: 20/30/20/20/10)
+# Take Profit Close Percentages (normalized to sum to 1.0 via weights)
 TP_CLOSE_RANGES = {
     'tp1_close_pct': (0.05, 0.45),     # Current: 0.20
-    'tp2_close_pct': (0.10, 0.50),     # Current: 0.30
-    'tp3_close_pct': (0.05, 0.45),     # Current: 0.20
-    'tp4_close_pct': (0.05, 0.45),     # Current: 0.20
-    'tp5_close_pct': (0.05, 0.40),     # Current: 0.10
-}
-
-# Trailing Stop Parameters - WIDE around current (1.6, 2.8)
-TRAIL_RANGES = {
-    'trail_activation_r': (0.8, 3.0),          # Current: 1.6
-    'atr_trail_multiplier': (1.6, 4.2),        # Current: 2.8
-    'use_atr_trailing': [True],                # Keep enabled (proven to work)
-}
-
-
-# Confluence / Entry Parameters - WIDE around current (5, 4, 5)
-ENTRY_RANGES = {
-    'trend_min_confluence': (3, 7),            # Current: 5
-    'range_min_confluence': (2, 6),            # Current: 4
-    'min_quality_factors': (3, 7),             # Current: 5
-}
-
-# Risk Parameters - WIDE around current (1.35)
-RISK_RANGES = {
-    'risk_per_trade_pct': (0.6, 2.0),          # Current: 1.35
-}
-
-# Compounding Parameters - WIDE
-COMPOUNDING_RANGES = {
-    'compound_threshold_pct': (1.0, 15.0),     # Update lot size when equity changes by 1-15%
-}
-
-# Entry Refinement Parameters - Same signals, better entry prices
-ENTRY_REFINEMENT_RANGES = {
-    'entry_fib_level': (0.5, 0.786),           # Current: 0.618 (deeper = better price, fewer fills)
-    'entry_limit_offset_atr': (0.0, 0.3),      # Current: 0.0 (ATR offset toward better price)
+    'tp2_close_pct': (0.10, 0.70),     # Current: 0.60
+    'tp3_close_pct': (0.05, 0.45),     # Current: 0.10
+    'tp4_close_pct': (0.03, 0.30),     # Current: 0.05
+    'tp5_close_pct': (0.03, 0.25),     # Current: 0.05
 }
 
 
@@ -109,46 +82,48 @@ class OptimizationResult:
     final_balance: float
     ddd_halts: int
     valid: bool  # Within 5ers limits?
-    # Extended metrics
-    monthly_stats: Dict[str, Any] = None  # {"2024-01": {"trades": 10, "winners": 7, "pnl": 500}}
-    safety_events: int = 0  # Number of DDD safety halts
-    tdd_warnings: int = 0  # Number of TDD warnings
+    monthly_stats: Dict[str, Any] = None
+    safety_events: int = 0
+    tdd_warnings: int = 0
+
+
+def load_current_params() -> Dict[str, Any]:
+    """Load non-optimized params from current_params.json to pass through unchanged."""
+    from params.params_loader import load_params_dict
+    raw = load_params_dict()
+    return raw.get('parameters', raw)
 
 
 def create_temp_params_file(params: Dict[str, Any]) -> Path:
     """Create a temporary params file for the backtest."""
     temp_dir = Path(tempfile.gettempdir()) / "optimizer_params"
     temp_dir.mkdir(exist_ok=True)
-    
+
     temp_file = temp_dir / f"params_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.json"
-    
+
     full_params = {
         "optimization_mode": "OPTIMIZER",
         "timestamp": datetime.now().isoformat(),
         "parameters": params
     }
-    
+
     with open(temp_file, 'w') as f:
         json.dump(full_params, f, indent=2)
-    
+
     return temp_file
 
 
 def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 20000) -> OptimizationResult:
     """
     Run backtest with given parameters and return results.
-    
     Uses a subprocess to run main_live_bot_backtest.py with modified parameters.
     """
-    # Create temporary params file
     temp_params = create_temp_params_file(params)
-    
-    # Create unique output directory
+
     output_dir = Path(tempfile.gettempdir()) / "optimizer_results" / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     try:
-        # Run backtest with custom params file
         cmd = [
             sys.executable,
             str(Path(__file__).parent / "src" / "main_live_bot_backtest.py"),
@@ -157,26 +132,23 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 
             "--balance", str(balance),
             "--output", str(output_dir),
             "--params-file", str(temp_params),
-            "--quiet",  # Suppress verbose output for optimizer
+            "--quiet",
         ]
-        
-        # DEVNULL for both stdout AND stderr - results come from results.json
-        # stderr=PIPE caused RAM overflow: 3 parallel backtests × GBs of log output
+
         import subprocess
         result = subprocess.run(
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            timeout=1800,  # 30 minute timeout per backtest
+            timeout=1800,
             cwd=str(Path(__file__).parent.parent)
         )
-        
-        # Parse results from output directory
+
         results_file = output_dir / "results.json"
         if results_file.exists():
             with open(results_file, 'r') as f:
                 data = json.load(f)
-            
+
             return OptimizationResult(
                 params=params,
                 net_return_pct=data.get('return_pct', 0),
@@ -192,37 +164,21 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 
                 tdd_warnings=data.get('tdd_warnings', 0)
             )
         else:
-            # Try parsing from stdout
             return parse_stdout_results(result.stdout, params, balance)
-            
+
     except subprocess.TimeoutExpired:
         print(f"  ⚠️ Backtest timed out")
         return OptimizationResult(
-            params=params,
-            net_return_pct=-100,
-            total_trades=0,
-            win_rate=0,
-            max_tdd_pct=100,
-            max_ddd_pct=100,
-            final_balance=balance,
-            ddd_halts=0,
-            valid=False
+            params=params, net_return_pct=-100, total_trades=0, win_rate=0,
+            max_tdd_pct=100, max_ddd_pct=100, final_balance=balance, ddd_halts=0, valid=False
         )
     except Exception as e:
         print(f"  ⚠️ Backtest error: {e}")
         return OptimizationResult(
-            params=params,
-            net_return_pct=-100,
-            total_trades=0,
-            win_rate=0,
-            max_tdd_pct=100,
-            max_ddd_pct=100,
-            final_balance=balance,
-            ddd_halts=0,
-            valid=False
+            params=params, net_return_pct=-100, total_trades=0, win_rate=0,
+            max_tdd_pct=100, max_ddd_pct=100, final_balance=balance, ddd_halts=0, valid=False
         )
     finally:
-        # Cleanup temp files
         if temp_params.exists():
             temp_params.unlink()
 
@@ -230,20 +186,12 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 
 def parse_stdout_results(stdout: str, params: Dict[str, Any], balance: float) -> OptimizationResult:
     """Parse backtest results from stdout."""
     import re
-    
+
     result = OptimizationResult(
-        params=params,
-        net_return_pct=0,
-        total_trades=0,
-        win_rate=0,
-        max_tdd_pct=100,
-        max_ddd_pct=100,
-        final_balance=balance,
-        ddd_halts=0,
-        valid=False
+        params=params, net_return_pct=0, total_trades=0, win_rate=0,
+        max_tdd_pct=100, max_ddd_pct=100, final_balance=balance, ddd_halts=0, valid=False
     )
-    
-    # Parse key metrics from stdout
+
     patterns = {
         'total_trades': r'Total:\s*(\d+)',
         'win_rate': r'Winners:\s*\d+\s*\((\d+\.?\d*)%\)',
@@ -253,7 +201,7 @@ def parse_stdout_results(stdout: str, params: Dict[str, Any], balance: float) ->
         'max_ddd_pct': r'Max DDD:\s*(\d+\.?\d*)%',
         'ddd_halts': r'DDD halt events:\s*(\d+)',
     }
-    
+
     for field, pattern in patterns.items():
         match = re.search(pattern, stdout)
         if match:
@@ -262,130 +210,117 @@ def parse_stdout_results(stdout: str, params: Dict[str, Any], balance: float) ->
                 setattr(result, field, int(value))
             else:
                 setattr(result, field, float(value))
-    
+
     result.valid = (result.max_tdd_pct < 10 and result.max_ddd_pct < 5)
     return result
 
 
-def sample_tp_params(trial: optuna.Trial, num_tps: int = 5) -> Dict[str, Any]:
+def sample_tp_and_sl_params(trial: optuna.Trial, num_tps: int = 5) -> Dict[str, Any]:
     """
-    Sample TP parameters ensuring:
-    1. R-multiples are in increasing order
-    2. Close percentages sum to ~1.0
+    Sample TP R-multiples, close percentages, and SL-after-TP levels.
+
+    TP R-multiples: sampled in strictly increasing order.
+    Close percentages: sampled as weights, then normalized to sum to 1.0.
+    SL after TP2: between tp1_r and tp2_r (independent)
+    SL after TP3: between tp1_r and tp3_r (independent)
+    SL after TP4: between tp2_r and tp4_r (independent)
+    SL after TP5: between tp3_r and tp5_r (independent)
+    SL after TP1: HARDCODED to 0.05R (not sampled)
     """
     params = {}
-    
-    # Sample R-multiples in order
+
+    # ── TP R-multiples (strictly increasing) ──────────────────────────────────
     prev_r = 0.3
+    tp_r_values = []
     for i in range(1, num_tps + 1):
         key = f'tp{i}_r_multiple'
         low, high = TP_R_RANGES.get(key, (prev_r + 0.3, prev_r + 2.0))
-        low = max(low, prev_r + 0.1)  # Ensure increasing
+        low = max(low, prev_r + 0.1)  # Ensure strictly increasing
         r_val = trial.suggest_float(key, low, high, step=0.1)
         params[key] = r_val
+        tp_r_values.append(r_val)
         prev_r = r_val
-    
-    # Sample close percentages that sum to 1.0
-    # Strategy: sample weights then normalize
+
+    tp1_r, tp2_r, tp3_r = tp_r_values[0], tp_r_values[1], tp_r_values[2]
+    tp4_r = tp_r_values[3] if num_tps >= 4 else tp3_r
+    tp5_r = tp_r_values[4] if num_tps >= 5 else tp4_r
+
+    # ── Close percentages (normalized to sum 1.0) ─────────────────────────────
     weights = []
     for i in range(1, num_tps + 1):
         key = f'tp{i}_close_pct'
-        low, high = TP_CLOSE_RANGES.get(key, (0.1, 0.5))
+        low, high = TP_CLOSE_RANGES.get(key, (0.05, 0.40))
         w = trial.suggest_float(f'{key}_weight', low, high, step=0.05)
         weights.append(w)
-    
-    # Normalize to sum to 1.0
+
     total = sum(weights)
     for i, w in enumerate(weights, 1):
         params[f'tp{i}_close_pct'] = round(w / total, 3)
-    
+
+    # ── SL levels after each TP hit (each independently optimized) ────────────
+    # TP1 → SL = 0.05R HARDCODED (not a trial param)
+
+    # SL after TP2: between tp1_r and tp2_r
+    sl2_low = tp1_r
+    sl2_high = tp2_r
+    if sl2_high - sl2_low < 0.1:
+        sl2_high = sl2_low + 0.1
+    params['sl_after_tp2_r'] = trial.suggest_float('sl_after_tp2_r', sl2_low, sl2_high, step=0.05)
+
+    # SL after TP3: between tp1_r and tp3_r
+    sl3_low = tp1_r
+    sl3_high = tp3_r
+    if sl3_high - sl3_low < 0.1:
+        sl3_high = sl3_low + 0.1
+    params['sl_after_tp3_r'] = trial.suggest_float('sl_after_tp3_r', sl3_low, sl3_high, step=0.05)
+
+    # SL after TP4: between tp2_r and tp4_r
+    sl4_low = tp2_r
+    sl4_high = tp4_r
+    if sl4_high - sl4_low < 0.1:
+        sl4_high = sl4_low + 0.1
+    params['sl_after_tp4_r'] = trial.suggest_float('sl_after_tp4_r', sl4_low, sl4_high, step=0.05)
+
+    # SL after TP5: between tp3_r and tp5_r
+    sl5_low = tp3_r
+    sl5_high = tp5_r
+    if sl5_high - sl5_low < 0.1:
+        sl5_high = sl5_low + 0.1
+    params['sl_after_tp5_r'] = trial.suggest_float('sl_after_tp5_r', sl5_low, sl5_high, step=0.05)
+
     return params
 
 
-def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps: int) -> float:
+def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps: int,
+              base_params: Dict[str, Any]) -> float:
     """
     Optuna objective function.
-    
+
+    Samples ONLY TP R-multiples, close percentages, and SL-after-TP levels.
+    All other params come from base_params (current_params.json).
     Returns a score that Optuna tries to MAXIMIZE.
     """
-    # Sample TP parameters
-    params = sample_tp_params(trial, num_tps)
-    
-    # Sample trailing stop parameters
-    params['trail_activation_r'] = trial.suggest_float(
-        'trail_activation_r', 
-        TRAIL_RANGES['trail_activation_r'][0],
-        TRAIL_RANGES['trail_activation_r'][1],
-        step=0.1
-    )
-    params['atr_trail_multiplier'] = trial.suggest_float(
-        'atr_trail_multiplier',
-        TRAIL_RANGES['atr_trail_multiplier'][0],
-        TRAIL_RANGES['atr_trail_multiplier'][1],
-        step=0.1
-    )
-    params['use_atr_trailing'] = trial.suggest_categorical(
-        'use_atr_trailing',
-        TRAIL_RANGES['use_atr_trailing']
-    )
-    
-    # Sample confluence parameters
-    params['trend_min_confluence'] = trial.suggest_int(
-        'trend_min_confluence',
-        ENTRY_RANGES['trend_min_confluence'][0],
-        ENTRY_RANGES['trend_min_confluence'][1]
-    )
-    params['range_min_confluence'] = trial.suggest_int(
-        'range_min_confluence',
-        ENTRY_RANGES['range_min_confluence'][0],
-        ENTRY_RANGES['range_min_confluence'][1]
-    )
-    params['min_quality_factors'] = trial.suggest_int(
-        'min_quality_factors',
-        ENTRY_RANGES['min_quality_factors'][0],
-        ENTRY_RANGES['min_quality_factors'][1]
-    )
-    
-    # Sample risk parameter
-    params['risk_per_trade_pct'] = trial.suggest_float(
-        'risk_per_trade_pct',
-        RISK_RANGES['risk_per_trade_pct'][0],
-        RISK_RANGES['risk_per_trade_pct'][1],
-        step=0.05
-    )
-    
-    # Sample compounding parameter
-    params['compound_threshold_pct'] = trial.suggest_float(
-        'compound_threshold_pct',
-        COMPOUNDING_RANGES['compound_threshold_pct'][0],
-        COMPOUNDING_RANGES['compound_threshold_pct'][1],
-        step=0.5
-    )
+    # Start from current params (all non-optimized params pass through unchanged)
+    params = dict(base_params)
 
-    # Sample entry refinement parameters (better entries, same signals)
-    params['entry_fib_level'] = trial.suggest_float(
-        'entry_fib_level',
-        ENTRY_REFINEMENT_RANGES['entry_fib_level'][0],
-        ENTRY_REFINEMENT_RANGES['entry_fib_level'][1],
-        step=0.01
-    )
-    params['entry_limit_offset_atr'] = trial.suggest_float(
-        'entry_limit_offset_atr',
-        ENTRY_REFINEMENT_RANGES['entry_limit_offset_atr'][0],
-        ENTRY_REFINEMENT_RANGES['entry_limit_offset_atr'][1],
-        step=0.02
-    )
+    # Sample and overlay only the TP/SL params
+    tp_sl_params = sample_tp_and_sl_params(trial, num_tps)
+    params.update(tp_sl_params)
 
-    # Run backtest
+    # Print trial summary
     print(f"\n  Trial {trial.number}: Running backtest...")
-    print(f"    TPs: {params.get('tp1_r_multiple', 0):.1f}R/{params.get('tp2_r_multiple', 0):.1f}R/{params.get('tp3_r_multiple', 0):.1f}R/{params.get('tp4_r_multiple', 0):.1f}R/{params.get('tp5_r_multiple', 0):.1f}R")
-    print(f"    Close%: {params.get('tp1_close_pct', 0):.0%}/{params.get('tp2_close_pct', 0):.0%}/{params.get('tp3_close_pct', 0):.0%}/{params.get('tp4_close_pct', 0):.0%}/{params.get('tp5_close_pct', 0):.0%}")
-    print(f"    Risk: {params.get('risk_per_trade_pct', 0):.2f}%, Trail: {params.get('trail_activation_r', 0):.1f}R/{params.get('atr_trail_multiplier', 0):.1f}x ATR")
-    print(f"    Compound: ≥{params.get('compound_threshold_pct', 5):.1f}%, Confluence: T={params.get('trend_min_confluence', 0)}/R={params.get('range_min_confluence', 0)}/Q={params.get('min_quality_factors', 0)}")
-    print(f"    Entry: fib={params.get('entry_fib_level', 0.618):.3f}, offset={params.get('entry_limit_offset_atr', 0.0):.2f}×ATR")
+    print(f"    TPs: {params.get('tp1_r_multiple', 0):.1f}R / {params.get('tp2_r_multiple', 0):.1f}R / "
+          f"{params.get('tp3_r_multiple', 0):.1f}R / {params.get('tp4_r_multiple', 0):.1f}R / "
+          f"{params.get('tp5_r_multiple', 0):.1f}R")
+    print(f"    Close%: {params.get('tp1_close_pct', 0):.0%} / {params.get('tp2_close_pct', 0):.0%} / "
+          f"{params.get('tp3_close_pct', 0):.0%} / {params.get('tp4_close_pct', 0):.0%} / "
+          f"{params.get('tp5_close_pct', 0):.0%}")
+    print(f"    SL after TP1=0.05R(fixed) | TP2={params.get('sl_after_tp2_r', 0):.2f}R | "
+          f"TP3={params.get('sl_after_tp3_r', 0):.2f}R | TP4={params.get('sl_after_tp4_r', 0):.2f}R | "
+          f"TP5={params.get('sl_after_tp5_r', 0):.2f}R")
 
     result = run_backtest(params, start, end, balance)
-    
+
     # Store result metrics
     trial.set_user_attr('net_return_pct', result.net_return_pct)
     trial.set_user_attr('total_trades', result.total_trades)
@@ -398,94 +333,75 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
     trial.set_user_attr('safety_events', result.safety_events)
     trial.set_user_attr('tdd_warnings', result.tdd_warnings)
     trial.set_user_attr('valid', result.valid)
-    
+
     print(f"    → Return: {result.net_return_pct:+.1f}%, Trades: {result.total_trades}, Win: {result.win_rate:.1f}%")
     print(f"    → TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%, DDD Halts: {result.ddd_halts}, Valid: {result.valid}")
-    
-    # Calculate score - focused on RETURN × WIN RATE
-    # Hard reject only at absolute 5ers limits
+
+    # ── Scoring ───────────────────────────────────────────────────────────────
     if not result.valid:
         return -1000 - result.max_ddd_pct * 10
-    
-    # HARD REJECT: DDD >= 5% = 5ers daily loss limit actually breached
+
     if result.max_ddd_pct >= 5.0:
         return -500 - result.max_ddd_pct * 20
-    
-    # Minimum trades required for statistical significance
+
     if result.total_trades < 10:
         return -500 + result.total_trades
-    
-    # === SCORING: Maximize Return & Win Rate ===
-    
+
     win_rate_factor = result.win_rate / 100.0
-    
-    # Win rate multiplier: reward high win rates
     if win_rate_factor >= 0.5:
-        wr_multiplier = 0.5 + (win_rate_factor * 1.5)  
+        wr_multiplier = 0.5 + (win_rate_factor * 1.5)
     else:
         wr_multiplier = win_rate_factor
-    
-    # Trade count bonus (statistical reliability)
+
     trade_bonus = min(result.total_trades / 5, 20)
-    
-    # === COMBINED SCORE ===
+
     score = (
-        result.net_return_pct * wr_multiplier +  # Return weighted by win rate
-        trade_bonus                               # Statistical reliability bonus
+        result.net_return_pct * wr_multiplier +
+        trade_bonus
     )
-    
-    # Only penalize if TDD > 5% (approaching 10% hard limit)
+
     if result.max_tdd_pct > 5.0:
         score -= (result.max_tdd_pct - 5.0) * 15
-    
-    # Bonus for clean runs (no halts = smoother equity curve)
+
     if result.ddd_halts == 0 and result.max_ddd_pct < 2.5:
         score += 10
-    
+
     return score
 
 
-def _enqueue_current_params(study: optuna.Study, num_tps: int) -> None:
-    """Seed trial 0 with current_params.json values."""
-    from params.params_loader import load_params_dict
-
-    current = load_params_dict()
-    params = current.get('parameters', current)
-
+def _enqueue_current_params(study: optuna.Study, num_tps: int, base_params: Dict[str, Any]) -> None:
+    """Seed trial 0 with current_params.json TP/SL values."""
     enqueue_params: Dict[str, Any] = {}
 
     # TP R-multiples
+    prev_r = 0.3
+    tp_r_values = []
     for i in range(1, num_tps + 1):
         key = f'tp{i}_r_multiple'
-        if key in params:
-            enqueue_params[key] = params[key]
+        val = base_params.get(key)
+        if val is not None:
+            enqueue_params[key] = val
+            tp_r_values.append(val)
+            prev_r = val
+        else:
+            tp_r_values.append(prev_r + 0.5)
 
-    # Convert close %s to weights (normalization preserves ratios)
+    # Close percentages as weights (normalization preserves ratios)
     for i in range(1, num_tps + 1):
         key = f'tp{i}_close_pct'
         weight_key = f'{key}_weight'
-        if key in params:
-            enqueue_params[weight_key] = params[key]
+        if key in base_params:
+            enqueue_params[weight_key] = base_params[key]
 
-    # Trailing
-    for key in ['trail_activation_r', 'atr_trail_multiplier', 'use_atr_trailing']:
-        if key in params:
-            enqueue_params[key] = params[key]
+    # SL after each TP hit
+    tp1_r = tp_r_values[0] if len(tp_r_values) > 0 else 0.6
+    tp2_r = tp_r_values[1] if len(tp_r_values) > 1 else 1.1
+    tp3_r = tp_r_values[2] if len(tp_r_values) > 2 else 1.8
 
-    # Entry / confluence
-    for key in ['trend_min_confluence', 'range_min_confluence', 'min_quality_factors']:
-        if key in params:
-            enqueue_params[key] = params[key]
-
-    # Risk / compounding
-    for key in ['risk_per_trade_pct', 'compound_threshold_pct']:
-        if key in params:
-            enqueue_params[key] = params[key]
-
-    # Entry refinement
-    for key in ['entry_fib_level', 'entry_limit_offset_atr']:
-        if key in params:
-            enqueue_params[key] = params[key]
+    enqueue_params['sl_after_tp2_r'] = base_params.get('sl_after_tp2_r', tp1_r)
+    enqueue_params['sl_after_tp3_r'] = base_params.get('sl_after_tp3_r', tp1_r)
+    enqueue_params['sl_after_tp4_r'] = base_params.get('sl_after_tp4_r', tp2_r)
+    enqueue_params['sl_after_tp5_r'] = base_params.get('sl_after_tp5_r', tp3_r)
 
     if enqueue_params:
         study.enqueue_trial(enqueue_params)
@@ -502,9 +418,12 @@ def run_optimization(
     n_jobs: int = 1
 ) -> Dict[str, Any]:
     """Run the optimization study."""
-    
+
+    # Load current (non-optimized) params to pass through unchanged
+    base_params = load_current_params()
+
     print("=" * 70)
-    print("MAIN LIVE BOT BACKTEST OPTIMIZER")
+    print("MAIN LIVE BOT BACKTEST OPTIMIZER - TP/SL LEVELS ONLY")
     print("=" * 70)
     print(f"  Trials: {trials}")
     print(f"  Period: {start} to {end}")
@@ -512,35 +431,41 @@ def run_optimization(
     print(f"  TP Levels: {num_tps}")
     print(f"  Sampler: {sampler.upper()}")
     print(f"  Parallel Workers: {n_jobs}")
+    print("  Optimizing: TP1-TP5 R-multiples, close%, SL after TP2/3/4/5")
+    print("  Fixed (from current_params.json): all other params")
+    print(f"  SL after TP1: 0.05R (hardcoded, not optimized)")
     print("=" * 70)
-    
-    # Create study
+
+    current_tps = [base_params.get(f'tp{i}_r_multiple', '?') for i in range(1, 6)]
+    print(f"  Current TPs: {' / '.join(str(r) for r in current_tps)}")
+    print(f"  Current close%: {' / '.join(str(base_params.get(f'tp{i}_close_pct', '?')) for i in range(1, 6))}")
+    print("=" * 70)
+
     if sampler == 'nsga':
         study_sampler = NSGAIISampler(seed=42)
     else:
         study_sampler = TPESampler(seed=42)
-    
+
     study = optuna.create_study(
         direction='maximize',
         sampler=study_sampler,
-        study_name=f"live_bot_optimizer_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        study_name=f"tp_sl_optimizer_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     )
-    
-    # Seed trial 0 with current params, then explore broadly
-    _enqueue_current_params(study, num_tps)
+
+    # Seed trial 0 with current params
+    _enqueue_current_params(study, num_tps, base_params)
 
     # Run optimization
     study.optimize(
-        lambda trial: objective(trial, start, end, balance, num_tps),
+        lambda trial: objective(trial, start, end, balance, num_tps, base_params),
         n_trials=trials,
         n_jobs=n_jobs,
         show_progress_bar=True,
         catch=(Exception,)
     )
-    
-    # Get best trial
+
     best = study.best_trial
-    
+
     print("\n" + "=" * 70)
     print("OPTIMIZATION COMPLETE")
     print("=" * 70)
@@ -552,15 +477,27 @@ def run_optimization(
     print(f"  Max DDD: {best.user_attrs.get('max_ddd_pct', 0):.2f}%")
     print(f"  Safety Events: {best.user_attrs.get('safety_events', best.user_attrs.get('ddd_halts', 0))}")
     print("=" * 70)
-    
-    print("\n📊 BEST PARAMETERS:")
-    for key, value in sorted(best.params.items()):
-        if isinstance(value, float):
-            print(f"  {key}: {value:.3f}")
-        else:
-            print(f"  {key}: {value}")
-    
-    # Monthly breakdown for best trial
+
+    # Reconstruct best TP/SL params from best trial
+    best_tp_r = {f'tp{i}_r_multiple': best.params.get(f'tp{i}_r_multiple') for i in range(1, num_tps + 1)}
+    # Reconstruct normalized close pcts
+    weights = [best.params.get(f'tp{i}_close_pct_weight', 1.0) for i in range(1, num_tps + 1)]
+    total_w = sum(weights)
+    best_close = {f'tp{i}_close_pct': round(w / total_w, 3) for i, w in enumerate(weights, 1)}
+
+    print("\n📊 BEST TP/SL PARAMETERS:")
+    print("  TP R-multiples:")
+    for i in range(1, num_tps + 1):
+        print(f"    tp{i}_r_multiple: {best_tp_r.get(f'tp{i}_r_multiple', '?'):.2f}R")
+    print("  Close percentages:")
+    for i in range(1, num_tps + 1):
+        print(f"    tp{i}_close_pct: {best_close.get(f'tp{i}_close_pct', '?'):.1%}")
+    print("  SL after each TP:")
+    print(f"    SL after TP1: 0.05R (hardcoded)")
+    for sl_key in ['sl_after_tp2_r', 'sl_after_tp3_r', 'sl_after_tp4_r', 'sl_after_tp5_r']:
+        print(f"    {sl_key}: {best.params.get(sl_key, '?'):.2f}R")
+
+    # Monthly breakdown
     monthly = best.user_attrs.get('monthly_stats', {})
     if monthly:
         print("\n📅 MONTHLY BREAKDOWN (Best Trial):")
@@ -575,8 +512,8 @@ def run_optimization(
             wr = (winners / trades * 100) if trades > 0 else 0
             print(f"  {month:<10} {trades:>8} {winners:>8} {wr:>7.1f}% ${pnl:>10,.0f}")
         print("  " + "-" * 60)
-    
-    # Full trial report
+
+    # All trials summary
     print("\n" + "=" * 70)
     print("ALL TRIALS SUMMARY")
     print("=" * 70)
@@ -594,13 +531,14 @@ def run_optimization(
     print("-" * 70)
     if len(study.trials) > 20:
         print(f"  (Showing top 20 of {len(study.trials)} trials)")
-    
+
     # Save results
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
     results = {
         "optimization_mode": sampler.upper(),
+        "optimization_scope": "TP_SL_LEVELS_ONLY",
         "timestamp": datetime.now().isoformat(),
         "config": {
             "trials": trials,
@@ -609,6 +547,8 @@ def run_optimization(
             "balance": balance,
             "num_tps": num_tps,
         },
+        "fixed_params": {k: v for k, v in base_params.items()
+                         if not k.startswith('tp') and not k.startswith('sl_after_tp')},
         "best_score": best.value,
         "best_metrics": {
             "net_return_pct": best.user_attrs.get('net_return_pct', 0),
@@ -629,67 +569,79 @@ def run_optimization(
             for t in study.trials
         ]
     }
-    
+
     results_file = output_path / f"optimization_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     with open(results_file, 'w') as f:
         json.dump(results, f, indent=2)
-    
+
     print(f"\n✅ Results saved to: {results_file}")
-    
-    # Ask to apply best params
     print("\n" + "=" * 70)
     print("To apply best parameters to current_params.json, run:")
     print(f"  python backtest/optimize_main_live_bot.py --apply {results_file}")
     print("=" * 70)
-    
+
     return results
 
 
 def apply_params(results_file: str):
-    """Apply optimized parameters to current_params.json."""
+    """Apply optimized TP/SL parameters to current_params.json."""
     from params.params_loader import load_params_dict
-    
+
     with open(results_file, 'r') as f:
         results = json.load(f)
-    
-    best_params = results.get('best_parameters', {})
-    
+
+    best_params_raw = results.get('best_parameters', {})
+
+    # Reconstruct normalized close percentages from weights
+    weights = [best_params_raw.get(f'tp{i}_close_pct_weight', None) for i in range(1, 6)]
+    if any(w is not None for w in weights):
+        valid_weights = [w if w is not None else 0.0 for w in weights]
+        total_w = sum(valid_weights) or 1.0
+        for i, w in enumerate(valid_weights, 1):
+            best_params_raw[f'tp{i}_close_pct'] = round(w / total_w, 3)
+
+    # Only apply TP/SL keys (not the weight keys used internally by Optuna)
+    apply_keys = {k: v for k, v in best_params_raw.items()
+                  if not k.endswith('_weight')}
+
     # Load current params
     current = load_params_dict()
     if 'parameters' in current:
-        current['parameters'].update(best_params)
+        current['parameters'].update(apply_keys)
     else:
-        current.update(best_params)
-    
-    current['optimization_mode'] = "OPTIMIZER"
+        current.update(apply_keys)
+
+    current['optimization_mode'] = "OPTIMIZER_TP_SL"
     current['timestamp'] = datetime.now().isoformat()
     current['best_score'] = results.get('best_score', 0)
-    
-    # Save
+
     params_file = Path(__file__).parent.parent / "params" / "current_params.json"
     with open(params_file, 'w') as f:
         json.dump(current, f, indent=2)
-    
-    print(f"✅ Applied best parameters to {params_file}")
+
+    print(f"✅ Applied best TP/SL parameters to {params_file}")
     print("\nApplied parameters:")
-    for key, value in sorted(best_params.items()):
-        print(f"  {key}: {value}")
+    for key, value in sorted(apply_keys.items()):
+        if isinstance(value, float):
+            print(f"  {key}: {value:.3f}")
+        else:
+            print(f"  {key}: {value}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Optimize Main Live Bot Backtest Parameters')
+    parser = argparse.ArgumentParser(description='Optimize TP/SL Levels for Main Live Bot')
     parser.add_argument('--trials', type=int, default=50, help='Number of optimization trials')
     parser.add_argument('--start', type=str, default='2024-01-01', help='Backtest start date')
     parser.add_argument('--end', type=str, default='2024-03-31', help='Backtest end date')
     parser.add_argument('--balance', type=float, default=20000, help='Initial balance')
-    parser.add_argument('--num-tps', type=int, default=5, choices=[3, 4, 5], help='Number of TP levels (3, 4, or 5)')
+    parser.add_argument('--num-tps', type=int, default=5, choices=[3, 4, 5], help='Number of TP levels')
     parser.add_argument('--sampler', type=str, default='tpe', choices=['tpe', 'nsga'], help='Optuna sampler')
     parser.add_argument('--output', type=str, default='backtest/optimization_results', help='Output directory')
     parser.add_argument('--apply', type=str, help='Apply parameters from results file')
-    parser.add_argument('--parallel', '-j', type=int, default=1, help='Number of parallel workers (default: 1)')
-    
+    parser.add_argument('--parallel', '-j', type=int, default=1, help='Number of parallel workers')
+
     args = parser.parse_args()
-    
+
     if args.apply:
         apply_params(args.apply)
     else:

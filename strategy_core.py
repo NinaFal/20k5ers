@@ -215,6 +215,17 @@ class StrategyParams:
     tp3_close_pct: float = 0.10   # Close 10% at TP3
     tp4_close_pct: float = 0.05   # Close 5% at TP4 (for 5-TP system)
     tp5_close_pct: float = 0.05   # Close 5% at TP5 (for 5-TP system)
+
+    # SL levels after each TP hit (R-multiples)
+    # TP1 hit: SL always hardcoded to 0.05R (breakeven + fees) - NOT optimized
+    # TP2 hit: SL optimized between TP1 and TP2
+    # TP3 hit: SL optimized between TP1 and TP3
+    # TP4 hit: SL optimized between TP2 and TP4
+    # TP5 hit: SL optimized between TP3 and TP5
+    sl_after_tp2_r: float = 0.6   # SL after TP2 (default = tp1_r)
+    sl_after_tp3_r: float = 0.6   # SL after TP3 (default = tp1_r)
+    sl_after_tp4_r: float = 1.1   # SL after TP4 (default = tp2_r)
+    sl_after_tp5_r: float = 1.8   # SL after TP5 (default = tp3_r)
     
     # Quantitative enhancement filters - DISABLED for baseline testing
     use_atr_regime_filter: bool = False
