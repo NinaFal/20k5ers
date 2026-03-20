@@ -1,0 +1,200 @@
+==============================================================
+  LIVE BOT STRATEGY OVERVIEW
+  20k5ers — 5ers 60K High Stakes Challenge Bot
+==============================================================
+
+This document describes the core strategy used by the main live bot.
+Use it as a starting point to build your own bot on top of this logic.
+
+--------------------------------------------------------------
+1. WHAT KIND OF STRATEGY IS THIS?
+--------------------------------------------------------------
+
+Confluence-based, regime-adaptive trend/range trading system.
+- Trades during London + New York sessions only
+- Uses ADX to detect market regime (trending vs ranging)
+- Enters at Fibonacci golden pocket retracements (0.618)
+- Exits in 5 partial layers to lock in profit progressively
+- Risk is dynamically reduced as daily drawdown increases
+
+--------------------------------------------------------------
+2. MARKET REGIME DETECTION (ADX-Based)
+--------------------------------------------------------------
+
+The bot first determines which "mode" the market is in:
+
+  TREND MODE    → ADX >= 25
+                  High directional movement
+                  Requires confluence score of 6/7 to enter
+
+  RANGE MODE    → ADX < 20
+                  Ranging/consolidating market
+                  Ultra-conservative; requires confluence 3+/7
+                  Also needs: price at S/R, Fib 0.786 zone,
+                  H4 rejection candle, low ATR environment
+
+  TRANSITION    → ADX between 20-25
+                  Uncertain; requires high confluence (6+/7)
+                  Optional: early entry if ADX slope rising
+                  and a recent +DI/-DI crossover detected
+
+--------------------------------------------------------------
+3. ENTRY — FIBONACCI GOLDEN POCKET
+--------------------------------------------------------------
+
+Once regime is identified and confluence passes:
+
+  1. Detect last swing impulse (significant high/low structure)
+  2. Calculate Fibonacci retracement of that swing
+  3. Place a LIMIT ORDER at the 0.618 retracement level
+     (Optional: fine-tune price with an ATR-based offset)
+  4. If price doesn't reach the entry level within 5 bars → skip trade
+
+Session filter: Only trade 08:00–22:00 UTC (London open to NY close)
+No trades during Asian session or after Friday 16:00 UTC
+
+--------------------------------------------------------------
+4. STOP LOSS
+--------------------------------------------------------------
+
+Two methods, uses whichever is tighter/more structured:
+
+  Method 1 (preferred) — Structure-based:
+    Scan H4 or daily candles (20-bar lookback)
+    Place SL just below swing low (bull) or above swing high (bear)
+    Offset: 0.4 × ATR beyond the structure level
+
+  Method 2 (fallback) — ATR-based:
+    SL = Entry ± (ATR × 1.5)
+
+Risk per trade = abs(entry price − stop loss)
+
+--------------------------------------------------------------
+5. TAKE PROFIT — 5-LAYER PARTIAL EXIT SYSTEM
+--------------------------------------------------------------
+
+Take profit is split into 5 levels based on R-multiples of risk:
+
+  TP1 → 0.6R profit  → close 20% of position
+  TP2 → 1.1R profit  → close 60% of position
+  TP3 → 1.8R profit  → close 10% of position
+  TP4 → 2.8R profit  → close  5% of position
+  TP5 → 3.8R profit  → close  5% of position
+
+Stop loss moves up progressively as TPs are hit:
+
+  After TP1 hit → SL moves to breakeven (+0.05R)
+  After TP2 hit → SL moves to TP1 level (0.6R)
+  After TP3 hit → SL moves to TP1 level (0.6R)
+  After TP4 hit → SL moves to TP2 level (1.1R)
+  After TP5 hit → SL moves to TP3 level (1.8R)
+
+Optional ATR trailing stop activates at 2.2R profit,
+trailing at 1.5 × ATR distance.
+
+--------------------------------------------------------------
+6. CONFLUENCE SCORING (0–7)
+--------------------------------------------------------------
+
+Before entering, the bot scores 7 factors.
+Minimum score required depends on regime (see section 2).
+
+The 7 factors are:
+  1. Location context      — price near key S/R zone
+  2. Fibonacci context     — price in 0.618–0.886 retracement zone
+  3. Liquidity             — liquidity pool nearby
+  4. Structure alignment   — price action structure confirms direction
+  5. Confirmation candle   — H4 candle confirms direction at entry
+  6. ATR regime            — volatility is in a tradeable range
+  7. Risk/reward ratio     — R:R is acceptable
+
+Each factor = 1 point. Score is simply the count of passing factors.
+
+--------------------------------------------------------------
+7. POSITION SIZING
+--------------------------------------------------------------
+
+  risk_usd        = account_balance × 0.6%
+  stop_pips       = abs(entry − stop_loss) / pip_size
+  risk_per_lot    = stop_pips × pip_value_per_lot
+  lot_size        = risk_usd / risk_per_lot
+
+If multiple positions are open simultaneously,
+lot size is reduced proportionally.
+
+--------------------------------------------------------------
+8. RISK MANAGEMENT — GRADUATED DRAWDOWN SYSTEM
+--------------------------------------------------------------
+
+The bot watches daily drawdown in real time and acts in tiers:
+
+  Tier 1 (2% daily DD)   → Reduce risk per trade to 0.4% (67%)
+  Tier 2 (3.5% daily DD) → Cancel all pending limit orders
+  Tier 3 (4.5% daily DD) → Emergency close worst open positions
+
+Additional rules:
+  - Hard stop on new trades if daily loss limit approached (4.1%)
+  - If account profit reaches 9% → reduce risk to 0.25% (protect gains)
+  - Max 7 concurrent open trades
+  - No new trades Friday 16:00+ UTC
+  - Close all positions Friday 22:00+ UTC if daily DD >= 2%
+
+--------------------------------------------------------------
+9. INSTRUMENTS TRADED
+--------------------------------------------------------------
+
+  Forex (35+):   All major pairs and crosses
+                 EUR, GBP, USD, JPY, CHF, AUD, NZD, CAD
+
+  Metals:        XAU_USD (Gold), XAG_USD (Silver)
+
+  Indices:       NAS100_USD (Nasdaq), UK100_USD (FTSE)
+
+  Crypto:        BTC_USD, ETH_USD, XRP_USD, ADA_USD
+
+Note: Volatile assets (Gold, Crypto, Indices) get a 1.5× boost
+to their confluence threshold to allow more entries.
+
+--------------------------------------------------------------
+10. KEY PARAMETERS TO TUNE
+--------------------------------------------------------------
+
+  adx_trend_threshold    = 25.0      # ADX level for trend mode
+  adx_range_threshold    = 20.0      # ADX level for range mode
+  entry_fib_level        = 0.618     # Fibonacci entry retracement
+  atr_sl_multiplier      = 1.5       # ATR multiplier for fallback SL
+  risk_per_trade_pct     = 0.6       # Base risk per trade (%)
+  tp1_r_multiple         = 0.6       # First TP at 0.6R
+  tp2_r_multiple         = 1.1       # Second TP at 1.1R
+  tp3_r_multiple         = 1.8       # Third TP at 1.8R
+  atr_trail_multiplier   = 1.5       # Trailing stop distance
+  trail_activation_r     = 2.2       # Activate trail at 2.2R profit
+  tier1_dd_pct           = 2.0       # First drawdown warning
+  tier2_dd_pct           = 3.5       # Cancel pending orders
+  tier3_dd_pct           = 4.5       # Emergency close positions
+
+--------------------------------------------------------------
+11. STRATEGY FLOW SUMMARY
+--------------------------------------------------------------
+
+  1. Scan market → Calculate ADX → Determine regime
+  2. Score confluence (0–7) → Check minimum threshold for regime
+  3. If score passes → Calculate Fib entry, SL, TP levels
+  4. Check session filter + daily DD + max open trades
+  5. Place pending limit order at 0.618 Fib level
+  6. Monitor fill (5-bar window)
+  7. Once filled → Manage 5 TP levels + trailing SL
+  8. Monitor drawdown tiers in real time → Adjust or close if needed
+
+--------------------------------------------------------------
+KEY SOURCE FILES (for developers)
+--------------------------------------------------------------
+
+  strategy_core.py          — Core strategy logic (single source of truth)
+  main_live_bot.py          — Live execution engine (order management)
+  challenge_risk_manager.py — Drawdown tracking and risk enforcement
+  indicators.py             — ADX, ATR, swing detection, Fib calculations
+  config.py                 — Instruments, session times, challenge config
+  tradr/risk/               — Position sizing and risk modules
+
+==============================================================

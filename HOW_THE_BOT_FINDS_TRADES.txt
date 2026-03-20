@@ -1,0 +1,173 @@
+==============================================================
+  HOW THE BOT FINDS TRADES DURING A SCAN
+  Based on: strategy_core.py → generate_signals()
+==============================================================
+
+Every scan runs through this exact sequence for each symbol.
+Minimum 50 daily candles required before any signal can fire.
+
+--------------------------------------------------------------
+STEP 1 — DETERMINE DIRECTION (Multi-Timeframe Bias)
+--------------------------------------------------------------
+
+The bot checks trend on 3 timeframes independently:
+  - Monthly candles
+  - Weekly candles
+  - Daily candles
+
+For each timeframe, trend is determined by:
+  1. Is the short SMA (8 bars) above the long SMA (21 bars)?
+  2. Is current price above the long SMA?
+  3. Is price making new highs (or lows) vs the last 10 bars?
+
+Result per timeframe: "bullish", "bearish", or "mixed"
+
+Direction rule:
+  - 2 or more timeframes bullish  → trade bullish
+  - 2 or more timeframes bearish  → trade bearish
+  - Mixed / split                 → use daily direction as tiebreaker
+
+--------------------------------------------------------------
+STEP 2 — SCORE CONFLUENCE (0–7 flags)
+--------------------------------------------------------------
+
+The bot scores up to 7 confluence factors.
+Each one is either True (pass) or False (fail).
+Score = number of True flags.
+
+The 7 flags:
+
+  1. HTF BIAS
+     Are at least 2 of 3 timeframes aligned with trade direction?
+
+  2. LOCATION
+     Is price near a key support/resistance zone?
+     Checks monthly highs/lows, weekly highs/lows, daily pivots,
+     and historical S/R levels from 20+ years of data.
+     Proximity threshold: within ~1–2% of the level.
+
+  3. FIBONACCI
+     Is price inside a Fibonacci retracement zone (0.382–0.886)
+     of the most recent swing leg on weekly or daily chart?
+
+  4. LIQUIDITY
+     Always True (filter was removed from live bot).
+
+  5. STRUCTURE
+     Does market structure support the direction?
+     Looks for breakouts, order blocks, or structure shifts
+     on monthly/weekly/daily timeframes.
+
+  6. CONFIRMATION
+     Is there a confirming H4 candle at the entry zone?
+     Checks for bullish/bearish engulfing or rejection candles.
+     Falls back to daily if H4 data is unavailable.
+
+  7. R/R RATIO
+     Does the trade have a valid entry, SL, and TP?
+     This is calculated as part of the confluence check
+     (see Step 3 below). If no valid levels can be found → False.
+
+--------------------------------------------------------------
+STEP 3 — CALCULATE TRADE LEVELS
+--------------------------------------------------------------
+
+Entry, SL, and TP are calculated during confluence scoring.
+
+ENTRY:
+  1. Find the last swing impulse leg on the daily chart
+     (significant move up or down)
+  2. Calculate 0.618 Fibonacci retracement of that leg
+     - Bullish: entry = swing_high - (range × 0.618)
+     - Bearish: entry = swing_low  + (range × 0.618)
+  3. If current price is already within 0.3 ATR of the Fib level
+     → use current price as entry (market order)
+     Otherwise → use Fib level (limit order)
+
+  Fallback (no swing leg found):
+    Entry = current close price
+
+STOP LOSS:
+  Method 1 — Structure-based (preferred):
+    Scan H4 candles (or daily, 20-bar lookback) for
+    the nearest swing low (bull) or swing high (bear).
+    SL = structure level ± 0.4 ATR buffer
+
+  Method 2 — ATR-based (fallback):
+    SL = entry ± (ATR × 1.5)
+
+  When both are available, the tighter one wins.
+
+TAKE PROFIT levels (R = risk = entry − SL):
+  TP1 = entry + 0.6R
+  TP2 = entry + 1.1R
+  TP3 = entry + 1.8R
+  TP4 = entry + (TP3_multiple + 1.0R)
+  TP5 = entry + (TP3_multiple + 2.0R)
+
+--------------------------------------------------------------
+STEP 4 — DECIDE SIGNAL STATUS
+--------------------------------------------------------------
+
+After scoring:
+
+  "active" signal:
+    boosted_confluence >= min_confluence threshold
+    AND quality_factors >= min_quality_factors
+
+  "watching" signal:
+    boosted_confluence >= min_confluence - 1
+    (close to threshold but not quite)
+
+  No signal:
+    Below watching threshold → ignored
+
+Confluence thresholds (regime-dependent):
+  Trend regime (ATR percentile OK)  → need 6 out of 7
+  Range regime (ATR percentile low) → need 4 out of 7
+
+Quality factor:
+  quality = max(1, confluence_score // 3)
+  Must be >= min_quality_factors (default: 3)
+
+Volatile asset boost:
+  For Gold, Nasdaq, GBP/JPY, BTC, ETH:
+  confluence score gets a +1 boost before threshold check
+  to allow more entries on high-volatility instruments.
+
+--------------------------------------------------------------
+STEP 5 — WAIT FOR ENTRY FILL (Live Bot)
+--------------------------------------------------------------
+
+Once an "active" signal is generated:
+
+  The bot places a LIMIT ORDER at the calculated entry level.
+  It then waits up to 5 bars (5 trading days) for price to fill.
+
+  Bullish: fills when price drops down TO the entry level
+  Bearish: fills when price rises UP TO the entry level
+
+  If price never reaches the level in 5 bars → trade is skipped.
+  The level is never adjusted or chased.
+
+--------------------------------------------------------------
+SUMMARY — WHAT MAKES A TRADE FIRE
+--------------------------------------------------------------
+
+  1. At least 50 daily candles available
+  2. 2 of 3 timeframes agree on direction
+  3. Confluence score passes threshold for current regime
+  4. Quality factor passes (confluence // 3 >= 3)
+  5. Valid entry, SL, and TP levels can be calculated
+  6. Session filter: scan runs 08:00–22:00 UTC only
+  7. Daily drawdown limit not exceeded
+  8. Max 7 concurrent open trades not reached
+  9. No existing position in that symbol
+  10. Price reaches limit entry level within 5 trading days
+
+==============================================================
+  Source: strategy_core.py
+  Functions: generate_signals(), compute_confluence(),
+             compute_trade_levels(), _infer_trend(),
+             _pick_direction_from_bias()
+==============================================================
