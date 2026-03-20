@@ -577,25 +577,40 @@ class CSVMT5Simulator:
             return None
 
         try:
-            df = pd.read_csv(filepath, parse_dates=['time'])
-            df.columns = [c.lower() for c in df.columns]
-            df = df.sort_values('time').reset_index(drop=True)
-
-            # DATE FILTER: If date range is set, trim higher-TF data too
-            # Keep generous lookback (1 year) for indicator calculations (ATR, moving averages, etc.)
+            # Determine date window upfront so we can skip/stop early
+            lookback_days = {'D1': 365, 'H4': 180, 'H1': 90, 'W1': 730, 'MN': 1095}.get(timeframe, 60)
+            filter_start_ts = None
+            filter_end_ts = None
             if hasattr(self, '_filter_start') and self._filter_start is not None:
-                # Higher timeframes need more lookback for indicators
-                lookback_days = {'D1': 365, 'H4': 180, 'H1': 90, 'W1': 730, 'MN': 1095}.get(timeframe, 60)
-                lookback_start = _to_utc_ts(self._filter_start) - pd.Timedelta(days=lookback_days)
-                if df['time'].dt.tz is None:
-                    df_times = df['time'].dt.tz_localize('UTC')
-                else:
-                    df_times = df['time']
-                mask = df_times >= lookback_start
-                if hasattr(self, '_filter_end') and self._filter_end is not None:
-                    filter_end = _to_utc_ts(self._filter_end) + pd.Timedelta(days=1)
-                    mask = mask & (df_times <= filter_end)
-                df = df[mask].reset_index(drop=True)
+                filter_start_ts = _to_utc_ts(self._filter_start) - pd.Timedelta(days=lookback_days)
+            if hasattr(self, '_filter_end') and self._filter_end is not None:
+                filter_end_ts = _to_utc_ts(self._filter_end) + pd.Timedelta(days=1)
+
+            # Read in chunks so we can skip before window and stop after window
+            chunks = []
+            for chunk in pd.read_csv(filepath, parse_dates=['time'], chunksize=50000):
+                chunk.columns = [c.lower() for c in chunk.columns]
+                if chunk['time'].dt.tz is None:
+                    chunk['time'] = chunk['time'].dt.tz_localize('UTC')
+
+                chunk_max = chunk['time'].max()
+                chunk_min = chunk['time'].min()
+
+                if filter_start_ts is not None and chunk_max < filter_start_ts:
+                    continue  # entire chunk is before our window — skip
+                if filter_end_ts is not None and chunk_min > filter_end_ts:
+                    break     # data is sorted, past end — stop reading
+
+                mask = pd.Series(True, index=chunk.index)
+                if filter_start_ts is not None:
+                    mask &= chunk['time'] >= filter_start_ts
+                if filter_end_ts is not None:
+                    mask &= chunk['time'] <= filter_end_ts
+                chunks.append(chunk[mask])
+
+            if not chunks:
+                return None
+            df = pd.concat(chunks).sort_values('time').reset_index(drop=True)
 
             # Cache
             if symbol not in self._data_cache:
