@@ -20,7 +20,7 @@
     "partial_exit_pct": 0.9,
     "december_atr_multiplier": 1.8,
     "volatile_asset_boost": 1.3,
-    "tp1_r_multiple": 0.40,
+    "tp1_r_multiple": 0.50,
     "tp2_r_multiple": 1.10,
     "tp3_r_multiple": 1.30,
     "tp4_r_multiple": 1.70,
