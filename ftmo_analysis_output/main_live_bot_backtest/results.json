@@ -1,42 +1,60 @@
 {
   "initial_balance": 20000.0,
-  "final_balance": 31433.01,
-  "net_pnl": 11433.01,
-  "closed_trades_pnl": 11433.01,
-  "return_pct": 57.17,
-  "total_trades": 127,
-  "winners": 92,
-  "losers": 35,
-  "win_rate": 72.4,
-  "max_tdd_pct": 0.03,
-  "max_ddd_pct": 3.1,
-  "safety_events": 0,
-  "ddd_halts": 0,
-  "tdd_warnings": 0,
+  "final_balance": 30097.6,
+  "net_pnl": 10097.6,
+  "closed_trades_pnl": 10097.6,
+  "return_pct": 50.49,
+  "total_trades": 173,
+  "winners": 120,
+  "losers": 53,
+  "win_rate": 69.4,
+  "max_tdd_pct": 0.01,
+  "max_ddd_pct": 3.69,
+  "safety_events": 14,
+  "ddd_halts": 2,
+  "ddd_reduces": 1,
+  "ddd_warnings": 11,
+  "tdd_stopouts": 0,
   "monthly_stats": {
-    "2023-02": {
-      "trades": 32,
-      "winners": 26,
-      "losers": 6,
-      "pnl": 2844.09,
-      "partial_closes": 45,
-      "win_rate": 81.2
-    },
-    "2023-03": {
-      "trades": 50,
+    "2015-01": {
+      "trades": 48,
       "winners": 33,
-      "losers": 17,
-      "pnl": 2520.13,
-      "partial_closes": 59,
-      "win_rate": 66.0
+      "losers": 15,
+      "pnl": 3493.04,
+      "partial_closes": 62,
+      "win_rate": 68.8
     },
-    "2023-04": {
-      "trades": 45,
-      "winners": 33,
-      "losers": 12,
-      "pnl": 6068.79,
-      "partial_closes": 50,
+    "2015-02": {
+      "trades": 15,
+      "winners": 11,
+      "losers": 4,
+      "pnl": 1280.88,
+      "partial_closes": 28,
       "win_rate": 73.3
+    },
+    "2015-03": {
+      "trades": 34,
+      "winners": 28,
+      "losers": 6,
+      "pnl": 2361.36,
+      "partial_closes": 47,
+      "win_rate": 82.4
+    },
+    "2015-04": {
+      "trades": 49,
+      "winners": 27,
+      "losers": 22,
+      "pnl": -20.78,
+      "partial_closes": 46,
+      "win_rate": 55.1
+    },
+    "2015-05": {
+      "trades": 27,
+      "winners": 21,
+      "losers": 6,
+      "pnl": 2983.11,
+      "partial_closes": 35,
+      "win_rate": 77.8
     }
   }
 }
