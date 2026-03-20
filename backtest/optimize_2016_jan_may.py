@@ -78,26 +78,39 @@ TP_CLOSE_RANGES = {
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Logging helper  (schrijft naar console EN logfile tegelijk)
+# Logging helper
+# Schrijft naar stdout (of log file als stdout niet een TTY is).
+# Vermijdt dubbel schrijven wanneer de shell stdout al naar het logbestand stuurt.
 # ─────────────────────────────────────────────────────────────────────────────
-class Tee:
-    """Write to both stdout and a log file."""
+class Logger:
+    """
+    Schrijft naar stdout. Als stdout GEEN TTY is (bijv. omgeleid naar logfile via
+    shell-redirect), schrijft ook naar het logbestand direct – maar dan slaan we
+    de print() over om dubbele schrijf te voorkomen.
+    Als stdout WEL een TTY is (interactief), schrijven we naar beide.
+    """
     def __init__(self, log_path: Path):
         log_path.parent.mkdir(parents=True, exist_ok=True)
         self._log = open(log_path, "a", buffering=1)
+        self._is_tty = sys.stdout.isatty()
 
-    def print(self, *args, **kwargs):
-        msg = " ".join(str(a) for a in args)
-        print(msg, **kwargs)
-        self._log.write(msg + "\n")
-        self._log.flush()
+    def __call__(self, msg: str = ""):
+        # Als stdout een TTY is: print naar console (Tee via file)
+        # Als stdout NIET een TTY is: stdout is al omgeleid naar logfile,
+        #   print() schrijft er al naartoe; we slaan directe file-write over
+        print(msg, flush=True)
+        if self._is_tty:
+            # Schrijf ook naar het logbestand
+            self._log.write(msg + "\n")
+            self._log.flush()
+        # Als niet-TTY: shell-redirect zorgt al voor logbestand
 
     def close(self):
         self._log.close()
 
 
-tee = Tee(LOG_FILE)
-log = tee.print  # shorthand
+_logger = Logger(LOG_FILE)
+log = _logger  # shorthand: log("bericht")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -156,34 +169,52 @@ def run_backtest(params: Dict[str, Any]) -> BTResult:
             "--params-file", str(tmp_params),
             "--quiet",
         ]
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=str(ROOT))
+        proc = subprocess.run(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,      # capture stderr for error logging
+            stdin=subprocess.DEVNULL,    # prevent hanging on stdin reads
+            cwd=str(ROOT),
+        )
+
+        if proc.returncode != 0:
+            err = proc.stderr.decode(errors="replace")[-400:] if proc.stderr else ""
+            log(f"  [BACKTEST ERROR] returncode={proc.returncode} stderr={err!r}")
+            return BTResult(params=params, net_return_pct=-100, total_trades=0, win_rate=0,
+                            max_tdd_pct=100, max_ddd_pct=100, final_balance=BALANCE,
+                            ddd_halts=0, safety_events=0, tdd_warnings=0, valid=False, monthly_stats={})
 
         rf = out_dir / "results.json"
-        if rf.exists():
-            d = json.loads(rf.read_text())
-            return BTResult(
-                params=params,
-                net_return_pct=d.get("return_pct", 0),
-                total_trades=d.get("total_trades", 0),
-                win_rate=d.get("win_rate", 0),
-                max_tdd_pct=d.get("max_tdd_pct", 100),
-                max_ddd_pct=d.get("max_ddd_pct", 100),
-                final_balance=d.get("final_balance", BALANCE),
-                ddd_halts=d.get("ddd_halts", 0),
-                safety_events=d.get("safety_events", d.get("ddd_halts", 0)),
-                tdd_warnings=d.get("tdd_warnings", 0),
-                valid=(d.get("max_tdd_pct", 100) < 10 and d.get("max_ddd_pct", 100) < 5),
-                monthly_stats=d.get("monthly_stats", {}),
-            )
+        if not rf.exists():
+            log(f"  [BACKTEST ERROR] results.json niet gevonden in {out_dir}")
+            return BTResult(params=params, net_return_pct=-100, total_trades=0, win_rate=0,
+                            max_tdd_pct=100, max_ddd_pct=100, final_balance=BALANCE,
+                            ddd_halts=0, safety_events=0, tdd_warnings=0, valid=False, monthly_stats={})
+
+        d = json.loads(rf.read_text())
+        return BTResult(
+            params=params,
+            net_return_pct=d.get("return_pct", 0),
+            total_trades=d.get("total_trades", 0),
+            win_rate=d.get("win_rate", 0),
+            max_tdd_pct=d.get("max_tdd_pct", 100),
+            max_ddd_pct=d.get("max_ddd_pct", 100),
+            final_balance=d.get("final_balance", BALANCE),
+            ddd_halts=d.get("ddd_halts", 0),
+            safety_events=d.get("safety_events", d.get("ddd_halts", 0)),
+            tdd_warnings=d.get("tdd_warnings", 0),
+            valid=(d.get("max_tdd_pct", 100) < 10 and d.get("max_ddd_pct", 100) < 5),
+            monthly_stats=d.get("monthly_stats", {}),
+        )
+
     except Exception as e:
-        log(f"  [BACKTEST ERROR] {e}")
+        log(f"  [BACKTEST EXCEPTION] {type(e).__name__}: {e}")
+        return BTResult(params=params, net_return_pct=-100, total_trades=0, win_rate=0,
+                        max_tdd_pct=100, max_ddd_pct=100, final_balance=BALANCE,
+                        ddd_halts=0, safety_events=0, tdd_warnings=0, valid=False, monthly_stats={})
     finally:
         if tmp_params.exists():
             tmp_params.unlink()
-
-    return BTResult(params=params, net_return_pct=-100, total_trades=0, win_rate=0,
-                    max_tdd_pct=100, max_ddd_pct=100, final_balance=BALANCE,
-                    ddd_halts=0, safety_events=0, tdd_warnings=0, valid=False, monthly_stats={})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -599,7 +630,7 @@ def main():
 
     elapsed = (datetime.now() - start_time).total_seconds()
     print_final_report(study, base_params, args.trials, elapsed)
-    tee.close()
+    _logger.close()
 
 
 if __name__ == "__main__":
