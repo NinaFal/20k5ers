@@ -173,7 +173,7 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, base_pa
 
 
 def run_optimization(trials: int, start: str, end: str, balance: float = 20000,
-                     output_dir: str = 'backtest/optimization_results') -> Dict[str, Any]:
+                     output_dir: str = 'backtest/optimization_results', workers: int = 1) -> Dict[str, Any]:
     base_params = load_current_params()
 
     print("=" * 70)
@@ -206,6 +206,7 @@ def run_optimization(trials: int, start: str, end: str, balance: float = 20000,
     study.optimize(
         lambda trial: objective(trial, start, end, balance, base_params),
         n_trials=trials,
+        n_jobs=workers,
         show_progress_bar=False,
         catch=(Exception,)
     )
@@ -322,6 +323,7 @@ def main():
     parser.add_argument('--end', type=str, default='2015-05-31', help='End date (YYYY-MM-DD)')
     parser.add_argument('--balance', type=float, default=20000, help='Starting balance')
     parser.add_argument('--output', type=str, default='backtest/optimization_results', help='Output directory')
+    parser.add_argument('--workers', type=int, default=1, help='Number of parallel workers')
     parser.add_argument('--apply', type=str, default=None, help='Apply results from this file')
     args = parser.parse_args()
 
@@ -335,6 +337,7 @@ def main():
         end=args.end,
         balance=args.balance,
         output_dir=args.output,
+        workers=args.workers,
     )
 
 
