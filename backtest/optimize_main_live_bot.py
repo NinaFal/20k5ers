@@ -241,7 +241,7 @@ def sample_tp_and_sl_params(trial: optuna.Trial, num_tps: int = 5) -> Dict[str, 
     tp4_r = tp_r_values[3] if num_tps >= 4 else tp3_r
     tp5_r = tp_r_values[4] if num_tps >= 5 else tp4_r
 
-    # ── Close percentages (normalized to sum 1.0) ─────────────────────────────
+    # ── Close percentages (normalized to sum to 1.0 so full position is closed) ─
     weights = []
     for i in range(1, num_tps + 1):
         key = f'tp{i}_close_pct'
@@ -383,12 +383,11 @@ def _enqueue_current_params(study: optuna.Study, num_tps: int, base_params: Dict
         else:
             tp_r_values.append(prev_r + 0.5)
 
-    # Close percentages as weights (normalization preserves ratios)
-    for i in range(1, num_tps + 1):
-        key = f'tp{i}_close_pct'
-        weight_key = f'{key}_weight'
-        if key in base_params:
-            enqueue_params[weight_key] = base_params[key]
+    # Close percentages as weights — normalize current_params so they sum to 1.0
+    raw_close = [base_params.get(f'tp{i}_close_pct', 0.0) for i in range(1, num_tps + 1)]
+    total_close = sum(raw_close) or 1.0
+    for i, raw in enumerate(raw_close, 1):
+        enqueue_params[f'tp{i}_close_pct_weight'] = round(raw / total_close, 4)
 
     # SL after each TP hit
     tp1_r = tp_r_values[0] if len(tp_r_values) > 0 else 0.6
@@ -479,7 +478,6 @@ def run_optimization(
 
     # Reconstruct best TP/SL params from best trial
     best_tp_r = {f'tp{i}_r_multiple': best.params.get(f'tp{i}_r_multiple') for i in range(1, num_tps + 1)}
-    # Reconstruct normalized close pcts
     weights = [best.params.get(f'tp{i}_close_pct_weight', 1.0) for i in range(1, num_tps + 1)]
     total_w = sum(weights)
     best_close = {f'tp{i}_close_pct': round(w / total_w, 3) for i, w in enumerate(weights, 1)}
@@ -592,6 +590,7 @@ def apply_params(results_file: str):
 
     best_params_raw = results.get('best_parameters', {})
 
+    # Reconstruct normalized close percentages from weights
     # Reconstruct normalized close percentages from weights
     weights = [best_params_raw.get(f'tp{i}_close_pct_weight', None) for i in range(1, 6)]
     if any(w is not None for w in weights):
