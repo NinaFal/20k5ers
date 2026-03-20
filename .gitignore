@@ -58,6 +58,7 @@ awaiting_entry.json
 awaiting_spread.json
 trading_days.json
 first_run_complete.flag
+closed_today.json
 
 # S/R cache (runtime computed)
 data/sr_cache/
