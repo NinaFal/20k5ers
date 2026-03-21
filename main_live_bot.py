@@ -1678,10 +1678,8 @@ class LiveTradingBot:
         friday_max_per_group = int(raw_params.get('friday_safety_max_per_group', 2))
         friday_max_total_non_crypto = int(raw_params.get('friday_safety_max_total_non_crypto', 5))
         friday_r_close_losing = float(raw_params.get('friday_safety_r_close_losing', 0.0))
-        friday_r_take_profit = float(raw_params.get('friday_safety_r_take_profit', 1.6))
         friday_r_new_position = float(raw_params.get('friday_safety_r_new_position', 0.5))
         friday_reduce_pct = float(raw_params.get('friday_safety_reduce_pct', 0.50))
-        friday_close_winners = bool(raw_params.get('friday_safety_close_winners', True))
 
         # Use weekend_gap_manager to select positions
         result = wgm.select_positions_for_weekend_tier1(
@@ -1691,10 +1689,8 @@ class LiveTradingBot:
             max_per_group=friday_max_per_group,
             max_total_non_crypto=friday_max_total_non_crypto,
             r_close_losing=friday_r_close_losing,
-            r_take_profit=friday_r_take_profit,
             r_new_position=friday_r_new_position,
             reduce_pct=friday_reduce_pct,
-            close_winners=friday_close_winners,
         )
 
         # Execute closures

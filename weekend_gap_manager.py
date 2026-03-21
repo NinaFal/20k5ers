@@ -262,10 +262,8 @@ def select_positions_for_weekend_tier1(
     max_per_group: int = 2,
     max_total_non_crypto: int = 5,
     r_close_losing: float = 0.0,
-    r_take_profit: float = 1.6,
     r_new_position: float = 0.5,
     reduce_pct: float = 0.50,
-    close_winners: bool = True,
 ) -> dict:
     """
     TIER 1: Conservative correlation-aware weekend position selector
@@ -273,11 +271,10 @@ def select_positions_for_weekend_tier1(
     Rules:
     1. Crypto: Always hold (BTC, ETH - no gap risk, trade 24/7)
     2. Close ALL losing positions (< r_close_losing)
-    3. Close positions > r_take_profit if close_winners=True; else reduce by reduce_pct
-    4. Reduce reduce_pct% of positions in [r_close_losing, r_new_position) (new positions)
-    5. Hold positions in [r_new_position, r_take_profit] (sweet spot)
-    6. MAX 1-2 positions per correlation group (avoid correlation clusters)
-    7. Overall max: 3-5 non-crypto positions
+    3. Reduce reduce_pct% of positions in [r_close_losing, r_new_position) (new positions)
+    4. Hold all positions >= r_new_position (let winners run over the weekend)
+    5. MAX 1-2 positions per correlation group (avoid correlation clusters)
+    6. Overall max: 3-5 non-crypto positions
 
     Args:
         positions: List of MT5 position objects
@@ -286,10 +283,8 @@ def select_positions_for_weekend_tier1(
         max_per_group: Max positions per correlation group (default: 2)
         max_total_non_crypto: Max total non-crypto positions (default: 5)
         r_close_losing: Close positions below this R (default: 0.0)
-        r_take_profit: Close/reduce positions above this R (default: 1.6)
         r_new_position: Reduce positions below this R, hold above (default: 0.5)
         reduce_pct: Fraction to reduce positions by (default: 0.50 = 50%)
-        close_winners: If True close positions > r_take_profit, if False reduce them (default: True)
 
     Returns:
         dict with keys:
@@ -357,28 +352,17 @@ def select_positions_for_weekend_tier1(
             logger.info(f"❌ CLOSE {oanda_symbol}: LOSING ({current_r:+.2f}R < {r_close_losing:.1f}R)")
             continue
 
-        # RULE 2: Handle positions above take-profit threshold
-        if current_r > r_take_profit:
-            if close_winners:
-                close.append(pos)
-                logger.info(f"💰 CLOSE {oanda_symbol}: TAKE PROFIT ({current_r:+.2f}R > {r_take_profit:.1f}R)")
-            else:
-                reduce.append(pos)
-                logger.info(f"💰 REDUCE {reduce_pct*100:.0f}% {oanda_symbol}: TAKE PROFIT / NO FULL CLOSE ({current_r:+.2f}R > {r_take_profit:.1f}R)")
-            continue
-
-        # RULE 3: Reduce if very new (below r_new_position)
+        # RULE 2: Reduce if very new (below r_new_position)
         # New positions have little profit buffer; reduce exposure
         if r_close_losing <= current_r < r_new_position:
             reduce.append(pos)
             logger.info(f"⚠️ REDUCE {reduce_pct*100:.0f}% {oanda_symbol}: NEW POSITION ({current_r:+.2f}R)")
             continue
 
-        # RULE 4: Candidates for holding (sweet spot: r_new_position to r_take_profit)
-        # Has profit buffer + room to run to TP levels
-        if r_new_position <= current_r <= r_take_profit:
+        # RULE 3: Candidates for holding (>= r_new_position, let winners run)
+        if current_r >= r_new_position:
             non_crypto_candidates.append(pos)
-            logger.info(f"✅ CANDIDATE {oanda_symbol}: SWEET SPOT ({current_r:+.2f}R)")
+            logger.info(f"✅ CANDIDATE {oanda_symbol}: IN PROFIT ({current_r:+.2f}R)")
             continue
 
     # ═══════════════════════════════════════════════════

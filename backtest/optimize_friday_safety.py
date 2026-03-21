@@ -11,7 +11,6 @@ Optimizes:
 - friday_safety_max_total_non_crypto (int 1-8):  max non-crypto positions over weekend
 - friday_safety_r_close_losing       (float):    close positions below this R (default 0.0)
 - friday_safety_r_new_position       (float):    reduce 50% below / hold above (default 0.5)
-- friday_safety_r_take_profit        (float):    take profit / close above (default 1.6)
 
 ALL strategy params (TP/SL, confluence, risk, etc.) are loaded from
 current_params.json and passed through unchanged.
@@ -56,9 +55,7 @@ FRIDAY_SAFETY_RANGES = {
     'friday_safety_max_total_non_crypto': (1, 8),       # Baseline: 5
     'friday_safety_r_close_losing':       (-0.5, 0.2),  # Baseline: 0.0
     'friday_safety_r_new_position':       (0.1, 1.0),   # Baseline: 0.5
-    'friday_safety_r_take_profit':        (0.8, 3.0),   # Baseline: 1.6
     'friday_safety_reduce_pct':           (0.05, 0.50), # Baseline: 0.50 (5%-50%)
-    # friday_safety_close_winners: True/False (categorical, handled separately)
 }
 
 
@@ -226,25 +223,12 @@ def sample_friday_safety_params(trial: optuna.Trial) -> Dict[str, Any]:
     params['friday_safety_r_new_position'] = trial.suggest_float(
         'friday_safety_r_new_position', r_np_low, r_np_high, step=0.05,
     )
-    # r_take_profit must be > r_new_position
-    r_np = params['friday_safety_r_new_position']
-    r_tp_low  = max(FRIDAY_SAFETY_RANGES['friday_safety_r_take_profit'][0], r_np + 0.2)
-    r_tp_high = FRIDAY_SAFETY_RANGES['friday_safety_r_take_profit'][1]
-    if r_tp_high < r_tp_low + 0.1:
-        r_tp_high = r_tp_low + 0.1
-    params['friday_safety_r_take_profit'] = trial.suggest_float(
-        'friday_safety_r_take_profit', r_tp_low, r_tp_high, step=0.1,
-    )
     params['friday_safety_reduce_pct'] = trial.suggest_float(
         'friday_safety_reduce_pct',
         FRIDAY_SAFETY_RANGES['friday_safety_reduce_pct'][0],
         FRIDAY_SAFETY_RANGES['friday_safety_reduce_pct'][1],
         step=0.05,
     )
-    params['friday_safety_close_winners'] = trial.suggest_categorical(
-        'friday_safety_close_winners', [True, False],
-    )
-
     return params
 
 
@@ -266,8 +250,7 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float,
     print(f"    max_per_group={params['friday_safety_max_per_group']}  "
           f"max_total_non_crypto={params['friday_safety_max_total_non_crypto']}")
     print(f"    r_close_losing={params['friday_safety_r_close_losing']:.2f}R  "
-          f"r_new_position={params['friday_safety_r_new_position']:.2f}R  "
-          f"r_take_profit={params['friday_safety_r_take_profit']:.2f}R")
+          f"r_new_position={params['friday_safety_r_new_position']:.2f}R")
 
     result = run_backtest(params, start, end, balance)
 
@@ -321,7 +304,6 @@ def _enqueue_baseline(study: optuna.Study, base_params: Dict[str, Any]) -> None:
         'friday_safety_max_total_non_crypto': int(base_params.get('friday_safety_max_total_non_crypto', 5)),
         'friday_safety_r_close_losing':       float(base_params.get('friday_safety_r_close_losing', 0.0)),
         'friday_safety_r_new_position':       float(base_params.get('friday_safety_r_new_position', 0.5)),
-        'friday_safety_r_take_profit':        float(base_params.get('friday_safety_r_take_profit', 1.6)),
     }
     study.enqueue_trial(enqueue)
 
@@ -355,16 +337,13 @@ def run_optimization(
         'friday_safety_max_total_non_crypto': 5,
         'friday_safety_r_close_losing': 0.0,
         'friday_safety_r_new_position': 0.5,
-        'friday_safety_r_take_profit': 1.6,
         'friday_safety_reduce_pct': 0.50,
-        'friday_safety_close_winners': True,
     }
     print("  Optimizing:")
     for key, val in FRIDAY_SAFETY_RANGES.items():
         lo, hi = val
         baseline = base_params.get(key, DEFAULTS.get(key, '?'))
         print(f"    {key:<44} range [{lo}, {hi}]  baseline: {baseline}")
-    print(f"    {'friday_safety_close_winners':<44} [True, False]  baseline: {base_params.get('friday_safety_close_winners', True)}")
     print("  Fixed (from current_params.json): all strategy params (TP/SL, confluence, risk, ...)")
     print("=" * 70)
 
@@ -404,7 +383,7 @@ def run_optimization(
     print("=" * 70)
 
     print("\n📊 BEST FRIDAY SAFETY PARAMETERS:")
-    all_keys = list(FRIDAY_SAFETY_RANGES.keys()) + ['friday_safety_close_winners']
+    all_keys = list(FRIDAY_SAFETY_RANGES.keys())
     for key in all_keys:
         val = best.params.get(key, '?')
         baseline = base_params.get(key, '?')
