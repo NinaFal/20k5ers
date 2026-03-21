@@ -1667,6 +1667,8 @@ class LiveTradingBot:
         friday_r_close_losing = float(raw_params.get('friday_safety_r_close_losing', 0.0))
         friday_r_take_profit = float(raw_params.get('friday_safety_r_take_profit', 1.6))
         friday_r_new_position = float(raw_params.get('friday_safety_r_new_position', 0.5))
+        friday_reduce_pct = float(raw_params.get('friday_safety_reduce_pct', 0.50))
+        friday_close_winners = bool(raw_params.get('friday_safety_close_winners', True))
 
         # Use weekend_gap_manager to select positions
         result = wgm.select_positions_for_weekend_tier1(
@@ -1678,6 +1680,8 @@ class LiveTradingBot:
             r_close_losing=friday_r_close_losing,
             r_take_profit=friday_r_take_profit,
             r_new_position=friday_r_new_position,
+            reduce_pct=friday_reduce_pct,
+            close_winners=friday_close_winners,
         )
 
         # Execute closures
@@ -1690,11 +1694,11 @@ class LiveTradingBot:
             else:
                 log.error(f"  ✗ Failed to close: {getattr(close_result, 'error', 'unknown')}")
 
-        # Execute 50% reductions
+        # Execute reductions
         for pos in result['REDUCE_50']:
             symbol = get_internal_symbol(pos.symbol)
             current_volume = pos.volume
-            reduce_volume = round(current_volume * 0.5, 2)
+            reduce_volume = round(current_volume * friday_reduce_pct, 2)
 
             if reduce_volume < 0.01:
                 log.info(f"[{symbol}] Volume too small to reduce 50% ({current_volume:.2f}) - skipping")

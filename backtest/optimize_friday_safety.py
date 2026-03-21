@@ -57,6 +57,8 @@ FRIDAY_SAFETY_RANGES = {
     'friday_safety_r_close_losing':       (-0.5, 0.2),  # Baseline: 0.0
     'friday_safety_r_new_position':       (0.1, 1.0),   # Baseline: 0.5
     'friday_safety_r_take_profit':        (0.8, 3.0),   # Baseline: 1.6
+    'friday_safety_reduce_pct':           (0.05, 0.50), # Baseline: 0.50 (5%-50%)
+    # friday_safety_close_winners: True/False (categorical, handled separately)
 }
 
 
@@ -233,6 +235,15 @@ def sample_friday_safety_params(trial: optuna.Trial) -> Dict[str, Any]:
     params['friday_safety_r_take_profit'] = trial.suggest_float(
         'friday_safety_r_take_profit', r_tp_low, r_tp_high, step=0.1,
     )
+    params['friday_safety_reduce_pct'] = trial.suggest_float(
+        'friday_safety_reduce_pct',
+        FRIDAY_SAFETY_RANGES['friday_safety_reduce_pct'][0],
+        FRIDAY_SAFETY_RANGES['friday_safety_reduce_pct'][1],
+        step=0.05,
+    )
+    params['friday_safety_close_winners'] = trial.suggest_categorical(
+        'friday_safety_close_winners', [True, False],
+    )
 
     return params
 
@@ -339,14 +350,21 @@ def run_optimization(
     print(f"  Parallel Workers: {n_jobs}")
     print(f"  Random startup trials: {startup_trials}")
     print()
+    DEFAULTS = {
+        'friday_safety_max_per_group': 2,
+        'friday_safety_max_total_non_crypto': 5,
+        'friday_safety_r_close_losing': 0.0,
+        'friday_safety_r_new_position': 0.5,
+        'friday_safety_r_take_profit': 1.6,
+        'friday_safety_reduce_pct': 0.50,
+        'friday_safety_close_winners': True,
+    }
     print("  Optimizing:")
-    for key, (lo, hi) in FRIDAY_SAFETY_RANGES.items():
-        baseline = base_params.get(key, {'friday_safety_max_per_group': 2,
-                                         'friday_safety_max_total_non_crypto': 5,
-                                         'friday_safety_r_close_losing': 0.0,
-                                         'friday_safety_r_new_position': 0.5,
-                                         'friday_safety_r_take_profit': 1.6}[key])
+    for key, val in FRIDAY_SAFETY_RANGES.items():
+        lo, hi = val
+        baseline = base_params.get(key, DEFAULTS.get(key, '?'))
         print(f"    {key:<44} range [{lo}, {hi}]  baseline: {baseline}")
+    print(f"    {'friday_safety_close_winners':<44} [True, False]  baseline: {base_params.get('friday_safety_close_winners', True)}")
     print("  Fixed (from current_params.json): all strategy params (TP/SL, confluence, risk, ...)")
     print("=" * 70)
 
@@ -386,7 +404,8 @@ def run_optimization(
     print("=" * 70)
 
     print("\n📊 BEST FRIDAY SAFETY PARAMETERS:")
-    for key in FRIDAY_SAFETY_RANGES:
+    all_keys = list(FRIDAY_SAFETY_RANGES.keys()) + ['friday_safety_close_winners']
+    for key in all_keys:
         val = best.params.get(key, '?')
         baseline = base_params.get(key, '?')
         change = "  ← changed" if val != baseline else ""
