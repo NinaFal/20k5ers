@@ -30,6 +30,7 @@
     "tp3_close_pct": 0.142,
     "tp4_close_pct": 0.123,
     "tp5_close_pct": 0.028,
+    "sl_after_tp1_r": 0.10,
     "sl_after_tp2_r": 0.95,
     "sl_after_tp3_r": 1.10,
     "sl_after_tp4_r": 1.15,
@@ -44,6 +45,6 @@
     "use_displacement_filter": false,
     "use_candle_rejection": false,
     "max_total_dd_warning": 9.0,
-    "compound_threshold_pct": 6.0
+    "compound_threshold_pct": 5.5
   }
 }
