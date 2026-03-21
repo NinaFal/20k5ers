@@ -439,11 +439,23 @@ def enqueue_current_params(study: optuna.Study, base_params: Dict[str, Any]) -> 
         else:
             tp_r_vals.append(prev_r + 0.5)
 
-    # Close percentages as weights
+    # Close percentages as weights – scale proportionally so no weight falls
+    # below its distribution minimum (avoids Optuna clipping, which would
+    # shift the normalized close_pct values away from the baseline values).
+    raw_weights = {}
     for i in range(1, NUM_TPS + 1):
         key = f"tp{i}_close_pct"
         if key in base_params:
-            enqueue[f"{key}_weight"] = base_params[key]
+            raw_weights[key] = base_params[key]
+
+    if raw_weights:
+        scale = 1.0
+        for key, w in raw_weights.items():
+            lo = TP_CLOSE_RANGES.get(key, (0.05, 0.40))[0]
+            if w < lo and w > 0:
+                scale = max(scale, lo / w)
+        for key, w in raw_weights.items():
+            enqueue[f"{key}_weight"] = round(w * scale, 4)
 
     tp1_r = tp_r_vals[0] if tp_r_vals else 0.6
     tp2_r = tp_r_vals[1] if len(tp_r_vals) > 1 else 1.1
