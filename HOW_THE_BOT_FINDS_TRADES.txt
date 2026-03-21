@@ -1,389 +1,204 @@
 ==============================================================
   HOW THE BOT FINDS TRADES DURING A SCAN
-  Source: strategy_core.py
 ==============================================================
 
-The bot scans each symbol bar by bar through historical or live
-daily candles. For every bar it runs the same sequence:
-determine direction, score confluence, calculate levels, decide
-whether to fire a signal. Minimum 50 daily candles required.
+The bot scans each symbol using daily candles. For every bar
+it runs the same sequence: determine direction, score
+confluence, calculate levels, decide whether to signal.
 
 ==============================================================
 STEP 1 — DETERMINE DIRECTION
 ==============================================================
 
-The bot looks at three timeframes independently and asks:
-is this timeframe bullish, bearish, or mixed?
+The bot looks at three timeframes and asks whether each one
+is bullish, bearish, or mixed.
 
-Timeframes used:
-  - Monthly candles
-  - Weekly candles
-  - Daily candles (last 10 bars)
+  Timeframes: Monthly, Weekly, Daily
 
-How trend is determined per timeframe (_infer_trend):
+  Per timeframe it compares short-term vs long-term price
+  averages and checks recent momentum. The side with more
+  evidence wins. If tied, the result is "mixed".
 
-  1. Short SMA (last 8 closes) vs Long SMA (last 21 closes)
-     - Short > Long  → bullish point
-     - Short < Long  → bearish point
-
-  2. Current close vs Long SMA
-     - Price above long SMA → bullish point
-     - Price below long SMA → bearish point
-
-  3. Momentum check (last 10 bars)
-     - Close breaks above the highest close of the prior 9 bars → bullish point
-     - Close breaks below the lowest close of the prior 9 bars  → bearish point
-
-Result: whichever side has more points wins. If tied → "mixed".
-
-Direction decision (_pick_direction_from_bias):
-  - 2 or 3 timeframes bullish  → trade direction = BULLISH
-  - 2 or 3 timeframes bearish  → trade direction = BEARISH
-  - Split / mixed              → use daily as tiebreaker
-                                 if daily is also mixed → default bullish
-
-This direction is then used for all checks in Step 2.
+  Direction decision:
+    If the majority of timeframes agree → use that direction.
+    If split → daily timeframe acts as tiebreaker.
 
 ==============================================================
 STEP 2 — SCORE CONFLUENCE (14 FLAGS)
 ==============================================================
 
-The bot runs 14 checks. Each check returns True or False.
-The confluence score = number of True flags.
+The bot runs 14 independent checks. Each returns True or
+False. The confluence score = number of True flags.
 
-Below is every check explained in full detail.
+The higher the score, the stronger the setup.
 
 --------------------------------------------------------------
 FLAG 1 — HTF BIAS
 --------------------------------------------------------------
 
-Already calculated in Step 1. Did at least 2 of the 3
-timeframes agree on the chosen direction?
+Do the higher timeframes agree with the chosen direction?
 
-  True  → monthly, weekly, or daily (at least 2) are aligned
-  False → only 1 timeframe agrees (e.g. daily alone)
-
-This flag rewards trade direction being supported by the
-higher timeframes, not just the daily.
+True if the monthly or weekly timeframe supports the trade,
+not just the daily. Rewards setups where multiple timeframes
+are aligned.
 
 --------------------------------------------------------------
 FLAG 2 — LOCATION
 --------------------------------------------------------------
 
-Is price currently near a key support or resistance zone?
+Is price near a meaningful support or resistance zone?
 
-The bot checks several things:
+The bot checks swing highs and lows on the daily chart,
+where price sits within the recent trading range, and
+whether price is near a historically significant level
+(tested many times over many years).
 
-  A. Swing pivots on the daily chart (last 50 candles)
-     A swing high = candle whose high is the highest of the
-     3 candles before AND after it.
-     Same logic for swing lows.
-     The bot keeps the last 5 swing highs and lows.
-
-  B. Range position
-     recent_high = highest high of last 20 bars
-     recent_low  = lowest low  of last 20 bars
-     range_size  = recent_high - recent_low
-
-     Bullish: is price in the bottom 30% of the range?
-              (price - recent_low) < range_size * 0.3
-     Bearish: is price in the top 30% of the range?
-              (recent_high - price) < range_size * 0.3
-
-  C. Historical S/R from 20+ years of data (if available)
-     Tolerance = 0.5% of current price
-     Checks monthly S/R levels first (top 20)
-     Then weekly S/R levels (top 30)
-     Each level has a "touches" count. More touches = stronger.
-
-  Result:
-    Bullish True  → price is near a swing low, OR in the
-                    bottom 30% of range, OR at a historical level
-    Bearish True  → price is near a swing high, OR in the
-                    top 30% of range, OR at a historical level
-
-  Zone tolerance for swing pivots = 0.5 × ATR(14)
+Bullish: price near the bottom of the range or near support.
+Bearish: price near the top of the range or near resistance.
 
 --------------------------------------------------------------
 FLAG 3 — FIBONACCI
 --------------------------------------------------------------
 
-Is price inside the Fibonacci retracement zone of the last
-significant swing leg?
+Is price inside a Fibonacci retracement zone of the last
+significant swing move?
 
-Step 1: Find the swing leg.
+The bot anchors the Fibonacci tool to the most recent
+impulse leg using Blueprint rules (tied to break of
+structure candles). It then checks whether current price
+is inside the golden pocket retracement zone.
 
-  The bot first tries to find a proper Blueprint anchor:
-
-  For BULLISH (Bullish N pattern anchor):
-    - Scan the last 20 candles for a Break of Structure UP
-      (a green candle that closes above the highest high of
-       the prior 5 candles)
-    - Find the swing low just before that BOS candle
-    - At that swing low, find a red candle followed by a
-      green candle (the transition point)
-    - Fib LOW  = close of the red candle (or swing low itself)
-    - Fib HIGH = close of the BOS candle
-
-  For BEARISH (Bearish V pattern anchor):
-    - Same logic reversed: BOS down, swing high before it,
-      green-to-red transition
-    - Fib HIGH = open of the red candle at swing high
-    - Fib LOW  = close of the BOS down candle
-
-  Fallback (if no BOS found):
-    Use the most recent swing high and low from pivots.
-    If no pivots either: use max high / min low of last 30 bars.
-
-Step 2: Check if price is in the zone.
-
-  span = fib_high - fib_low
-
-  Bullish retracement levels (price pulling back from high):
-    0.382 = fib_high - span * 0.382
-    0.500 = fib_high - span * 0.500
-    0.618 = fib_high - span * 0.618  ← Golden Pocket top
-    0.786 = fib_high - span * 0.786  ← Golden Pocket bottom
-
-  True if price is between 0.786 and 0.382 retracement
-  (the "golden pocket" zone for pullback entries).
-  Also True if between 0.500 and 0.618 specifically.
-
-  Same logic mirrored for bearish setups.
-
-  If an external Fibonacci analysis module is available
-  (analyze_fib_setup), that is used first and must confirm
-  "in_golden_zone" = True.
+If price is inside the zone → True.
+If price is outside → False.
 
 --------------------------------------------------------------
 FLAG 4 — STRUCTURE
 --------------------------------------------------------------
 
-Does the price action structure on the daily chart support
+Does price action structure on the daily chart support
 the trade direction?
 
-The bot identifies swing highs and lows over the last 30
-daily candles (pivot lookback = 3 bars each side).
+For bullish: looks for higher highs, higher lows, or a
+break of structure to the upside.
 
-For BULLISH — any of these passes:
-  1. Break of Structure UP (BOS up):
-     Last close > highest of the last 3 swing highs
-     → "BOS up confirmed"
+For bearish: looks for lower highs, lower lows, or a
+break of structure to the downside.
 
-  2. Higher High AND Higher Low both present:
-     swing_highs[-1] > swing_highs[-2]
-     AND swing_lows[-1]  > swing_lows[-2]
-     → "HH/HL pattern"
-
-  3. Higher Low only:
-     swing_lows[-1] > swing_lows[-2]
-     → "Higher low formed"
-
-For BEARISH — mirror image:
-  1. BOS down: Last close < lowest of last 3 swing lows
-  2. Lower High AND Lower Low
-  3. Lower High only
-
-Requires at least 2 swing highs and 2 swing lows in the
-window. If fewer pivot points exist → False.
+The strongest form is a confirmed break of structure.
+A single higher/lower high or low is still enough to pass.
 
 --------------------------------------------------------------
 FLAG 5 — CONFIRMATION (H4 CANDLE)
 --------------------------------------------------------------
 
-Is there a triggering candle pattern on the 4H timeframe?
+Is there a triggering candle pattern on the lower timeframe?
 
-The bot uses H4 candles if available (needs at least 5 bars).
-If not, it falls back to the last 10 daily candles.
+The bot checks the most recent candle on the 4H chart
+(or daily if 4H is unavailable) for signs of intent.
 
-It compares the last candle (curr) vs the one before (prev).
+Bullish patterns that pass: engulfing candle, pin bar with
+long lower wick, 4H break of structure up, or a strong
+bullish candle with a large body relative to its range.
 
-Measurements:
-  body      = |close - open|
-  full_range = high - low
-  body_ratio = body / full_range
-
-For BULLISH — any of these passes:
-  1. Bullish engulfing:
-     curr is green (close > open)
-     prev is red   (close < open)
-     curr.close > prev.open
-     curr.open  < prev.close
-     → Full body of curr wraps the full body of prev
-
-  2. Bullish pin bar / hammer:
-     lower_wick > body × 2
-     lower_wick > upper_wick × 1.5
-     → Long tail below showing rejection of lows
-
-  3. Break of structure on H4:
-     curr.high > highest high of the prior 4 H4 candles
-     AND curr is a green candle
-
-  4. Strong bullish candle:
-     curr is green AND body_ratio > 0.6
-     (body is more than 60% of the full candle range)
-
-For BEARISH — mirror image:
-  bearish engulfing, bearish pin bar, H4 BOS down,
-  strong bearish candle with body_ratio > 0.6.
+Bearish patterns: same logic reversed.
 
 --------------------------------------------------------------
-FLAG 6 — R/R RATIO (RISK/REWARD)
+FLAG 6 — R/R RATIO
 --------------------------------------------------------------
 
-Can a valid trade be constructed with a positive R/R?
+Can a valid trade be structured with a positive risk/reward?
 
-This flag is True if a valid entry, stop loss, and take
-profit can be calculated (see Step 3 for full details).
-
-If no valid swing leg exists AND no ATR-based SL is possible
-(ATR <= 0), this flag is False.
-
-In practice this flag fails only when candle data is corrupt
-or there are fewer than ~20 usable bars.
+True if a valid entry, stop loss, and take profit can be
+calculated. In practice this only fails when candle data
+is corrupt or too short to work with.
 
 --------------------------------------------------------------
 FLAG 7 — ATR REGIME
 --------------------------------------------------------------
 
-Is market volatility high enough to trade?
+Is current market volatility high enough to trade?
 
-Method:
-  Calculate ATR(14) for each of the last 100 days.
-  Sort those 100 ATR values.
-  Find the percentile rank of today's ATR.
+The bot compares today's ATR(14) to its historical range
+over the past 100 days and calculates a percentile rank.
 
-  Example: if today's ATR is higher than 65 of the 100
-  historical ATRs → ATR percentile = 65.
+If volatility is above a minimum threshold → True (TREND).
+If volatility is too low → False (RANGE).
 
-  Default minimum percentile: 20
-  (today's ATR must be in at least the 20th percentile)
-
-Note: This flag also controls the confluence threshold.
-  - If ATR percentile is OK (above minimum) → TREND regime
-    → minimum confluence needed = 6 out of 14
-  - If ATR percentile is too low → RANGE regime
-    → minimum confluence needed = 4 out of 14
+This flag also controls how strict the confluence threshold
+is: higher volatility = stricter requirement to enter.
 
 --------------------------------------------------------------
-FLAG 8 — PATTERN (N or V shape)
+FLAG 8 — PATTERN (N or V SHAPE)
 --------------------------------------------------------------
 
-Is there a recognizable impulse-pullback price pattern?
+Is there a recognisable impulse-pullback price pattern?
 
-For BULLISH — the "Bullish N" pattern:
-  Window: last 15 candles (lookback=10 + 5)
-  Pivot lookback: 2 bars each side
+Bullish N pattern: an impulse move up, followed by a
+pullback that forms a higher low without breaking the
+prior swing low, showing the trend is continuing.
 
-  Checks:
-  1. Higher Low:
-     Most recent swing low > previous swing low
-  2. Significant Impulse:
-     Range from prev_low to last swing high > 1.5 × ATR(14)
-  3. Valid Pullback:
-     Current price has retraced 20%–70% of the impulse range
-     (not too shallow, not too deep)
+Bearish V pattern: an impulse move down, followed by a
+bounce that forms a lower high, showing downtrend continuation.
 
-  True if Higher Low AND Significant Impulse are both present.
-  Pullback depth adds to the description but is not strictly
-  required for the flag to be True.
-
-For BEARISH — the "Bearish V" pattern:
-  Same logic reversed:
-  Lower High, significant impulse down, pullback 20–70%.
+The impulse must be significant relative to recent volatility.
+The pullback must be meaningful but not too deep.
 
 --------------------------------------------------------------
 FLAG 9 — Z-SCORE
 --------------------------------------------------------------
 
-Is price statistically cheap (bullish) or expensive (bearish)
-relative to its recent mean?
+Is price statistically cheap or expensive relative to its
+recent average?
 
-Calculation (last 20 daily closes):
-  mean     = average of last 20 closes
-  std_dev  = standard deviation of last 20 closes
-  z-score  = (current_price - mean) / std_dev
+The bot calculates how many standard deviations price sits
+from its mean over a recent lookback period.
 
-Interpretation:
-  Bullish trade:
-    True if z-score < -1.0
-    → Price is more than 1 standard deviation BELOW the mean
-    → Price is relatively cheap, good for a long entry
+Bullish: True if price is sufficiently below the mean
+         (cheap, good for a long entry).
+Bearish: True if price is sufficiently above the mean
+         (expensive, good for a short entry).
 
-  Bearish trade:
-    True if z-score > +1.0
-    → Price is more than 1 standard deviation ABOVE the mean
-    → Price is relatively expensive, good for a short entry
-
-This filter prevents buying into an already extended up-move
-or selling into an already extended down-move.
+Prevents buying into already extended up-moves or selling
+into already extended down-moves.
 
 --------------------------------------------------------------
 FLAG 10 — MITIGATED S/R
 --------------------------------------------------------------
 
-Is price at a "flipped" support/resistance level?
+Is price at a "flipped" support or resistance level?
 
-A mitigated zone is a level that was:
-  1. A prior swing high or low
-  2. Then broken (price closed through it)
-  3. Then retested (price returned to it)
+A mitigated zone is a level that:
+  1. Previously acted as resistance or support
+  2. Was then broken by price
+  3. Is now being retested from the other side
 
-These are the most reliable S/R zones because they have been:
-  - Tested as resistance/support
-  - Confirmed as significant (caused a reversal)
-  - Broken (showing a regime shift)
-  - Now being retested from the other side
+These are among the most reliable levels because they have
+been tested, confirmed, broken, and are now being retested.
 
-Types:
-  - Resistance Turned Support (RTS): old swing high, price
-    broke above it, now comes back to test it as support
-    → Valid for BULLISH trades
+Bullish: old resistance that price broke above and is now
+         retesting as support (resistance turned support).
+Bearish: old support that price broke below and is now
+         retesting as resistance (support turned resistance).
 
-  - Support Turned Resistance (STR): old swing low, price
-    broke below it, now bounces back to test it as resistance
-    → Valid for BEARISH trades
-
-Proximity requirement: price must be within 2% of the level.
-
-The bot scans ALL candles available (minimum 50 required)
-to build this library of mitigated levels.
+Price must be close to the level to pass.
 
 --------------------------------------------------------------
 FLAG 11 — STRUCTURAL FRAMEWORK (CHANNEL)
 --------------------------------------------------------------
 
-Is the market inside an ascending or descending price channel,
-and is price at the optimal end of that channel?
+Is the market moving inside a clear ascending or descending
+channel, and is price at the optimal side of that channel?
 
-Method:
-  Find all swing highs and lows in the full candle window
-  (pivot lookback = 3 bars each side).
+The bot connects recent swing highs and swing lows to detect
+whether price is trending in a structured channel.
 
-  Look at the last 5 swing highs and last 5 swing lows.
+Bullish + ascending channel: True only if price is near
+the lower boundary of the channel (buy the dip).
 
-  Ascending channel:
-    All of last 5 swing lows are rising AND
-    All of last 5 swing highs are rising
+Bearish + descending channel: True only if price is near
+the upper boundary of the channel (sell the rally).
 
-  Descending channel:
-    All of last 5 swing highs are falling AND
-    All of last 5 swing lows are falling
-
-Position within channel:
-  price_position = (price - last_swing_low) /
-                   (last_swing_high - last_swing_low)
-
-  Bullish + Ascending channel:
-    True only if price_position < 0.40
-    (price is in the bottom 40% of the channel)
-
-  Bearish + Descending channel:
-    True only if price_position > 0.60
-    (price is in the top 60% of the channel)
-
-Requires at least 30 candles and 3+ swing points.
+Being in the middle of the channel does not pass.
 
 --------------------------------------------------------------
 FLAG 12 — DISPLACEMENT
@@ -391,19 +206,15 @@ FLAG 12 — DISPLACEMENT
 
 Was there a strong institutional impulse candle recently?
 
-The bot scans the last 5 candles for any candle whose body
-size is at least 1.5 × ATR(14).
+The bot looks at the last few candles for one whose body
+(open to close distance) is large relative to recent
+average volatility.
 
-  body = |close - open|
+A big candle in the direction of the trade signals that
+real order flow is behind the move, not just noise.
 
-  Bullish: a green candle (close > open) with body ≥ 1.5 ATR
-  Bearish: a red candle   (close < open) with body ≥ 1.5 ATR
-
-The note includes how large the candle was in ATR multiples
-(e.g. "Strong bullish candle (2.3x ATR)").
-
-This confirms that a decisive move has recently occurred,
-suggesting real order flow behind the directional move.
+Bullish: a large green candle recently.
+Bearish: a large red candle recently.
 
 --------------------------------------------------------------
 FLAG 13 — CANDLE REJECTION
@@ -411,32 +222,17 @@ FLAG 13 — CANDLE REJECTION
 
 Is the most recent candle showing rejection of a price level?
 
-Uses daily candles (or H4 if available). Checks the last bar.
+The bot checks the shape of the last candle for signs that
+price was pushed away from a level.
 
-Measurements:
-  body        = |close - open|
-  upper_wick  = high - max(close, open)
-  lower_wick  = min(close, open) - low
+Bullish rejections: pin bar with long lower wick, bullish
+engulfing, or hammer pattern.
 
-For BULLISH — any of these passes:
-  1. Bullish pin bar:
-     lower_wick > body × 2
-     lower_wick > upper_wick × 1.5
-     (Long lower tail, small body, small upper wick)
+Bearish rejections: pin bar with long upper wick, bearish
+engulfing, or shooting star.
 
-  2. Bullish engulfing:
-     curr is green, prev is red
-     curr.close > prev.high (entire range)
-     curr.open  < prev.low  (entire range)
-
-  3. Hammer:
-     curr is green AND lower_wick > body
-     (Green candle with meaningful lower tail)
-
-For BEARISH — mirror image:
-  bearish pin bar (long upper wick),
-  bearish engulfing (wraps entire prev candle),
-  shooting star (red with upper wick > body).
+The wick must be meaningfully larger than the candle body
+for a pin bar to qualify.
 
 --------------------------------------------------------------
 FLAG 14 — MOMENTUM
@@ -444,142 +240,74 @@ FLAG 14 — MOMENTUM
 
 Is price momentum aligned with the trade direction?
 
-Two Rate of Change (ROC) values are calculated:
+The bot calculates rate of change over two windows:
+a medium-term and a short-term lookback.
 
-  ROC (10-bar): ((close_now - close_10_bars_ago) /
-                  close_10_bars_ago) × 100
+Bullish: passes if both windows show upward momentum
+         (trend following), OR if medium-term is down but
+         short-term is already turning up (early bounce).
 
-  ROC (5-bar):  ((close_now - close_5_bars_ago) /
-                  close_5_bars_ago) × 100
-
-For BULLISH — True in either of these cases:
-  Case A (trend following):
-    ROC(10) > 0 AND ROC(5) > 0
-    → Both short and medium momentum are rising
-
-  Case B (mean reversion):
-    ROC(10) < -2% AND ROC(5) > 0
-    → Medium term is down but short term is already
-      turning up → early bounce signal
-
-For BEARISH — mirror image:
-  Case A: ROC(10) < 0 AND ROC(5) < 0
-  Case B: ROC(10) > +2% AND ROC(5) < 0
-           (medium up, short turning down → early reversal)
+Bearish: passes if both windows show downward momentum,
+         OR if medium-term is up but short-term turning down.
 
 ==============================================================
 STEP 3 — CALCULATE TRADE LEVELS
 ==============================================================
 
-ENTRY PRICE:
-
-  Primary method (Fibonacci):
-    Use the same swing leg found for Flag 3.
-    Apply the 0.618 retracement level as the limit entry.
-
-    Bullish entry = fib_high - (span × 0.618)
-    Bearish entry = fib_low  + (span × 0.618)
-
-    If current price is already within 0.3 ATR of this level,
-    enter at market (current price) instead of placing a limit.
-
-  Fallback (no swing leg found):
-    Entry = current close price (market order).
+ENTRY:
+  Calculated at the Fibonacci golden pocket of the last swing
+  leg. If price is already near that level, the bot enters
+  at market. Otherwise a limit order is placed.
 
 STOP LOSS:
+  Based on the nearest structural swing point (using H4 or
+  daily candles), with a small buffer beyond it.
+  Falls back to an ATR-based distance if no structure found.
 
-  Primary method (structure-based):
-    Scan H4 candles (last 20 bars) for swing pivots.
-    Falls back to daily if H4 not available.
-
-    Bullish SL = lowest swing low of the last 20 H4 bars
-                 minus 0.4 ATR buffer
-
-    Bearish SL = highest swing high of the last 20 H4 bars
-                 plus 0.4 ATR buffer
-
-  Secondary method (ATR-based, used when no structure found):
-    Bullish SL = entry - (ATR × atr_sl_multiplier)
-    Bearish SL = entry + (ATR × atr_sl_multiplier)
-
-  When both methods produce a result, the tighter (closer
-  to entry) one is selected.
-
-TAKE PROFIT LEVELS (R = entry - SL for bullish):
-
-  TP1 = entry + 0.6R   (partial profit, early exit)
-  TP2 = entry + 1.1R   (1:1 area, main partial)
-  TP3 = entry + 1.8R   (full target)
-  TP4 = entry + 2.8R   (extended target, TP3 + 1R)
-  TP5 = entry + 3.8R   (maximum target, TP3 + 2R)
-
-  (All mirrored for bearish: subtract instead of add)
+TAKE PROFIT:
+  Multiple TP levels scaled as multiples of the risk (R).
+  Ranges from a quick partial target to an extended runner.
 
 ==============================================================
-STEP 4 — DECIDE SIGNAL STATUS
+STEP 4 — SIGNAL DECISION
 ==============================================================
 
-After scoring:
+Confluence score and a quality factor are both checked.
 
-  confluence_score = number of True flags (max 14)
-  quality_factors  = max(1, confluence_score // 3)
+If score AND quality both exceed the threshold → ACTIVE signal
+  → bot places a limit order at the entry level.
 
-Volatile asset boost (XAUUSD, NAS100USD, GBPJPY, BTCUSD,
-ETHUSD):
-  If volatile_asset_boost parameter > 1.0:
-    boosted_score   = int(score   × boost_multiplier)
-    boosted_quality = int(quality × boost_multiplier)
-  This lets high-volatility assets pass thresholds more easily.
+If score is just below threshold → WATCHING
+  → logged but no order placed.
 
-Thresholds (from ATR regime flag):
-  TREND regime  → need confluence >= 6  AND quality >= 3
-  RANGE regime  → need confluence >= 4  AND quality >= 3
+Below watching threshold → ignored entirely.
 
-Signal outcomes:
-  "active"   → passes both thresholds → bot places an order
-  "watching" → confluence is 1 below threshold → logged only
-  no signal  → below watching threshold → ignored
+Certain high-volatility instruments receive a small boost
+to their score to account for their naturally wider ranges.
 
 ==============================================================
-STEP 5 — ENTRY FILL LOGIC (LIMIT ORDERS)
+STEP 5 — ENTRY FILL
 ==============================================================
 
-Once an active signal fires, the bot places a limit order.
+After an active signal, the bot waits several trading days
+for price to reach the limit entry level.
 
-The bot waits up to 5 trading days for price to reach the
-calculated entry level.
-
-  Bullish limit: fills when price LOW <= entry level
-  Bearish limit: fills when price HIGH >= entry level
-
-If price never touches the entry level within 5 bars,
-the trade is skipped entirely. The level is never adjusted
-or chased.
+If price reaches the level → order fills.
+If price never reaches it  → trade is skipped. No chasing.
 
 ==============================================================
-FULL CHECKLIST — ALL CONDITIONS TO FIRE A TRADE
+GENERAL CONDITIONS TO FIRE A TRADE
 ==============================================================
 
-  1.  At least 50 daily candles available
-  2.  Multi-timeframe direction can be determined
-  3.  Confluence score passes regime threshold (4 or 6)
-  4.  Quality factor >= 3
-  5.  Valid entry, SL, and TP levels calculated
-  6.  Session filter: 08:00–22:00 UTC only
-  7.  Daily drawdown limit not exceeded
-  8.  Maximum 7 concurrent open trades not reached
-  9.  No existing open position in this symbol
-  10. Price reaches the limit entry level within 5 days
+  - Sufficient candle history available
+  - Multi-timeframe direction confirmed
+  - Confluence score above regime threshold
+  - Quality factor above minimum
+  - Valid trade levels calculable
+  - Within allowed trading hours
+  - Daily loss limit not breached
+  - Maximum concurrent trades not reached
+  - No existing position in this symbol
+  - Price fills the limit order within the wait window
 
-==============================================================
-  Source: strategy_core.py
-  Key functions: generate_signals(), compute_confluence(),
-  compute_trade_levels(), _infer_trend(),
-  _pick_direction_from_bias(), _location_context(),
-  _fib_context(), _structure_context(), _h4_confirmation(),
-  _detect_bullish_n_pattern(), _detect_bearish_v_pattern(),
-  _calculate_zscore(), _detect_mitigated_sr(),
-  _detect_structural_framework(), _detect_displacement(),
-  _detect_candle_rejection(), _detect_momentum(),
-  _calculate_atr_percentile(), apply_volatile_asset_boost()
 ==============================================================
