@@ -261,16 +261,19 @@ def select_positions_for_weekend_tier1(
     current_time: Optional[datetime] = None,
     max_per_group: int = 2,
     max_total_non_crypto: int = 5,
+    r_close_losing: float = 0.0,
+    r_take_profit: float = 1.6,
+    r_new_position: float = 0.5,
 ) -> dict:
     """
     TIER 1: Conservative correlation-aware weekend position selector
 
     Rules:
     1. Crypto: Always hold (BTC, ETH - no gap risk, trade 24/7)
-    2. Close ALL losing positions (< 0R)
-    3. Close ALL positions > 1.6R (take profit, avoid reversal risk)
-    4. Reduce 50% of positions 0-0.5R (new positions with little profit buffer)
-    5. Hold positions 0.5R-1.6R (sweet spot: has profit + upside)
+    2. Close ALL losing positions (< r_close_losing)
+    3. Close ALL positions > r_take_profit (take profit, avoid reversal risk)
+    4. Reduce 50% of positions in [r_close_losing, r_new_position) (new positions)
+    5. Hold positions in [r_new_position, r_take_profit] (sweet spot)
     6. MAX 1-2 positions per correlation group (avoid correlation clusters)
     7. Overall max: 3-5 non-crypto positions
 
@@ -280,6 +283,9 @@ def select_positions_for_weekend_tier1(
         current_time: Current time (defaults to now UTC)
         max_per_group: Max positions per correlation group (default: 2)
         max_total_non_crypto: Max total non-crypto positions (default: 5)
+        r_close_losing: Close positions below this R (default: 0.0)
+        r_take_profit: Close positions above this R (default: 1.6)
+        r_new_position: Reduce 50% positions below this R, hold above (default: 0.5)
 
     Returns:
         dict with keys:
@@ -291,8 +297,10 @@ def select_positions_for_weekend_tier1(
     if current_time is None:
         current_time = datetime.now(timezone.utc)
 
-    # Only run Friday 16:00+ UTC (4 hours before forex close)
-    if current_time.weekday() != 4 or current_time.hour < 16:
+    # Only run Friday 19:30+ UTC (2.5 hours before forex close)
+    hour = current_time.hour
+    minute = current_time.minute
+    if current_time.weekday() != 4 or not (hour > 19 or (hour == 19 and minute >= 30)):
         return {
             'HOLD': list(positions),
             'CLOSE': [],
@@ -340,28 +348,27 @@ def select_positions_for_weekend_tier1(
             continue
 
         # RULE 1: Close ALL losing positions (protect capital)
-        if current_r < 0:
+        if current_r < r_close_losing:
             close.append(pos)
-            logger.info(f"❌ CLOSE {oanda_symbol}: LOSING ({current_r:+.2f}R)")
+            logger.info(f"❌ CLOSE {oanda_symbol}: LOSING ({current_r:+.2f}R < {r_close_losing:.1f}R)")
             continue
 
-        # RULE 2: Close positions > 1.6R (take profit, avoid reversal)
-        # At 1.6R, you've captured most of the move; risk/reward not favorable
-        if current_r > 1.6:
+        # RULE 2: Close positions above take-profit threshold (take profit, avoid reversal)
+        if current_r > r_take_profit:
             close.append(pos)
-            logger.info(f"💰 CLOSE {oanda_symbol}: TAKE PROFIT ({current_r:+.2f}R)")
+            logger.info(f"💰 CLOSE {oanda_symbol}: TAKE PROFIT ({current_r:+.2f}R > {r_take_profit:.1f}R)")
             continue
 
-        # RULE 3: Reduce 50% if very new (0-0.5R)
+        # RULE 3: Reduce 50% if very new (below r_new_position)
         # New positions have little profit buffer; reduce exposure
-        if 0 <= current_r < 0.5:
+        if r_close_losing <= current_r < r_new_position:
             reduce.append(pos)
             logger.info(f"⚠️ REDUCE 50% {oanda_symbol}: NEW POSITION ({current_r:+.2f}R)")
             continue
 
-        # RULE 4: Candidates for holding (0.5R-1.6R sweet spot)
+        # RULE 4: Candidates for holding (sweet spot: r_new_position to r_take_profit)
         # Has profit buffer + room to run to TP levels
-        if 0.5 <= current_r <= 1.6:
+        if r_new_position <= current_r <= r_take_profit:
             non_crypto_candidates.append(pos)
             logger.info(f"✅ CANDIDATE {oanda_symbol}: SWEET SPOT ({current_r:+.2f}R)")
             continue

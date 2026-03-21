@@ -316,20 +316,21 @@ def is_market_open() -> bool:
 def is_friday_closing_period() -> bool:
     """
     Check if we're in the Friday closing period (no new orders allowed).
-    Friday 16:00 UTC onwards = no new forex orders (weekend gap protection).
-    
+    Friday 19:30 UTC onwards = no new forex orders (weekend gap protection).
+
     Returns:
-        True if Friday 16:00+ UTC (no new orders)
+        True if Friday 19:30+ UTC (no new orders)
         False otherwise (orders allowed)
     """
     now = datetime.now(timezone.utc)
     weekday = now.weekday()  # 0=Monday, 4=Friday
     hour = now.hour
-    
-    # Friday 16:00+ UTC = closing period
-    if weekday == 4 and hour >= 16:
+    minute = now.minute
+
+    # Friday 19:30+ UTC = closing period
+    if weekday == 4 and (hour > 19 or (hour == 19 and minute >= 30)):
         return True
-    
+
     return False
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1635,7 +1636,7 @@ class LiveTradingBot:
     def handle_friday_position_closing(self):
         """
         TIER 1: Correlation-aware Friday position closing
-        Runs Friday 16:00+ UTC to reduce weekend gap exposure
+        Runs Friday 19:30+ UTC to reduce weekend gap exposure
 
         Actions:
         - Close losing positions (< 0R)
@@ -1646,9 +1647,9 @@ class LiveTradingBot:
         """
         now = datetime.now(timezone.utc)
 
-        # Only run Friday 16:00+ UTC
-        if now.weekday() != 4 or now.hour < 16:
-            # Reset flag on non-Friday or before 16:00
+        # Only run Friday 19:30+ UTC
+        if now.weekday() != 4 or not (now.hour > 19 or (now.hour == 19 and now.minute >= 30)):
+            # Reset flag on non-Friday or before 19:30
             if now.weekday() != 4:
                 self.friday_closing_done = False
             return
@@ -1667,13 +1668,29 @@ class LiveTradingBot:
             self.friday_closing_done = True
             return
 
+        # Load friday safety params from params file (supports optimizer overrides)
+        try:
+            from params.params_loader import load_params_dict
+            raw_params = load_params_dict()
+            raw_params = raw_params.get('parameters', raw_params)
+        except Exception:
+            raw_params = {}
+        friday_max_per_group = int(raw_params.get('friday_safety_max_per_group', 2))
+        friday_max_total_non_crypto = int(raw_params.get('friday_safety_max_total_non_crypto', 5))
+        friday_r_close_losing = float(raw_params.get('friday_safety_r_close_losing', 0.0))
+        friday_r_take_profit = float(raw_params.get('friday_safety_r_take_profit', 1.6))
+        friday_r_new_position = float(raw_params.get('friday_safety_r_new_position', 0.5))
+
         # Use weekend_gap_manager to select positions
         result = wgm.select_positions_for_weekend_tier1(
             positions=positions,
             mt5_client=self.mt5,
             current_time=now,
-            max_per_group=2,  # Max 2 positions per correlation group
-            max_total_non_crypto=5,  # Max 5 non-crypto positions total
+            max_per_group=friday_max_per_group,
+            max_total_non_crypto=friday_max_total_non_crypto,
+            r_close_losing=friday_r_close_losing,
+            r_take_profit=friday_r_take_profit,
+            r_new_position=friday_r_new_position,
         )
 
         # Execute closures
