@@ -14,7 +14,6 @@ Optimizes ALL key trading parameters:
   - adx_range_threshold          (ADX range detection)
   - trend_min_confluence         (confluence for trend mode)
   - range_min_confluence         (confluence for range mode)
-  - atr_trail_multiplier         (ATR trailing stop distance)
   - atr_vol_ratio_range          (ATR volatility ratio for range)
   - atr_min_percentile           (minimum ATR percentile filter)
   - volatile_asset_boost         (scoring boost for volatile assets)
@@ -83,7 +82,6 @@ STRATEGY_RANGES = {
     'adx_range_threshold':    (8.0, 20.0, 1.0),     # Current: 14.0
     'trend_min_confluence':   (3, 7),                # Current: 4 (int)
     'range_min_confluence':   (2, 6),                # Current: 5 (int)
-    'atr_trail_multiplier':   (1.0, 4.0, 0.1),      # Current: 2.9
     'atr_vol_ratio_range':    (0.4, 1.5, 0.1),      # Current: 0.8
     'atr_min_percentile':     (15.0, 60.0, 1.0),    # Current: 35.0
     'volatile_asset_boost':   (1.0, 2.0, 0.05),     # Current: 1.3
@@ -351,8 +349,8 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
     print(f"    Risk={params.get('risk_per_trade_pct', 0):.2f}% | Confl={params.get('min_confluence', 0)} | "
           f"QF={params.get('min_quality_factors', 0)} | ADX-T={params.get('adx_trend_threshold', 0):.0f} | "
           f"ADX-R={params.get('adx_range_threshold', 0):.0f}")
-    print(f"    ATR-trail={params.get('atr_trail_multiplier', 0):.1f} | Fib={params.get('entry_fib_level', 0):.3f} | "
-          f"Offset={params.get('entry_limit_offset_atr', 0):.2f} | Compound={params.get('compound_threshold_pct', 0):.1f}%")
+    print(f"    Fib={params.get('entry_fib_level', 0):.3f} | Offset={params.get('entry_limit_offset_atr', 0):.2f} | "
+          f"Compound={params.get('compound_threshold_pct', 0):.1f}% | VolBoost={params.get('volatile_asset_boost', 0):.2f}")
 
     result = run_backtest(params, start, end, balance)
 
