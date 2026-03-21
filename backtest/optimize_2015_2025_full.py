@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Full Parameter Optimizer – January 2015 to May 2025
+Full Parameter Optimizer – January 2015 to May 2015
 =====================================================
 
 Optimizes ALL key trading parameters:
@@ -63,12 +63,12 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 START_DATE     = "2015-01-01"
-END_DATE       = "2025-05-31"
+END_DATE       = "2015-05-31"
 BALANCE        = 20_000.0
 NUM_TPS        = 5
 UPDATE_EVERY_S = 60   # print progress update every 60 seconds
 
-OUTPUT_DIR = Path(__file__).parent / "optimization_results" / "2015_2025_full"
+OUTPUT_DIR = Path(__file__).parent / "optimization_results" / "2015_jan_may"
 LOG_FILE   = OUTPUT_DIR / "optimizer.log"
 
 
