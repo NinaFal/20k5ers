@@ -45,6 +45,11 @@
     "use_displacement_filter": false,
     "use_candle_rejection": false,
     "max_total_dd_warning": 9.0,
-    "compound_threshold_pct": 5.5
+    "compound_threshold_pct": 5.5,
+    "friday_safety_max_per_group": 1,
+    "friday_safety_max_total_non_crypto": 7,
+    "friday_safety_r_close_losing": -0.05,
+    "friday_safety_r_new_position": 0.90,
+    "friday_safety_reduce_pct": 0.30
   }
 }
