@@ -2,19 +2,24 @@
 """
 Friday Safety Parameter Optimizer
 
-Optimizes the Friday position closing parameters via backtest:
-- friday_safety_max_per_group        (int 1-4):   Max positions per correlation group
-- friday_safety_max_total_non_crypto (int 1-8):   Max total non-crypto positions held over weekend
-- friday_safety_r_close_losing       (float):     Close positions below this R-multiple (default 0.0)
-- friday_safety_r_new_position       (float):     Reduce 50% positions below this R, hold above (default 0.5)
-- friday_safety_r_take_profit        (float):     Close positions above this R-multiple (default 1.6)
+Mirrors optimize_main_live_bot.py structure exactly. Runs main_live_bot_backtest.py
+(M15-based) as a subprocess for each trial, injecting friday safety params via a
+temp params file alongside all current StrategyParams (unchanged).
 
-The optimizer writes these params into a temp params file and runs the full
-main_live_bot_backtest.py for each trial to measure impact on overall performance
-and safety. Best params can be applied back to current_params.json.
+Optimizes:
+- friday_safety_max_per_group        (int 1-4):  max positions per correlation group
+- friday_safety_max_total_non_crypto (int 1-8):  max non-crypto positions over weekend
+- friday_safety_r_close_losing       (float):    close positions below this R (default 0.0)
+- friday_safety_r_new_position       (float):    reduce 50% below / hold above (default 0.5)
+- friday_safety_r_take_profit        (float):    take profit / close above (default 1.6)
+
+ALL strategy params (TP/SL, confluence, risk, etc.) are loaded from
+current_params.json and passed through unchanged.
+
+Starts from baseline values (trial 0 = current defaults).
 
 Usage:
-    python backtest/optimize_friday_safety.py --trials 50 --start 2024-01-01 --end 2024-12-31
+    python backtest/optimize_friday_safety.py --trials 50 --start 2016-01-01 --end 2016-05-31
     python backtest/optimize_friday_safety.py --trials 100 --start 2023-01-01 --end 2025-12-31 --parallel 4
     python backtest/optimize_friday_safety.py --apply backtest/optimization_results/friday_safety_YYYYMMDD.json
 """
@@ -23,53 +28,35 @@ import sys
 import os
 import json
 import argparse
+import subprocess
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from dataclasses import dataclass
+import copy
 
-# Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     import optuna
-    from optuna.samplers import TPESampler
+    from optuna.samplers import TPESampler, NSGAIISampler
 except ImportError:
     print("ERROR: optuna not installed. Run: pip install optuna")
     sys.exit(1)
 
-optuna.logging.set_verbosity(optuna.logging.WARNING)
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FRIDAY SAFETY PARAMETER RANGES
+# Baseline = current hardcoded defaults
 # ═══════════════════════════════════════════════════════════════════════════════
 
 FRIDAY_SAFETY_RANGES = {
-    # How many positions per correlation group to keep over the weekend
-    'friday_safety_max_per_group': (1, 4),          # Baseline: 2
-
-    # How many total non-crypto positions to keep over the weekend
-    'friday_safety_max_total_non_crypto': (1, 8),   # Baseline: 5
-
-    # Close positions with R below this threshold (protect capital)
-    'friday_safety_r_close_losing': (-0.5, 0.2),    # Baseline: 0.0
-
-    # Reduce 50% positions below this R, hold above (sweet spot lower bound)
-    'friday_safety_r_new_position': (0.1, 1.0),     # Baseline: 0.5
-
-    # Take profit / close above this R (sweet spot upper bound)
-    'friday_safety_r_take_profit': (0.8, 3.0),      # Baseline: 1.6
-}
-
-# Baseline values (seeded as trial 0)
-FRIDAY_SAFETY_BASELINE = {
-    'friday_safety_max_per_group': 2,
-    'friday_safety_max_total_non_crypto': 5,
-    'friday_safety_r_close_losing': 0.0,
-    'friday_safety_r_new_position': 0.5,
-    'friday_safety_r_take_profit': 1.6,
+    'friday_safety_max_per_group':        (1, 4),       # Baseline: 2
+    'friday_safety_max_total_non_crypto': (1, 8),       # Baseline: 5
+    'friday_safety_r_close_losing':       (-0.5, 0.2),  # Baseline: 0.0
+    'friday_safety_r_new_position':       (0.1, 1.0),   # Baseline: 0.5
+    'friday_safety_r_take_profit':        (0.8, 3.0),   # Baseline: 1.6
 }
 
 
@@ -84,32 +71,32 @@ class OptimizationResult:
     max_ddd_pct: float
     final_balance: float
     ddd_halts: int
-    safety_events: int
     valid: bool
     monthly_stats: Dict[str, Any] = None
+    safety_events: int = 0
+    tdd_warnings: int = 0
 
 
-def load_base_params() -> Dict[str, Any]:
-    """Load non-friday-safety params from current_params.json."""
+def load_current_params() -> Dict[str, Any]:
+    """Load all current strategy params from current_params.json (pass-through unchanged)."""
     from params.params_loader import load_params_dict
     raw = load_params_dict()
     return raw.get('parameters', raw)
 
 
-def create_temp_params_file(base_params: Dict[str, Any], friday_params: Dict[str, Any]) -> Path:
-    """Create a temporary params file merging base params with friday safety overrides."""
+def create_temp_params_file(params: Dict[str, Any]) -> Path:
+    """Create a temporary params file for the backtest subprocess."""
     temp_dir = Path(tempfile.gettempdir()) / "friday_optimizer_params"
     temp_dir.mkdir(exist_ok=True)
 
-    merged = dict(base_params)
-    merged.update(friday_params)
-
     temp_file = temp_dir / f"params_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.json"
+
     full_params = {
         "optimization_mode": "FRIDAY_SAFETY_OPTIMIZER",
         "timestamp": datetime.now().isoformat(),
-        "parameters": merged
+        "parameters": params
     }
+
     with open(temp_file, 'w') as f:
         json.dump(full_params, f, indent=2)
 
@@ -117,17 +104,17 @@ def create_temp_params_file(base_params: Dict[str, Any], friday_params: Dict[str
 
 
 def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 20000) -> OptimizationResult:
-    """Run backtest with given parameters and return results."""
-    base_params = load_base_params()
-    friday_params = {k: v for k, v in params.items() if k.startswith('friday_safety_')}
-    temp_params = create_temp_params_file(base_params, friday_params)
+    """
+    Run main_live_bot_backtest.py (M15-based) as a subprocess with given params.
+    Identical call pattern to optimize_main_live_bot.py.
+    """
+    temp_params = create_temp_params_file(params)
 
     output_dir = (Path(tempfile.gettempdir()) / "friday_optimizer_results" /
                   f"run_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        import subprocess
         cmd = [
             sys.executable,
             str(Path(__file__).parent / "src" / "main_live_bot_backtest.py"),
@@ -139,17 +126,18 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 
             "--quiet",
         ]
 
-        subprocess.run(
+        result = subprocess.run(
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            cwd=str(Path(__file__).parent.parent),
+            cwd=str(Path(__file__).parent.parent)
         )
 
         results_file = output_dir / "results.json"
         if results_file.exists():
             with open(results_file, 'r') as f:
                 data = json.load(f)
+
             return OptimizationResult(
                 params=params,
                 net_return_pct=data.get('return_pct', 0),
@@ -159,27 +147,56 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 
                 max_ddd_pct=data.get('max_ddd_pct', 100),
                 final_balance=data.get('final_balance', balance),
                 ddd_halts=data.get('ddd_halts', 0),
-                safety_events=data.get('safety_events', data.get('ddd_halts', 0)),
                 valid=(data.get('max_tdd_pct', 100) < 10 and data.get('max_ddd_pct', 100) < 5),
                 monthly_stats=data.get('monthly_stats', {}),
+                safety_events=data.get('safety_events', data.get('ddd_halts', 0)),
+                tdd_warnings=data.get('tdd_warnings', 0),
             )
+        else:
+            return parse_stdout_results(result.stdout, params, balance)
 
     except Exception as e:
         print(f"  ⚠️ Backtest error: {e}")
-
+        return OptimizationResult(
+            params=params, net_return_pct=-100, total_trades=0, win_rate=0,
+            max_tdd_pct=100, max_ddd_pct=100, final_balance=balance, ddd_halts=0, valid=False
+        )
     finally:
         if temp_params.exists():
             temp_params.unlink()
 
-    return OptimizationResult(
-        params=params, net_return_pct=-100, total_trades=0, win_rate=0,
-        max_tdd_pct=100, max_ddd_pct=100, final_balance=balance,
-        ddd_halts=0, safety_events=0, valid=False,
+
+def parse_stdout_results(stdout: str, params: Dict[str, Any], balance: float) -> OptimizationResult:
+    """Parse backtest results from stdout (fallback)."""
+    import re
+
+    result = OptimizationResult(
+        params=params, net_return_pct=0, total_trades=0, win_rate=0,
+        max_tdd_pct=100, max_ddd_pct=100, final_balance=balance, ddd_halts=0, valid=False
     )
+
+    patterns = {
+        'total_trades':   r'Total:\s*(\d+)',
+        'win_rate':       r'Winners:\s*\d+\s*\((\d+\.?\d*)%\)',
+        'net_return_pct': r'Return:\s*\+?(-?\d+\.?\d*)%',
+        'final_balance':  r'Final:\s*\$?([\d,]+\.?\d*)',
+        'max_tdd_pct':    r'Max TDD:\s*(\d+\.?\d*)%',
+        'max_ddd_pct':    r'Max DDD:\s*(\d+\.?\d*)%',
+        'ddd_halts':      r'DDD halt events:\s*(\d+)',
+    }
+
+    for field, pattern in patterns.items():
+        match = re.search(pattern, stdout)
+        if match:
+            value = match.group(1).replace(',', '')
+            setattr(result, field, int(value) if field in ('total_trades', 'ddd_halts') else float(value))
+
+    result.valid = (result.max_tdd_pct < 10 and result.max_ddd_pct < 5)
+    return result
 
 
 def sample_friday_safety_params(trial: optuna.Trial) -> Dict[str, Any]:
-    """Sample friday safety parameters for an Optuna trial."""
+    """Sample all friday safety parameters for a trial."""
     params = {}
 
     params['friday_safety_max_per_group'] = trial.suggest_int(
@@ -198,22 +215,18 @@ def sample_friday_safety_params(trial: optuna.Trial) -> Dict[str, Any]:
         FRIDAY_SAFETY_RANGES['friday_safety_r_close_losing'][1],
         step=0.05,
     )
-
     # r_new_position must be > r_close_losing
-    r_close_losing = params['friday_safety_r_close_losing']
-    r_new_pos_low = max(FRIDAY_SAFETY_RANGES['friday_safety_r_new_position'][0],
-                        r_close_losing + 0.1)
-    r_new_pos_high = FRIDAY_SAFETY_RANGES['friday_safety_r_new_position'][1]
-    if r_new_pos_high < r_new_pos_low + 0.1:
-        r_new_pos_high = r_new_pos_low + 0.1
+    r_cl = params['friday_safety_r_close_losing']
+    r_np_low  = max(FRIDAY_SAFETY_RANGES['friday_safety_r_new_position'][0], r_cl + 0.1)
+    r_np_high = FRIDAY_SAFETY_RANGES['friday_safety_r_new_position'][1]
+    if r_np_high < r_np_low + 0.1:
+        r_np_high = r_np_low + 0.1
     params['friday_safety_r_new_position'] = trial.suggest_float(
-        'friday_safety_r_new_position', r_new_pos_low, r_new_pos_high, step=0.05,
+        'friday_safety_r_new_position', r_np_low, r_np_high, step=0.05,
     )
-
     # r_take_profit must be > r_new_position
-    r_new_position = params['friday_safety_r_new_position']
-    r_tp_low = max(FRIDAY_SAFETY_RANGES['friday_safety_r_take_profit'][0],
-                   r_new_position + 0.2)
+    r_np = params['friday_safety_r_new_position']
+    r_tp_low  = max(FRIDAY_SAFETY_RANGES['friday_safety_r_take_profit'][0], r_np + 0.2)
     r_tp_high = FRIDAY_SAFETY_RANGES['friday_safety_r_take_profit'][1]
     if r_tp_high < r_tp_low + 0.1:
         r_tp_high = r_tp_low + 0.1
@@ -224,40 +237,45 @@ def sample_friday_safety_params(trial: optuna.Trial) -> Dict[str, Any]:
     return params
 
 
-def objective(trial: optuna.Trial, start: str, end: str, balance: float) -> float:
+def objective(trial: optuna.Trial, start: str, end: str, balance: float,
+              base_params: Dict[str, Any]) -> float:
     """
-    Optuna objective function - maximize a composite score that rewards
-    high returns and penalizes safety events / drawdown breaches.
+    Optuna objective function.
+
+    Samples friday safety params and overlays them on base_params (current_params.json).
+    All strategy params (TP/SL, confluence, etc.) pass through unchanged.
+    Returns a score that Optuna tries to MAXIMIZE.
     """
-    params = sample_friday_safety_params(trial)
+    params = dict(base_params)
+
+    friday_params = sample_friday_safety_params(trial)
+    params.update(friday_params)
 
     print(f"\n  Trial {trial.number}: Running backtest...")
-    print(f"    max_per_group={params['friday_safety_max_per_group']}, "
+    print(f"    max_per_group={params['friday_safety_max_per_group']}  "
           f"max_total_non_crypto={params['friday_safety_max_total_non_crypto']}")
-    print(f"    r_close_losing={params['friday_safety_r_close_losing']:.2f}R, "
-          f"r_new_position={params['friday_safety_r_new_position']:.2f}R, "
+    print(f"    r_close_losing={params['friday_safety_r_close_losing']:.2f}R  "
+          f"r_new_position={params['friday_safety_r_new_position']:.2f}R  "
           f"r_take_profit={params['friday_safety_r_take_profit']:.2f}R")
 
     result = run_backtest(params, start, end, balance)
 
-    # Store result metrics
     trial.set_user_attr('net_return_pct', result.net_return_pct)
     trial.set_user_attr('total_trades', result.total_trades)
     trial.set_user_attr('win_rate', result.win_rate)
     trial.set_user_attr('max_tdd_pct', result.max_tdd_pct)
     trial.set_user_attr('max_ddd_pct', result.max_ddd_pct)
     trial.set_user_attr('ddd_halts', result.ddd_halts)
-    trial.set_user_attr('safety_events', result.safety_events)
     trial.set_user_attr('final_balance', result.final_balance)
     trial.set_user_attr('monthly_stats', result.monthly_stats or {})
+    trial.set_user_attr('safety_events', result.safety_events)
+    trial.set_user_attr('tdd_warnings', result.tdd_warnings)
     trial.set_user_attr('valid', result.valid)
 
-    print(f"    → Return: {result.net_return_pct:+.1f}%, Trades: {result.total_trades}, "
-          f"Win: {result.win_rate:.1f}%")
-    print(f"    → TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%, "
-          f"Safety events: {result.safety_events}, Valid: {result.valid}")
+    print(f"    → Return: {result.net_return_pct:+.1f}%, Trades: {result.total_trades}, Win: {result.win_rate:.1f}%")
+    print(f"    → TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%, DDD Halts: {result.ddd_halts}, Valid: {result.valid}")
 
-    # ── Scoring ─────────────────────────────────────────────────────────────
+    # ── Scoring (mirrors optimize_main_live_bot.py) ────────────────────────────
     if not result.valid:
         return -1000 - result.max_ddd_pct * 10
 
@@ -273,28 +291,26 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float) -> floa
 
     score = result.net_return_pct * wr_multiplier + trade_bonus
 
-    # Penalize excessive TDD
     if result.max_tdd_pct > 5.0:
         score -= (result.max_tdd_pct - 5.0) * 15
 
-    # Bonus for clean runs (no DDD halts, low DDD)
     if result.ddd_halts == 0 and result.max_ddd_pct < 2.5:
         score += 10
 
-    # Penalize safety events (DDD stops triggered by weekend gaps)
+    # Penalise weekend safety events
     score -= result.safety_events * 5
 
     return score
 
 
-def _enqueue_baseline(study: optuna.Study) -> None:
-    """Seed trial 0 with baseline (current) friday safety values."""
+def _enqueue_baseline(study: optuna.Study, base_params: Dict[str, Any]) -> None:
+    """Seed trial 0 with current baseline friday safety values."""
     enqueue = {
-        'friday_safety_max_per_group': FRIDAY_SAFETY_BASELINE['friday_safety_max_per_group'],
-        'friday_safety_max_total_non_crypto': FRIDAY_SAFETY_BASELINE['friday_safety_max_total_non_crypto'],
-        'friday_safety_r_close_losing': FRIDAY_SAFETY_BASELINE['friday_safety_r_close_losing'],
-        'friday_safety_r_new_position': FRIDAY_SAFETY_BASELINE['friday_safety_r_new_position'],
-        'friday_safety_r_take_profit': FRIDAY_SAFETY_BASELINE['friday_safety_r_take_profit'],
+        'friday_safety_max_per_group':        int(base_params.get('friday_safety_max_per_group', 2)),
+        'friday_safety_max_total_non_crypto': int(base_params.get('friday_safety_max_total_non_crypto', 5)),
+        'friday_safety_r_close_losing':       float(base_params.get('friday_safety_r_close_losing', 0.0)),
+        'friday_safety_r_new_position':       float(base_params.get('friday_safety_r_new_position', 0.5)),
+        'friday_safety_r_take_profit':        float(base_params.get('friday_safety_r_take_profit', 1.6)),
     }
     study.enqueue_trial(enqueue)
 
@@ -311,8 +327,10 @@ def run_optimization(
 ) -> Dict[str, Any]:
     """Run the friday safety optimization study."""
 
+    base_params = load_current_params()
+
     print("=" * 70)
-    print("FRIDAY SAFETY PARAMETER OPTIMIZER")
+    print("FRIDAY SAFETY OPTIMIZER (main_live_bot_backtest / M15)")
     print("=" * 70)
     print(f"  Trials: {trials}")
     print(f"  Period: {start} to {end}")
@@ -322,14 +340,20 @@ def run_optimization(
     print(f"  Random startup trials: {startup_trials}")
     print()
     print("  Optimizing:")
-    print(f"    friday_safety_max_per_group:        {FRIDAY_SAFETY_RANGES['friday_safety_max_per_group']}  (baseline: {FRIDAY_SAFETY_BASELINE['friday_safety_max_per_group']})")
-    print(f"    friday_safety_max_total_non_crypto: {FRIDAY_SAFETY_RANGES['friday_safety_max_total_non_crypto']}  (baseline: {FRIDAY_SAFETY_BASELINE['friday_safety_max_total_non_crypto']})")
-    print(f"    friday_safety_r_close_losing:       {FRIDAY_SAFETY_RANGES['friday_safety_r_close_losing']}  (baseline: {FRIDAY_SAFETY_BASELINE['friday_safety_r_close_losing']})")
-    print(f"    friday_safety_r_new_position:       {FRIDAY_SAFETY_RANGES['friday_safety_r_new_position']}  (baseline: {FRIDAY_SAFETY_BASELINE['friday_safety_r_new_position']})")
-    print(f"    friday_safety_r_take_profit:        {FRIDAY_SAFETY_RANGES['friday_safety_r_take_profit']}  (baseline: {FRIDAY_SAFETY_BASELINE['friday_safety_r_take_profit']})")
+    for key, (lo, hi) in FRIDAY_SAFETY_RANGES.items():
+        baseline = base_params.get(key, {'friday_safety_max_per_group': 2,
+                                         'friday_safety_max_total_non_crypto': 5,
+                                         'friday_safety_r_close_losing': 0.0,
+                                         'friday_safety_r_new_position': 0.5,
+                                         'friday_safety_r_take_profit': 1.6}[key])
+        print(f"    {key:<44} range [{lo}, {hi}]  baseline: {baseline}")
+    print("  Fixed (from current_params.json): all strategy params (TP/SL, confluence, risk, ...)")
     print("=" * 70)
 
-    study_sampler = TPESampler(seed=42, n_startup_trials=startup_trials)
+    if sampler == 'nsga':
+        study_sampler = NSGAIISampler(seed=42)
+    else:
+        study_sampler = TPESampler(seed=42, n_startup_trials=startup_trials)
 
     study = optuna.create_study(
         direction='maximize',
@@ -337,11 +361,10 @@ def run_optimization(
         study_name=f"friday_safety_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
     )
 
-    # Seed trial 0 with baseline params
-    _enqueue_baseline(study)
+    _enqueue_baseline(study, base_params)
 
     study.optimize(
-        lambda trial: objective(trial, start, end, balance),
+        lambda trial: objective(trial, start, end, balance, base_params),
         n_trials=trials,
         n_jobs=n_jobs,
         show_progress_bar=True,
@@ -363,17 +386,12 @@ def run_optimization(
     print("=" * 70)
 
     print("\n📊 BEST FRIDAY SAFETY PARAMETERS:")
-    for key in [
-        'friday_safety_max_per_group',
-        'friday_safety_max_total_non_crypto',
-        'friday_safety_r_close_losing',
-        'friday_safety_r_new_position',
-        'friday_safety_r_take_profit',
-    ]:
-        val = best.params.get(key, FRIDAY_SAFETY_BASELINE.get(key, '?'))
-        baseline = FRIDAY_SAFETY_BASELINE.get(key, '?')
-        change = " ← changed" if val != baseline else ""
-        print(f"    {key}: {val}{change}")
+    for key in FRIDAY_SAFETY_RANGES:
+        val = best.params.get(key, '?')
+        baseline = base_params.get(key, '?')
+        change = "  ← changed" if val != baseline else ""
+        fmt = f"{val:.3f}" if isinstance(val, float) else str(val)
+        print(f"    {key}: {fmt}{change}")
 
     # Monthly breakdown
     monthly = best.user_attrs.get('monthly_stats', {})
@@ -384,10 +402,10 @@ def run_optimization(
         print("  " + "-" * 60)
         for month in sorted(monthly.keys()):
             m = monthly[month]
-            trades = m.get('trades', 0)
+            trades  = m.get('trades', 0)
             winners = m.get('winners', 0)
-            pnl = m.get('pnl', 0)
-            wr = (winners / trades * 100) if trades > 0 else 0
+            pnl     = m.get('pnl', 0)
+            wr      = (winners / trades * 100) if trades > 0 else 0
             print(f"  {month:<10} {trades:>8} {winners:>8} {wr:>7.1f}% ${pnl:>10,.0f}")
         print("  " + "-" * 60)
 
@@ -395,17 +413,17 @@ def run_optimization(
     print("\n" + "=" * 70)
     print("ALL TRIALS SUMMARY")
     print("=" * 70)
-    print(f"{'#':>3} {'Score':>8} {'Return':>8} {'Trades':>7} {'WR%':>6} {'TDD':>6} {'DDD':>6} {'Safety':>7}")
+    print(f"{'#':>3} {'Score':>8} {'Return':>8} {'Trades':>7} {'WR%':>6} {'TDD':>6} {'DDD':>6} {'Safe':>5}")
     print("-" * 70)
     for t in sorted(study.trials, key=lambda x: x.value if x.value else -999, reverse=True)[:20]:
-        score = t.value if t.value else -999
-        ret = t.user_attrs.get('net_return_pct', 0)
+        score  = t.value if t.value else -999
+        ret    = t.user_attrs.get('net_return_pct', 0)
         trades = t.user_attrs.get('total_trades', 0)
-        wr = t.user_attrs.get('win_rate', 0)
-        tdd = t.user_attrs.get('max_tdd_pct', 0)
-        ddd = t.user_attrs.get('max_ddd_pct', 0)
-        safety = t.user_attrs.get('safety_events', 0)
-        print(f"{t.number:>3} {score:>8.1f} {ret:>+7.1f}% {trades:>7} {wr:>5.1f}% {tdd:>5.1f}% {ddd:>5.1f}% {safety:>7}")
+        wr     = t.user_attrs.get('win_rate', 0)
+        tdd    = t.user_attrs.get('max_tdd_pct', 0)
+        ddd    = t.user_attrs.get('max_ddd_pct', 0)
+        safe   = t.user_attrs.get('safety_events', t.user_attrs.get('ddd_halts', 0))
+        print(f"{t.number:>3} {score:>8.1f} {ret:>+7.1f}% {trades:>7} {wr:>5.1f}% {tdd:>5.1f}% {ddd:>5.1f}% {safe:>5}")
     print("-" * 70)
     if len(study.trials) > 20:
         print(f"  (Showing top 20 of {len(study.trials)} trials)")
@@ -416,6 +434,7 @@ def run_optimization(
 
     results = {
         "optimization_mode": "FRIDAY_SAFETY",
+        "optimization_scope": "FRIDAY_SAFETY_PARAMS",
         "timestamp": datetime.now().isoformat(),
         "config": {
             "trials": trials,
@@ -423,24 +442,24 @@ def run_optimization(
             "end": end,
             "balance": balance,
         },
-        "baseline_params": FRIDAY_SAFETY_BASELINE,
+        "fixed_params": {k: v for k, v in base_params.items() if not k.startswith('friday_safety_')},
         "best_score": best.value,
         "best_metrics": {
-            "net_return_pct": best.user_attrs.get('net_return_pct', 0),
-            "total_trades": best.user_attrs.get('total_trades', 0),
-            "win_rate": best.user_attrs.get('win_rate', 0),
-            "max_tdd_pct": best.user_attrs.get('max_tdd_pct', 0),
-            "max_ddd_pct": best.user_attrs.get('max_ddd_pct', 0),
-            "safety_events": best.user_attrs.get('safety_events', 0),
-            "valid": best.user_attrs.get('valid', False),
+            "net_return_pct":  best.user_attrs.get('net_return_pct', 0),
+            "total_trades":    best.user_attrs.get('total_trades', 0),
+            "win_rate":        best.user_attrs.get('win_rate', 0),
+            "max_tdd_pct":     best.user_attrs.get('max_tdd_pct', 0),
+            "max_ddd_pct":     best.user_attrs.get('max_ddd_pct', 0),
+            "safety_events":   best.user_attrs.get('safety_events', 0),
+            "valid":           best.user_attrs.get('valid', False),
         },
         "best_parameters": best.params,
         "all_trials": [
             {
-                "trial": t.number,
-                "score": t.value if t.value is not None else -1000,
-                "params": t.params,
-                "metrics": {k: v for k, v in t.user_attrs.items()},
+                "trial":   t.number,
+                "score":   t.value if t.value is not None else -1000,
+                "params":  t.params,
+                "metrics": dict(t.user_attrs),
             }
             for t in study.trials
         ],
@@ -466,14 +485,13 @@ def apply_params(results_file: str) -> None:
     with open(results_file, 'r') as f:
         results = json.load(f)
 
-    best_params = results.get('best_parameters', {})
-    friday_params = {k: v for k, v in best_params.items() if k.startswith('friday_safety_')}
+    best_params_raw = results.get('best_parameters', {})
+    friday_params = {k: v for k, v in best_params_raw.items() if k.startswith('friday_safety_')}
 
     if not friday_params:
         print("ERROR: No friday_safety_* parameters found in results file.")
         sys.exit(1)
 
-    # Load current params and update
     current = load_params_dict()
     if 'parameters' in current:
         current['parameters'].update(friday_params)
@@ -490,35 +508,30 @@ def apply_params(results_file: str) -> None:
 
     print(f"✅ Applied best friday safety parameters to {params_file}")
     print("\nApplied parameters:")
-    baseline = results.get('baseline_params', FRIDAY_SAFETY_BASELINE)
     for key, value in sorted(friday_params.items()):
-        old_val = baseline.get(key, '?')
-        change = f"  (was: {old_val})" if value != old_val else "  (unchanged)"
-        if isinstance(value, float):
-            print(f"  {key}: {value:.3f}{change}")
-        else:
-            print(f"  {key}: {value}{change}")
+        fmt = f"{value:.3f}" if isinstance(value, float) else str(value)
+        print(f"  {key}: {fmt}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Friday Safety Parameter Optimizer')
-    parser.add_argument('--trials', type=int, default=50,
+    parser = argparse.ArgumentParser(description='Friday Safety Parameter Optimizer (M15 backtest)')
+    parser.add_argument('--trials',         type=int,   default=50,
                         help='Number of optimization trials (default: 50)')
-    parser.add_argument('--start', type=str, default='2024-01-01',
+    parser.add_argument('--start',          type=str,   default='2024-01-01',
                         help='Backtest start date (default: 2024-01-01)')
-    parser.add_argument('--end', type=str, default='2024-12-31',
+    parser.add_argument('--end',            type=str,   default='2024-12-31',
                         help='Backtest end date (default: 2024-12-31)')
-    parser.add_argument('--balance', type=float, default=20000,
+    parser.add_argument('--balance',        type=float, default=20000,
                         help='Initial balance (default: 20000)')
-    parser.add_argument('--sampler', type=str, default='tpe', choices=['tpe'],
+    parser.add_argument('--sampler',        type=str,   default='tpe', choices=['tpe', 'nsga'],
                         help='Optuna sampler (default: tpe)')
-    parser.add_argument('--output', type=str, default='backtest/optimization_results',
+    parser.add_argument('--output',         type=str,   default='backtest/optimization_results',
                         help='Output directory (default: backtest/optimization_results)')
-    parser.add_argument('--apply', type=str,
+    parser.add_argument('--apply',          type=str,
                         help='Apply parameters from results file to current_params.json')
-    parser.add_argument('--parallel', '-j', type=int, default=1,
+    parser.add_argument('--parallel', '-j', type=int,   default=1,
                         help='Number of parallel workers (default: 1)')
-    parser.add_argument('--startup-trials', type=int, default=10,
+    parser.add_argument('--startup-trials', type=int,   default=10,
                         help='Random exploration trials before TPE kicks in (default: 10)')
 
     args = parser.parse_args()
