@@ -1,0 +1,60 @@
+{
+  "initial_balance": 20000.0,
+  "final_balance": 38456.32,
+  "net_pnl": 18456.32,
+  "closed_trades_pnl": 18456.32,
+  "return_pct": 92.28,
+  "total_trades": 188,
+  "winners": 146,
+  "losers": 42,
+  "win_rate": 77.7,
+  "max_tdd_pct": 0.0,
+  "max_ddd_pct": 3.44,
+  "safety_events": 21,
+  "ddd_halts": 2,
+  "ddd_reduces": 3,
+  "ddd_warnings": 16,
+  "tdd_stopouts": 0,
+  "monthly_stats": {
+    "2016-01": {
+      "trades": 39,
+      "winners": 30,
+      "losers": 9,
+      "pnl": 2650.7,
+      "partial_closes": 46,
+      "win_rate": 76.9
+    },
+    "2016-02": {
+      "trades": 41,
+      "winners": 29,
+      "losers": 12,
+      "pnl": 2494.8,
+      "partial_closes": 52,
+      "win_rate": 70.7
+    },
+    "2016-03": {
+      "trades": 31,
+      "winners": 27,
+      "losers": 4,
+      "pnl": 4475.87,
+      "partial_closes": 67,
+      "win_rate": 87.1
+    },
+    "2016-04": {
+      "trades": 44,
+      "winners": 36,
+      "losers": 8,
+      "pnl": 6393.99,
+      "partial_closes": 79,
+      "win_rate": 81.8
+    },
+    "2016-05": {
+      "trades": 33,
+      "winners": 24,
+      "losers": 9,
+      "pnl": 2440.96,
+      "partial_closes": 40,
+      "win_rate": 72.7
+    }
+  }
+}

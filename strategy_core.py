@@ -217,11 +217,12 @@ class StrategyParams:
     tp5_close_pct: float = 0.05   # Close 5% at TP5 (for 5-TP system)
 
     # SL levels after each TP hit (R-multiples)
-    # TP1 hit: SL always hardcoded to 0.05R (breakeven + fees) - NOT optimized
+    # TP1 hit: SL moves to entry + sl_after_tp1_r * risk (-1R=original SL, 0=breakeven, 0.2=0.2R profit)
     # TP2 hit: SL optimized between TP1 and TP2
     # TP3 hit: SL optimized between TP1 and TP3
     # TP4 hit: SL optimized between TP2 and TP4
     # TP5 hit: SL optimized between TP3 and TP5
+    sl_after_tp1_r: float = 0.0   # SL after TP1 (-1R=original SL, 0=breakeven, 0.2R=profit lock)
     sl_after_tp2_r: float = 0.6   # SL after TP2 (default = tp1_r)
     sl_after_tp3_r: float = 0.6   # SL after TP3 (default = tp1_r)
     sl_after_tp4_r: float = 1.1   # SL after TP4 (default = tp2_r)
@@ -2759,9 +2760,11 @@ def simulate_trades(
                 if not trade_closed and tp1 is not None and high >= tp1 and not tp1_hit:
                     ot["tp1_hit"] = True
                     tp1_hit = True
-                    # Delay trailing activation until trail_activation_r is reached
+                    # Move SL to entry + sl_after_tp1_r * risk (-1R=original, 0=breakeven, 0.2R=profit lock)
+                    new_sl_tp1 = entry_price + params.sl_after_tp1_r * risk
+                    ot["trailing_sl"] = max(trailing_sl, new_sl_tp1)
+                    trailing_sl = ot["trailing_sl"]
                     if tp1_rr >= params.trail_activation_r:
-                        ot["trailing_sl"] = entry_price
                         ot["trailing_activated"] = True
                 
                 if not trade_closed and tp1_hit and tp2 is not None and high >= tp2 and not tp2_hit:
@@ -2826,9 +2829,11 @@ def simulate_trades(
                 if not trade_closed and tp1 is not None and low <= tp1 and not tp1_hit:
                     ot["tp1_hit"] = True
                     tp1_hit = True
-                    # Delay trailing activation until trail_activation_r is reached
+                    # Move SL to entry - sl_after_tp1_r * risk (-1R=original, 0=breakeven, 0.2R=profit lock)
+                    new_sl_tp1 = entry_price - params.sl_after_tp1_r * risk
+                    ot["trailing_sl"] = min(trailing_sl, new_sl_tp1)
+                    trailing_sl = ot["trailing_sl"]
                     if tp1_rr >= params.trail_activation_r:
-                        ot["trailing_sl"] = entry_price
                         ot["trailing_activated"] = True
                 
                 if not trade_closed and tp1_hit and tp2 is not None and low <= tp2 and not tp2_hit:
