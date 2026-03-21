@@ -1,60 +1,60 @@
 {
-  "initial_balance": 20000.0,
-  "final_balance": 30097.6,
-  "net_pnl": 10097.6,
-  "closed_trades_pnl": 10097.6,
-  "return_pct": 50.49,
-  "total_trades": 173,
-  "winners": 120,
-  "losers": 53,
-  "win_rate": 69.4,
+  "initial_balance": 20000,
+  "final_balance": 29721.29,
+  "net_pnl": 9721.29,
+  "closed_trades_pnl": 9721.29,
+  "return_pct": 48.61,
+  "total_trades": 197,
+  "winners": 139,
+  "losers": 58,
+  "win_rate": 70.6,
   "max_tdd_pct": 0.01,
-  "max_ddd_pct": 3.69,
-  "safety_events": 14,
-  "ddd_halts": 2,
-  "ddd_reduces": 1,
-  "ddd_warnings": 11,
+  "max_ddd_pct": 3.51,
+  "safety_events": 18,
+  "ddd_halts": 3,
+  "ddd_reduces": 3,
+  "ddd_warnings": 12,
   "tdd_stopouts": 0,
   "monthly_stats": {
     "2015-01": {
-      "trades": 48,
-      "winners": 33,
-      "losers": 15,
-      "pnl": 3493.04,
-      "partial_closes": 62,
-      "win_rate": 68.8
+      "trades": 51,
+      "winners": 39,
+      "losers": 12,
+      "pnl": 3990.71,
+      "partial_closes": 75,
+      "win_rate": 76.5
     },
     "2015-02": {
-      "trades": 15,
-      "winners": 11,
+      "trades": 20,
+      "winners": 16,
       "losers": 4,
-      "pnl": 1280.88,
-      "partial_closes": 28,
-      "win_rate": 73.3
+      "pnl": 1240.84,
+      "partial_closes": 26,
+      "win_rate": 80.0
     },
     "2015-03": {
-      "trades": 34,
-      "winners": 28,
-      "losers": 6,
-      "pnl": 2361.36,
-      "partial_closes": 47,
-      "win_rate": 82.4
+      "trades": 38,
+      "winners": 31,
+      "losers": 7,
+      "pnl": 2805.69,
+      "partial_closes": 51,
+      "win_rate": 81.6
     },
     "2015-04": {
-      "trades": 49,
-      "winners": 27,
-      "losers": 22,
-      "pnl": -20.78,
-      "partial_closes": 46,
-      "win_rate": 55.1
+      "trades": 62,
+      "winners": 33,
+      "losers": 29,
+      "pnl": -1130.7,
+      "partial_closes": 48,
+      "win_rate": 53.2
     },
     "2015-05": {
-      "trades": 27,
-      "winners": 21,
+      "trades": 26,
+      "winners": 20,
       "losers": 6,
-      "pnl": 2983.11,
-      "partial_closes": 35,
-      "win_rate": 77.8
+      "pnl": 2814.75,
+      "partial_closes": 32,
+      "win_rate": 76.9
     }
   }
 }
