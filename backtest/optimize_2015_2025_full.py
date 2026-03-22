@@ -668,10 +668,10 @@ def main():
                         help="Number of optimization trials (default: 100)")
     parser.add_argument("--parallel", "-j", type=int,   default=4,
                         help="Number of parallel workers (default: 4)")
-    parser.add_argument("--startup-trials", type=int,   default=10,
-                        help="Random exploration trials before TPE starts (default: 10)")
-    parser.add_argument("--update-every",   type=int,   default=UPDATE_EVERY_S,
-                        help=f"Progress update interval in seconds (default: {UPDATE_EVERY_S})")
+    parser.add_argument("--startup-trials", type=int,   default=25,
+                        help="Random exploration trials before TPE starts (default: 25)")
+    parser.add_argument("--update-every",   type=int,   default=60,
+                        help="Progress update interval in seconds (default: 60)")
     parser.add_argument("--sampler",        type=str,   default="tpe",
                         choices=["tpe", "nsga"],
                         help="Optuna sampler (default: tpe)")
