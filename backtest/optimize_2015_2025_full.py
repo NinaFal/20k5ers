@@ -272,8 +272,12 @@ def sample_tp_and_sl_params(trial: optuna.Trial) -> Dict[str, Any]:
         w = trial.suggest_float(f'{key}_weight', lo, hi, step=0.05)
         weights.append(w)
     total = sum(weights)
-    for i, w in enumerate(weights, 1):
-        params[f'tp{i}_close_pct'] = round(w / total, 3)
+    assigned = []
+    for i, w in enumerate(weights[:-1], 1):
+        v = round(w / total, 3)
+        params[f'tp{i}_close_pct'] = v
+        assigned.append(v)
+    params[f'tp{NUM_TPS}_close_pct'] = round(1.0 - sum(assigned), 3)
 
     # ── SL levels after each TP ───────────────────────────────────────────────
     def sl_range(lo, hi):
