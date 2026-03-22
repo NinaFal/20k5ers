@@ -676,7 +676,23 @@ def main():
                         help="Optuna sampler (default: tpe)")
     parser.add_argument("--apply",          type=str,   default=None,
                         help="Apply parameters from a results JSON file")
+    parser.add_argument("--start",          type=str,   default=None,
+                        help="Override start date (YYYY-MM-DD)")
+    parser.add_argument("--end",            type=str,   default=None,
+                        help="Override end date (YYYY-MM-DD)")
     args = parser.parse_args()
+
+    global START_DATE, END_DATE, OUTPUT_DIR, LOG_FILE
+    if args.start:
+        START_DATE = args.start
+    if args.end:
+        END_DATE = args.end
+    if args.start or args.end:
+        s = START_DATE.replace("-", "_")[2:]   # e.g. 16_01_01
+        e = END_DATE.replace("-", "_")[2:]     # e.g. 16_05_31
+        folder = f"{START_DATE[:4]}_jan_may"
+        OUTPUT_DIR = Path(__file__).parent / "optimization_results" / folder
+        LOG_FILE   = OUTPUT_DIR / "optimizer.log"
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     _log = Logger(LOG_FILE)
