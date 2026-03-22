@@ -31,7 +31,6 @@
     "sl_after_tp3_r": 1.10,
     "sl_after_tp4_r": 1.15,
     "sl_after_tp5_r": 1.30,
-    "use_atr_trailing": true,
     "entry_fib_level": 0.560,
     "entry_limit_offset_atr": 0.14,
     "use_htf_filter": false,
