@@ -26,7 +26,7 @@
     "tp3_close_pct": 0.117,
     "tp4_close_pct": 0.284,
     "tp5_close_pct": 0.027,
-    "sl_after_tp1_r": 0.5,
+    "sl_after_tp1_r": 0.2,
     "sl_after_tp2_r": 0.65,
     "sl_after_tp3_r": 0.95,
     "sl_after_tp4_r": 0.95,
