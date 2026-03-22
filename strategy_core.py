@@ -252,7 +252,6 @@ class StrategyParams:
     ml_min_prob: float = 0.6
     
     # New FTMO challenge parameters
-    trail_activation_r: float = 2.2  # Delay trailing stop activation until this R is reached
     december_atr_multiplier: float = 1.5  # Extra strict ATR threshold only in December
     volatile_asset_boost: float = 1.5  # Boost scoring for high-ATR assets
     
@@ -377,7 +376,6 @@ class StrategyParams:
             "momentum_lookback": self.momentum_lookback,
             "use_mean_reversion": self.use_mean_reversion,
             "ml_min_prob": self.ml_min_prob,
-            "trail_activation_r": self.trail_activation_r,
             "december_atr_multiplier": self.december_atr_multiplier,
             "volatile_asset_boost": self.volatile_asset_boost,
             "progressive_trigger_r": self.progressive_trigger_r,
@@ -2760,34 +2758,30 @@ def simulate_trades(
                 if not trade_closed and tp1 is not None and high >= tp1 and not tp1_hit:
                     ot["tp1_hit"] = True
                     tp1_hit = True
-                    # Move SL to entry + sl_after_tp1_r * risk (-1R=original, 0=breakeven, 0.2R=profit lock)
-                    new_sl_tp1 = entry_price + params.sl_after_tp1_r * risk
-                    ot["trailing_sl"] = max(trailing_sl, new_sl_tp1)
+                    new_sl = entry_price + params.sl_after_tp1_r * risk
+                    ot["trailing_sl"] = max(trailing_sl, new_sl)
                     trailing_sl = ot["trailing_sl"]
-                    if tp1_rr >= params.trail_activation_r:
-                        ot["trailing_activated"] = True
-                
+
                 if not trade_closed and tp1_hit and tp2 is not None and high >= tp2 and not tp2_hit:
                     ot["tp2_hit"] = True
                     tp2_hit = True
-                    # Only activate trailing if we've reached trail_activation_r
-                    if tp2_rr >= params.trail_activation_r and tp1 is not None:
-                        ot["trailing_sl"] = tp1 + 0.5 * risk
-                        ot["trailing_activated"] = True
-                
+                    new_sl = entry_price + params.sl_after_tp2_r * risk
+                    ot["trailing_sl"] = max(trailing_sl, new_sl)
+                    trailing_sl = ot["trailing_sl"]
+
                 if not trade_closed and tp2_hit and tp3 is not None and high >= tp3 and not tp3_hit:
                     ot["tp3_hit"] = True
                     tp3_hit = True
-                    # Only activate trailing if we've reached trail_activation_r
-                    if tp3_rr >= params.trail_activation_r and tp2 is not None:
-                        ot["trailing_sl"] = tp2 + 0.5 * risk
-                        ot["trailing_activated"] = True
-                
+                    new_sl = entry_price + params.sl_after_tp3_r * risk
+                    ot["trailing_sl"] = max(trailing_sl, new_sl)
+                    trailing_sl = ot["trailing_sl"]
+
                 if not trade_closed and tp3_hit and tp4 is not None and high >= tp4 and not tp4_hit:
                     ot["tp4_hit"] = True
                     tp4_hit = True
-                    if tp3 is not None:
-                        ot["trailing_sl"] = tp3 + 0.5 * risk
+                    new_sl = entry_price + params.sl_after_tp4_r * risk
+                    ot["trailing_sl"] = max(trailing_sl, new_sl)
+                    trailing_sl = ot["trailing_sl"]
                 
                 if not trade_closed and tp4_hit and tp5 is not None and high >= tp5 and not tp5_hit:
                     ot["tp5_hit"] = True
@@ -2829,34 +2823,30 @@ def simulate_trades(
                 if not trade_closed and tp1 is not None and low <= tp1 and not tp1_hit:
                     ot["tp1_hit"] = True
                     tp1_hit = True
-                    # Move SL to entry - sl_after_tp1_r * risk (-1R=original, 0=breakeven, 0.2R=profit lock)
-                    new_sl_tp1 = entry_price - params.sl_after_tp1_r * risk
-                    ot["trailing_sl"] = min(trailing_sl, new_sl_tp1)
+                    new_sl = entry_price - params.sl_after_tp1_r * risk
+                    ot["trailing_sl"] = min(trailing_sl, new_sl)
                     trailing_sl = ot["trailing_sl"]
-                    if tp1_rr >= params.trail_activation_r:
-                        ot["trailing_activated"] = True
-                
+
                 if not trade_closed and tp1_hit and tp2 is not None and low <= tp2 and not tp2_hit:
                     ot["tp2_hit"] = True
                     tp2_hit = True
-                    # Only activate trailing if we've reached trail_activation_r
-                    if tp2_rr >= params.trail_activation_r and tp1 is not None:
-                        ot["trailing_sl"] = tp1 - 0.5 * risk
-                        ot["trailing_activated"] = True
-                
+                    new_sl = entry_price - params.sl_after_tp2_r * risk
+                    ot["trailing_sl"] = min(trailing_sl, new_sl)
+                    trailing_sl = ot["trailing_sl"]
+
                 if not trade_closed and tp2_hit and tp3 is not None and low <= tp3 and not tp3_hit:
                     ot["tp3_hit"] = True
                     tp3_hit = True
-                    # Only activate trailing if we've reached trail_activation_r
-                    if tp3_rr >= params.trail_activation_r and tp2 is not None:
-                        ot["trailing_sl"] = tp2 - 0.5 * risk
-                        ot["trailing_activated"] = True
-                
+                    new_sl = entry_price - params.sl_after_tp3_r * risk
+                    ot["trailing_sl"] = min(trailing_sl, new_sl)
+                    trailing_sl = ot["trailing_sl"]
+
                 if not trade_closed and tp3_hit and tp4 is not None and low <= tp4 and not tp4_hit:
                     ot["tp4_hit"] = True
                     tp4_hit = True
-                    if tp3 is not None:
-                        ot["trailing_sl"] = tp3 - 0.5 * risk
+                    new_sl = entry_price - params.sl_after_tp4_r * risk
+                    ot["trailing_sl"] = min(trailing_sl, new_sl)
+                    trailing_sl = ot["trailing_sl"]
                 
                 if not trade_closed and tp4_hit and tp5 is not None and low <= tp5 and not tp5_hit:
                     ot["tp5_hit"] = True
@@ -2999,7 +2989,6 @@ def simulate_trades(
                     "entry_timestamp": bar_timestamp,
                     "sl": sl,
                     "trailing_sl": sl,
-                    "trailing_activated": False,  # Flag to track when trail_activation_r threshold is reached
                     "tp1": tp1,
                     "tp2": tp2,
                     "tp3": tp3,
