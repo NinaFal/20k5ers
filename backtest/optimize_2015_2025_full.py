@@ -116,9 +116,8 @@ class Logger:
 
     def __call__(self, msg: str = ""):
         print(msg, flush=True)
-        if self._is_tty:
-            self._log.write(msg + "\n")
-            self._log.flush()
+        self._log.write(msg + "\n")
+        self._log.flush()
 
     def close(self):
         self._log.close()
