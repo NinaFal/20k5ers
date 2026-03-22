@@ -89,7 +89,6 @@ PARAMETER_DEFAULTS: Dict[str, Any] = {
     'sl_after_tp2_r': 0.6,           # SL after TP2 hit (default = tp1_r = 0.6R)
     'sl_after_tp3_r': 0.6,           # SL after TP3 hit (default = tp1_r = 0.6R)
     'sl_after_tp4_r': 1.1,           # SL after TP4 hit (default = tp2_r = 1.1R)
-    'sl_after_tp5_r': 1.8,           # SL after TP5 hit (default = tp3_r = 1.8R)
     
     # ═══════════════════════════════════════════════════════════════════════════
     # ENTRY REFINEMENT (Optuna-optimizable for better entry prices)

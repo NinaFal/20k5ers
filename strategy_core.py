@@ -226,7 +226,6 @@ class StrategyParams:
     sl_after_tp2_r: float = 0.6   # SL after TP2 (default = tp1_r)
     sl_after_tp3_r: float = 0.6   # SL after TP3 (default = tp1_r)
     sl_after_tp4_r: float = 1.1   # SL after TP4 (default = tp2_r)
-    sl_after_tp5_r: float = 1.8   # SL after TP5 (default = tp3_r)
     
     # Quantitative enhancement filters - DISABLED for baseline testing
     use_atr_regime_filter: bool = False
