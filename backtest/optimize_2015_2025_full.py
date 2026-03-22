@@ -85,15 +85,6 @@ TP_R_RANGES = {
     'tp5_r_multiple': (2.2, 6.0),
 }
 
-# Take Profit Close Percentages (normalized to sum to 1.0 via weights)
-TP_CLOSE_RANGES = {
-    'tp1_close_pct': (0.05, 0.45),
-    'tp2_close_pct': (0.10, 0.70),
-    'tp3_close_pct': (0.05, 0.45),
-    'tp4_close_pct': (0.03, 0.30),
-    'tp5_close_pct': (0.03, 0.25),
-}
-
 # Strategy & Risk Parameter Ranges: (low, high) = int,  (low, high, step) = float
 STRATEGY_RANGES = {
     'risk_per_trade_pct':     (0.4, 1.5, 0.05),   # Current: 0.9
@@ -265,11 +256,11 @@ def sample_tp_and_sl_params(trial: optuna.Trial) -> Dict[str, Any]:
     tp1_r, tp2_r, tp3_r, tp4_r, tp5_r = tp_r_values
 
     # ── Close percentages (normalized to sum 1.0) ─────────────────────────────
+    # Weights sampled freely from [0.01, 1.0] – no per-TP range bias.
+    # Normalization gives a truly random distribution over the simplex.
     weights = []
     for i in range(1, NUM_TPS + 1):
-        key = f'tp{i}_close_pct'
-        lo, hi = TP_CLOSE_RANGES.get(key, (0.05, 0.40))
-        w = trial.suggest_float(f'{key}_weight', lo, hi, step=0.05)
+        w = trial.suggest_float(f'tp{i}_close_pct_weight', 0.01, 1.0, step=0.01)
         weights.append(w)
     total = sum(weights)
     assigned = []
@@ -443,23 +434,12 @@ def enqueue_current_params(study: optuna.Study, base_params: Dict[str, Any]) -> 
         else:
             tp_r_vals.append(prev_r + 0.5)
 
-    # Close percentages as weights – scale proportionally so no weight falls
-    # below its distribution minimum (avoids Optuna clipping, which would
-    # shift the normalized close_pct values away from the baseline values).
-    raw_weights = {}
+    # Close percentages: enqueue raw values as weights (range [0.01, 1.0],
+    # always within bounds – no scaling needed).
     for i in range(1, NUM_TPS + 1):
         key = f"tp{i}_close_pct"
         if key in base_params:
-            raw_weights[key] = base_params[key]
-
-    if raw_weights:
-        scale = 1.0
-        for key, w in raw_weights.items():
-            lo = TP_CLOSE_RANGES.get(key, (0.05, 0.40))[0]
-            if w < lo and w > 0:
-                scale = max(scale, lo / w)
-        for key, w in raw_weights.items():
-            enqueue[f"{key}_weight"] = round(w * scale, 4)
+            enqueue[f"{key}_weight"] = max(0.01, round(base_params[key], 4))
 
     tp1_r = tp_r_vals[0] if tp_r_vals else 0.6
     tp2_r = tp_r_vals[1] if len(tp_r_vals) > 1 else 1.1
