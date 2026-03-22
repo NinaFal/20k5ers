@@ -226,8 +226,6 @@ class StrategyParams:
     sl_after_tp2_r: float = 0.6   # SL after TP2 (default = tp1_r)
     sl_after_tp3_r: float = 0.6   # SL after TP3 (default = tp1_r)
     sl_after_tp4_r: float = 1.1   # SL after TP4 (default = tp2_r)
-    sl_after_tp5_r: float = 1.8   # SL after TP5 (default = tp3_r)
-    
     # Quantitative enhancement filters - DISABLED for baseline testing
     use_atr_regime_filter: bool = False
     atr_min_percentile: float = 60.0
@@ -252,7 +250,6 @@ class StrategyParams:
     ml_min_prob: float = 0.6
     
     # New FTMO challenge parameters
-    trail_activation_r: float = 2.2  # Delay trailing stop activation until this R is reached
     december_atr_multiplier: float = 1.5  # Extra strict ATR threshold only in December
     volatile_asset_boost: float = 1.5  # Boost scoring for high-ATR assets
     
@@ -277,11 +274,6 @@ class StrategyParams:
     # Trend Mode Parameters
     trend_min_confluence: int = 4  # OPTIMIZED: Keep at 4 for trend mode (2-3x more trades than 6/7 requirement)
     
-    # Partial Profit Taking and Trail Management
-    partial_exit_at_1r: bool = True  # Take partial profit at 1R
-    partial_exit_pct: float = 0.50  # Percentage to close at 1R (50%)
-    atr_trail_multiplier: float = 1.5  # ATR multiplier for trailing stop distance
-    
     # ============================================================================
     # REGIME-ADAPTIVE V2 ENHANCED PARAMETERS
     # Additional toggles and parameters for refined regime-based trading
@@ -296,7 +288,6 @@ class StrategyParams:
     # Additional Strategy-Level Toggles
     use_fib_0786_only: bool = False  # True: require 0.786 zone only; False: allow broader 0.618-0.886
     use_market_structure_bos_only: bool = False  # True: require BOS only; False: allow BOS or CHoCH
-    use_atr_trailing: bool = True  # Enable ATR trailing on runner
     use_volatility_sizing_boost: bool = False  # Increase risk % in high ATR periods
     
     # Categorical/Other Parameters
@@ -377,7 +368,6 @@ class StrategyParams:
             "momentum_lookback": self.momentum_lookback,
             "use_mean_reversion": self.use_mean_reversion,
             "ml_min_prob": self.ml_min_prob,
-            "trail_activation_r": self.trail_activation_r,
             "december_atr_multiplier": self.december_atr_multiplier,
             "volatile_asset_boost": self.volatile_asset_boost,
             "progressive_trigger_r": self.progressive_trigger_r,
@@ -388,15 +378,11 @@ class StrategyParams:
             "atr_volatility_ratio": self.atr_volatility_ratio,
             "fib_range_target": self.fib_range_target,
             "trend_min_confluence": self.trend_min_confluence,
-            "partial_exit_at_1r": self.partial_exit_at_1r,
-            "partial_exit_pct": self.partial_exit_pct,
-            "atr_trail_multiplier": self.atr_trail_multiplier,
             # REGIME-ADAPTIVE V2 ENHANCED PARAMETERS
             "use_adx_regime_filter": self.use_adx_regime_filter,
             "use_adx_slope_rising": self.use_adx_slope_rising,
             "use_fib_0786_only": self.use_fib_0786_only,
             "use_market_structure_bos_only": self.use_market_structure_bos_only,
-            "use_atr_trailing": self.use_atr_trailing,
             "use_volatility_sizing_boost": self.use_volatility_sizing_boost,
             "fib_zone_type": self.fib_zone_type,
             "candle_pattern_strictness": self.candle_pattern_strictness,
@@ -2764,30 +2750,27 @@ def simulate_trades(
                     new_sl_tp1 = entry_price + params.sl_after_tp1_r * risk
                     ot["trailing_sl"] = max(trailing_sl, new_sl_tp1)
                     trailing_sl = ot["trailing_sl"]
-                    if tp1_rr >= params.trail_activation_r:
-                        ot["trailing_activated"] = True
-                
+
                 if not trade_closed and tp1_hit and tp2 is not None and high >= tp2 and not tp2_hit:
                     ot["tp2_hit"] = True
                     tp2_hit = True
-                    # Only activate trailing if we've reached trail_activation_r
-                    if tp2_rr >= params.trail_activation_r and tp1 is not None:
-                        ot["trailing_sl"] = tp1 + 0.5 * risk
-                        ot["trailing_activated"] = True
-                
+                    new_sl_tp2 = entry_price + params.sl_after_tp2_r * risk
+                    ot["trailing_sl"] = max(trailing_sl, new_sl_tp2)
+                    trailing_sl = ot["trailing_sl"]
+
                 if not trade_closed and tp2_hit and tp3 is not None and high >= tp3 and not tp3_hit:
                     ot["tp3_hit"] = True
                     tp3_hit = True
-                    # Only activate trailing if we've reached trail_activation_r
-                    if tp3_rr >= params.trail_activation_r and tp2 is not None:
-                        ot["trailing_sl"] = tp2 + 0.5 * risk
-                        ot["trailing_activated"] = True
-                
+                    new_sl_tp3 = entry_price + params.sl_after_tp3_r * risk
+                    ot["trailing_sl"] = max(trailing_sl, new_sl_tp3)
+                    trailing_sl = ot["trailing_sl"]
+
                 if not trade_closed and tp3_hit and tp4 is not None and high >= tp4 and not tp4_hit:
                     ot["tp4_hit"] = True
                     tp4_hit = True
-                    if tp3 is not None:
-                        ot["trailing_sl"] = tp3 + 0.5 * risk
+                    new_sl_tp4 = entry_price + params.sl_after_tp4_r * risk
+                    ot["trailing_sl"] = max(trailing_sl, new_sl_tp4)
+                    trailing_sl = ot["trailing_sl"]
                 
                 if not trade_closed and tp4_hit and tp5 is not None and high >= tp5 and not tp5_hit:
                     ot["tp5_hit"] = True
@@ -2833,30 +2816,27 @@ def simulate_trades(
                     new_sl_tp1 = entry_price - params.sl_after_tp1_r * risk
                     ot["trailing_sl"] = min(trailing_sl, new_sl_tp1)
                     trailing_sl = ot["trailing_sl"]
-                    if tp1_rr >= params.trail_activation_r:
-                        ot["trailing_activated"] = True
-                
+
                 if not trade_closed and tp1_hit and tp2 is not None and low <= tp2 and not tp2_hit:
                     ot["tp2_hit"] = True
                     tp2_hit = True
-                    # Only activate trailing if we've reached trail_activation_r
-                    if tp2_rr >= params.trail_activation_r and tp1 is not None:
-                        ot["trailing_sl"] = tp1 - 0.5 * risk
-                        ot["trailing_activated"] = True
-                
+                    new_sl_tp2 = entry_price - params.sl_after_tp2_r * risk
+                    ot["trailing_sl"] = min(trailing_sl, new_sl_tp2)
+                    trailing_sl = ot["trailing_sl"]
+
                 if not trade_closed and tp2_hit and tp3 is not None and low <= tp3 and not tp3_hit:
                     ot["tp3_hit"] = True
                     tp3_hit = True
-                    # Only activate trailing if we've reached trail_activation_r
-                    if tp3_rr >= params.trail_activation_r and tp2 is not None:
-                        ot["trailing_sl"] = tp2 - 0.5 * risk
-                        ot["trailing_activated"] = True
-                
+                    new_sl_tp3 = entry_price - params.sl_after_tp3_r * risk
+                    ot["trailing_sl"] = min(trailing_sl, new_sl_tp3)
+                    trailing_sl = ot["trailing_sl"]
+
                 if not trade_closed and tp3_hit and tp4 is not None and low <= tp4 and not tp4_hit:
                     ot["tp4_hit"] = True
                     tp4_hit = True
-                    if tp3 is not None:
-                        ot["trailing_sl"] = tp3 - 0.5 * risk
+                    new_sl_tp4 = entry_price - params.sl_after_tp4_r * risk
+                    ot["trailing_sl"] = min(trailing_sl, new_sl_tp4)
+                    trailing_sl = ot["trailing_sl"]
                 
                 if not trade_closed and tp4_hit and tp5 is not None and low <= tp5 and not tp5_hit:
                     ot["tp5_hit"] = True
@@ -2999,7 +2979,6 @@ def simulate_trades(
                     "entry_timestamp": bar_timestamp,
                     "sl": sl,
                     "trailing_sl": sl,
-                    "trailing_activated": False,  # Flag to track when trail_activation_r threshold is reached
                     "tp1": tp1,
                     "tp2": tp2,
                     "tp3": tp3,
