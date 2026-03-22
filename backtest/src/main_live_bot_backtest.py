@@ -327,20 +327,21 @@ def get_next_midnight_sync_time() -> datetime:
 def is_friday_closing_period() -> bool:
     """
     Check if we're in the Friday closing period (no new orders allowed).
-    Friday 16:00 UTC onwards = no new forex orders (weekend gap protection).
-    
+    Friday 19:30 UTC onwards = no new forex orders (weekend gap protection).
+
     Returns:
-        True if Friday 16:00+ UTC (no new orders)
+        True if Friday 19:30+ UTC (no new orders)
         False otherwise (orders allowed)
     """
     now = datetime.now(timezone.utc)
     weekday = now.weekday()  # 0=Monday, 4=Friday
     hour = now.hour
-    
-    # Friday 16:00+ UTC = closing period
-    if weekday == 4 and hour >= 16:
+    minute = now.minute
+
+    # Friday 19:30+ UTC = closing period
+    if weekday == 4 and (hour > 19 or (hour == 19 and minute >= 30)):
         return True
-    
+
     return False
 
 
@@ -878,6 +879,8 @@ class LiveTradingBot:
         # load_best_params_from_file() returns StrategyParams with defaults merged
         # If custom_params provided (from optimizer), overlay those on top
         self.params = load_best_params_from_file(custom_params)
+        # Store raw custom params for non-StrategyParams settings (e.g. friday safety)
+        self.raw_custom_params: dict = custom_params or {}
         self.last_scan_time: Optional[datetime] = None
         self.next_scan_time: Optional[datetime] = None  # Store next scheduled scan time
         self.last_validate_time: Optional[datetime] = None
@@ -1616,7 +1619,7 @@ class LiveTradingBot:
     def handle_friday_position_closing(self):
         """
         TIER 1: Correlation-aware Friday position closing
-        Runs Friday 16:00+ UTC to reduce weekend gap exposure
+        Runs Friday 19:30+ UTC to reduce weekend gap exposure
 
         Actions:
         - Close losing positions (< 0R)
@@ -1627,9 +1630,9 @@ class LiveTradingBot:
         """
         now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
 
-        # Only run Friday 16:00+ UTC
-        if now.weekday() != 4 or now.hour < 16:
-            # Reset flag on non-Friday or before 16:00
+        # Only run Friday 19:30+ UTC
+        if now.weekday() != 4 or not (now.hour > 19 or (now.hour == 19 and now.minute >= 30)):
+            # Reset flag on non-Friday or before 19:30
             if now.weekday() != 4:
                 self.friday_closing_done = False
             return
@@ -1648,13 +1651,33 @@ class LiveTradingBot:
             self.friday_closing_done = True
             return
 
+        # Load friday safety params: optimizer overrides (raw_custom_params) take priority,
+        # then fall back to current_params.json, then to hardcoded defaults.
+        raw_params = self.raw_custom_params
+        if not any(k.startswith('friday_safety_') for k in raw_params):
+            try:
+                from params.params_loader import load_params_dict
+                file_params = load_params_dict()
+                file_params = file_params.get('parameters', file_params)
+                raw_params = {**file_params, **raw_params}
+            except Exception:
+                pass
+        friday_max_per_group = int(raw_params.get('friday_safety_max_per_group', 2))
+        friday_max_total_non_crypto = int(raw_params.get('friday_safety_max_total_non_crypto', 5))
+        friday_r_close_losing = float(raw_params.get('friday_safety_r_close_losing', 0.0))
+        friday_r_new_position = float(raw_params.get('friday_safety_r_new_position', 0.5))
+        friday_reduce_pct = float(raw_params.get('friday_safety_reduce_pct', 0.50))
+
         # Use weekend_gap_manager to select positions
         result = wgm.select_positions_for_weekend_tier1(
             positions=positions,
             mt5_client=self.mt5,
             current_time=now,
-            max_per_group=2,  # Max 2 positions per correlation group
-            max_total_non_crypto=5,  # Max 5 non-crypto positions total
+            max_per_group=friday_max_per_group,
+            max_total_non_crypto=friday_max_total_non_crypto,
+            r_close_losing=friday_r_close_losing,
+            r_new_position=friday_r_new_position,
+            reduce_pct=friday_reduce_pct,
         )
 
         # Execute closures
@@ -1667,11 +1690,11 @@ class LiveTradingBot:
             else:
                 log.error(f"  ✗ Failed to close: {getattr(close_result, 'error', 'unknown')}")
 
-        # Execute 50% reductions
+        # Execute reductions
         for pos in result['REDUCE_50']:
             symbol = get_internal_symbol(pos.symbol)
             current_volume = pos.volume
-            reduce_volume = round(current_volume * 0.5, 2)
+            reduce_volume = round(current_volume * friday_reduce_pct, 2)
 
             if reduce_volume < 0.01:
                 log.info(f"[{symbol}] Volume too small to reduce 50% ({current_volume:.2f}) - skipping")
@@ -5023,7 +5046,7 @@ class LiveTradingBot:
             
             # ═══════════════════════════════════════════════════════════════
             # WEEKEND HANDLING - Same as live bot
-            # Friday 16:00+: Close/reduce positions, pause pending orders
+            # Friday 19:30+: Close/reduce positions, pause pending orders
             # Sunday 22:00+: Gap detection on reopening
             # Monday 01:00+: Resume paused pending orders
             # Saturday + Sunday <22:00: Skip (market closed)
@@ -5031,8 +5054,9 @@ class LiveTradingBot:
             weekday = current_time.weekday()
             hour = current_time.hour
 
-            # Friday 16:00+ UTC: Close/reduce positions for weekend
-            if weekday == 4 and hour >= 16:
+            # Friday 19:30+ UTC: Close/reduce positions for weekend
+            minute = current_time.minute
+            if weekday == 4 and (hour > 19 or (hour == 19 and minute >= 30)):
                 self.handle_friday_position_closing()
 
             # Sunday 22:00+: Gap detection (forex markets reopen)

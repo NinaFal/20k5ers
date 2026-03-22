@@ -5,9 +5,14 @@ Entry-Only Optimizer — Same signals, better entry prices.
 Optimizes ONLY entry_fib_level and entry_limit_offset_atr while keeping
 all other parameters fixed at their current values.
 
+Each trial runs 3 backtest periods and combines the scores:
+  - Jan 2015 – May 2015
+  - Jan 2016 – May 2016
+  - Nov 2019 – Mar 2020
+
 Usage:
+    python backtest/optimize_entry.py --trials 70 -j 4
     python backtest/optimize_entry.py --trials 50 --start 2024-01-01 --end 2024-12-31
-    python backtest/optimize_entry.py --trials 100 --start 2023-01-01 --end 2025-12-31 -j 4
 """
 
 import sys
@@ -35,6 +40,15 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════════════════════════
 ENTRY_FIB_RANGE = (0.5, 0.786)           # 0.5=shallow, 0.786=deep retracement
 ENTRY_OFFSET_ATR_RANGE = (0.0, 0.5)      # 0=no offset, 0.5=aggressive ATR offset
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MULTI-PERIOD CONFIG — 3 periods evaluated per trial
+# ═══════════════════════════════════════════════════════════════════════════════
+MULTI_PERIODS = [
+    ("2015-01-01", "2015-05-31", "Jan–May 2015"),
+    ("2016-01-01", "2016-05-31", "Jan–May 2016"),
+    ("2019-11-01", "2020-03-31", "Nov 2019–Mar 2020"),
+]
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # DEFAULT SYMBOLS — All live bot symbols with data from 2015+
@@ -142,36 +156,8 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float,
     return Result(params=params)
 
 
-def objective(trial: optuna.Trial, base_params: Dict[str, Any],
-              start: str, end: str, balance: float, symbols: str = None) -> float:
-    """Optimize ONLY entry parameters. Everything else is fixed."""
-    params = base_params.copy()
-
-    params['entry_fib_level'] = trial.suggest_float(
-        'entry_fib_level', ENTRY_FIB_RANGE[0], ENTRY_FIB_RANGE[1], step=0.001
-    )
-    params['entry_limit_offset_atr'] = trial.suggest_float(
-        'entry_limit_offset_atr', ENTRY_OFFSET_ATR_RANGE[0], ENTRY_OFFSET_ATR_RANGE[1], step=0.02
-    )
-
-    fib = params['entry_fib_level']
-    offset = params['entry_limit_offset_atr']
-    print(f"\n  Trial {trial.number}: fib={fib:.3f}, offset={offset:.2f}×ATR")
-
-    result = run_backtest(params, start, end, balance, symbols)
-
-    trial.set_user_attr('net_return_pct', result.net_return_pct)
-    trial.set_user_attr('total_trades', result.total_trades)
-    trial.set_user_attr('win_rate', result.win_rate)
-    trial.set_user_attr('max_tdd_pct', result.max_tdd_pct)
-    trial.set_user_attr('max_ddd_pct', result.max_ddd_pct)
-    trial.set_user_attr('ddd_halts', result.ddd_halts)
-    trial.set_user_attr('valid', result.valid)
-
-    print(f"    -> Return: {result.net_return_pct:+.1f}%, Trades: {result.total_trades}, "
-          f"Win: {result.win_rate:.1f}%, TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%")
-
-    # === SCORING (same as main optimizer) ===
+def score_result(result: Result) -> float:
+    """Score a single backtest result."""
     if not result.valid:
         return -1000 - result.max_ddd_pct * 10
     if result.max_ddd_pct >= 5.0:
@@ -192,15 +178,102 @@ def objective(trial: optuna.Trial, base_params: Dict[str, Any],
     return score
 
 
+def objective(trial: optuna.Trial, base_params: Dict[str, Any],
+              start: str, end: str, balance: float, symbols: str = None,
+              multi_period: bool = False) -> float:
+    """Optimize ONLY entry parameters. Everything else is fixed."""
+    params = base_params.copy()
+
+    params['entry_fib_level'] = trial.suggest_float(
+        'entry_fib_level', ENTRY_FIB_RANGE[0], ENTRY_FIB_RANGE[1], step=0.001
+    )
+    params['entry_limit_offset_atr'] = trial.suggest_float(
+        'entry_limit_offset_atr', ENTRY_OFFSET_ATR_RANGE[0], ENTRY_OFFSET_ATR_RANGE[1], step=0.02
+    )
+
+    fib = params['entry_fib_level']
+    offset = params['entry_limit_offset_atr']
+    print(f"\n  Trial {trial.number}: fib={fib:.3f}, offset={offset:.2f}×ATR", flush=True)
+
+    if multi_period:
+        # === MULTI-PERIOD: run 3 periods, average the scores ===
+        period_scores = []
+        total_trades = 0
+        win_rates = []
+        max_tdd = 0.0
+        max_ddd = 0.0
+        total_ddd_halts = 0
+        all_valid = True
+
+        for p_start, p_end, p_label in MULTI_PERIODS:
+            result = run_backtest(params, p_start, p_end, balance, symbols)
+            ps = score_result(result)
+            period_scores.append(ps)
+            total_trades += result.total_trades
+            if result.total_trades > 0:
+                win_rates.append(result.win_rate)
+            max_tdd = max(max_tdd, result.max_tdd_pct)
+            max_ddd = max(max_ddd, result.max_ddd_pct)
+            total_ddd_halts += result.ddd_halts
+            if not result.valid:
+                all_valid = False
+            print(f"    [{p_label}] Return: {result.net_return_pct:+.1f}%, "
+                  f"Trades: {result.total_trades}, WR: {result.win_rate:.1f}%, "
+                  f"TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%", flush=True)
+
+        avg_score = sum(period_scores) / len(period_scores)
+        avg_wr = sum(win_rates) / len(win_rates) if win_rates else 0.0
+
+        trial.set_user_attr('net_return_pct', avg_score)
+        trial.set_user_attr('total_trades', total_trades)
+        trial.set_user_attr('win_rate', avg_wr)
+        trial.set_user_attr('max_tdd_pct', max_tdd)
+        trial.set_user_attr('max_ddd_pct', max_ddd)
+        trial.set_user_attr('ddd_halts', total_ddd_halts)
+        trial.set_user_attr('valid', all_valid)
+        trial.set_user_attr('period_scores', period_scores)
+
+        print(f"    => COMBINED score: {avg_score:.2f} (periods: "
+              f"{', '.join(f'{s:.1f}' for s in period_scores)})", flush=True)
+        return avg_score
+
+    else:
+        # === SINGLE-PERIOD (legacy) ===
+        result = run_backtest(params, start, end, balance, symbols)
+
+        trial.set_user_attr('net_return_pct', result.net_return_pct)
+        trial.set_user_attr('total_trades', result.total_trades)
+        trial.set_user_attr('win_rate', result.win_rate)
+        trial.set_user_attr('max_tdd_pct', result.max_tdd_pct)
+        trial.set_user_attr('max_ddd_pct', result.max_ddd_pct)
+        trial.set_user_attr('ddd_halts', result.ddd_halts)
+        trial.set_user_attr('valid', result.valid)
+
+        print(f"    -> Return: {result.net_return_pct:+.1f}%, Trades: {result.total_trades}, "
+              f"Win: {result.win_rate:.1f}%, TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%",
+              flush=True)
+
+        return score_result(result)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Entry-Only Optimizer')
-    parser.add_argument('--trials', type=int, default=50)
-    parser.add_argument('--start', type=str, default='2024-01-01')
-    parser.add_argument('--end', type=str, default='2024-12-31')
+    parser.add_argument('--trials', type=int, default=70,
+        help='Total trials (default: 70 = 20 startup + 50 TPE)')
+    parser.add_argument('--startup-trials', type=int, default=20,
+        help='Random startup trials before TPE kicks in (default: 20)')
+    parser.add_argument('--start', type=str, default='2024-01-01',
+        help='Ignored in multi-period mode')
+    parser.add_argument('--end', type=str, default='2024-12-31',
+        help='Ignored in multi-period mode')
     parser.add_argument('--balance', type=float, default=20000)
-    parser.add_argument('--parallel', '-j', type=int, default=1)
+    parser.add_argument('--parallel', '-j', type=int, default=4)
     parser.add_argument('--symbols', type=str, default=None,
-        help='Comma-separated symbols. Default: 30 symbols with 2015+ data (no crypto/oil/UK100/NZD_JPY)')
+        help='Comma-separated symbols. Default: 30 symbols with 2015+ data')
+    parser.add_argument('--multi-period', action='store_true', default=True,
+        help='Run 3 periods per trial: Jan-May 2015, Jan-May 2016, Nov2019-Mar2020 (default: ON)')
+    parser.add_argument('--single-period', dest='multi_period', action='store_false',
+        help='Use single --start/--end period instead of multi-period')
     parser.add_argument('--apply', type=str, help='Apply results file to current_params.json')
     args = parser.parse_args()
 
@@ -211,39 +284,50 @@ def main():
     base_params = load_base_params()
 
     print("=" * 70)
-    print("ENTRY-ONLY OPTIMIZER")
+    print("ENTRY-ONLY OPTIMIZER — MULTI-PERIOD" if args.multi_period else "ENTRY-ONLY OPTIMIZER")
     print("=" * 70)
-    print(f"  Trials:  {args.trials}")
-    print(f"  Period:  {args.start} to {args.end}")
-    print(f"  Balance: ${args.balance:,.0f}")
-    print(f"  Workers: {args.parallel}")
+    print(f"  Trials:         {args.trials} total ({args.startup_trials} startup + "
+          f"{args.trials - args.startup_trials} TPE)")
+    print(f"  Workers:        {args.parallel}")
+    print(f"  Balance:        ${args.balance:,.0f} per period")
+    if args.multi_period:
+        print(f"  Periods (x3 per trial):")
+        for p_start, p_end, p_label in MULTI_PERIODS:
+            print(f"    • {p_label}  ({p_start} – {p_end})")
+    else:
+        print(f"  Period:         {args.start} to {args.end}")
     symbols_str = args.symbols or ",".join(DEFAULT_SYMBOLS)
     symbol_list = symbols_str.split(",")
-    print(f"  Fib range:    {ENTRY_FIB_RANGE[0]} - {ENTRY_FIB_RANGE[1]}")
-    print(f"  Offset range: {ENTRY_OFFSET_ATR_RANGE[0]} - {ENTRY_OFFSET_ATR_RANGE[1]} ATR")
-    print(f"  Baseline:     fib={base_params.get('entry_fib_level', 0.618):.3f}, "
+    print(f"  Fib range:      {ENTRY_FIB_RANGE[0]} – {ENTRY_FIB_RANGE[1]}")
+    print(f"  Offset range:   {ENTRY_OFFSET_ATR_RANGE[0]} – {ENTRY_OFFSET_ATR_RANGE[1]} ATR")
+    print(f"  Baseline:       fib={base_params.get('entry_fib_level', 0.618):.3f}, "
           f"offset={base_params.get('entry_limit_offset_atr', 0.0):.2f}")
-    print(f"  Symbols:      {len(symbol_list)} ({', '.join(symbol_list[:5])}...)")
+    print(f"  Symbols:        {len(symbol_list)} ({', '.join(symbol_list[:5])}...)")
     print("  ALL other params: FIXED at current values")
     print("=" * 70)
 
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+
     study = optuna.create_study(
         direction='maximize',
-        sampler=TPESampler(seed=42),
-        study_name=f"entry_optimizer_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+        sampler=TPESampler(n_startup_trials=args.startup_trials, seed=42),
+        study_name=f"entry_multi_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
     )
 
-    # Seed trial 0 with current baseline (fib=0.618, offset=0.0)
+    # Seed trial 0 with current baseline
     study.enqueue_trial({
         'entry_fib_level': base_params.get('entry_fib_level', 0.618),
         'entry_limit_offset_atr': base_params.get('entry_limit_offset_atr', 0.0),
     })
 
     study.optimize(
-        lambda trial: objective(trial, base_params, args.start, args.end, args.balance, symbols_str),
+        lambda trial: objective(
+            trial, base_params, args.start, args.end, args.balance,
+            symbols_str, multi_period=args.multi_period
+        ),
         n_trials=args.trials,
         n_jobs=args.parallel,
-        show_progress_bar=True,
+        show_progress_bar=False,
         catch=(Exception,),
     )
 
@@ -265,45 +349,69 @@ def main():
     # Baseline comparison
     baseline = study.trials[0] if study.trials else None
     if baseline and baseline.number == 0:
-        b_ret = baseline.user_attrs.get('net_return_pct', 0)
+        b_score = baseline.value or 0
         b_wr = baseline.user_attrs.get('win_rate', 0)
-        best_ret = best.user_attrs.get('net_return_pct', 0)
+        best_score = best.value or 0
         best_wr = best.user_attrs.get('win_rate', 0)
-        print(f"\n  BASELINE (0.618/0.0):  {b_ret:+.1f}% return, {b_wr:.1f}% WR")
-        print(f"  BEST ENTRY:            {best_ret:+.1f}% return, {best_wr:.1f}% WR")
-        print(f"  IMPROVEMENT:           {best_ret - b_ret:+.1f}% return")
+        print(f"\n  BASELINE (fib={baseline.params.get('entry_fib_level', 0.618):.3f}, "
+              f"offset={baseline.params.get('entry_limit_offset_atr', 0.0):.2f}):  "
+              f"score={b_score:.2f}, WR={b_wr:.1f}%")
+        print(f"  BEST ENTRY:   score={best_score:.2f}, WR={best_wr:.1f}%")
+        print(f"  IMPROVEMENT:  {best_score - b_score:+.2f} score")
 
     # All trials table
-    print("\n" + "=" * 70)
+    print("\n" + "=" * 80)
     print("ALL TRIALS")
-    print("=" * 70)
-    print(f"{'#':>3} {'Score':>8} {'Fib':>6} {'Offset':>7} {'Return':>8} {'Trades':>7} {'WR%':>6} {'TDD':>6} {'DDD':>6}")
-    print("-" * 70)
-    for t in sorted(study.trials, key=lambda x: x.value if x.value else -999, reverse=True):
-        s = t.value if t.value else -999
-        fib = t.params.get('entry_fib_level', 0)
-        off = t.params.get('entry_limit_offset_atr', 0)
-        ret = t.user_attrs.get('net_return_pct', 0)
-        trades = t.user_attrs.get('total_trades', 0)
-        wr = t.user_attrs.get('win_rate', 0)
-        tdd = t.user_attrs.get('max_tdd_pct', 0)
-        ddd = t.user_attrs.get('max_ddd_pct', 0)
-        marker = " <-- baseline" if t.number == 0 else ""
-        print(f"{t.number:>3} {s:>8.1f} {fib:>6.3f} {off:>6.2f}x {ret:>+7.1f}% {trades:>7} {wr:>5.1f}% {tdd:>5.1f}% {ddd:>5.1f}%{marker}")
-    print("-" * 70)
+    print("=" * 80)
+    if args.multi_period:
+        print(f"{'#':>3} {'Score':>8} {'Fib':>6} {'Offset':>7} {'Trades':>7} {'WR%':>6} "
+              f"{'MaxTDD':>7} {'MaxDDD':>7} {'P1':>7} {'P2':>7} {'P3':>7}")
+        print("-" * 80)
+        for t in sorted(study.trials, key=lambda x: x.value if x.value is not None else -999, reverse=True):
+            s = t.value if t.value is not None else -999
+            fib = t.params.get('entry_fib_level', 0)
+            off = t.params.get('entry_limit_offset_atr', 0)
+            trades = t.user_attrs.get('total_trades', 0)
+            wr = t.user_attrs.get('win_rate', 0)
+            tdd = t.user_attrs.get('max_tdd_pct', 0)
+            ddd = t.user_attrs.get('max_ddd_pct', 0)
+            ps = t.user_attrs.get('period_scores', [0, 0, 0])
+            p1, p2, p3 = (ps + [0, 0, 0])[:3]
+            marker = " <--" if t.number == 0 else ""
+            print(f"{t.number:>3} {s:>8.1f} {fib:>6.3f} {off:>6.2f}x {trades:>7} {wr:>5.1f}% "
+                  f"{tdd:>6.1f}% {ddd:>6.1f}% {p1:>7.1f} {p2:>7.1f} {p3:>7.1f}{marker}")
+    else:
+        print(f"{'#':>3} {'Score':>8} {'Fib':>6} {'Offset':>7} {'Return':>8} {'Trades':>7} {'WR%':>6} {'TDD':>6} {'DDD':>6}")
+        print("-" * 80)
+        for t in sorted(study.trials, key=lambda x: x.value if x.value is not None else -999, reverse=True):
+            s = t.value if t.value is not None else -999
+            fib = t.params.get('entry_fib_level', 0)
+            off = t.params.get('entry_limit_offset_atr', 0)
+            ret = t.user_attrs.get('net_return_pct', 0)
+            trades = t.user_attrs.get('total_trades', 0)
+            wr = t.user_attrs.get('win_rate', 0)
+            tdd = t.user_attrs.get('max_tdd_pct', 0)
+            ddd = t.user_attrs.get('max_ddd_pct', 0)
+            marker = " <-- baseline" if t.number == 0 else ""
+            print(f"{t.number:>3} {s:>8.1f} {fib:>6.3f} {off:>6.2f}x {ret:>+7.1f}% {trades:>7} {wr:>5.1f}% {tdd:>5.1f}% {ddd:>5.1f}%{marker}")
+    print("-" * 80)
 
     # Save results
     output_dir = Path('backtest/optimization_results')
     output_dir.mkdir(parents=True, exist_ok=True)
 
     results = {
-        "optimization_mode": "ENTRY_ONLY",
+        "optimization_mode": "ENTRY_MULTI_PERIOD" if args.multi_period else "ENTRY_ONLY",
         "timestamp": datetime.now().isoformat(),
         "config": {
             "trials": args.trials,
+            "startup_trials": args.startup_trials,
+            "multi_period": args.multi_period,
+            "periods": [{"start": s, "end": e, "label": l} for s, e, l in MULTI_PERIODS] if args.multi_period else None,
             "start": args.start,
             "end": args.end,
             "balance": args.balance,
+            "workers": args.parallel,
             "symbols": symbol_list,
             "fib_range": list(ENTRY_FIB_RANGE),
             "offset_range": list(ENTRY_OFFSET_ATR_RANGE),

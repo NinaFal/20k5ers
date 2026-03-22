@@ -89,16 +89,6 @@ PARAMETER_DEFAULTS: Dict[str, Any] = {
     'sl_after_tp2_r': 0.6,           # SL after TP2 hit (default = tp1_r = 0.6R)
     'sl_after_tp3_r': 0.6,           # SL after TP3 hit (default = tp1_r = 0.6R)
     'sl_after_tp4_r': 1.1,           # SL after TP4 hit (default = tp2_r = 1.1R)
-    'sl_after_tp5_r': 1.8,           # SL after TP5 hit (default = tp3_r = 1.8R)
-    
-    # ═══════════════════════════════════════════════════════════════════════════
-    # PARTIAL EXIT & TRAILING STOP
-    # ═══════════════════════════════════════════════════════════════════════════
-    'partial_exit_at_1r': True,       # Take partial profit at 1R
-    'partial_exit_pct': 0.75,         # Percentage to close at 1R (75%)
-    'trail_activation_r': 0.65,       # Activate trailing stop after this R
-    'atr_trail_multiplier': 1.6,      # ATR multiplier for trail distance
-    'use_atr_trailing': True,         # Enable ATR trailing on runner
     
     # ═══════════════════════════════════════════════════════════════════════════
     # ENTRY REFINEMENT (Optuna-optimizable for better entry prices)

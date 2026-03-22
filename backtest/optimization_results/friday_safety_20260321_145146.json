@@ -1,0 +1,1186 @@
+{
+  "optimization_mode": "FRIDAY_SAFETY",
+  "timestamp": "2026-03-21T14:51:46.970180",
+  "config": {
+    "trials": 50,
+    "start": "2016-01-01",
+    "end": "2016-05-31",
+    "balance": 20000
+  },
+  "baseline_params": {
+    "friday_safety_max_per_group": 2,
+    "friday_safety_max_total_non_crypto": 5,
+    "friday_safety_r_close_losing": 0.0,
+    "friday_safety_r_new_position": 0.5,
+    "friday_safety_r_take_profit": 1.6
+  },
+  "best_score": -2000.0,
+  "best_metrics": {
+    "net_return_pct": -100,
+    "total_trades": 0,
+    "win_rate": 0,
+    "max_tdd_pct": 100,
+    "max_ddd_pct": 100,
+    "safety_events": 0,
+    "valid": false
+  },
+  "best_parameters": {
+    "friday_safety_max_per_group": 2,
+    "friday_safety_max_total_non_crypto": 5,
+    "friday_safety_r_close_losing": 0.0,
+    "friday_safety_r_new_position": 0.5,
+    "friday_safety_r_take_profit": 1.6
+  },
+  "all_trials": [
+    {
+      "trial": 0,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 5,
+        "friday_safety_r_close_losing": 0.0,
+        "friday_safety_r_new_position": 0.5,
+        "friday_safety_r_take_profit": 1.6
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 1,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 1,
+        "friday_safety_max_total_non_crypto": 5,
+        "friday_safety_r_close_losing": -0.25,
+        "friday_safety_r_new_position": 0.5,
+        "friday_safety_r_take_profit": 0.9
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 2,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 4,
+        "friday_safety_max_total_non_crypto": 2,
+        "friday_safety_r_close_losing": 0.0,
+        "friday_safety_r_new_position": 0.75,
+        "friday_safety_r_take_profit": 1.95
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 3,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 6,
+        "friday_safety_r_close_losing": -0.19999999999999996,
+        "friday_safety_r_new_position": 0.55,
+        "friday_safety_r_take_profit": 1.5
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 4,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 5,
+        "friday_safety_r_close_losing": -0.04999999999999999,
+        "friday_safety_r_new_position": 0.25,
+        "friday_safety_r_take_profit": 1.2000000000000002
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 5,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 5,
+        "friday_safety_r_close_losing": 0.10000000000000009,
+        "friday_safety_r_new_position": 0.3500000000000001,
+        "friday_safety_r_take_profit": 3.0
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 6,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 8,
+        "friday_safety_r_close_losing": -0.5,
+        "friday_safety_r_new_position": 0.9500000000000001,
+        "friday_safety_r_take_profit": 1.6500000000000001
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 7,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 1,
+        "friday_safety_r_close_losing": 0.050000000000000044,
+        "friday_safety_r_new_position": 0.45000000000000007,
+        "friday_safety_r_take_profit": 1.8
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 8,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 7,
+        "friday_safety_r_close_losing": -0.4,
+        "friday_safety_r_new_position": 0.5,
+        "friday_safety_r_take_profit": 0.9
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 9,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 4,
+        "friday_safety_r_close_losing": -0.45,
+        "friday_safety_r_new_position": 0.9500000000000001,
+        "friday_safety_r_take_profit": 1.4500000000000002
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 10,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 1,
+        "friday_safety_max_total_non_crypto": 8,
+        "friday_safety_r_close_losing": 0.0,
+        "friday_safety_r_new_position": 0.9500000000000001,
+        "friday_safety_r_take_profit": 2.75
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 11,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 8,
+        "friday_safety_r_close_losing": -0.04999999999999999,
+        "friday_safety_r_new_position": 0.6,
+        "friday_safety_r_take_profit": 2.2
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 12,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 1,
+        "friday_safety_max_total_non_crypto": 3,
+        "friday_safety_r_close_losing": 0.2,
+        "friday_safety_r_new_position": 0.75,
+        "friday_safety_r_take_profit": 2.45
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 13,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 1,
+        "friday_safety_max_total_non_crypto": 3,
+        "friday_safety_r_close_losing": -0.25,
+        "friday_safety_r_new_position": 0.1,
+        "friday_safety_r_take_profit": 0.8
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 14,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 1,
+        "friday_safety_max_total_non_crypto": 3,
+        "friday_safety_r_close_losing": -0.19999999999999996,
+        "friday_safety_r_new_position": 0.7000000000000001,
+        "friday_safety_r_take_profit": 0.9000000000000001
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 15,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 1,
+        "friday_safety_max_total_non_crypto": 4,
+        "friday_safety_r_close_losing": -0.25,
+        "friday_safety_r_new_position": 0.1,
+        "friday_safety_r_take_profit": 0.8
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 16,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 1,
+        "friday_safety_max_total_non_crypto": 6,
+        "friday_safety_r_close_losing": -0.3,
+        "friday_safety_r_new_position": 0.15000000000000002,
+        "friday_safety_r_take_profit": 1.1
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 17,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 6,
+        "friday_safety_r_close_losing": -0.3,
+        "friday_safety_r_new_position": 0.35,
+        "friday_safety_r_take_profit": 1.2000000000000002
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 18,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 6,
+        "friday_safety_r_close_losing": -0.35,
+        "friday_safety_r_new_position": 0.30000000000000004,
+        "friday_safety_r_take_profit": 1.2000000000000002
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 19,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 6,
+        "friday_safety_r_close_losing": -0.09999999999999998,
+        "friday_safety_r_new_position": 0.65,
+        "friday_safety_r_take_profit": 1.25
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 20,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 5,
+        "friday_safety_r_close_losing": -0.09999999999999998,
+        "friday_safety_r_new_position": 0.65,
+        "friday_safety_r_take_profit": 2.0500000000000003
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 21,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 4,
+        "friday_safety_max_total_non_crypto": 4,
+        "friday_safety_r_close_losing": -0.14999999999999997,
+        "friday_safety_r_new_position": 0.65,
+        "friday_safety_r_take_profit": 2.0500000000000003
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 22,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 4,
+        "friday_safety_max_total_non_crypto": 7,
+        "friday_safety_r_close_losing": 0.15000000000000002,
+        "friday_safety_r_new_position": 0.45,
+        "friday_safety_r_take_profit": 1.5
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 23,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 4,
+        "friday_safety_max_total_non_crypto": 1,
+        "friday_safety_r_close_losing": 0.15000000000000002,
+        "friday_safety_r_new_position": 0.8,
+        "friday_safety_r_take_profit": 1.9
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 24,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 4,
+        "friday_safety_max_total_non_crypto": 2,
+        "friday_safety_r_close_losing": 0.050000000000000044,
+        "friday_safety_r_new_position": 0.8,
+        "friday_safety_r_take_profit": 2.3
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 25,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 4,
+        "friday_safety_max_total_non_crypto": 2,
+        "friday_safety_r_close_losing": 0.050000000000000044,
+        "friday_safety_r_new_position": 0.8,
+        "friday_safety_r_take_profit": 2.3
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 26,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 4,
+        "friday_safety_max_total_non_crypto": 2,
+        "friday_safety_r_close_losing": 0.050000000000000044,
+        "friday_safety_r_new_position": 0.8500000000000001,
+        "friday_safety_r_take_profit": 2.25
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 27,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 2,
+        "friday_safety_r_close_losing": 0.0,
+        "friday_safety_r_new_position": 0.85,
+        "friday_safety_r_take_profit": 1.6500000000000001
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 28,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 2,
+        "friday_safety_r_close_losing": -0.04999999999999999,
+        "friday_safety_r_new_position": 0.45000000000000007,
+        "friday_safety_r_take_profit": 1.7000000000000002
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 29,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 5,
+        "friday_safety_r_close_losing": -0.04999999999999999,
+        "friday_safety_r_new_position": 0.45000000000000007,
+        "friday_safety_r_take_profit": 1.7000000000000002
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 30,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 1,
+        "friday_safety_max_total_non_crypto": 5,
+        "friday_safety_r_close_losing": -0.14999999999999997,
+        "friday_safety_r_new_position": 0.55,
+        "friday_safety_r_take_profit": 2.7
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 31,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 5,
+        "friday_safety_r_close_losing": -0.19999999999999996,
+        "friday_safety_r_new_position": 0.55,
+        "friday_safety_r_take_profit": 2.6
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 32,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 4,
+        "friday_safety_r_close_losing": -0.14999999999999997,
+        "friday_safety_r_new_position": 0.55,
+        "friday_safety_r_take_profit": 1.4000000000000001
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 33,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 7,
+        "friday_safety_r_close_losing": -0.14999999999999997,
+        "friday_safety_r_new_position": 0.55,
+        "friday_safety_r_take_profit": 1.4000000000000001
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 34,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 7,
+        "friday_safety_r_close_losing": -0.09999999999999998,
+        "friday_safety_r_new_position": 0.35,
+        "friday_safety_r_take_profit": 1.9000000000000001
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 35,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 7,
+        "friday_safety_r_close_losing": -0.19999999999999996,
+        "friday_safety_r_new_position": 0.4,
+        "friday_safety_r_take_profit": 1.9000000000000001
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 36,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 6,
+        "friday_safety_r_close_losing": -0.09999999999999998,
+        "friday_safety_r_new_position": 0.25,
+        "friday_safety_r_take_profit": 1.5
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 37,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 6,
+        "friday_safety_r_close_losing": -0.35,
+        "friday_safety_r_new_position": 0.2,
+        "friday_safety_r_take_profit": 1.5
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 38,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 6,
+        "friday_safety_r_close_losing": -0.35,
+        "friday_safety_r_new_position": 0.25,
+        "friday_safety_r_take_profit": 1.0
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 39,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 1,
+        "friday_safety_max_total_non_crypto": 4,
+        "friday_safety_r_close_losing": -0.25,
+        "friday_safety_r_new_position": 0.5,
+        "friday_safety_r_take_profit": 1.0
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 40,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 1,
+        "friday_safety_max_total_non_crypto": 4,
+        "friday_safety_r_close_losing": -0.5,
+        "friday_safety_r_new_position": 1.0,
+        "friday_safety_r_take_profit": 1.6
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 41,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 1,
+        "friday_safety_max_total_non_crypto": 4,
+        "friday_safety_r_close_losing": 0.0,
+        "friday_safety_r_new_position": 0.5,
+        "friday_safety_r_take_profit": 2.1
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 42,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 1,
+        "friday_safety_max_total_non_crypto": 5,
+        "friday_safety_r_close_losing": 0.0,
+        "friday_safety_r_new_position": 1.0,
+        "friday_safety_r_take_profit": 3.0
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 43,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 5,
+        "friday_safety_r_close_losing": 0.0,
+        "friday_safety_r_new_position": 0.4,
+        "friday_safety_r_take_profit": 1.3
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 44,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 5,
+        "friday_safety_r_close_losing": 0.10000000000000009,
+        "friday_safety_r_new_position": 0.6000000000000001,
+        "friday_safety_r_take_profit": 3.0
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 45,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 5,
+        "friday_safety_r_close_losing": 0.10000000000000009,
+        "friday_safety_r_new_position": 0.6000000000000001,
+        "friday_safety_r_take_profit": 1.3
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 46,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 3,
+        "friday_safety_max_total_non_crypto": 3,
+        "friday_safety_r_close_losing": 0.10000000000000009,
+        "friday_safety_r_new_position": 0.6000000000000001,
+        "friday_safety_r_take_profit": 1.1
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 47,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 3,
+        "friday_safety_r_close_losing": -0.04999999999999999,
+        "friday_safety_r_new_position": 0.7000000000000001,
+        "friday_safety_r_take_profit": 1.1
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 48,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 3,
+        "friday_safety_r_close_losing": -0.04999999999999999,
+        "friday_safety_r_new_position": 0.7000000000000001,
+        "friday_safety_r_take_profit": 1.1
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    },
+    {
+      "trial": 49,
+      "score": -2000.0,
+      "params": {
+        "friday_safety_max_per_group": 2,
+        "friday_safety_max_total_non_crypto": 1,
+        "friday_safety_r_close_losing": -0.25,
+        "friday_safety_r_new_position": 0.7000000000000001,
+        "friday_safety_r_take_profit": 1.8000000000000003
+      },
+      "metrics": {
+        "net_return_pct": -100,
+        "total_trades": 0,
+        "win_rate": 0,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 0,
+        "safety_events": 0,
+        "final_balance": 20000,
+        "monthly_stats": {},
+        "valid": false
+      }
+    }
+  ]
+}

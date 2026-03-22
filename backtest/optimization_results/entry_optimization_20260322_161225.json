@@ -1,0 +1,1631 @@
+{
+  "optimization_mode": "ENTRY_MULTI_PERIOD",
+  "timestamp": "2026-03-22T16:12:25.802949",
+  "config": {
+    "trials": 70,
+    "startup_trials": 20,
+    "multi_period": true,
+    "periods": [
+      {
+        "start": "2015-01-01",
+        "end": "2015-05-31",
+        "label": "Jan\u2013May 2015"
+      },
+      {
+        "start": "2016-01-01",
+        "end": "2016-05-31",
+        "label": "Jan\u2013May 2016"
+      },
+      {
+        "start": "2019-11-01",
+        "end": "2020-03-31",
+        "label": "Nov 2019\u2013Mar 2020"
+      }
+    ],
+    "start": "2024-01-01",
+    "end": "2024-12-31",
+    "balance": 20000,
+    "workers": 4,
+    "symbols": [
+      "EUR_USD",
+      "GBP_USD",
+      "USD_JPY",
+      "USD_CHF",
+      "USD_CAD",
+      "AUD_USD",
+      "NZD_USD",
+      "EUR_GBP",
+      "EUR_JPY",
+      "EUR_CHF",
+      "EUR_AUD",
+      "EUR_CAD",
+      "EUR_NZD",
+      "GBP_JPY",
+      "GBP_CHF",
+      "GBP_AUD",
+      "GBP_CAD",
+      "GBP_NZD",
+      "AUD_JPY",
+      "AUD_CHF",
+      "AUD_CAD",
+      "AUD_NZD",
+      "NZD_CHF",
+      "NZD_CAD",
+      "CAD_JPY",
+      "CAD_CHF",
+      "CHF_JPY",
+      "XAU_USD",
+      "XAG_USD",
+      "NAS100_USD"
+    ],
+    "fib_range": [
+      0.5,
+      0.786
+    ],
+    "offset_range": [
+      0.0,
+      0.5
+    ]
+  },
+  "best_score": 274.88375666666667,
+  "best_parameters": {
+    "entry_fib_level": 0.636,
+    "entry_limit_offset_atr": 0.0
+  },
+  "best_metrics": {
+    "net_return_pct": 274.88375666666667,
+    "total_trades": 845,
+    "win_rate": 66.63333333333334,
+    "max_tdd_pct": 0.01,
+    "max_ddd_pct": 3.99,
+    "ddd_halts": 30,
+    "valid": true,
+    "period_scores": [
+      194.61782499999998,
+      308.0254,
+      322.00804500000004
+    ]
+  },
+  "all_trials": [
+    {
+      "trial": 0,
+      "score": 219.12593,
+      "params": {
+        "entry_fib_level": 0.56,
+        "entry_limit_offset_atr": 0.17
+      },
+      "metrics": {
+        "net_return_pct": 219.12593,
+        "total_trades": 826,
+        "win_rate": 64.60000000000001,
+        "max_tdd_pct": 0.41,
+        "max_ddd_pct": 4.68,
+        "ddd_halts": 34,
+        "valid": true,
+        "period_scores": [
+          178.4297,
+          196.21825,
+          282.72983999999997
+        ]
+      }
+    },
+    {
+      "trial": 1,
+      "score": -528.1491233333334,
+      "params": {
+        "entry_fib_level": 0.552,
+        "entry_limit_offset_atr": 0.2
+      },
+      "metrics": {
+        "net_return_pct": -528.1491233333334,
+        "total_trades": 583,
+        "win_rate": 62.1,
+        "max_tdd_pct": 100,
+        "max_ddd_pct": 100,
+        "ddd_halts": 29,
+        "valid": false,
+        "period_scores": [
+          -2000,
+          183.33661500000002,
+          232.216015
+        ]
+      }
+    },
+    {
+      "trial": 2,
+      "score": -259.42320666666666,
+      "params": {
+        "entry_fib_level": 0.599,
+        "entry_limit_offset_atr": 0.48
+      },
+      "metrics": {
+        "net_return_pct": -259.42320666666666,
+        "total_trades": 582,
+        "win_rate": 65.76666666666667,
+        "max_tdd_pct": 2.87,
+        "max_ddd_pct": 6.49,
+        "ddd_halts": 27,
+        "valid": false,
+        "period_scores": [
+          138.95391999999998,
+          147.67646000000002,
+          -1064.9
+        ]
+      }
+    },
+    {
+      "trial": 3,
+      "score": 189.64841666666666,
+      "params": {
+        "entry_fib_level": 0.714,
+        "entry_limit_offset_atr": 0.14
+      },
+      "metrics": {
+        "net_return_pct": 189.64841666666666,
+        "total_trades": 616,
+        "win_rate": 68.56666666666666,
+        "max_tdd_pct": 2.44,
+        "max_ddd_pct": 4.68,
+        "ddd_halts": 27,
+        "valid": true,
+        "period_scores": [
+          167.17994000000002,
+          247.45193999999998,
+          154.31337000000002
+        ]
+      }
+    },
+    {
+      "trial": 4,
+      "score": 224.91531833333337,
+      "params": {
+        "entry_fib_level": 0.554,
+        "entry_limit_offset_atr": 0.1
+      },
+      "metrics": {
+        "net_return_pct": 224.91531833333337,
+        "total_trades": 881,
+        "win_rate": 64.3,
+        "max_tdd_pct": 4.49,
+        "max_ddd_pct": 4.07,
+        "ddd_halts": 33,
+        "valid": true,
+        "period_scores": [
+          176.15783000000002,
+          141.390935,
+          357.19719000000003
+        ]
+      }
+    },
+    {
+      "trial": 5,
+      "score": 214.11570833333334,
+      "params": {
+        "entry_fib_level": 0.624,
+        "entry_limit_offset_atr": 0.08
+      },
+      "metrics": {
+        "net_return_pct": 214.11570833333334,
+        "total_trades": 801,
+        "win_rate": 65.13333333333333,
+        "max_tdd_pct": 0.23,
+        "max_ddd_pct": 4.3,
+        "ddd_halts": 35,
+        "valid": true,
+        "period_scores": [
+          167.818125,
+          220.77446999999998,
+          253.75453
+        ]
+      }
+    },
+    {
+      "trial": 6,
+      "score": -219.94974,
+      "params": {
+        "entry_fib_level": 0.571,
+        "entry_limit_offset_atr": 0.1
+      },
+      "metrics": {
+        "net_return_pct": -219.94974,
+        "total_trades": 880,
+        "win_rate": 65.3,
+        "max_tdd_pct": 2.73,
+        "max_ddd_pct": 5.03,
+        "ddd_halts": 34,
+        "valid": false,
+        "period_scores": [
+          178.07204,
+          212.37874,
+          -1050.3
+        ]
+      }
+    },
+    {
+      "trial": 7,
+      "score": 223.24992833333332,
+      "params": {
+        "entry_fib_level": 0.59,
+        "entry_limit_offset_atr": 0.12
+      },
+      "metrics": {
+        "net_return_pct": 223.24992833333332,
+        "total_trades": 827,
+        "win_rate": 64.76666666666667,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 4.22,
+        "ddd_halts": 34,
+        "valid": true,
+        "period_scores": [
+          172.69253999999998,
+          209.38914,
+          287.668105
+        ]
+      }
+    },
+    {
+      "trial": 8,
+      "score": -252.91539833333334,
+      "params": {
+        "entry_fib_level": 0.714,
+        "entry_limit_offset_atr": 0.36
+      },
+      "metrics": {
+        "net_return_pct": -252.91539833333334,
+        "total_trades": 486,
+        "win_rate": 68.03333333333333,
+        "max_tdd_pct": 2.32,
+        "max_ddd_pct": 5.07,
+        "ddd_halts": 25,
+        "valid": false,
+        "period_scores": [
+          -1050.7,
+          109.621685,
+          182.33212
+        ]
+      }
+    },
+    {
+      "trial": 9,
+      "score": -243.46082166666665,
+      "params": {
+        "entry_fib_level": 0.73,
+        "entry_limit_offset_atr": 0.24
+      },
+      "metrics": {
+        "net_return_pct": -243.46082166666665,
+        "total_trades": 556,
+        "win_rate": 66.53333333333332,
+        "max_tdd_pct": 5.02,
+        "max_ddd_pct": 5.48,
+        "ddd_halts": 29,
+        "valid": false,
+        "period_scores": [
+          -1054.8,
+          135.84985,
+          188.567685
+        ]
+      }
+    },
+    {
+      "trial": 10,
+      "score": -266.904485,
+      "params": {
+        "entry_fib_level": 0.6930000000000001,
+        "entry_limit_offset_atr": 0.42
+      },
+      "metrics": {
+        "net_return_pct": -266.904485,
+        "total_trades": 479,
+        "win_rate": 66.46666666666665,
+        "max_tdd_pct": 4.07,
+        "max_ddd_pct": 5.49,
+        "ddd_halts": 27,
+        "valid": false,
+        "period_scores": [
+          110.14896,
+          -1054.9,
+          144.03758499999998
+        ]
+      }
+    },
+    {
+      "trial": 11,
+      "score": -219.20314166666665,
+      "params": {
+        "entry_fib_level": 0.503,
+        "entry_limit_offset_atr": 0.08
+      },
+      "metrics": {
+        "net_return_pct": -219.20314166666665,
+        "total_trades": 994,
+        "win_rate": 62.70000000000001,
+        "max_tdd_pct": 1.68,
+        "max_ddd_pct": 6.23,
+        "ddd_halts": 37,
+        "valid": false,
+        "period_scores": [
+          197.60784,
+          207.08273499999999,
+          -1062.3
+        ]
+      }
+    },
+    {
+      "trial": 12,
+      "score": -257.98299,
+      "params": {
+        "entry_fib_level": 0.784,
+        "entry_limit_offset_atr": 0.28
+      },
+      "metrics": {
+        "net_return_pct": -257.98299,
+        "total_trades": 470,
+        "win_rate": 66.53333333333335,
+        "max_tdd_pct": 4.36,
+        "max_ddd_pct": 5.06,
+        "ddd_halts": 24,
+        "valid": false,
+        "period_scores": [
+          146.50449,
+          -1050.6,
+          130.14654000000002
+        ]
+      }
+    },
+    {
+      "trial": 13,
+      "score": -240.49962333333335,
+      "params": {
+        "entry_fib_level": 0.503,
+        "entry_limit_offset_atr": 0.1
+      },
+      "metrics": {
+        "net_return_pct": -240.49962333333335,
+        "total_trades": 980,
+        "win_rate": 62.333333333333336,
+        "max_tdd_pct": 5.13,
+        "max_ddd_pct": 5.25,
+        "ddd_halts": 36,
+        "valid": false,
+        "period_scores": [
+          157.75025,
+          173.25088,
+          -1052.5
+        ]
+      }
+    },
+    {
+      "trial": 14,
+      "score": 216.04813666666666,
+      "params": {
+        "entry_fib_level": 0.542,
+        "entry_limit_offset_atr": 0.2
+      },
+      "metrics": {
+        "net_return_pct": 216.04813666666666,
+        "total_trades": 830,
+        "win_rate": 63.833333333333336,
+        "max_tdd_pct": 0.07,
+        "max_ddd_pct": 4.3,
+        "ddd_halts": 34,
+        "valid": true,
+        "period_scores": [
+          180.2891,
+          178.5947,
+          289.26061000000004
+        ]
+      }
+    },
+    {
+      "trial": 15,
+      "score": 163.445705,
+      "params": {
+        "entry_fib_level": 0.6779999999999999,
+        "entry_limit_offset_atr": 0.28
+      },
+      "metrics": {
+        "net_return_pct": 163.445705,
+        "total_trades": 592,
+        "win_rate": 67.3,
+        "max_tdd_pct": 2.85,
+        "max_ddd_pct": 4.96,
+        "ddd_halts": 28,
+        "valid": true,
+        "period_scores": [
+          175.439515,
+          149.6768,
+          165.2208
+        ]
+      }
+    },
+    {
+      "trial": 16,
+      "score": -285.577305,
+      "params": {
+        "entry_fib_level": 0.784,
+        "entry_limit_offset_atr": 0.38
+      },
+      "metrics": {
+        "net_return_pct": -285.577305,
+        "total_trades": 407,
+        "win_rate": 62.79999999999999,
+        "max_tdd_pct": 4.42,
+        "max_ddd_pct": 5.24,
+        "ddd_halts": 23,
+        "valid": false,
+        "period_scores": [
+          120.36291999999999,
+          -1052.4,
+          75.30516499999999
+        ]
+      }
+    },
+    {
+      "trial": 17,
+      "score": -281.941025,
+      "params": {
+        "entry_fib_level": 0.696,
+        "entry_limit_offset_atr": 0.28
+      },
+      "metrics": {
+        "net_return_pct": -281.941025,
+        "total_trades": 572,
+        "win_rate": 65.33333333333333,
+        "max_tdd_pct": 6.89,
+        "max_ddd_pct": 6.7,
+        "ddd_halts": 28,
+        "valid": false,
+        "period_scores": [
+          85.86350000000002,
+          -1067.0,
+          135.313425
+        ]
+      }
+    },
+    {
+      "trial": 18,
+      "score": 83.48714666666666,
+      "params": {
+        "entry_fib_level": 0.73,
+        "entry_limit_offset_atr": 0.44
+      },
+      "metrics": {
+        "net_return_pct": 83.48714666666666,
+        "total_trades": 429,
+        "win_rate": 64.33333333333333,
+        "max_tdd_pct": 6.26,
+        "max_ddd_pct": 4.96,
+        "ddd_halts": 23,
+        "valid": true,
+        "period_scores": [
+          72.16787500000001,
+          92.116625,
+          86.17693999999999
+        ]
+      }
+    },
+    {
+      "trial": 19,
+      "score": -253.3012183333333,
+      "params": {
+        "entry_fib_level": 0.589,
+        "entry_limit_offset_atr": 0.46
+      },
+      "metrics": {
+        "net_return_pct": -253.3012183333333,
+        "total_trades": 617,
+        "win_rate": 63.833333333333336,
+        "max_tdd_pct": 1.35,
+        "max_ddd_pct": 5.5,
+        "ddd_halts": 30,
+        "valid": false,
+        "period_scores": [
+          135.23512,
+          159.86122500000002,
+          -1055.0
+        ]
+      }
+    },
+    {
+      "trial": 20,
+      "score": -269.4183233333334,
+      "params": {
+        "entry_fib_level": 0.739,
+        "entry_limit_offset_atr": 0.46
+      },
+      "metrics": {
+        "net_return_pct": -269.4183233333334,
+        "total_trades": 413,
+        "win_rate": 65.5,
+        "max_tdd_pct": 4.6,
+        "max_ddd_pct": 5.49,
+        "ddd_halts": 21,
+        "valid": false,
+        "period_scores": [
+          137.49584000000002,
+          -1054.9,
+          109.14918999999999
+        ]
+      }
+    },
+    {
+      "trial": 21,
+      "score": -249.25808333333336,
+      "params": {
+        "entry_fib_level": 0.6,
+        "entry_limit_offset_atr": 0.38
+      },
+      "metrics": {
+        "net_return_pct": -249.25808333333336,
+        "total_trades": 622,
+        "win_rate": 65.53333333333333,
+        "max_tdd_pct": 1.73,
+        "max_ddd_pct": 5.99,
+        "ddd_halts": 28,
+        "valid": false,
+        "period_scores": [
+          172.9336,
+          139.19215000000003,
+          -1059.9
+        ]
+      }
+    },
+    {
+      "trial": 22,
+      "score": 191.14243166666665,
+      "params": {
+        "entry_fib_level": 0.554,
+        "entry_limit_offset_atr": 0.32
+      },
+      "metrics": {
+        "net_return_pct": 191.14243166666665,
+        "total_trades": 731,
+        "win_rate": 65.7,
+        "max_tdd_pct": 0.64,
+        "max_ddd_pct": 4.42,
+        "ddd_halts": 33,
+        "valid": true,
+        "period_scores": [
+          143.64682,
+          215.914125,
+          213.86635
+        ]
+      }
+    },
+    {
+      "trial": 23,
+      "score": 240.34591166666667,
+      "params": {
+        "entry_fib_level": 0.641,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 240.34591166666667,
+        "total_trades": 829,
+        "win_rate": 65.56666666666666,
+        "max_tdd_pct": 0.27,
+        "max_ddd_pct": 4.26,
+        "ddd_halts": 30,
+        "valid": true,
+        "period_scores": [
+          170.78993999999997,
+          231.876865,
+          318.37093000000004
+        ]
+      }
+    },
+    {
+      "trial": 24,
+      "score": 264.80069499999996,
+      "params": {
+        "entry_fib_level": 0.632,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 264.80069499999996,
+        "total_trades": 847,
+        "win_rate": 66.60000000000001,
+        "max_tdd_pct": 0.02,
+        "max_ddd_pct": 3.99,
+        "ddd_halts": 29,
+        "valid": true,
+        "period_scores": [
+          177.096105,
+          281.33744,
+          335.96853999999996
+        ]
+      }
+    },
+    {
+      "trial": 25,
+      "score": 249.97880333333333,
+      "params": {
+        "entry_fib_level": 0.643,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 249.97880333333333,
+        "total_trades": 856,
+        "win_rate": 64.53333333333333,
+        "max_tdd_pct": 0.31,
+        "max_ddd_pct": 4.08,
+        "ddd_halts": 36,
+        "valid": true,
+        "period_scores": [
+          192.93748,
+          197.02578,
+          359.97315
+        ]
+      }
+    },
+    {
+      "trial": 26,
+      "score": 249.38339333333337,
+      "params": {
+        "entry_fib_level": 0.64,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 249.38339333333337,
+        "total_trades": 838,
+        "win_rate": 65.96666666666665,
+        "max_tdd_pct": 0.28,
+        "max_ddd_pct": 4.32,
+        "ddd_halts": 31,
+        "valid": true,
+        "period_scores": [
+          175.21347,
+          231.92143000000002,
+          341.01528
+        ]
+      }
+    },
+    {
+      "trial": 27,
+      "score": 274.88375666666667,
+      "params": {
+        "entry_fib_level": 0.636,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 274.88375666666667,
+        "total_trades": 845,
+        "win_rate": 66.63333333333334,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 3.99,
+        "ddd_halts": 30,
+        "valid": true,
+        "period_scores": [
+          194.61782499999998,
+          308.0254,
+          322.00804500000004
+        ]
+      }
+    },
+    {
+      "trial": 28,
+      "score": 205.8998466666667,
+      "params": {
+        "entry_fib_level": 0.651,
+        "entry_limit_offset_atr": 0.04
+      },
+      "metrics": {
+        "net_return_pct": 205.8998466666667,
+        "total_trades": 788,
+        "win_rate": 65.36666666666667,
+        "max_tdd_pct": 0.12,
+        "max_ddd_pct": 4.3,
+        "ddd_halts": 33,
+        "valid": true,
+        "period_scores": [
+          160.54288,
+          222.22761000000006,
+          234.92905000000002
+        ]
+      }
+    },
+    {
+      "trial": 29,
+      "score": 220.69117666666668,
+      "params": {
+        "entry_fib_level": 0.655,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 220.69117666666668,
+        "total_trades": 829,
+        "win_rate": 64.8,
+        "max_tdd_pct": 0.21,
+        "max_ddd_pct": 4.34,
+        "ddd_halts": 35,
+        "valid": true,
+        "period_scores": [
+          153.89952,
+          233.45275999999998,
+          274.72125000000005
+        ]
+      }
+    },
+    {
+      "trial": 30,
+      "score": 202.75843833333332,
+      "params": {
+        "entry_fib_level": 0.662,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 202.75843833333332,
+        "total_trades": 802,
+        "win_rate": 64.43333333333334,
+        "max_tdd_pct": 0.15,
+        "max_ddd_pct": 4.09,
+        "ddd_halts": 35,
+        "valid": true,
+        "period_scores": [
+          154.07932,
+          206.827025,
+          247.36897
+        ]
+      }
+    },
+    {
+      "trial": 31,
+      "score": 211.81687499999998,
+      "params": {
+        "entry_fib_level": 0.667,
+        "entry_limit_offset_atr": 0.04
+      },
+      "metrics": {
+        "net_return_pct": 211.81687499999998,
+        "total_trades": 744,
+        "win_rate": 67.33333333333333,
+        "max_tdd_pct": 0.12,
+        "max_ddd_pct": 4.78,
+        "ddd_halts": 29,
+        "valid": true,
+        "period_scores": [
+          212.41018,
+          209.65328499999998,
+          213.38716
+        ]
+      }
+    },
+    {
+      "trial": 32,
+      "score": 217.39823166666665,
+      "params": {
+        "entry_fib_level": 0.667,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 217.39823166666665,
+        "total_trades": 791,
+        "win_rate": 65.93333333333332,
+        "max_tdd_pct": 0.12,
+        "max_ddd_pct": 4.06,
+        "ddd_halts": 32,
+        "valid": true,
+        "period_scores": [
+          186.22532,
+          203.57797499999998,
+          262.3914
+        ]
+      }
+    },
+    {
+      "trial": 33,
+      "score": 274.61761666666666,
+      "params": {
+        "entry_fib_level": 0.621,
+        "entry_limit_offset_atr": 0.04
+      },
+      "metrics": {
+        "net_return_pct": 274.61761666666666,
+        "total_trades": 862,
+        "win_rate": 65.96666666666667,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 4.1,
+        "ddd_halts": 33,
+        "valid": true,
+        "period_scores": [
+          206.04626,
+          278.56251,
+          339.24408000000005
+        ]
+      }
+    },
+    {
+      "trial": 34,
+      "score": 243.13163,
+      "params": {
+        "entry_fib_level": 0.624,
+        "entry_limit_offset_atr": 0.04
+      },
+      "metrics": {
+        "net_return_pct": 243.13163,
+        "total_trades": 858,
+        "win_rate": 65.3,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 3.86,
+        "ddd_halts": 36,
+        "valid": true,
+        "period_scores": [
+          185.1924,
+          256.42445,
+          287.77804000000003
+        ]
+      }
+    },
+    {
+      "trial": 35,
+      "score": 242.66406666666663,
+      "params": {
+        "entry_fib_level": 0.625,
+        "entry_limit_offset_atr": 0.04
+      },
+      "metrics": {
+        "net_return_pct": 242.66406666666663,
+        "total_trades": 866,
+        "win_rate": 64.93333333333334,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 4.07,
+        "ddd_halts": 37,
+        "valid": true,
+        "period_scores": [
+          172.45229999999998,
+          224.10019999999997,
+          331.43969999999996
+        ]
+      }
+    },
+    {
+      "trial": 36,
+      "score": 210.07322833333333,
+      "params": {
+        "entry_fib_level": 0.628,
+        "entry_limit_offset_atr": 0.06
+      },
+      "metrics": {
+        "net_return_pct": 210.07322833333333,
+        "total_trades": 826,
+        "win_rate": 64.96666666666667,
+        "max_tdd_pct": 0.26,
+        "max_ddd_pct": 4.29,
+        "ddd_halts": 37,
+        "valid": true,
+        "period_scores": [
+          186.81742,
+          224.29662500000003,
+          219.10564000000002
+        ]
+      }
+    },
+    {
+      "trial": 37,
+      "score": -209.13326166666664,
+      "params": {
+        "entry_fib_level": 0.613,
+        "entry_limit_offset_atr": 0.16
+      },
+      "metrics": {
+        "net_return_pct": -209.13326166666664,
+        "total_trades": 778,
+        "win_rate": 66.46666666666665,
+        "max_tdd_pct": 0.11,
+        "max_ddd_pct": 5.43,
+        "ddd_halts": 34,
+        "valid": false,
+        "period_scores": [
+          195.70080000000002,
+          231.199415,
+          -1054.3
+        ]
+      }
+    },
+    {
+      "trial": 38,
+      "score": 203.30840666666666,
+      "params": {
+        "entry_fib_level": 0.617,
+        "entry_limit_offset_atr": 0.16
+      },
+      "metrics": {
+        "net_return_pct": 203.30840666666666,
+        "total_trades": 760,
+        "win_rate": 66.2,
+        "max_tdd_pct": 0.11,
+        "max_ddd_pct": 4.93,
+        "ddd_halts": 33,
+        "valid": true,
+        "period_scores": [
+          184.27479000000002,
+          219.43999,
+          206.21043999999998
+        ]
+      }
+    },
+    {
+      "trial": 39,
+      "score": -212.47889499999997,
+      "params": {
+        "entry_fib_level": 0.61,
+        "entry_limit_offset_atr": 0.14
+      },
+      "metrics": {
+        "net_return_pct": -212.47889499999997,
+        "total_trades": 793,
+        "win_rate": 66.93333333333334,
+        "max_tdd_pct": 0.16,
+        "max_ddd_pct": 5.46,
+        "ddd_halts": 34,
+        "valid": false,
+        "period_scores": [
+          184.99009999999998,
+          232.173215,
+          -1054.6
+        ]
+      }
+    },
+    {
+      "trial": 40,
+      "score": -212.34969333333333,
+      "params": {
+        "entry_fib_level": 0.609,
+        "entry_limit_offset_atr": 0.16
+      },
+      "metrics": {
+        "net_return_pct": -212.34969333333333,
+        "total_trades": 787,
+        "win_rate": 66.33333333333333,
+        "max_tdd_pct": 0.11,
+        "max_ddd_pct": 5.38,
+        "ddd_halts": 36,
+        "valid": false,
+        "period_scores": [
+          192.9145,
+          223.83641999999998,
+          -1053.8
+        ]
+      }
+    },
+    {
+      "trial": 41,
+      "score": -221.28904333333332,
+      "params": {
+        "entry_fib_level": 0.607,
+        "entry_limit_offset_atr": 0.14
+      },
+      "metrics": {
+        "net_return_pct": -221.28904333333332,
+        "total_trades": 816,
+        "win_rate": 65.46666666666667,
+        "max_tdd_pct": 0.18,
+        "max_ddd_pct": 5.56,
+        "ddd_halts": 38,
+        "valid": false,
+        "period_scores": [
+          177.99164,
+          213.74122999999997,
+          -1055.6
+        ]
+      }
+    },
+    {
+      "trial": 42,
+      "score": -215.06623999999996,
+      "params": {
+        "entry_fib_level": 0.581,
+        "entry_limit_offset_atr": 0.08
+      },
+      "metrics": {
+        "net_return_pct": -215.06623999999996,
+        "total_trades": 856,
+        "win_rate": 65.89999999999999,
+        "max_tdd_pct": 2.85,
+        "max_ddd_pct": 5.01,
+        "ddd_halts": 31,
+        "valid": false,
+        "period_scores": [
+          187.3871,
+          217.51417999999998,
+          -1050.1
+        ]
+      }
+    },
+    {
+      "trial": 43,
+      "score": -218.51808166666663,
+      "params": {
+        "entry_fib_level": 0.579,
+        "entry_limit_offset_atr": 0.08
+      },
+      "metrics": {
+        "net_return_pct": -218.51808166666663,
+        "total_trades": 842,
+        "win_rate": 66.10000000000001,
+        "max_tdd_pct": 2.72,
+        "max_ddd_pct": 5.03,
+        "ddd_halts": 30,
+        "valid": false,
+        "period_scores": [
+          182.81746,
+          211.928295,
+          -1050.3
+        ]
+      }
+    },
+    {
+      "trial": 44,
+      "score": 217.38102,
+      "params": {
+        "entry_fib_level": 0.641,
+        "entry_limit_offset_atr": 0.06
+      },
+      "metrics": {
+        "net_return_pct": 217.38102,
+        "total_trades": 766,
+        "win_rate": 66.3,
+        "max_tdd_pct": 0.15,
+        "max_ddd_pct": 4.28,
+        "ddd_halts": 29,
+        "valid": true,
+        "period_scores": [
+          163.38863,
+          239.22175000000001,
+          249.53268
+        ]
+      }
+    },
+    {
+      "trial": 45,
+      "score": 204.39889000000002,
+      "params": {
+        "entry_fib_level": 0.642,
+        "entry_limit_offset_atr": 0.08
+      },
+      "metrics": {
+        "net_return_pct": 204.39889000000002,
+        "total_trades": 735,
+        "win_rate": 66.83333333333333,
+        "max_tdd_pct": 0.11,
+        "max_ddd_pct": 4.9,
+        "ddd_halts": 29,
+        "valid": true,
+        "period_scores": [
+          181.4728,
+          215.26143000000002,
+          216.46244
+        ]
+      }
+    },
+    {
+      "trial": 46,
+      "score": 263.31605833333333,
+      "params": {
+        "entry_fib_level": 0.635,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 263.31605833333333,
+        "total_trades": 845,
+        "win_rate": 66.2,
+        "max_tdd_pct": 0.01,
+        "max_ddd_pct": 3.88,
+        "ddd_halts": 32,
+        "valid": true,
+        "period_scores": [
+          180.21452,
+          248.49337500000001,
+          361.24028
+        ]
+      }
+    },
+    {
+      "trial": 47,
+      "score": 242.226365,
+      "params": {
+        "entry_fib_level": 0.638,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 242.226365,
+        "total_trades": 843,
+        "win_rate": 65.16666666666667,
+        "max_tdd_pct": 0.29,
+        "max_ddd_pct": 4.16,
+        "ddd_halts": 34,
+        "valid": true,
+        "period_scores": [
+          169.2062,
+          209.624715,
+          347.84817999999996
+        ]
+      }
+    },
+    {
+      "trial": 48,
+      "score": 244.45627666666667,
+      "params": {
+        "entry_fib_level": 0.637,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 244.45627666666667,
+        "total_trades": 846,
+        "win_rate": 65.26666666666667,
+        "max_tdd_pct": 0.3,
+        "max_ddd_pct": 4.24,
+        "ddd_halts": 34,
+        "valid": true,
+        "period_scores": [
+          169.4922,
+          214.54363999999998,
+          349.33299
+        ]
+      }
+    },
+    {
+      "trial": 49,
+      "score": -209.14368666666664,
+      "params": {
+        "entry_fib_level": 0.687,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": -209.14368666666664,
+        "total_trades": 747,
+        "win_rate": 67.7,
+        "max_tdd_pct": 0.13,
+        "max_ddd_pct": 5.83,
+        "ddd_halts": 30,
+        "valid": false,
+        "period_scores": [
+          220.3469,
+          210.52204,
+          -1058.3
+        ]
+      }
+    },
+    {
+      "trial": 50,
+      "score": 216.55187833333335,
+      "params": {
+        "entry_fib_level": 0.6779999999999999,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 216.55187833333335,
+        "total_trades": 747,
+        "win_rate": 67.7,
+        "max_tdd_pct": 0.12,
+        "max_ddd_pct": 4.87,
+        "ddd_halts": 30,
+        "valid": true,
+        "period_scores": [
+          231.67476,
+          228.82964,
+          189.151235
+        ]
+      }
+    },
+    {
+      "trial": 51,
+      "score": 233.55233166666667,
+      "params": {
+        "entry_fib_level": 0.653,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 233.55233166666667,
+        "total_trades": 828,
+        "win_rate": 64.89999999999999,
+        "max_tdd_pct": 0.23,
+        "max_ddd_pct": 4.34,
+        "ddd_halts": 34,
+        "valid": true,
+        "period_scores": [
+          165.288275,
+          252.83960000000002,
+          282.52912000000003
+        ]
+      }
+    },
+    {
+      "trial": 52,
+      "score": -209.72760833333336,
+      "params": {
+        "entry_fib_level": 0.654,
+        "entry_limit_offset_atr": 0.12
+      },
+      "metrics": {
+        "net_return_pct": -209.72760833333336,
+        "total_trades": 716,
+        "win_rate": 66.26666666666667,
+        "max_tdd_pct": 0.13,
+        "max_ddd_pct": 5.92,
+        "ddd_halts": 30,
+        "valid": false,
+        "period_scores": [
+          206.60049999999998,
+          223.41667500000003,
+          -1059.2
+        ]
+      }
+    },
+    {
+      "trial": 53,
+      "score": -227.10547999999997,
+      "params": {
+        "entry_fib_level": 0.677,
+        "entry_limit_offset_atr": 0.12
+      },
+      "metrics": {
+        "net_return_pct": -227.10547999999997,
+        "total_trades": 691,
+        "win_rate": 65.7,
+        "max_tdd_pct": 0.58,
+        "max_ddd_pct": 6.48,
+        "ddd_halts": 29,
+        "valid": false,
+        "period_scores": [
+          183.67876,
+          199.8048,
+          -1064.8
+        ]
+      }
+    },
+    {
+      "trial": 54,
+      "score": 211.34403333333333,
+      "params": {
+        "entry_fib_level": 0.652,
+        "entry_limit_offset_atr": 0.06
+      },
+      "metrics": {
+        "net_return_pct": 211.34403333333333,
+        "total_trades": 772,
+        "win_rate": 65.80000000000001,
+        "max_tdd_pct": 0.12,
+        "max_ddd_pct": 4.87,
+        "ddd_halts": 33,
+        "valid": true,
+        "period_scores": [
+          196.67759999999998,
+          196.90596000000002,
+          240.44853999999998
+        ]
+      }
+    },
+    {
+      "trial": 55,
+      "score": 199.14424,
+      "params": {
+        "entry_fib_level": 0.63,
+        "entry_limit_offset_atr": 0.06
+      },
+      "metrics": {
+        "net_return_pct": 199.14424,
+        "total_trades": 814,
+        "win_rate": 63.833333333333336,
+        "max_tdd_pct": 0.24,
+        "max_ddd_pct": 4.24,
+        "ddd_halts": 37,
+        "valid": true,
+        "period_scores": [
+          173.74928,
+          205.57768000000002,
+          218.10575999999998
+        ]
+      }
+    },
+    {
+      "trial": 56,
+      "score": 197.21561,
+      "params": {
+        "entry_fib_level": 0.631,
+        "entry_limit_offset_atr": 0.06
+      },
+      "metrics": {
+        "net_return_pct": 197.21561,
+        "total_trades": 813,
+        "win_rate": 63.53333333333334,
+        "max_tdd_pct": 0.23,
+        "max_ddd_pct": 4.29,
+        "ddd_halts": 37,
+        "valid": true,
+        "period_scores": [
+          158.57592,
+          211.44025,
+          221.63066
+        ]
+      }
+    },
+    {
+      "trial": 57,
+      "score": 207.90324833333332,
+      "params": {
+        "entry_fib_level": 0.627,
+        "entry_limit_offset_atr": 0.06
+      },
+      "metrics": {
+        "net_return_pct": 207.90324833333332,
+        "total_trades": 835,
+        "win_rate": 64.5,
+        "max_tdd_pct": 0.26,
+        "max_ddd_pct": 4.27,
+        "ddd_halts": 38,
+        "valid": true,
+        "period_scores": [
+          176.20808,
+          226.826165,
+          220.6755
+        ]
+      }
+    },
+    {
+      "trial": 58,
+      "score": 202.079175,
+      "params": {
+        "entry_fib_level": 0.599,
+        "entry_limit_offset_atr": 0.22
+      },
+      "metrics": {
+        "net_return_pct": 202.079175,
+        "total_trades": 742,
+        "win_rate": 65.76666666666667,
+        "max_tdd_pct": 0.18,
+        "max_ddd_pct": 4.78,
+        "ddd_halts": 31,
+        "valid": true,
+        "period_scores": [
+          184.697525,
+          245.46687999999997,
+          176.07312000000002
+        ]
+      }
+    },
+    {
+      "trial": 59,
+      "score": -204.51485999999997,
+      "params": {
+        "entry_fib_level": 0.594,
+        "entry_limit_offset_atr": 0.2
+      },
+      "metrics": {
+        "net_return_pct": -204.51485999999997,
+        "total_trades": 778,
+        "win_rate": 66.93333333333334,
+        "max_tdd_pct": 0.11,
+        "max_ddd_pct": 5.31,
+        "ddd_halts": 32,
+        "valid": false,
+        "period_scores": [
+          198.42792,
+          241.1275,
+          -1053.1
+        ]
+      }
+    },
+    {
+      "trial": 60,
+      "score": -214.436685,
+      "params": {
+        "entry_fib_level": 0.6,
+        "entry_limit_offset_atr": 0.2
+      },
+      "metrics": {
+        "net_return_pct": -214.436685,
+        "total_trades": 764,
+        "win_rate": 66.36666666666667,
+        "max_tdd_pct": 0.11,
+        "max_ddd_pct": 5.3,
+        "ddd_halts": 32,
+        "valid": false,
+        "period_scores": [
+          181.864775,
+          227.82516999999999,
+          -1053.0
+        ]
+      }
+    },
+    {
+      "trial": 61,
+      "score": -211.91377666666665,
+      "params": {
+        "entry_fib_level": 0.591,
+        "entry_limit_offset_atr": 0.22
+      },
+      "metrics": {
+        "net_return_pct": -211.91377666666665,
+        "total_trades": 758,
+        "win_rate": 65.93333333333334,
+        "max_tdd_pct": 0.18,
+        "max_ddd_pct": 5.36,
+        "ddd_halts": 31,
+        "valid": false,
+        "period_scores": [
+          177.75612,
+          240.10254999999998,
+          -1053.6
+        ]
+      }
+    },
+    {
+      "trial": 62,
+      "score": 216.78003833333332,
+      "params": {
+        "entry_fib_level": 0.5660000000000001,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 216.78003833333332,
+        "total_trades": 918,
+        "win_rate": 63.833333333333336,
+        "max_tdd_pct": 1.59,
+        "max_ddd_pct": 4.33,
+        "ddd_halts": 33,
+        "valid": true,
+        "period_scores": [
+          187.95961999999997,
+          148.231475,
+          314.14901999999995
+        ]
+      }
+    },
+    {
+      "trial": 63,
+      "score": 208.38700000000003,
+      "params": {
+        "entry_fib_level": 0.5640000000000001,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 208.38700000000003,
+        "total_trades": 921,
+        "win_rate": 63.86666666666667,
+        "max_tdd_pct": 1.45,
+        "max_ddd_pct": 4.32,
+        "ddd_halts": 34,
+        "valid": true,
+        "period_scores": [
+          166.56488,
+          172.05540000000002,
+          286.54072
+        ]
+      }
+    },
+    {
+      "trial": 64,
+      "score": 260.0942883333333,
+      "params": {
+        "entry_fib_level": 0.618,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 260.0942883333333,
+        "total_trades": 835,
+        "win_rate": 66.23333333333333,
+        "max_tdd_pct": 0.05,
+        "max_ddd_pct": 3.92,
+        "ddd_halts": 30,
+        "valid": true,
+        "period_scores": [
+          183.55875,
+          235.22344999999999,
+          361.50066499999997
+        ]
+      }
+    },
+    {
+      "trial": 65,
+      "score": 242.226365,
+      "params": {
+        "entry_fib_level": 0.638,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 242.226365,
+        "total_trades": 843,
+        "win_rate": 65.16666666666667,
+        "max_tdd_pct": 0.29,
+        "max_ddd_pct": 4.16,
+        "ddd_halts": 34,
+        "valid": true,
+        "period_scores": [
+          169.2062,
+          209.624715,
+          347.84817999999996
+        ]
+      }
+    },
+    {
+      "trial": 66,
+      "score": 256.03809333333334,
+      "params": {
+        "entry_fib_level": 0.62,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 256.03809333333334,
+        "total_trades": 838,
+        "win_rate": 66.06666666666668,
+        "max_tdd_pct": 0.04,
+        "max_ddd_pct": 3.98,
+        "ddd_halts": 30,
+        "valid": true,
+        "period_scores": [
+          189.943255,
+          231.48952,
+          346.681505
+        ]
+      }
+    },
+    {
+      "trial": 67,
+      "score": 260.0942883333333,
+      "params": {
+        "entry_fib_level": 0.618,
+        "entry_limit_offset_atr": 0.02
+      },
+      "metrics": {
+        "net_return_pct": 260.0942883333333,
+        "total_trades": 835,
+        "win_rate": 66.23333333333333,
+        "max_tdd_pct": 0.05,
+        "max_ddd_pct": 3.92,
+        "ddd_halts": 30,
+        "valid": true,
+        "period_scores": [
+          183.55875,
+          235.22344999999999,
+          361.50066499999997
+        ]
+      }
+    },
+    {
+      "trial": 68,
+      "score": 240.20135333333337,
+      "params": {
+        "entry_fib_level": 0.622,
+        "entry_limit_offset_atr": 0.0
+      },
+      "metrics": {
+        "net_return_pct": 240.20135333333337,
+        "total_trades": 831,
+        "win_rate": 66.23333333333333,
+        "max_tdd_pct": 0.08,
+        "max_ddd_pct": 4.53,
+        "ddd_halts": 28,
+        "valid": true,
+        "period_scores": [
+          181.92470000000003,
+          184.20159999999998,
+          354.47776000000005
+        ]
+      }
+    },
+    {
+      "trial": 69,
+      "score": 194.407705,
+      "params": {
+        "entry_fib_level": 0.618,
+        "entry_limit_offset_atr": 0.1
+      },
+      "metrics": {
+        "net_return_pct": 194.407705,
+        "total_trades": 824,
+        "win_rate": 64.16666666666667,
+        "max_tdd_pct": 0.22,
+        "max_ddd_pct": 4.28,
+        "ddd_halts": 39,
+        "valid": true,
+        "period_scores": [
+          148.11020000000002,
+          201.94787499999998,
+          233.16504
+        ]
+      }
+    }
+  ]
+}
