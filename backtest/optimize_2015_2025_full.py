@@ -277,7 +277,6 @@ def sample_tp_and_sl_params(trial: optuna.Trial) -> Dict[str, Any]:
     params['sl_after_tp2_r'] = trial.suggest_float('sl_after_tp2_r', *sl_range(tp1_r, tp2_r), step=0.05)
     params['sl_after_tp3_r'] = trial.suggest_float('sl_after_tp3_r', *sl_range(tp1_r, tp3_r), step=0.05)
     params['sl_after_tp4_r'] = trial.suggest_float('sl_after_tp4_r', *sl_range(tp2_r, tp4_r), step=0.05)
-    params['sl_after_tp5_r'] = trial.suggest_float('sl_after_tp5_r', *sl_range(tp3_r, tp5_r), step=0.05)
 
     return params
 
@@ -311,8 +310,7 @@ def make_objective(base_params: Dict[str, Any], log):
             f"Close={p.get('tp1_close_pct',0):.0%}/{p.get('tp2_close_pct',0):.0%}/"
             f"{p.get('tp3_close_pct',0):.0%}/{p.get('tp4_close_pct',0):.0%}/{p.get('tp5_close_pct',0):.0%}")
         log(f"         SL@TP1={p.get('sl_after_tp1_r',0):.2f}R  SL@TP2={p.get('sl_after_tp2_r',0):.2f}R  "
-            f"SL@TP3={p.get('sl_after_tp3_r',0):.2f}R  SL@TP4={p.get('sl_after_tp4_r',0):.2f}R  "
-            f"SL@TP5={p.get('sl_after_tp5_r',0):.2f}R")
+            f"SL@TP3={p.get('sl_after_tp3_r',0):.2f}R  SL@TP4={p.get('sl_after_tp4_r',0):.2f}R")
         log(f"         Risk={p.get('risk_per_trade_pct',0):.2f}%  Confl={p.get('min_confluence',0)}  "
             f"QF={p.get('min_quality_factors',0)}  ADX-T={p.get('adx_trend_threshold',0):.0f}  "
             f"ADX-R={p.get('adx_range_threshold',0):.0f}  Fib={p.get('entry_fib_level',0):.3f}  "
@@ -448,7 +446,6 @@ def enqueue_current_params(study: optuna.Study, base_params: Dict[str, Any]) -> 
     enqueue["sl_after_tp2_r"] = base_params.get("sl_after_tp2_r", tp1_r)
     enqueue["sl_after_tp3_r"] = base_params.get("sl_after_tp3_r", tp1_r)
     enqueue["sl_after_tp4_r"] = base_params.get("sl_after_tp4_r", tp2_r)
-    enqueue["sl_after_tp5_r"] = base_params.get("sl_after_tp5_r", tp3_r)
 
     # Strategy params
     for key in STRATEGY_RANGES:
@@ -507,7 +504,7 @@ def print_final_report(study: optuna.Study, base_params: Dict[str, Any],
     for i in range(1, NUM_TPS + 1):
         log(f"    tp{i}_close_pct:     {best_close.get(f'tp{i}_close_pct', '?'):.1%}")
     log(f"  SL after each TP:")
-    for k in ["sl_after_tp1_r", "sl_after_tp2_r", "sl_after_tp3_r", "sl_after_tp4_r", "sl_after_tp5_r"]:
+    for k in ["sl_after_tp1_r", "sl_after_tp2_r", "sl_after_tp3_r", "sl_after_tp4_r"]:
         log(f"    {k:<24} {bp.get(k, '?'):.2f}R")
 
     log(f"\n  BEST STRATEGY/RISK PARAMETERS")
@@ -595,7 +592,7 @@ def print_final_report(study: optuna.Study, base_params: Dict[str, Any],
                 **{f"tp{i}_r_multiple": bp.get(f"tp{i}_r_multiple") for i in range(1, NUM_TPS + 1)},
                 **best_close,
                 **{k: bp.get(k) for k in ["sl_after_tp1_r", "sl_after_tp2_r", "sl_after_tp3_r",
-                                           "sl_after_tp4_r", "sl_after_tp5_r"]},
+                                           "sl_after_tp4_r"]},
                 **{k: bp.get(k) for k in STRATEGY_RANGES},
             },
         },
