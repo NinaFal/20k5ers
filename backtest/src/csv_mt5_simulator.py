@@ -416,13 +416,28 @@ class CSVMT5Simulator:
     def _get_pip_value(self, symbol: str) -> float:
         """
         Get pip value per lot using 5ers contract specs.
-        
+
         CRITICAL: 5ers uses MINI contracts for indices ($1/point, not $10-20/point).
         """
         from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
-        
+
         specs = get_fiveers_contract_specs(symbol)
         return specs.get("pip_value_per_lot", 10.0)
+
+    def _commission_per_side(self, symbol: str, volume: float) -> float:
+        """
+        Commission charged per side (open OR close) based on The 5ers fee schedule:
+          Forex / Gold : $2 per lot per side  ($4 round trip)
+          Indices       : $0  (spread-only)
+          Oil / Crypto  : percentage-based → approximated as $2/lot for simplicity
+        Source: https://the5ers.com/asset-specifications/
+        """
+        sym = symbol.upper().replace("_USD", "").replace("_", "")
+        # Indices: no commission
+        if any(idx in sym for idx in ("NAS100", "NDX", "UK100", "FTSE", "US30", "SP500", "DE40")):
+            return 0.0
+        # Everything else (forex, gold, silver, oil, crypto): $2 per lot per side
+        return 2.0 * volume
     
     # ═══════════════════════════════════════════════════════════════════════
     # MT5Client INTERFACE - MARKET DATA
@@ -693,14 +708,17 @@ class CSVMT5Simulator:
                 close_price = bar['close']
         
         close_volume = volume if volume else pos.volume
-        
+
         # Calculate P&L using the ACTUAL close price (not current bar price)
         pnl = self._calculate_pnl_at_price(pos, close_price, close_volume)
-        
+
+        # Deduct closing commission ($2/lot for forex/gold, $0 for indices)
+        commission = self._commission_per_side(pos.symbol, close_volume)
+
         if close_volume >= pos.volume:
             # Full close
             del self._positions[ticket]
-            self._balance += pnl
+            self._balance += pnl - commission
             
             # Log closed trade
             self._closed_trades.append({
@@ -719,7 +737,7 @@ class CSVMT5Simulator:
         else:
             # Partial close - also log this!
             pos.volume -= close_volume
-            self._balance += pnl
+            self._balance += pnl - commission
             
             # Log partial close as separate trade entry
             self._closed_trades.append({
@@ -768,6 +786,86 @@ class CSVMT5Simulator:
         
         return pnl
     
+    def get_ddd_limit_close_prices(self, day_start_equity: float, halt_pct: float) -> dict:
+        """
+        Calculate the per-position close price that corresponds to DDD == halt_pct.
+
+        Instead of closing at the bar extreme (low/high), we close at the interpolated
+        price where total equity would equal day_start_equity * (1 - halt_pct/100).
+        This simulates a 1-minute live monitor: positions are closed at the exact moment
+        the DDD limit is breached, not at the worst intrabar point.
+
+        Returns:
+            Dict[ticket -> close_price] for all open positions.
+            Returns empty dict if DDD limit is not reached intrabar.
+        """
+        if not self._positions:
+            return {}
+
+        from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
+
+        target_equity = day_start_equity * (1.0 - halt_pct / 100.0)
+        balance = self._balance
+
+        # Collect current close-price P&L and worst-case intrabar P&L per position
+        pos_data = {}
+        current_total_pnl = 0.0
+        worst_total_pnl = 0.0
+
+        for ticket, pos in self._positions.items():
+            bar = self.get_m15_bar(pos.symbol, self._current_time)
+            specs = get_fiveers_contract_specs(pos.symbol)
+            pip_size = specs.get('pip_size', 0.0001)
+            pip_value_per_lot = specs.get('pip_value_per_lot', 10.0)
+            spread = self.spread_pips * pip_size
+
+            # Current P&L (at bar close)
+            current_price = bar['close'] if bar else pos.price_open
+            if pos.type == 0:
+                cur_pnl = (current_price - pos.price_open) / pip_size * pip_value_per_lot * pos.volume
+                worst_price = bar['low'] if bar else pos.price_open
+            else:
+                cur_pnl = (pos.price_open - current_price) / pip_size * pip_value_per_lot * pos.volume
+                worst_price = (bar['high'] + spread) if bar else pos.price_open
+
+            # Worst-case intrabar P&L
+            if pos.type == 0:
+                worst_pnl = (worst_price - pos.price_open) / pip_size * pip_value_per_lot * pos.volume
+            else:
+                worst_pnl = (pos.price_open - worst_price) / pip_size * pip_value_per_lot * pos.volume
+
+            pos_data[ticket] = {
+                'pos': pos,
+                'current_price': current_price,
+                'worst_price': worst_price,
+                'cur_pnl': cur_pnl,
+                'worst_pnl': worst_pnl,
+                'pip_size': pip_size,
+            }
+            current_total_pnl += cur_pnl
+            worst_total_pnl += worst_pnl
+
+        # Only proceed if worst case actually breaches DDD
+        if balance + worst_total_pnl >= target_equity:
+            return {}  # No breach intrabar — nothing to do
+
+        # Interpolation factor t: at t=0 we're at bar close, at t=1 we're at bar extreme
+        # We want: balance + current_pnl + t*(worst_pnl - current_pnl) = target_equity
+        pnl_range = worst_total_pnl - current_total_pnl
+        if pnl_range == 0:
+            t = 1.0
+        else:
+            t = (target_equity - balance - current_total_pnl) / pnl_range
+        t = max(0.0, min(1.0, t))  # Clamp to [0, 1]
+
+        # Compute per-position close price at interpolation point t
+        result = {}
+        for ticket, d in pos_data.items():
+            halt_price = d['current_price'] + t * (d['worst_price'] - d['current_price'])
+            result[ticket] = halt_price
+
+        return result
+
     def get_worst_case_equity_intrabar(self) -> float:
         """
         Calculate worst-case equity using intrabar price extremes for all open positions.
@@ -867,7 +965,12 @@ class CSVMT5Simulator:
         )
         
         self._positions[ticket] = pos
-        
+
+        # Deduct opening commission from balance
+        commission = self._commission_per_side(symbol, volume)
+        if commission > 0:
+            self._balance -= commission
+
         return TradeResult(
             success=True,
             order_id=ticket,
@@ -875,7 +978,7 @@ class CSVMT5Simulator:
             price=fill_price,
             volume=volume,
         )
-    
+
     def place_pending_order(
         self,
         symbol: str,
@@ -1015,6 +1118,10 @@ class CSVMT5Simulator:
                 self._positions[ticket] = pos
                 del self._pending_orders[ticket]
                 filled_tickets.append(ticket)
+                # Deduct opening commission for limit fills
+                commission = self._commission_per_side(order.symbol, order.volume)
+                if commission > 0:
+                    self._balance -= commission
         
         return filled_tickets
     

@@ -146,15 +146,11 @@ class Fiveers60KConfig:
     equity_reduce_threshold_pct: float = 2.0  # Reduce size after 2% loss
     equity_reduce_multiplier: float = 1.0  # DISABLED - not in simulator
 
-    # === THE 5ERS FEES ===
-    # Challenge fee (one-time cost, not deducted from trading balance)
-    challenge_fee_usd: float = 329.0  # $329 for 20K High Stakes (Jan 2025 pricing)
-    # Profit split: trader keeps 80%, firm gets 20% of each payout
-    profit_split_pct: float = 0.80  # 80% to trader, 20% to The 5ers
-    # Payout interval (bi-weekly per 5ers rules)
-    payout_interval_days: int = 14  # Payout every 14 calendar days
-    # Enable payout simulation in backtest (reduces compounding to reflect real net returns)
-    simulate_payouts: bool = True
+    # === THE 5ERS TRADING FEES ===
+    # Spread paid on every trade open/close (already applied via spread_pips in simulator).
+    # Buy limit fills additionally pay 1 spread on open (market orders already pay via ask price).
+    # These are the only fees modelled - no payout/profit-split simulation.
+    challenge_fee_usd: float = 329.0  # Informational only (one-time challenge cost)
 
     # === MAJOR NEWS EVENTS (UTC Times) ===
     # News events that trigger trading blackout periods

@@ -820,13 +820,24 @@ class LiveTradingBot:
         except Exception as e:
             log.error(f"  ✗ Failed to update setups: {e}")
 
-    def _emergency_close_all_intrabar(self):
+    def _emergency_close_all_intrabar(self, day_start_equity: float, halt_pct: float):
         """
-        Emergency close all positions at their worst-case intrabar price (bar low for buys,
-        bar high for sells). Called when intrabar DDD check detects a breach.
-        Cancels pending orders and pauses setups identically to _emergency_close_all().
+        Emergency close all positions at the exact DDD-limit price (not bar extreme).
+
+        Uses get_ddd_limit_close_prices() to find the interpolated intrabar price where
+        equity would hit day_start_equity * (1 - halt_pct/100). This simulates a live
+        1-minute monitor that closes at the precise DDD breach point — not at the worst
+        candle extreme which may be 2-3x worse than the actual halt level.
+
+        Falls back to bar close price if limit prices cannot be computed.
         """
-        from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
+        # Get per-position DDD-limit close prices
+        try:
+            limit_prices = self.mt5.get_ddd_limit_close_prices(day_start_equity, halt_pct)
+        except Exception as e:
+            log.error(f"  ✗ Could not compute DDD limit prices: {e} — falling back to bar close")
+            limit_prices = {}
+
         # Cancel pending orders first
         try:
             for order in self.mt5.get_pending_orders():
@@ -834,23 +845,16 @@ class LiveTradingBot:
         except Exception as e:
             log.error(f"  ✗ Failed to cancel pending orders (intrabar): {e}")
 
-        # Close each position at its intrabar worst-case price
+        # Close each position at DDD limit price (or bar close as fallback)
         try:
             for pos in list(self.mt5.get_my_positions()):
-                bar = self.mt5.get_m15_bar(pos.symbol, self.mt5._current_time)
-                if bar is not None:
-                    specs = get_fiveers_contract_specs(pos.symbol)
-                    pip_size = specs.get('pip_size', 0.0001)
-                    spread = self.mt5.spread_pips * pip_size
-                    if pos.type == 0:  # Buy — close at bar low
-                        worst_price = bar['low']
-                    else:  # Sell — close at bar high + spread
-                        worst_price = bar['high'] + spread
-                    self.mt5.close_position(pos.ticket, close_price=worst_price)
-                    log.error(f"  [INTRABAR DDD] Closed {pos.symbol} at worst-case price {worst_price:.5f}")
+                close_price = limit_prices.get(pos.ticket)
+                if close_price is not None:
+                    self.mt5.close_position(pos.ticket, close_price=close_price)
+                    log.error(f"  [INTRABAR DDD] Closed {pos.symbol} at DDD-limit price {close_price:.5f}")
                 else:
                     self.mt5.close_position(pos.ticket)
-                    log.error(f"  [INTRABAR DDD] Closed {pos.symbol} at bar close (no bar data)")
+                    log.error(f"  [INTRABAR DDD] Closed {pos.symbol} at bar close (fallback)")
         except Exception as e:
             log.error(f"  ✗ Failed to close positions (intrabar): {e}")
 
@@ -5045,14 +5049,6 @@ class LiveTradingBot:
         safety_events = []
         trading_halted_today = False
 
-        # The 5ers payout simulation: bi-weekly profit split
-        # Trader keeps profit_split_pct (80%), firm gets the rest
-        _simulate_payouts = getattr(FIVEERS_CONFIG, 'simulate_payouts', True)
-        _profit_split_pct = getattr(FIVEERS_CONFIG, 'profit_split_pct', 0.80)
-        _payout_interval_days = getattr(FIVEERS_CONFIG, 'payout_interval_days', 14)
-        _last_payout_date = None   # Set on first bar
-        _last_payout_balance = self.initial_balance
-        _total_firm_cuts = 0.0
         
         pbar = tqdm(timeline, desc="Backtesting", mininterval=1.0)
         
@@ -5100,35 +5096,6 @@ class LiveTradingBot:
                 if was_halted or was_reduced:
                     self._resume_ddd_paused_orders()
 
-                # ── THE 5ERS PAYOUT SIMULATION ───────────────────────────
-                # Every 14 days: firm takes 20% of profits since last payout.
-                # This reduces compounding to reflect true net returns.
-                if _simulate_payouts:
-                    if _last_payout_date is None:
-                        _last_payout_date = today
-                    elif (today - _last_payout_date).days >= _payout_interval_days:
-                        payout_balance = account.get("balance", _last_payout_balance)
-                        profit_since_payout = max(0.0, payout_balance - _last_payout_balance)
-                        if profit_since_payout > 0:
-                            firm_cut = profit_since_payout * (1.0 - _profit_split_pct)
-                            self.mt5.set_balance(payout_balance - firm_cut)
-                            _total_firm_cuts += firm_cut
-                            log.info(
-                                f"💸 5ers payout {today}: profit=${profit_since_payout:,.2f} "
-                                f"| trader keeps {_profit_split_pct:.0%}=${profit_since_payout - firm_cut:,.2f} "
-                                f"| firm cut 20%=${firm_cut:,.2f}"
-                            )
-                            # Recalculate day_start_equity after payout
-                            new_bal = payout_balance - firm_cut
-                            day_start_equity = new_bal
-                            if self.challenge_manager:
-                                self.challenge_manager.day_start_equity = new_bal
-                                self.challenge_manager.day_start_balance = new_bal
-                            _last_payout_balance = new_bal
-                        else:
-                            _last_payout_balance = payout_balance
-                        _last_payout_date = today
-                # ─────────────────────────────────────────────────────────
 
             # ═══════════════════════════════════════════════════════════════
             # WEEKEND HANDLING - Same as live bot
@@ -5206,7 +5173,7 @@ class LiveTradingBot:
                     max_ddd = intrabar_ddd_pct
                 if intrabar_ddd_pct >= halt_pct:
                     log.warning(f"🚨 DDD INTRABAR HALT at {current_time}: worst-case {intrabar_ddd_pct:.1f}% >= {halt_pct}% (close={equity:.2f}, worst={worst_equity:.2f})")
-                    self._emergency_close_all_intrabar()
+                    self._emergency_close_all_intrabar(day_start_equity, halt_pct)
                     trading_halted_today = True
                     self.ddd_halted = True
                     safety_events.append({
@@ -5432,10 +5399,6 @@ class LiveTradingBot:
             'ddd_warnings': sum(1 for e in safety_events if e.get('type') == 'DDD_WARNING'),
             'tdd_stopouts': sum(1 for e in safety_events if e.get('type') == 'TDD_STOPOUT'),
             'monthly_stats': monthly_stats,
-            # 5ers fee metrics
-            'total_firm_cuts': round(_total_firm_cuts, 2),
-            'challenge_fee_usd': round(getattr(FIVEERS_CONFIG, 'challenge_fee_usd', 329.0), 2),
-            'trader_net_pnl': round(total_pnl - _total_firm_cuts - getattr(FIVEERS_CONFIG, 'challenge_fee_usd', 329.0), 2),
         }
         
         # Print results
@@ -5465,13 +5428,6 @@ class LiveTradingBot:
         print(f"   DDD halts (>=3.5%): {results['ddd_halts']}")
         print(f"   TDD stop-outs (>=10%): {results['tdd_stopouts']}")
 
-        if _simulate_payouts and _total_firm_cuts > 0:
-            challenge_fee = getattr(FIVEERS_CONFIG, 'challenge_fee_usd', 329.0)
-            print(f"\n💸 THE 5ERS FEES (profit split {_profit_split_pct:.0%} / {1-_profit_split_pct:.0%}):")
-            print(f"   Challenge fee:       ${challenge_fee:,.2f}")
-            print(f"   Total firm cuts:     ${_total_firm_cuts:,.2f}")
-            print(f"   Total fees:          ${_total_firm_cuts + challenge_fee:,.2f}")
-            print(f"   Trader net P&L:      ${results['trader_net_pnl']:,.2f}")
         
         # Monthly breakdown
         if monthly_stats:
