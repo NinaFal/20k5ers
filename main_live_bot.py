@@ -837,6 +837,7 @@ class LiveTradingBot:
         self._load_awaiting_entry()  # Signals waiting for price proximity
         self._load_ddd_halt_state()  # Load DDD halt state (survives restarts)
         self._load_closed_today()  # Track symbols closed today (no re-entry same day)
+        self._load_manually_closed()  # Track symbols manually closed (4-day block)
         self._load_scan_state()  # Track last scan to prevent duplicate scans after restart
         self._auto_start_challenge()
     
@@ -938,6 +939,7 @@ class LiveTradingBot:
     
     DDD_HALT_STATE_FILE = "ddd_halt_state.json"
     CLOSED_TODAY_FILE = "closed_today.json"
+    MANUALLY_CLOSED_FILE = "manually_closed.json"
     
     # ═══════════════════════════════════════════════════════════════════════════
     # CLOSED TODAY TRACKING - Prevent re-entry on same day after manual/SL close
@@ -1000,7 +1002,63 @@ class LiveTradingBot:
             self._save_closed_today()
         
         return symbol in self.closed_today
-    
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # MANUALLY CLOSED 4-DAY BLOCK - Prevent re-entry for 4 days after manual close
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _load_manually_closed(self):
+        """Load manually closed symbols. Entries expire after 4 days."""
+        self.manually_closed: Dict[str, str] = {}  # symbol -> ISO timestamp string
+        try:
+            if Path(self.MANUALLY_CLOSED_FILE).exists():
+                with open(self.MANUALLY_CLOSED_FILE, 'r') as f:
+                    data = json.load(f)
+                # Prune entries older than 4 days
+                now = datetime.now(timezone.utc)
+                for sym, ts_str in data.items():
+                    try:
+                        closed_at = datetime.fromisoformat(ts_str)
+                        if closed_at.tzinfo is None:
+                            closed_at = closed_at.replace(tzinfo=timezone.utc)
+                        if (now - closed_at).days < 4:
+                            self.manually_closed[sym] = ts_str
+                    except Exception:
+                        pass  # Skip malformed entries
+                if self.manually_closed:
+                    log.info(f"📋 Loaded {len(self.manually_closed)} manually closed symbols (4-day block): {', '.join(sorted(self.manually_closed))}")
+        except Exception as e:
+            log.error(f"Error loading manually_closed: {e}")
+            self.manually_closed = {}
+
+    def _save_manually_closed(self):
+        """Persist manually_closed dict to disk."""
+        try:
+            with open(self.MANUALLY_CLOSED_FILE, 'w') as f:
+                json.dump(self.manually_closed, f, indent=2)
+        except Exception as e:
+            log.error(f"Error saving manually_closed: {e}")
+
+    def mark_symbol_manually_closed(self, symbol: str):
+        """Mark symbol as manually closed - blocks re-entry for 4 days."""
+        ts = datetime.now(timezone.utc).isoformat()
+        self.manually_closed[symbol] = ts
+        self._save_manually_closed()
+        log.info(f"🚫 [{symbol}] Manually closed by user - blocked from trading for 4 days")
+
+    def is_symbol_manually_closed(self, symbol: str) -> bool:
+        """Return True if symbol was manually closed within the last 4 days."""
+        ts_str = self.manually_closed.get(symbol)
+        if not ts_str:
+            return False
+        try:
+            closed_at = datetime.fromisoformat(ts_str)
+            if closed_at.tzinfo is None:
+                closed_at = closed_at.replace(tzinfo=timezone.utc)
+            return (datetime.now(timezone.utc) - closed_at).days < 4
+        except Exception:
+            return False
+
     def _load_ddd_halt_state(self):
         """Load DDD halt state from file. Halt persists for same day only."""
         try:
@@ -1267,6 +1325,12 @@ class LiveTradingBot:
         log.info(f"Checking {len(self.awaiting_entry)} signals awaiting price proximity...")
         
         for symbol, setup in list(self.awaiting_entry.items()):
+            # Check if symbol was manually closed within the last 4 days
+            if self.is_symbol_manually_closed(symbol):
+                log.info(f"[{symbol}] Manually closed recently - removing from entry queue (4-day block)")
+                signals_to_remove.append(symbol)
+                continue
+
             # BUGFIX: Check if we already have a pending order or position for this symbol
             if symbol in self.pending_setups:
                 existing = self.pending_setups[symbol]
@@ -1413,6 +1477,12 @@ class LiveTradingBot:
         log.info(f"Checking {len(self.awaiting_spread)} signals waiting for spread improvement...")
         
         for symbol, setup in list(self.awaiting_spread.items()):
+            # Check if symbol was manually closed within the last 4 days
+            if self.is_symbol_manually_closed(symbol):
+                log.info(f"[{symbol}] Manually closed recently - removing from spread queue (4-day block)")
+                signals_to_remove.append(symbol)
+                continue
+
             # Check age - expire after MAX_SPREAD_WAIT_HOURS
             created_at_str = setup.get("created_at", "")
             if created_at_str:
@@ -2586,8 +2656,9 @@ class LiveTradingBot:
                         log.warning(f"[{symbol}] Could not determine close reason: {e}")
                     
                     if not was_sl_hit:
-                        # Manual close detected - block re-entry for today
+                        # Manual close detected - block re-entry for today AND next 4 days
                         self.mark_symbol_closed_today(symbol, reason="manually closed by user")
+                        self.mark_symbol_manually_closed(symbol)
                     else:
                         log.info(f"[{symbol}] SL was hit - re-entry allowed same day")
             
@@ -3613,6 +3684,20 @@ class LiveTradingBot:
         if self.is_symbol_closed_today(symbol):
             log.info(f"[{symbol}] Was closed today - no re-entry until tomorrow, skipping")
             return None
+
+        # Check if symbol was manually closed within the last 4 days
+        if self.is_symbol_manually_closed(symbol):
+            ts_str = self.manually_closed.get(symbol, "")
+            try:
+                closed_at = datetime.fromisoformat(ts_str)
+                if closed_at.tzinfo is None:
+                    closed_at = closed_at.replace(tzinfo=timezone.utc)
+                days_elapsed = (datetime.now(timezone.utc) - closed_at).days
+                days_left = 4 - days_elapsed
+            except Exception:
+                days_left = 4
+            log.info(f"[{symbol}] Manually closed recently - no re-entry for 4 days ({days_left} day(s) remaining), skipping")
+            return None
         
         if self.check_existing_position(symbol):  # Use OANDA format - function converts internally
             log.info(f"[{symbol}] Already in position, skipping")
@@ -4287,21 +4372,46 @@ class LiveTradingBot:
                 # BUGFIX: Remove closed position from pending_setups AND queues
                 # This prevents re-entry of the same setup after position closes
                 symbol_to_remove = None
+                closed_setup = None
                 for symbol, setup in list(self.pending_setups.items()):
                     if setup.order_ticket == order_id and setup.status == "filled":
                         log.info(f"[{symbol}] Removing closed position from pending_setups (ticket {order_id})")
                         symbol_to_remove = symbol
+                        closed_setup = setup
                         del self.pending_setups[symbol]
                         self._save_pending_setups()
                         break
-                
+
+                # Detect manual close vs SL/TP hit - block re-entry 4 days if manual
+                if symbol_to_remove and closed_setup:
+                    broker_sym = self.symbol_map.get(symbol_to_remove, symbol_to_remove)
+                    was_sl_hit = False
+                    try:
+                        tick = self.mt5.get_tick(broker_sym)
+                        if tick and closed_setup.stop_loss:
+                            current_price = tick.bid if closed_setup.direction == "bullish" else tick.ask
+                            sl = closed_setup.stop_loss
+                            if closed_setup.direction == "bullish":
+                                was_sl_hit = current_price <= sl
+                            else:
+                                was_sl_hit = current_price >= sl
+                    except Exception as e:
+                        log.warning(f"[{symbol_to_remove}] Could not determine close reason: {e}")
+
+                    if not was_sl_hit:
+                        log.info(f"[{symbol_to_remove}] Manual close detected - blocking re-entry for 4 days")
+                        self.mark_symbol_closed_today(symbol_to_remove, reason="manually closed by user")
+                        self.mark_symbol_manually_closed(symbol_to_remove)
+                    else:
+                        log.info(f"[{symbol_to_remove}] SL hit - re-entry allowed")
+
                 # Also remove from entry/spread queues to prevent re-execution
                 if symbol_to_remove:
                     if symbol_to_remove in self.awaiting_entry:
                         log.info(f"[{symbol_to_remove}] Removing from entry queue after position close")
                         del self.awaiting_entry[symbol_to_remove]
                         self._save_awaiting_entry()
-                    
+
                     if symbol_to_remove in self.awaiting_spread:
                         log.info(f"[{symbol_to_remove}] Removing from spread queue after position close")
                         del self.awaiting_spread[symbol_to_remove]
