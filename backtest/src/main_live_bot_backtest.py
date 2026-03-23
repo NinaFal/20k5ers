@@ -820,6 +820,53 @@ class LiveTradingBot:
         except Exception as e:
             log.error(f"  ✗ Failed to update setups: {e}")
 
+    def _emergency_close_all_intrabar(self):
+        """
+        Emergency close all positions at their worst-case intrabar price (bar low for buys,
+        bar high for sells). Called when intrabar DDD check detects a breach.
+        Cancels pending orders and pauses setups identically to _emergency_close_all().
+        """
+        from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
+        # Cancel pending orders first
+        try:
+            for order in self.mt5.get_pending_orders():
+                self.mt5.cancel_pending_order(order.ticket)
+        except Exception as e:
+            log.error(f"  ✗ Failed to cancel pending orders (intrabar): {e}")
+
+        # Close each position at its intrabar worst-case price
+        try:
+            for pos in list(self.mt5.get_my_positions()):
+                bar = self.mt5.get_m15_bar(pos.symbol, self.mt5._current_time)
+                if bar is not None:
+                    specs = get_fiveers_contract_specs(pos.symbol)
+                    pip_size = specs.get('pip_size', 0.0001)
+                    spread = self.mt5.spread_pips * pip_size
+                    if pos.type == 0:  # Buy — close at bar low
+                        worst_price = bar['low']
+                    else:  # Sell — close at bar high + spread
+                        worst_price = bar['high'] + spread
+                    self.mt5.close_position(pos.ticket, close_price=worst_price)
+                    log.error(f"  [INTRABAR DDD] Closed {pos.symbol} at worst-case price {worst_price:.5f}")
+                else:
+                    self.mt5.close_position(pos.ticket)
+                    log.error(f"  [INTRABAR DDD] Closed {pos.symbol} at bar close (no bar data)")
+        except Exception as e:
+            log.error(f"  ✗ Failed to close positions (intrabar): {e}")
+
+        # Pause pending setups (same as _emergency_close_all)
+        try:
+            if hasattr(self, 'pending_setups') and self.pending_setups:
+                for symbol, setup in self.pending_setups.items():
+                    if setup.status == "pending":
+                        setup.status = "paused_ddd"
+                        setup.order_ticket = None
+                    elif setup.status == "filled":
+                        setup.status = "closed_ddd"
+                self._save_pending_setups()
+        except Exception as e:
+            log.error(f"  ✗ Failed to update setups (intrabar): {e}")
+
     PENDING_SETUPS_FILE = "pending_setups.json"
     TRADING_DAYS_FILE = "trading_days.json"
     FIRST_RUN_FLAG_FILE = "first_run_complete.flag"
@@ -5107,6 +5154,34 @@ class LiveTradingBot:
             warning_pct = getattr(FIVEERS_CONFIG, "daily_loss_warning_pct", 2.0)
             reduce_pct = getattr(FIVEERS_CONFIG, "daily_loss_reduce_pct", 3.0)
             halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.5)
+
+            # ── INTRABAR DDD CHECK ──────────────────────────────────────────────
+            # Live accounts monitor equity continuously (tick-by-tick). A 15m candle
+            # may breach the DDD halt intrabar even if it recovers by close.
+            # We simulate this by checking the worst-case equity using bar low (buys)
+            # and bar high (sells) for all open positions.
+            if not trading_halted_today and self.mt5.get_my_positions():
+                worst_equity = self.mt5.get_worst_case_equity_intrabar()
+                intrabar_ddd_pct = max(0, (day_start_equity - worst_equity) / day_start_equity * 100) if day_start_equity > 0 else 0
+                if intrabar_ddd_pct > max_ddd:
+                    max_ddd = intrabar_ddd_pct
+                if intrabar_ddd_pct >= halt_pct:
+                    log.warning(f"🚨 DDD INTRABAR HALT at {current_time}: worst-case {intrabar_ddd_pct:.1f}% >= {halt_pct}% (close={equity:.2f}, worst={worst_equity:.2f})")
+                    self._emergency_close_all_intrabar()
+                    trading_halted_today = True
+                    self.ddd_halted = True
+                    safety_events.append({
+                        'time': str(current_time),
+                        'type': 'DDD_HALT',
+                        'ddd_pct': intrabar_ddd_pct,
+                        'intrabar': True,
+                    })
+                    # Refresh equity after closing positions
+                    account = self.mt5.get_account_info()
+                    equity = account.get("equity", equity)
+                    balance = account.get("balance", balance)
+                    continue
+            # ───────────────────────────────────────────────────────────────────
 
             ddd_pct = max(0, (day_start_equity - equity) / day_start_equity * 100) if day_start_equity > 0 else 0
             max_ddd = max(max_ddd, ddd_pct)

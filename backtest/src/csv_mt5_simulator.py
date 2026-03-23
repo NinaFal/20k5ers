@@ -768,6 +768,36 @@ class CSVMT5Simulator:
         
         return pnl
     
+    def get_worst_case_equity_intrabar(self) -> float:
+        """
+        Calculate worst-case equity using intrabar price extremes for all open positions.
+        Buy positions: bar low is the worst case (price fell as far as possible).
+        Sell positions: bar high + spread is the worst case (price rose as far as possible).
+        Used to simulate continuous DDD monitoring as on a live account.
+        """
+        if not self._positions:
+            return self._balance
+
+        from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
+        worst_pnl = 0.0
+        for pos in self._positions.values():
+            bar = self.get_m15_bar(pos.symbol, self._current_time)
+            if bar is None:
+                # No bar data — fall back to current floating profit
+                worst_pnl += pos.profit
+                continue
+            specs = get_fiveers_contract_specs(pos.symbol)
+            pip_size = specs.get('pip_size', 0.0001)
+            pip_value_per_lot = specs.get('pip_value_per_lot', 10.0)
+            spread = self.spread_pips * pip_size
+            if pos.type == 0:  # Buy — worst case is bar low
+                worst_price = bar['low']
+            else:  # Sell — worst case is bar high (ask = high + spread)
+                worst_price = bar['high'] + spread
+            price_diff = worst_price - pos.price_open if pos.type == 0 else pos.price_open - worst_price
+            worst_pnl += (price_diff / pip_size) * pip_value_per_lot * pos.volume
+        return self._balance + worst_pnl
+
     def modify_sl_tp(
         self,
         ticket: int,
