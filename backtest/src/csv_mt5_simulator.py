@@ -208,7 +208,8 @@ class CSVMT5Simulator:
         # Data caches
         self._data_cache: Dict[str, Dict[str, pd.DataFrame]] = {}  # {symbol: {timeframe: df}}
         self._m15_indexed: Dict[str, Dict[datetime, dict]] = {}  # {symbol: {time: bar}}
-        
+        self._m5_indexed:  Dict[str, Dict[datetime, dict]] = {}  # {symbol: {time: bar}} — 5-min
+
         # Simulated positions and orders
         self._positions: Dict[int, Position] = {}
         self._pending_orders: Dict[int, PendingOrder] = {}
@@ -304,21 +305,86 @@ class CSVMT5Simulator:
     
     def get_m15_timeline(self, start: datetime, end: datetime) -> List[datetime]:
         """Get all M15 timestamps in range."""
-        # Convert to pandas Timestamp
         start_ts = pd.Timestamp(start)
         end_ts = pd.Timestamp(end)
         if start_ts.tzinfo is None:
             start_ts = start_ts.tz_localize('UTC')
         if end_ts.tzinfo is None:
             end_ts = end_ts.tz_localize('UTC')
-        
+
         all_times = set()
         for symbol in list(self._m15_indexed.keys())[:5]:  # Sample from first 5
             for t in self._m15_indexed[symbol].keys():
                 if start_ts <= t <= end_ts:
                     all_times.add(t)
         return sorted(all_times)
-    
+
+    # ── M5 DATA ────────────────────────────────────────────────────────────
+
+    def load_m5_data(self, symbols: List[str],
+                     start_date: datetime = None, end_date: datetime = None):
+        """Pre-load M5 data for fast access during simulation.
+
+        Falls back gracefully if M5 files don't exist yet (download not done).
+        """
+        loaded = 0
+        for symbol in symbols:
+            df = self._load_data(symbol, "M5")
+            if df is None or df.empty:
+                continue
+
+            if df['time'].dt.tz is None:
+                df['time'] = df['time'].dt.tz_localize('UTC')
+
+            if start_date is not None:
+                lookback_start = _to_utc_ts(start_date) - pd.Timedelta(days=60)
+                df = df[df['time'] >= lookback_start]
+            if end_date is not None:
+                df = df[df['time'] <= _to_utc_ts(end_date) + pd.Timedelta(days=1)]
+
+            if df.empty:
+                continue
+
+            self._m5_indexed[symbol] = (
+                df.set_index('time')[['open', 'high', 'low', 'close', 'volume']]
+                .to_dict('index')
+            )
+            loaded += 1
+
+        if loaded:
+            log.info(f"Loaded M5 data for {loaded}/{len(symbols)} symbols")
+        else:
+            log.warning("No M5 data loaded — M5 files not found (run download_m5_data.py first)")
+
+    def get_m5_bar(self, symbol: str, time: datetime) -> Optional[dict]:
+        """Get M5 bar at specific time (returns None if M5 data not loaded)."""
+        if symbol not in self._m5_indexed:
+            return None
+        ts = pd.Timestamp(time)
+        if ts.tzinfo is None:
+            ts = ts.tz_localize('UTC')
+        return self._m5_indexed[symbol].get(ts)
+
+    def get_m5_timeline(self, start: datetime, end: datetime) -> List[datetime]:
+        """Get all M5 timestamps in range (union across first 5 loaded symbols)."""
+        start_ts = pd.Timestamp(start)
+        end_ts   = pd.Timestamp(end)
+        if start_ts.tzinfo is None:
+            start_ts = start_ts.tz_localize('UTC')
+        if end_ts.tzinfo is None:
+            end_ts = end_ts.tz_localize('UTC')
+
+        all_times = set()
+        for symbol in list(self._m5_indexed.keys())[:5]:
+            for t in self._m5_indexed[symbol].keys():
+                if start_ts <= t <= end_ts:
+                    all_times.add(t)
+        return sorted(all_times)
+
+    def has_m5_data(self) -> bool:
+        """Return True if M5 data is loaded for at least one symbol."""
+        return bool(self._m5_indexed)
+
     # ═══════════════════════════════════════════════════════════════════════
     # MT5Client INTERFACE - CONNECTION
     # ═══════════════════════════════════════════════════════════════════════
@@ -879,7 +945,8 @@ class CSVMT5Simulator:
         from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
         worst_pnl = 0.0
         for pos in self._positions.values():
-            bar = self.get_m15_bar(pos.symbol, self._current_time)
+            bar = self.get_m5_bar(pos.symbol, self._current_time) or \
+                  self.get_m15_bar(pos.symbol, self._current_time)
             if bar is None:
                 # No bar data — fall back to current floating profit
                 worst_pnl += pos.profit
@@ -1073,11 +1140,12 @@ class CSVMT5Simulator:
     # ═══════════════════════════════════════════════════════════════════════
     
     def check_pending_order_fills(self) -> List[int]:
-        """Check if any pending orders should fill on current M15 bar."""
+        """Check if any pending orders should fill on current bar (M5 preferred, else M15)."""
         filled_tickets = []
-        
+
         for ticket, order in list(self._pending_orders.items()):
-            bar = self.get_m15_bar(order.symbol, self._current_time)
+            bar = self.get_m5_bar(order.symbol, self._current_time) or \
+                  self.get_m15_bar(order.symbol, self._current_time)
             if bar is None:
                 continue
             
@@ -1126,11 +1194,12 @@ class CSVMT5Simulator:
         return filled_tickets
     
     def check_sl_tp_hits(self) -> List[dict]:
-        """Check if any positions hit SL or TP on current M15 bar."""
+        """Check if any positions hit SL or TP on current bar (M5 preferred, else M15)."""
         hits = []
-        
+
         for ticket, pos in list(self._positions.items()):
-            bar = self.get_m15_bar(pos.symbol, self._current_time)
+            bar = self.get_m5_bar(pos.symbol, self._current_time) or \
+                  self.get_m15_bar(pos.symbol, self._current_time)
             if bar is None:
                 continue
             
