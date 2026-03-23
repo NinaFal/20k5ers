@@ -5044,6 +5044,15 @@ class LiveTradingBot:
         day_start_equity = self.initial_balance
         safety_events = []
         trading_halted_today = False
+
+        # The 5ers payout simulation: bi-weekly profit split
+        # Trader keeps profit_split_pct (80%), firm gets the rest
+        _simulate_payouts = getattr(FIVEERS_CONFIG, 'simulate_payouts', True)
+        _profit_split_pct = getattr(FIVEERS_CONFIG, 'profit_split_pct', 0.80)
+        _payout_interval_days = getattr(FIVEERS_CONFIG, 'payout_interval_days', 14)
+        _last_payout_date = None   # Set on first bar
+        _last_payout_balance = self.initial_balance
+        _total_firm_cuts = 0.0
         
         pbar = tqdm(timeline, desc="Backtesting", mininterval=1.0)
         
@@ -5090,7 +5099,37 @@ class LiveTradingBot:
                 # Resume paused orders from DDD halt or reduce (with remaining expiry)
                 if was_halted or was_reduced:
                     self._resume_ddd_paused_orders()
-            
+
+                # ── THE 5ERS PAYOUT SIMULATION ───────────────────────────
+                # Every 14 days: firm takes 20% of profits since last payout.
+                # This reduces compounding to reflect true net returns.
+                if _simulate_payouts:
+                    if _last_payout_date is None:
+                        _last_payout_date = today
+                    elif (today - _last_payout_date).days >= _payout_interval_days:
+                        payout_balance = account.get("balance", _last_payout_balance)
+                        profit_since_payout = max(0.0, payout_balance - _last_payout_balance)
+                        if profit_since_payout > 0:
+                            firm_cut = profit_since_payout * (1.0 - _profit_split_pct)
+                            self.mt5.set_balance(payout_balance - firm_cut)
+                            _total_firm_cuts += firm_cut
+                            log.info(
+                                f"💸 5ers payout {today}: profit=${profit_since_payout:,.2f} "
+                                f"| trader keeps {_profit_split_pct:.0%}=${profit_since_payout - firm_cut:,.2f} "
+                                f"| firm cut 20%=${firm_cut:,.2f}"
+                            )
+                            # Recalculate day_start_equity after payout
+                            new_bal = payout_balance - firm_cut
+                            day_start_equity = new_bal
+                            if self.challenge_manager:
+                                self.challenge_manager.day_start_equity = new_bal
+                                self.challenge_manager.day_start_balance = new_bal
+                            _last_payout_balance = new_bal
+                        else:
+                            _last_payout_balance = payout_balance
+                        _last_payout_date = today
+                # ─────────────────────────────────────────────────────────
+
             # ═══════════════════════════════════════════════════════════════
             # WEEKEND HANDLING - Same as live bot
             # Friday 19:30+: Close/reduce positions, pause pending orders
@@ -5393,6 +5432,10 @@ class LiveTradingBot:
             'ddd_warnings': sum(1 for e in safety_events if e.get('type') == 'DDD_WARNING'),
             'tdd_stopouts': sum(1 for e in safety_events if e.get('type') == 'TDD_STOPOUT'),
             'monthly_stats': monthly_stats,
+            # 5ers fee metrics
+            'total_firm_cuts': round(_total_firm_cuts, 2),
+            'challenge_fee_usd': round(getattr(FIVEERS_CONFIG, 'challenge_fee_usd', 329.0), 2),
+            'trader_net_pnl': round(total_pnl - _total_firm_cuts - getattr(FIVEERS_CONFIG, 'challenge_fee_usd', 329.0), 2),
         }
         
         # Print results
@@ -5421,6 +5464,14 @@ class LiveTradingBot:
         print(f"   DDD reduces (>=3%): {results['ddd_reduces']}")
         print(f"   DDD halts (>=3.5%): {results['ddd_halts']}")
         print(f"   TDD stop-outs (>=10%): {results['tdd_stopouts']}")
+
+        if _simulate_payouts and _total_firm_cuts > 0:
+            challenge_fee = getattr(FIVEERS_CONFIG, 'challenge_fee_usd', 329.0)
+            print(f"\n💸 THE 5ERS FEES (profit split {_profit_split_pct:.0%} / {1-_profit_split_pct:.0%}):")
+            print(f"   Challenge fee:       ${challenge_fee:,.2f}")
+            print(f"   Total firm cuts:     ${_total_firm_cuts:,.2f}")
+            print(f"   Total fees:          ${_total_firm_cuts + challenge_fee:,.2f}")
+            print(f"   Trader net P&L:      ${results['trader_net_pnl']:,.2f}")
         
         # Monthly breakdown
         if monthly_stats:
