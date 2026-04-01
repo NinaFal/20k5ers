@@ -2680,6 +2680,148 @@ class LiveTradingBot:
         # 6. Sync TP levels to current params
         self._sync_tp_levels_to_current_params()
 
+        # 7. Check for missed TPs during downtime (price hit TP then reversed)
+        self._check_missed_tps_on_startup()
+
+    def _check_missed_tps_on_startup(self):
+        """
+        On startup, scan recent M1 candle history to detect TP levels that were
+        hit while the bot was offline but where price has since reversed.
+
+        The normal monitor_active_trades() only checks current price, so if price
+        hit TP2 and came back down, the partial close and SL trail are silently
+        skipped. This method detects that case and trails the SL to the correct
+        level so the position is protected while partial closes fire normally
+        when price returns to each TP level.
+
+        Partial closes are NOT executed retroactively — only the SL is trailed.
+        """
+        positions = self.mt5.get_my_positions()
+        if not positions:
+            return
+
+        header_logged = False
+
+        for sym, setup in self.pending_setups.items():
+            if setup.status != "filled":
+                continue
+
+            broker_symbol = self.symbol_map.get(sym, sym)
+            pos = next(
+                (p for p in positions
+                 if p.ticket == setup.order_ticket or p.symbol == broker_symbol),
+                None,
+            )
+            if not pos:
+                continue
+
+            entry = setup.entry_price
+            risk = abs(entry - setup.stop_loss)
+            if risk <= 0:
+                continue
+
+            partial_state = setup.partial_closes if hasattr(setup, 'partial_closes') else 0
+            if partial_state >= 4:
+                continue  # TP4 done means TP5 is handled by current-price check
+
+            tp1_r = self.params.tp1_r_multiple
+            tp2_r = self.params.tp2_r_multiple
+            tp3_r = self.params.tp3_r_multiple
+            tp4_r = getattr(self.params, 'tp4_r_multiple', 2.5)
+            tp5_r = getattr(self.params, 'tp5_r_multiple', 3.5)
+            direction = setup.direction
+
+            if direction == "bullish":
+                tp_prices = {
+                    1: entry + risk * tp1_r,
+                    2: entry + risk * tp2_r,
+                    3: entry + risk * tp3_r,
+                    4: entry + risk * tp4_r,
+                    5: entry + risk * tp5_r,
+                }
+            else:
+                tp_prices = {
+                    1: entry - risk * tp1_r,
+                    2: entry - risk * tp2_r,
+                    3: entry - risk * tp3_r,
+                    4: entry - risk * tp4_r,
+                    5: entry - risk * tp5_r,
+                }
+
+            # Fetch last 2 hours of M1 candles
+            candles = self.mt5.get_ohlcv(broker_symbol, "M1", 120)
+            if not candles:
+                log.warning(f"[{broker_symbol}] Could not fetch M1 candles for missed TP check")
+                continue
+
+            tick = self.mt5.get_tick(broker_symbol)
+            current_price = (tick.bid if direction == "bullish" else tick.ask) if tick else None
+
+            # Find the highest TP level confirmed by candles where price has since reversed
+            highest_missed_tp = 0
+            for tp_level in range(partial_state + 1, 6):
+                tp_price = tp_prices[tp_level]
+
+                candle_reached = any(
+                    (c["high"] >= tp_price if direction == "bullish" else c["low"] <= tp_price)
+                    for c in candles
+                )
+                if not candle_reached:
+                    break  # TPs are sequential; stop at first not reached
+
+                # If current price is still past this TP, monitor_active_trades handles it
+                if current_price is not None:
+                    if direction == "bullish" and current_price >= tp_price:
+                        continue
+                    if direction == "bearish" and current_price <= tp_price:
+                        continue
+
+                highest_missed_tp = tp_level
+
+            if highest_missed_tp == 0:
+                continue
+
+            if not header_logged:
+                log.info("=" * 70)
+                log.info("STARTUP: Missed TP check (candle history)")
+                log.info("=" * 70)
+                header_logged = True
+
+            log.warning(
+                f"[{broker_symbol}] TP{partial_state + 1}–TP{highest_missed_tp} hit while offline "
+                f"but price reversed — trailing SL only (partial closes will fire when price returns)"
+            )
+
+            # Determine new SL based on highest confirmed missed TP
+            if highest_missed_tp == 1:
+                new_sl = entry + risk * 0.1 if direction == "bullish" else entry - risk * 0.1
+                sl_desc = "0.1R (breakeven)"
+            elif highest_missed_tp == 2:
+                new_sl = entry + risk * tp1_r if direction == "bullish" else entry - risk * tp1_r
+                sl_desc = f"TP1 ({tp1_r}R)"
+            elif highest_missed_tp == 3:
+                new_sl = entry + risk * tp2_r if direction == "bullish" else entry - risk * tp2_r
+                sl_desc = f"TP2 ({tp2_r}R)"
+            else:  # tp_level 4 or 5
+                new_sl = entry + risk * tp3_r if direction == "bullish" else entry - risk * tp3_r
+                sl_desc = f"TP3 ({tp3_r}R)"
+
+            # Only update if new SL is more protective than the current one
+            current_sl = pos.sl
+            should_update = (
+                (direction == "bullish" and new_sl > current_sl) or
+                (direction == "bearish" and new_sl < current_sl)
+            )
+
+            if should_update:
+                success = self.mt5.modify_sl_tp(pos.ticket, sl=new_sl)
+                if success:
+                    log.warning(f"[{broker_symbol}] SL trailed to {sl_desc}: {new_sl:.5f} (was {current_sl:.5f})")
+                else:
+                    log.error(f"[{broker_symbol}] Failed to trail SL after missed TP detection")
+            else:
+                log.info(f"[{broker_symbol}] SL already protected at {current_sl:.5f} — no update needed")
+
     def _dedup_and_rescale_mt5_orders(self, pending_orders: list) -> tuple:
         """
         DEDUP & RESCALE: Remove duplicate MT5 pending orders and rescale lot sizes.
