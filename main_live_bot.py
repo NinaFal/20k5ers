@@ -40,25 +40,38 @@ from dataclasses import dataclass, asdict
 from zoneinfo import ZoneInfo  # Python 3.9+
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# MT5/5ERS SERVER TIMEZONE - UTC+2/+3 (EET/EEST)
+# MT5/5ERS SERVER TIMEZONE - FIXED UTC+2 (no DST)
+# Confirmed from 5ers broker email (April 2026): "All times shown in GMT+2"
+# despite Europe being on summer time (EEST = UTC+3).  Eightcap MT5 server
+# runs on a fixed UTC+2 offset year-round → midnight = 22:00 UTC always.
 # ═══════════════════════════════════════════════════════════════════════════════
-SERVER_TZ = ZoneInfo("Europe/Helsinki")  # UTC+2/+3 (EET/EEST)
+SERVER_TZ = timezone(timedelta(hours=2))  # Fixed UTC+2 (no DST)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MARKET HOLIDAY CALENDAR
-# Full-day closures and early-close days for forex/indices/metals.
-# 5ers broker (Eightcap MT5): follows EET/EEST server time; indices/metals
-# are closed on these days; forex thins out significantly.
-# Update annually - check broker email notifications for exact times.
+# Source: 5ers broker email - "holiday period April 2-6 2026".
+# All broker times are in GMT+2 (fixed, no DST).  UTC = GMT+2 − 2h.
+#
+# Affected instruments per 5ers email:
+#   Thu Apr 2  21:00 GMT+2 (19:00 UTC): DAX40, UK100, Gold, Silver early close
+#   Fri Apr 3  13:15 GMT+2 (11:15 UTC): NAS100, US30, SP500, JPN225 early close
+#   Fri Apr 3  all day:                 DAX40, UK100, WTI, Brent, Gold, Silver CLOSED
+#   Mon Apr 6  all day:                 DAX40, UK100 CLOSED
+#   Forex & Crypto: normal hours throughout
+#
+# For safety the bot treats Good Friday as a full trading holiday (most
+# non-forex instruments are closed) and uses the Thursday early-close to
+# trigger position management ahead of time.
+# Update annually from broker email notifications.
 # ═══════════════════════════════════════════════════════════════════════════════
 from datetime import date as _date
 
 MARKET_HOLIDAYS: set = {
     # 2026
     _date(2026, 1, 1),   # New Year's Day
-    _date(2026, 4, 3),   # Good Friday
-    _date(2026, 4, 6),   # Easter Monday
+    _date(2026, 4, 3),   # Good Friday  (DAX/UK100/Gold/Silver/WTI/Brent closed; NAS/SP500 early close 11:15 UTC)
+    _date(2026, 4, 6),   # Easter Monday (DAX40, UK100 closed; forex normal)
     _date(2026, 12, 25), # Christmas Day
     _date(2026, 12, 26), # Boxing Day
     # 2027
@@ -69,14 +82,16 @@ MARKET_HOLIDAYS: set = {
     _date(2027, 12, 28), # Boxing Day (observed)
 }
 
-# Early-close days: date → (hour_utc, minute_utc) when market closes early
-# Position safety triggers 30 minutes before this time.
+# Early-close days: date → (hour_utc, minute_utc) — earliest instrument close on that day.
+# Holiday safety fires 1 hour before this time.
+# Pre-holiday safety (tomorrow is MARKET_HOLIDAY) fires at 17:00 UTC.
 EARLY_CLOSE_DAYS: dict = {
-    _date(2026, 4, 2):   (21, 0),   # Maundy Thursday - broker closes ~21:00 UTC before Easter
-    _date(2026, 12, 24): (22, 0),   # Christmas Eve
-    _date(2026, 12, 31): (22, 0),   # New Year's Eve
-    _date(2027, 12, 24): (22, 0),   # Christmas Eve
-    _date(2027, 12, 31): (22, 0),   # New Year's Eve
+    # Thu Apr 2 2026: DAX40/UK100/Gold/Silver close 19:00 UTC (21:00 GMT+2) - confirmed by 5ers email
+    _date(2026, 4, 2):   (19, 0),
+    _date(2026, 12, 24): (20, 0),   # Christmas Eve  - conservative 20:00 UTC (update from broker email)
+    _date(2026, 12, 31): (20, 0),   # New Year's Eve - conservative 20:00 UTC (update from broker email)
+    _date(2027, 12, 24): (20, 0),   # Christmas Eve
+    _date(2027, 12, 31): (20, 0),   # New Year's Eve
 }
 
 
@@ -89,8 +104,8 @@ def is_market_holiday(check_date: _date = None) -> bool:
 
 def get_early_close_utc(check_date: _date = None):
     """
-    Return (hour, minute) UTC of early market close for check_date, or None.
-    Position safety should fire 30 minutes before this time.
+    Return (hour, minute) UTC of the earliest instrument close on check_date, or None.
+    Holiday position safety fires 1 hour before this time.
     """
     if check_date is None:
         check_date = datetime.now(timezone.utc).date()
@@ -1896,10 +1911,12 @@ class LiveTradingBot:
         Apply Friday-style position management before market holidays or early closes.
 
         Triggers when EITHER:
-        - Tomorrow is a full market holiday and it's 19:30+ UTC today (weekday), OR
-        - Today has an early close and we're within 30 min of that close time.
+        - Tomorrow is a full market holiday and it's 17:00+ UTC today (weekday), OR
+        - Today has an early close and we're within 1 hour of that close time.
 
-        Uses the same position-management logic as handle_friday_position_closing().
+        Fires earlier than Friday safety (19:30 UTC) to give more buffer before
+        thin holiday liquidity. Uses the same position-management logic as
+        handle_friday_position_closing().
         """
         now = datetime.now(timezone.utc)
         today = now.date()
@@ -1913,13 +1930,13 @@ class LiveTradingBot:
             tomorrow_is_holiday
             and today.weekday() < 5           # today is a weekday
             and not is_market_holiday(today)  # today itself is not a holiday
-            and (now.hour > 19 or (now.hour == 19 and now.minute >= 30))
+            and now.hour >= 17               # 17:00 UTC - earlier than Friday safety (19:30 UTC)
         )
         trigger_early_close = False
         if early_close:
             ec_h, ec_m = early_close
-            # Trigger 30 minutes before early close
-            trigger_at = datetime(now.year, now.month, now.day, ec_h, ec_m, tzinfo=timezone.utc) - timedelta(minutes=30)
+            # Trigger 1 hour before early close (more buffer than the 30 min we had before)
+            trigger_at = datetime(now.year, now.month, now.day, ec_h, ec_m, tzinfo=timezone.utc) - timedelta(hours=1)
             trigger_early_close = now >= trigger_at
 
         if not (trigger_pre_holiday or trigger_early_close):
