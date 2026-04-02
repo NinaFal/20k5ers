@@ -40,9 +40,76 @@ from dataclasses import dataclass, asdict
 from zoneinfo import ZoneInfo  # Python 3.9+
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# MT5/5ERS SERVER TIMEZONE - UTC+2/+3 (EET/EEST)
+# MT5/5ERS SERVER TIMEZONE - FIXED UTC+2 (no DST)
+# Confirmed from 5ers broker email (April 2026): "All times shown in GMT+2"
+# despite Europe being on summer time (EEST = UTC+3).  Eightcap MT5 server
+# runs on a fixed UTC+2 offset year-round → midnight = 22:00 UTC always.
 # ═══════════════════════════════════════════════════════════════════════════════
-SERVER_TZ = ZoneInfo("Europe/Helsinki")  # UTC+2/+3 (EET/EEST)
+SERVER_TZ = timezone(timedelta(hours=2))  # Fixed UTC+2 (no DST)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MARKET HOLIDAY CALENDAR
+# Source: 5ers broker email - "holiday period April 2-6 2026".
+# All broker times are in GMT+2 (fixed, no DST).  UTC = GMT+2 − 2h.
+#
+# Affected instruments per 5ers email:
+#   Thu Apr 2  21:00 GMT+2 (19:00 UTC): DAX40, UK100, Gold, Silver early close
+#   Fri Apr 3  13:15 GMT+2 (11:15 UTC): NAS100, US30, SP500, JPN225 early close
+#   Fri Apr 3  all day:                 DAX40, UK100, WTI, Brent, Gold, Silver CLOSED
+#   Mon Apr 6  all day:                 DAX40, UK100 CLOSED
+#   Forex & Crypto: normal hours throughout
+#
+# For safety the bot treats Good Friday as a full trading holiday (most
+# non-forex instruments are closed) and uses the Thursday early-close to
+# trigger position management ahead of time.
+# Update annually from broker email notifications.
+# ═══════════════════════════════════════════════════════════════════════════════
+from datetime import date as _date
+
+MARKET_HOLIDAYS: set = {
+    # 2026
+    _date(2026, 1, 1),   # New Year's Day
+    _date(2026, 4, 3),   # Good Friday  (DAX/UK100/Gold/Silver/WTI/Brent closed; NAS/SP500 early close 11:15 UTC)
+    _date(2026, 4, 6),   # Easter Monday (DAX40, UK100 closed; forex normal)
+    _date(2026, 12, 25), # Christmas Day
+    _date(2026, 12, 26), # Boxing Day
+    # 2027
+    _date(2027, 1, 1),   # New Year's Day
+    _date(2027, 3, 26),  # Good Friday
+    _date(2027, 3, 29),  # Easter Monday
+    _date(2027, 12, 27), # Christmas Day (observed, Dec 25 is Saturday)
+    _date(2027, 12, 28), # Boxing Day (observed)
+}
+
+# Early-close days: date → (hour_utc, minute_utc) — earliest instrument close on that day.
+# Holiday safety fires 1 hour before this time.
+# Pre-holiday safety (tomorrow is MARKET_HOLIDAY) fires at 17:00 UTC.
+EARLY_CLOSE_DAYS: dict = {
+    # Thu Apr 2 2026: DAX40/UK100/Gold/Silver close 19:00 UTC (21:00 GMT+2) - confirmed by 5ers email
+    _date(2026, 4, 2):   (19, 0),
+    _date(2026, 12, 24): (20, 0),   # Christmas Eve  - conservative 20:00 UTC (update from broker email)
+    _date(2026, 12, 31): (20, 0),   # New Year's Eve - conservative 20:00 UTC (update from broker email)
+    _date(2027, 12, 24): (20, 0),   # Christmas Eve
+    _date(2027, 12, 31): (20, 0),   # New Year's Eve
+}
+
+
+def is_market_holiday(check_date: _date = None) -> bool:
+    """Return True if check_date is a full-day market holiday (no trading)."""
+    if check_date is None:
+        check_date = datetime.now(timezone.utc).date()
+    return check_date in MARKET_HOLIDAYS
+
+
+def get_early_close_utc(check_date: _date = None):
+    """
+    Return (hour, minute) UTC of the earliest instrument close on check_date, or None.
+    Holiday position safety fires 1 hour before this time.
+    """
+    if check_date is None:
+        check_date = datetime.now(timezone.utc).date()
+    return EARLY_CLOSE_DAYS.get(check_date)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -84,6 +151,30 @@ def is_crypto_pair(symbol: str) -> bool:
     
     # Check if any crypto keyword is in the symbol
     return any(keyword in symbol_normalized for keyword in crypto_keywords)
+
+
+def is_holiday_affected_instrument(symbol: str) -> bool:
+    """
+    Return True if the symbol is subject to holiday/early-close restrictions.
+    Forex pairs trade normally on most holidays (5ers email confirms this).
+    Metals, indices, oil, and crypto are affected.
+
+    Args:
+        symbol: Broker or internal symbol (e.g., "XAUUSD", "NAS100", "EURUSD")
+    """
+    s = symbol.upper().replace("_", "").replace("/", "").replace(".", "")
+    affected_keywords = [
+        # Metals
+        "XAU", "XAG",
+        # Indices
+        "NAS", "US30", "US500", "SP500", "UK100", "DAX", "DE40", "GER40",
+        "JPN225", "NIKJPY", "NIK", "FRA40", "AUS200",
+        # Oil/Energy
+        "XTI", "XBR", "WTI", "BRENT", "BCO", "OIL",
+        # Crypto (also affected, though 24/7 they still have wider spreads)
+        "BTC", "ETH", "XBT",
+    ]
+    return any(kw in s for kw in affected_keywords)
 
 
 try:
@@ -273,43 +364,67 @@ def get_next_midnight_sync_time() -> datetime:
     """
     Get next midnight sync time (00:00 server time).
     This is when 5ers takes the equity/balance snapshot for DDD calculation.
-    
+
     The bot syncs at exactly 00:00 to capture MAX(equity, balance) matching 5ers.
     Skips weekends (Saturday/Sunday).
-    
+
     Returns datetime in UTC.
+
+    IMPORTANT: Uses date-based arithmetic to correctly handle DST transitions.
+    Adding timedelta(days=1) to a timezone-aware datetime adds 86400 seconds (UTC),
+    which gives 01:00 local time on DST spring-forward days (23h day) instead of
+    00:00. Working with date objects and reconstructing midnight avoids this.
     """
     server_now = get_server_time()
-    today_midnight = server_now.replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    if server_now >= today_midnight or today_midnight.weekday() >= 5:
-        # Already past midnight today (or weekend), get next weekday midnight
-        next_day = today_midnight + timedelta(days=1)
-        while next_day.weekday() >= 5:  # Skip Sat/Sun
-            next_day += timedelta(days=1)
-        return next_day.astimezone(timezone.utc)
-    
-    return today_midnight.astimezone(timezone.utc)
+
+    # Get tomorrow's date in server timezone using pure date arithmetic (DST-safe)
+    next_date = server_now.date() + timedelta(days=1)
+
+    # Skip weekends and full-day holidays
+    while next_date.weekday() >= 5 or is_market_holiday(next_date):
+        next_date += timedelta(days=1)
+
+    # Reconstruct midnight in server timezone for that date.
+    # datetime() with ZoneInfo correctly resolves the UTC offset for the given date.
+    next_midnight = datetime(next_date.year, next_date.month, next_date.day,
+                             0, 0, 0, tzinfo=SERVER_TZ)
+
+    return next_midnight.astimezone(timezone.utc)
 
 
 def is_market_open() -> bool:
     """
-    Check if forex market is open (not weekend).
+    Check if the market is open (not weekend, holiday, or after early close).
     Forex: Opens Sunday 22:00 UTC, closes Friday 22:00 UTC.
+    Full holidays and early-close days are defined in MARKET_HOLIDAYS / EARLY_CLOSE_DAYS.
     """
     now = datetime.now(timezone.utc)
     weekday = now.weekday()  # 0=Monday, 6=Sunday
     hour = now.hour
-    
-    # Weekend = Saturday whole day + Sunday before 22:00 UTC
-    if weekday == 5:  # Saturday
+    minute = now.minute
+
+    # Weekend: Saturday whole day + Sunday before 22:00 UTC
+    if weekday == 5:
         return False
-    if weekday == 6 and hour < 22:  # Sunday before 22:00 UTC
+    if weekday == 6 and hour < 22:
         return False
     # Friday after 22:00 UTC
     if weekday == 4 and hour >= 22:
         return False
-    
+
+    today = now.date()
+
+    # Full-day holiday
+    if is_market_holiday(today):
+        return False
+
+    # Early-close day - treat as closed after early-close time
+    early_close = get_early_close_utc(today)
+    if early_close:
+        ec_h, ec_m = early_close
+        if hour > ec_h or (hour == ec_h and minute >= ec_m):
+            return False
+
     return True
 
 
@@ -826,6 +941,7 @@ class LiveTradingBot:
         self.last_friday_close_check: Optional[datetime] = None  # When we last did Friday check
         self._weekend_paused_orders: list = []  # Pending orders cancelled for weekend
         self._weekend_resume_done: bool = False  # Track if Monday resume already ran
+        self._holiday_closing_done: bool = False  # Track if holiday position safety already ran
         
         # Limit order compounding - update lot sizes every 30 minutes based on current equity
         self.last_limit_order_update: Optional[datetime] = None
@@ -1748,15 +1864,20 @@ class LiveTradingBot:
     # Cancel non-crypto pending orders Friday, re-place Monday morning
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _pause_pending_orders_for_weekend(self):
+    def _pause_pending_orders_for_weekend(self, skip_forex: bool = False):
         """
-        Cancel all non-crypto pending orders on Friday to avoid weekend gap fills.
-        Stores order details in _weekend_paused_orders so they can be re-placed Monday.
-        Crypto orders stay active (24/7 market, no gap risk).
+        Cancel non-crypto (and optionally non-forex) pending orders.
+        Stores order details so they can be re-placed after the closure.
+
+        Args:
+            skip_forex: If True, forex pairs are also kept active (use for
+                        holidays where forex trades normally). If False (default,
+                        used on Fridays), all non-crypto orders are cancelled
+                        to prevent weekend gap fills.
         """
         pending_orders = self.mt5.get_pending_orders()
         if not pending_orders:
-            log.info("  No pending orders to pause for weekend")
+            log.info("  No pending orders to pause")
             return
 
         paused = 0
@@ -1766,10 +1887,16 @@ class LiveTradingBot:
         for order in pending_orders:
             symbol = getattr(order, 'symbol', str(order))
 
-            # Skip crypto - they trade 24/7, no weekend gap risk
+            # Crypto stays active (24/7 market)
             if is_crypto_pair(symbol):
                 kept += 1
                 log.info(f"  ⏸️ KEEP {symbol} (crypto, 24/7 market)")
+                continue
+
+            # On holidays, forex trades normally - keep its pending orders
+            if skip_forex and not is_holiday_affected_instrument(symbol):
+                kept += 1
+                log.info(f"  ⏸️ KEEP {symbol} (forex, normal holiday hours)")
                 continue
 
             # Save order details for Monday re-placement
@@ -1808,21 +1935,154 @@ class LiveTradingBot:
 
         log.info(f"  📊 Weekend pause: {paused} orders paused, {kept} crypto kept")
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # HOLIDAY POSITION SAFETY
+    # Fires on the last trading day before a full-day holiday, or 30 min before
+    # an early-close.  Applies the same position management as Friday safety.
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def handle_holiday_position_closing(self):
+        """
+        Apply Friday-style position management before market holidays or early closes.
+
+        Triggers when EITHER:
+        - Tomorrow is a full market holiday and it's 17:00+ UTC today (weekday), OR
+        - Today has an early close and we're within 1 hour of that close time.
+
+        Fires earlier than Friday safety (19:30 UTC) to give more buffer before
+        thin holiday liquidity. Uses the same position-management logic as
+        handle_friday_position_closing().
+        """
+        now = datetime.now(timezone.utc)
+        today = now.date()
+        tomorrow = today + timedelta(days=1)
+
+        # Determine whether the holiday trigger condition is met
+        tomorrow_is_holiday = is_market_holiday(tomorrow)
+        early_close = get_early_close_utc(today)
+
+        trigger_pre_holiday = (
+            tomorrow_is_holiday
+            and today.weekday() < 5           # today is a weekday
+            and not is_market_holiday(today)  # today itself is not a holiday
+            and now.hour >= 17               # 17:00 UTC - earlier than Friday safety (19:30 UTC)
+        )
+        trigger_early_close = False
+        if early_close:
+            ec_h, ec_m = early_close
+            # Trigger 1 hour before early close (more buffer than the 30 min we had before)
+            trigger_at = datetime(now.year, now.month, now.day, ec_h, ec_m, tzinfo=timezone.utc) - timedelta(hours=1)
+            trigger_early_close = now >= trigger_at
+
+        if not (trigger_pre_holiday or trigger_early_close):
+            # Reset flag on days where neither condition applies
+            if not tomorrow_is_holiday and not early_close:
+                self._holiday_closing_done = False
+            return
+
+        # Only run once per trigger day
+        if self._holiday_closing_done:
+            return
+
+        reason = f"tomorrow is holiday ({tomorrow})" if trigger_pre_holiday else f"early close at {early_close[0]:02d}:{early_close[1]:02d} UTC"
+        log.info("=" * 70)
+        log.info(f"🗓️ HOLIDAY POSITION SAFETY - {reason}")
+        log.info("=" * 70)
+
+        all_positions = self.mt5.get_my_positions()
+
+        # Forex trades normally on holidays (confirmed by 5ers email).
+        # Only manage metals, indices, oil, and crypto positions.
+        positions = [p for p in (all_positions or [])
+                     if is_holiday_affected_instrument(getattr(p, 'symbol', ''))]
+        forex_held = len(all_positions or []) - len(positions)
+        if forex_held:
+            log.info(f"🗓️ Leaving {forex_held} forex position(s) untouched (forex trades normally on holidays)")
+
+        if not positions:
+            log.info("No holiday-affected positions to manage (metals/indices/oil)")
+            self._holiday_closing_done = True
+            self._pause_pending_orders_for_weekend(skip_forex=True)
+            return
+
+        # Reuse Friday safety params
+        try:
+            from params.params_loader import load_params_dict
+            raw_params = load_params_dict()
+            raw_params = raw_params.get('parameters', raw_params)
+        except Exception:
+            raw_params = {}
+        friday_max_per_group = int(raw_params.get('friday_safety_max_per_group', 2))
+        friday_max_total_non_crypto = int(raw_params.get('friday_safety_max_total_non_crypto', 5))
+        friday_r_close_losing = float(raw_params.get('friday_safety_r_close_losing', 0.0))
+        friday_r_new_position = float(raw_params.get('friday_safety_r_new_position', 0.5))
+        friday_reduce_pct = float(raw_params.get('friday_safety_reduce_pct', 0.50))
+
+        result = wgm.select_positions_for_weekend_tier1(
+            positions=positions,
+            mt5_client=self.mt5,
+            current_time=now,
+            max_per_group=friday_max_per_group,
+            max_total_non_crypto=friday_max_total_non_crypto,
+            r_close_losing=friday_r_close_losing,
+            r_new_position=friday_r_new_position,
+            reduce_pct=friday_reduce_pct,
+        )
+
+        for pos in result['CLOSE']:
+            symbol = get_internal_symbol(pos.symbol)
+            log.info(f"🗓️ Closing {symbol} before holiday (ticket {pos.ticket})")
+            close_result = self.mt5.close_position(pos.ticket)
+            if hasattr(close_result, 'success') and close_result.success:
+                log.info(f"  ✓ Closed successfully")
+            else:
+                log.error(f"  ✗ Failed to close: {getattr(close_result, 'error', 'unknown')}")
+
+        for pos in result['REDUCE_50']:
+            symbol = get_internal_symbol(pos.symbol)
+            current_volume = pos.volume
+            reduce_volume = round(current_volume * friday_reduce_pct, 2)
+            if reduce_volume < 0.01:
+                continue
+            log.info(f"🗓️ Reducing {symbol} 50% before holiday (ticket {pos.ticket})")
+            self.mt5.partial_close(pos.ticket, reduce_volume)
+
+        remaining_positions = [p for p in positions if p not in result['CLOSE']]
+        if result['HOLD']:
+            log.info(f"  Holding {len(result['HOLD'])} positions through holiday")
+            wgm.apply_breakeven_to_held_positions(remaining_positions, self.mt5)
+
+        self._pause_pending_orders_for_weekend(skip_forex=True)
+        self._holiday_closing_done = True
+
+        log.info("=" * 70)
+        log.info(f"✅ Holiday safety complete - {len(result['HOLD'])} positions held")
+        log.info("=" * 70)
+
     def handle_monday_order_resume(self):
         """
-        Re-place pending orders that were paused for the weekend.
-        Runs Monday 01:00+ server time (after market stabilizes from open).
+        Re-place pending orders that were paused for the weekend or a market holiday.
+        Runs on Monday (after regular weekend) OR on the first trading day after a
+        holiday, at 01:00+ server time (after market stabilizes from open).
         Orders are re-placed with updated lot sizes based on current equity (compounding).
         """
         now = datetime.now(timezone.utc)
+        today = now.date()
+        yesterday = today - timedelta(days=1)
 
-        # Only run Monday (weekday 0)
-        if now.weekday() != 0:
-            if now.weekday() != 0:
-                self._weekend_resume_done = False
+        # Don't run on holidays themselves
+        if is_market_holiday(today):
             return
 
-        # Only run once per Monday
+        # Run on Monday (after weekend) OR first weekday after a holiday
+        yesterday_was_closed = (yesterday.weekday() >= 5 or is_market_holiday(yesterday))
+        is_first_trading_day = (now.weekday() == 0 or yesterday_was_closed)
+
+        if not is_first_trading_day:
+            self._weekend_resume_done = False
+            return
+
+        # Only run once per first-trading-day
         if self._weekend_resume_done:
             return
 
@@ -5525,10 +5785,9 @@ class LiveTradingBot:
         if self.last_midnight_sync_date == today_server_date:
             log.info(f"✓ Midnight equity sync already done for {today_server_date}")
         else:
-            # If we just started after midnight but before scan, do sync now
+            # Missed midnight sync (bot restart or first run) - sync now on weekdays
             server_now = get_server_time()
-            today_midnight = server_now.replace(hour=0, minute=0, second=0, microsecond=0)
-            if server_now >= today_midnight and server_now.weekday() < 5:
+            if server_now.weekday() < 5:
                 log.info(f"⏰ Missed midnight sync for {today_server_date} - syncing now")
                 self._do_midnight_equity_sync()
         log.info(f"Next midnight sync: {self.next_midnight_sync_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
@@ -5589,9 +5848,10 @@ class LiveTradingBot:
                             last_orphan_check = now
 
                         # Weekend gap risk management
-                        self.handle_friday_position_closing()  # Friday 16:00+ UTC
+                        self.handle_friday_position_closing()  # Friday 19:30+ UTC
+                        self.handle_holiday_position_closing()  # Pre-holiday or early-close days
                         self.handle_sunday_gap_detection()  # Sunday 22:00+ UTC
-                        self.handle_monday_order_resume()  # Monday 01:00+ server time
+                        self.handle_monday_order_resume()  # Monday/post-holiday 01:00+ server time
                         
                         # Limit order compounding - update lot sizes every 30 min
                         self.update_limit_orders_for_compounding()
