@@ -5536,6 +5536,8 @@ class LiveTradingBot:
         self.last_validate_time = datetime.now(timezone.utc)
         self.last_spread_check_time = datetime.now(timezone.utc)
         last_protection_check = datetime.now(timezone.utc)
+        last_orphan_check = datetime.now(timezone.utc)
+        ORPHAN_CHECK_INTERVAL_SECONDS = 300  # Every 5 minutes
         emergency_triggered = False
         
         while running:
@@ -5578,6 +5580,13 @@ class LiveTradingBot:
                         
                         # 5-TP partial close management
                         self.manage_partial_takes()
+
+                        # Recover any MT5 positions not tracked in pending_setups
+                        # (handles fills missed during restarts or mid-session gaps)
+                        if (now - last_orphan_check).total_seconds() >= ORPHAN_CHECK_INTERVAL_SECONDS:
+                            live_positions = self.mt5.get_my_positions()
+                            self._recover_orphaned_positions(live_positions)
+                            last_orphan_check = now
 
                         # Weekend gap risk management
                         self.handle_friday_position_closing()  # Friday 16:00+ UTC
