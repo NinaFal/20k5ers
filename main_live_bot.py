@@ -153,6 +153,30 @@ def is_crypto_pair(symbol: str) -> bool:
     return any(keyword in symbol_normalized for keyword in crypto_keywords)
 
 
+def is_holiday_affected_instrument(symbol: str) -> bool:
+    """
+    Return True if the symbol is subject to holiday/early-close restrictions.
+    Forex pairs trade normally on most holidays (5ers email confirms this).
+    Metals, indices, oil, and crypto are affected.
+
+    Args:
+        symbol: Broker or internal symbol (e.g., "XAUUSD", "NAS100", "EURUSD")
+    """
+    s = symbol.upper().replace("_", "").replace("/", "").replace(".", "")
+    affected_keywords = [
+        # Metals
+        "XAU", "XAG",
+        # Indices
+        "NAS", "US30", "US500", "SP500", "UK100", "DAX", "DE40", "GER40",
+        "JPN225", "NIKJPY", "NIK", "FRA40", "AUS200",
+        # Oil/Energy
+        "XTI", "XBR", "WTI", "BRENT", "BCO", "OIL",
+        # Crypto (also affected, though 24/7 they still have wider spreads)
+        "BTC", "ETH", "XBT",
+    ]
+    return any(kw in s for kw in affected_keywords)
+
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -1840,15 +1864,20 @@ class LiveTradingBot:
     # Cancel non-crypto pending orders Friday, re-place Monday morning
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _pause_pending_orders_for_weekend(self):
+    def _pause_pending_orders_for_weekend(self, skip_forex: bool = False):
         """
-        Cancel all non-crypto pending orders on Friday to avoid weekend gap fills.
-        Stores order details in _weekend_paused_orders so they can be re-placed Monday.
-        Crypto orders stay active (24/7 market, no gap risk).
+        Cancel non-crypto (and optionally non-forex) pending orders.
+        Stores order details so they can be re-placed after the closure.
+
+        Args:
+            skip_forex: If True, forex pairs are also kept active (use for
+                        holidays where forex trades normally). If False (default,
+                        used on Fridays), all non-crypto orders are cancelled
+                        to prevent weekend gap fills.
         """
         pending_orders = self.mt5.get_pending_orders()
         if not pending_orders:
-            log.info("  No pending orders to pause for weekend")
+            log.info("  No pending orders to pause")
             return
 
         paused = 0
@@ -1858,10 +1887,16 @@ class LiveTradingBot:
         for order in pending_orders:
             symbol = getattr(order, 'symbol', str(order))
 
-            # Skip crypto - they trade 24/7, no weekend gap risk
+            # Crypto stays active (24/7 market)
             if is_crypto_pair(symbol):
                 kept += 1
                 log.info(f"  ⏸️ KEEP {symbol} (crypto, 24/7 market)")
+                continue
+
+            # On holidays, forex trades normally - keep its pending orders
+            if skip_forex and not is_holiday_affected_instrument(symbol):
+                kept += 1
+                log.info(f"  ⏸️ KEEP {symbol} (forex, normal holiday hours)")
                 continue
 
             # Save order details for Monday re-placement
@@ -1954,11 +1989,20 @@ class LiveTradingBot:
         log.info(f"🗓️ HOLIDAY POSITION SAFETY - {reason}")
         log.info("=" * 70)
 
-        positions = self.mt5.get_my_positions()
+        all_positions = self.mt5.get_my_positions()
+
+        # Forex trades normally on holidays (confirmed by 5ers email).
+        # Only manage metals, indices, oil, and crypto positions.
+        positions = [p for p in (all_positions or [])
+                     if is_holiday_affected_instrument(getattr(p, 'symbol', ''))]
+        forex_held = len(all_positions or []) - len(positions)
+        if forex_held:
+            log.info(f"🗓️ Leaving {forex_held} forex position(s) untouched (forex trades normally on holidays)")
+
         if not positions:
-            log.info("No positions to manage before holiday")
+            log.info("No holiday-affected positions to manage (metals/indices/oil)")
             self._holiday_closing_done = True
-            self._pause_pending_orders_for_weekend()
+            self._pause_pending_orders_for_weekend(skip_forex=True)
             return
 
         # Reuse Friday safety params
@@ -2008,7 +2052,7 @@ class LiveTradingBot:
             log.info(f"  Holding {len(result['HOLD'])} positions through holiday")
             wgm.apply_breakeven_to_held_positions(remaining_positions, self.mt5)
 
-        self._pause_pending_orders_for_weekend()
+        self._pause_pending_orders_for_weekend(skip_forex=True)
         self._holiday_closing_done = True
 
         log.info("=" * 70)
