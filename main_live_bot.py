@@ -273,23 +273,32 @@ def get_next_midnight_sync_time() -> datetime:
     """
     Get next midnight sync time (00:00 server time).
     This is when 5ers takes the equity/balance snapshot for DDD calculation.
-    
+
     The bot syncs at exactly 00:00 to capture MAX(equity, balance) matching 5ers.
     Skips weekends (Saturday/Sunday).
-    
+
     Returns datetime in UTC.
+
+    IMPORTANT: Uses date-based arithmetic to correctly handle DST transitions.
+    Adding timedelta(days=1) to a timezone-aware datetime adds 86400 seconds (UTC),
+    which gives 01:00 local time on DST spring-forward days (23h day) instead of
+    00:00. Working with date objects and reconstructing midnight avoids this.
     """
     server_now = get_server_time()
-    today_midnight = server_now.replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    if server_now >= today_midnight or today_midnight.weekday() >= 5:
-        # Already past midnight today (or weekend), get next weekday midnight
-        next_day = today_midnight + timedelta(days=1)
-        while next_day.weekday() >= 5:  # Skip Sat/Sun
-            next_day += timedelta(days=1)
-        return next_day.astimezone(timezone.utc)
-    
-    return today_midnight.astimezone(timezone.utc)
+
+    # Get tomorrow's date in server timezone using pure date arithmetic (DST-safe)
+    next_date = server_now.date() + timedelta(days=1)
+
+    # Skip weekends
+    while next_date.weekday() >= 5:  # 5=Saturday, 6=Sunday
+        next_date += timedelta(days=1)
+
+    # Reconstruct midnight in server timezone for that date.
+    # datetime() with ZoneInfo correctly resolves the UTC offset for the given date.
+    next_midnight = datetime(next_date.year, next_date.month, next_date.day,
+                             0, 0, 0, tzinfo=SERVER_TZ)
+
+    return next_midnight.astimezone(timezone.utc)
 
 
 def is_market_open() -> bool:
@@ -5525,10 +5534,9 @@ class LiveTradingBot:
         if self.last_midnight_sync_date == today_server_date:
             log.info(f"✓ Midnight equity sync already done for {today_server_date}")
         else:
-            # If we just started after midnight but before scan, do sync now
+            # Missed midnight sync (bot restart or first run) - sync now on weekdays
             server_now = get_server_time()
-            today_midnight = server_now.replace(hour=0, minute=0, second=0, microsecond=0)
-            if server_now >= today_midnight and server_now.weekday() < 5:
+            if server_now.weekday() < 5:
                 log.info(f"⏰ Missed midnight sync for {today_server_date} - syncing now")
                 self._do_midnight_equity_sync()
         log.info(f"Next midnight sync: {self.next_midnight_sync_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
