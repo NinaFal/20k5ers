@@ -270,11 +270,13 @@ def select_positions_for_weekend_tier1(
 
     Rules:
     1. Crypto: Always hold (BTC, ETH - no gap risk, trade 24/7)
-    2. Close ALL losing positions (< r_close_losing)
-    3. Reduce reduce_pct% of positions in [r_close_losing, r_new_position) (new positions)
-    4. Hold all positions >= r_new_position (let winners run over the weekend)
-    5. MAX 1-2 positions per correlation group (avoid correlation clusters)
-    6. Overall max: 3-5 non-crypto positions
+    2. TP1 reached (SL at breakeven or better): Always hold - position protected,
+       exempt from all closing/reduction/correlation/limit rules
+    3. Close ALL losing positions (< r_close_losing)
+    4. Reduce reduce_pct% of positions in [r_close_losing, r_new_position) (new positions)
+    5. Hold all positions >= r_new_position (let winners run over the weekend)
+    6. MAX 1-2 positions per correlation group (avoid correlation clusters)
+    7. Overall max: 3-5 non-crypto positions
 
     Args:
         positions: List of MT5 position objects
@@ -322,6 +324,7 @@ def select_positions_for_weekend_tier1(
     reduce = []
 
     crypto_hold = []
+    tp1_hold = []
     non_crypto_candidates = []
 
     # ═══════════════════════════════════════════════════
@@ -344,6 +347,15 @@ def select_positions_for_weekend_tier1(
             hold.append(pos)
             crypto_hold.append(pos)
             logger.info(f"🪙 HOLD {oanda_symbol}: CRYPTO ({current_r:+.2f}R) - No weekend gap risk")
+            continue
+
+        # TP1 REACHED: SL is at breakeven or better - position is fully protected.
+        # Partial profit is already locked in and worst-case is breakeven.
+        # Exempt from all closing, reduction, correlation, and position limit rules.
+        if is_sl_protected(pos):
+            hold.append(pos)
+            tp1_hold.append(pos)
+            logger.info(f"🎯 HOLD {oanda_symbol}: TP1 REACHED ({current_r:+.2f}R) - SL protected, exempt from safety rules")
             continue
 
         # RULE 1: Close ALL losing positions (protect capital)
@@ -466,6 +478,7 @@ def select_positions_for_weekend_tier1(
     logger.info("📊 WEEKEND POSITION SUMMARY")
     logger.info("═" * 70)
     logger.info(f"  🪙 Crypto (BTC/ETH):      {len(crypto_hold)} (unlimited - no gap risk)")
+    logger.info(f"  🎯 TP1 Protected:          {len(tp1_hold)} (exempt - SL at breakeven or better)")
     logger.info(f"  📈 Non-Crypto (Forex/etc): {len(selected_non_crypto)} (max {max_total_non_crypto})")
     logger.info(f"     - Protected (SL @ BE+): {num_protected}")
     logger.info(f"     - At Risk (SL in loss): {num_at_risk}")
@@ -486,6 +499,7 @@ def select_positions_for_weekend_tier1(
         'REDUCE_50': reduce,
         'stats': {
             'crypto': len(crypto_hold),
+            'tp1_protected': len(tp1_hold),
             'non_crypto': len(selected_non_crypto),
             'protected': num_protected,
             'at_risk_positions': num_at_risk,
