@@ -36,7 +36,7 @@ from challenge_rules import FIVEERS_60K_RULES
 # These values are exported for backward compatibility
 
 ACCOUNT_CURRENCY = FIVEERS_60K_RULES.account_currency
-ACCOUNT_SIZE = FIVEERS_60K_RULES.account_size  # 60,000 USD (5ers 60K High Stakes)
+ACCOUNT_SIZE = FIVEERS_60K_RULES.account_size  # 50,000 USD (5ers 50K High Stakes)
 MAX_DAILY_LOSS_PCT = FIVEERS_60K_RULES.max_daily_loss_pct / 100  # 0.05 (5%)
 MAX_TOTAL_LOSS_PCT = FIVEERS_60K_RULES.max_total_drawdown_pct / 100  # 0.10 (10%)
 RISK_PER_TRADE_PCT = FIVEERS_60K_RULES.risk_per_trade_pct / 100  # 0.006 (0.6%)

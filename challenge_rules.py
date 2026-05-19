@@ -1,6 +1,6 @@
 """
-5ers 60K High Stakes Challenge Rules Definition
-Defines the rules for the 5ers 60K High Stakes challenge
+5ers 50K High Stakes Challenge Rules Definition
+Defines the rules for the 5ers 50K High Stakes challenge
 """
 
 from dataclasses import dataclass
@@ -10,7 +10,7 @@ from dataclasses import dataclass
 class ChallengeRules:
     """5ers High Stakes Challenge rules and constraints"""
     account_currency: str = "USD"
-    account_size: float = 60000.0  # $60K High Stakes
+    account_size: float = 50000.0  # $50K High Stakes
     max_daily_loss_pct: float = 5.0  # 5% daily loss limit ($3,000)
     max_total_drawdown_pct: float = 10.0  # 10% total drawdown limit ($6,000)
     risk_per_trade_pct: float = 0.6  # 0.6% risk per trade ($360 per R)
@@ -37,10 +37,10 @@ class ChallengeRules:
     profit_split_max: int = 100  # Up to 100% profit split
 
 
-# Create the default 5ers 60K High Stakes rules
+# Create the default 5ers 50K High Stakes rules
 FIVEERS_60K_RULES = ChallengeRules(
     account_currency="USD",
-    account_size=60000.0,
+    account_size=50000.0,
     max_daily_loss_pct=5.0,
     max_total_drawdown_pct=10.0,
     risk_per_trade_pct=0.6,
