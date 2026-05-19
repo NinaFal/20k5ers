@@ -4878,7 +4878,15 @@ class LiveTradingBot:
         
         self.pending_setups[symbol] = pending_setup
         self._save_pending_setups()
-        
+
+        # If the broker returned price=0.0 for a market fill, fix it immediately
+        # before any TP/SL logic runs — don't wait until next startup.
+        if pending_setup.status == "filled" and pending_setup.entry_price == 0.0:
+            log.warning(
+                f"[{symbol}] Broker returned fill price 0.0 — querying MT5 for real entry price now."
+            )
+            self._fix_zero_entry_prices()
+
         if pending_setup.status == "filled":
             self.record_trading_day()
         
