@@ -22,7 +22,7 @@ class Fiveers60KConfig:
     """5ers 60K High Stakes Challenge Configuration - Ultra-Conservative Approach"""
 
     # === ACCOUNT SETTINGS ===
-    account_size: float = 20000.0  # 5ers 20K High Stakes challenge account size
+    account_size: float = 50000.0  # 5ers 50K High Stakes challenge account size
     account_currency: str = "USD"
 
     # === 5ERS RULES ===
