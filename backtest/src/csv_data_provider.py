@@ -111,7 +111,7 @@ class CSVDataProvider:
         
         # Load available symbols
         self._symbols = self._discover_symbols()
-        log.info(f"CSVDataProvider initialized with {len(self._symbols)} symbols, timeframe: {intraday_tf}")
+        log.info(f"CSVDataProvider initialized with {len(self._symbols)} symbols, timeframe: {self.intraday_tf}")
     
     def _discover_symbols(self) -> List[str]:
         """Discover available symbols from CSV files."""
