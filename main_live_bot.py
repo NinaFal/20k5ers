@@ -2543,7 +2543,6 @@ class LiveTradingBot:
                 for symbol, setup_dict in data.items():
                     self.pending_setups[symbol] = PendingSetup.from_dict(setup_dict)
                 log.info(f"Loaded {len(self.pending_setups)} pending setups from file")
-                self._fix_zero_entry_prices()
         except Exception as e:
             log.error(f"Error loading pending setups: {e}")
             self.pending_setups = {}
@@ -2748,7 +2747,10 @@ class LiveTradingBot:
         log.info(f"Balance: ${account.get('balance', 0):,.2f}")
         log.info(f"Equity: ${account.get('equity', 0):,.2f}")
         log.info(f"Leverage: 1:{account.get('leverage', 0)}")
-        
+
+        # Fix any filled setups with entry_price=0.0 (now that MT5 is connected)
+        self._fix_zero_entry_prices()
+
         # Discover available symbols
         log.info("\n" + "=" * 70)
         log.info(f"DISCOVERING BROKER SYMBOLS ({BROKER_NAME})")
