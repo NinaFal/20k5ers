@@ -66,11 +66,11 @@ class ChallengeState:
     phase: int = 1
     live_flag: bool = False
     
-    initial_balance: float = 20000.0
-    current_balance: float = 20000.0
-    highest_balance: float = 20000.0
-    
-    day_start_balance: float = 20000.0
+    initial_balance: float = 50000.0
+    current_balance: float = 50000.0
+    highest_balance: float = 50000.0
+
+    day_start_balance: float = 50000.0
     current_day: str = ""
     
     total_trades: int = 0
@@ -196,7 +196,7 @@ class RiskManager:
         except Exception as e:
             print(f"[RiskManager] Error saving state: {e}")
     
-    def sync_from_mt5(self, balance: float, equity: float, configured_initial_balance: float = 20000.0):
+    def sync_from_mt5(self, balance: float, equity: float, configured_initial_balance: float = 50000.0):
         """
         Sync state with actual MT5 account values.
         
@@ -231,7 +231,7 @@ class RiskManager:
         self.state.last_update = datetime.now(timezone.utc).isoformat()
         self.save_state()
     
-    def start_challenge(self, phase: int = 1, initial_balance: float = 20000.0):
+    def start_challenge(self, phase: int = 1, initial_balance: float = 50000.0):
         """Start or restart a challenge."""
         now = datetime.now(timezone.utc)
         self.state = ChallengeState(

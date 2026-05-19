@@ -2724,7 +2724,7 @@ class LiveTradingBot:
         """Auto-start challenge if not already active."""
         if not self.risk_manager.state.live_flag:
             log.info("Challenge not active - auto-starting Phase 1...")
-            self.risk_manager.start_challenge(phase=1)
+            self.risk_manager.start_challenge(phase=1, initial_balance=ACCOUNT_SIZE)
             if self.challenge_start_date is None:
                 self.start_new_challenge(duration_days=30)
             log.info("Challenge auto-started! Trading is now enabled.")
@@ -2812,7 +2812,7 @@ class LiveTradingBot:
         equity = account.get('equity', 0)
         if balance > 0:
             log.info("Syncing risk manager with MT5 account...")
-            self.risk_manager.sync_from_mt5(balance, equity)
+            self.risk_manager.sync_from_mt5(balance, equity, configured_initial_balance=ACCOUNT_SIZE)
             log.info(f"Risk manager synced: Balance=${balance:,.2f}, Equity=${equity:,.2f}")
             
             if CHALLENGE_MODE:
