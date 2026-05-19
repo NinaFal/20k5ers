@@ -2543,9 +2543,72 @@ class LiveTradingBot:
                 for symbol, setup_dict in data.items():
                     self.pending_setups[symbol] = PendingSetup.from_dict(setup_dict)
                 log.info(f"Loaded {len(self.pending_setups)} pending setups from file")
+                self._fix_zero_entry_prices()
         except Exception as e:
             log.error(f"Error loading pending setups: {e}")
             self.pending_setups = {}
+
+    def _fix_zero_entry_prices(self):
+        """
+        On startup, fix any filled setup with entry_price=0.0 by reading the
+        real open price from the MT5 position. This can happen when the broker
+        returns price=0.0 from order_send (async execution).
+        """
+        fixed = 0
+        for symbol, setup in self.pending_setups.items():
+            if setup.status == "filled" and setup.entry_price == 0.0:
+                broker_symbol = self.symbol_map.get(symbol, symbol)
+                positions = self.mt5.get_positions(symbol=broker_symbol)
+                match = None
+                if positions:
+                    if setup.order_ticket:
+                        match = next((p for p in positions if p.ticket == setup.order_ticket), None)
+                    if not match:
+                        match = positions[0]
+                if match and match.price_open and match.price_open > 0:
+                    old_entry = setup.entry_price
+                    setup.entry_price = match.price_open
+                    # Recalculate TP/SL levels based on real entry price
+                    risk = abs(setup.entry_price - setup.stop_loss)
+                    if risk > 0:
+                        from params.params_loader import load_strategy_params
+                        params = load_strategy_params()
+                        if setup.direction == "bullish":
+                            setup.tp1 = setup.entry_price + risk * params.tp1_r_multiple
+                            setup.tp2 = setup.entry_price + risk * params.tp2_r_multiple
+                            setup.tp3 = setup.entry_price + risk * params.tp3_r_multiple
+                            setup.tp4 = setup.entry_price + risk * params.tp4_r_multiple
+                            setup.tp5 = setup.entry_price + risk * params.tp5_r_multiple
+                        else:
+                            setup.tp1 = setup.entry_price - risk * params.tp1_r_multiple
+                            setup.tp2 = setup.entry_price - risk * params.tp2_r_multiple
+                            setup.tp3 = setup.entry_price - risk * params.tp3_r_multiple
+                            setup.tp4 = setup.entry_price - risk * params.tp4_r_multiple
+                            setup.tp5 = setup.entry_price - risk * params.tp5_r_multiple
+                    # Reset partial close state — TP hits were based on wrong entry
+                    setup.partial_closes = 0
+                    setup.tp1_hit = False
+                    setup.tp2_hit = False
+                    setup.tp3_hit = False
+                    setup.tp4_hit = False
+                    setup.tp5_hit = False
+                    # Restore correct SL in MT5 (was set to wrong level based on entry=0.0)
+                    if self.mt5.modify_sl_tp(match.ticket, sl=setup.stop_loss):
+                        log.warning(
+                            f"[{symbol}] ⚠️ Fixed entry_price 0.0 → {match.price_open:.5f} "
+                            f"(ticket {match.ticket}). TP levels recalculated, partial closes reset, SL restored to {setup.stop_loss:.5f}."
+                        )
+                    else:
+                        log.warning(
+                            f"[{symbol}] ⚠️ Fixed entry_price 0.0 → {match.price_open:.5f} "
+                            f"(ticket {match.ticket}). TP levels recalculated, partial closes reset. "
+                            f"WARNING: SL restore to {setup.stop_loss:.5f} FAILED — fix manually in MT5!"
+                        )
+                    fixed += 1
+                else:
+                    log.error(f"[{symbol}] entry_price=0.0 but no MT5 position found to recover from!")
+        if fixed:
+            self._save_pending_setups()
     
     def _save_pending_setups(self):
         """Save pending setups to file."""
