@@ -3085,6 +3085,16 @@ class LiveTradingBot:
                 log.warning(f"[{broker_symbol}] Could not fetch M1 candles for missed TP check")
                 continue
 
+            # Only consider candles that formed AFTER the position was opened.
+            # Without this filter, pre-trade candles that happened to touch TP2
+            # would cause a false "missed TP" detection on every bot startup for
+            # a freshly-entered trade, wrongly moving the stop loss immediately.
+            position_open_time = pos.time
+            candles = [c for c in candles if c["time"] >= position_open_time]
+            if not candles:
+                log.info(f"[{broker_symbol}] No completed M1 candles after position open — skipping missed TP check")
+                continue
+
             tick = self.mt5.get_tick(broker_symbol)
             current_price = (tick.bid if direction == "bullish" else tick.ask) if tick else None
 
