@@ -2,13 +2,14 @@
 
 ## Project Overview
 
-Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accounts.
+Automated MetaTrader 5 trading bot for **5ers 50K High Stakes** Challenge accounts.
 
-### Current State (January 20, 2026)
+### Current State (May 19, 2026)
 - **Status**: ✅ Production Ready & Validated
-- **Latest Simulation**: $310,183 from $20K (+1,451%, 871 trades)
+- **Account**: $50,000 (5ers 50K High Stakes)
+- **Latest Simulation**: $310,183 from $20K (+1,451%, 871 trades) — backtest ran on 20K, live bot now runs on 50K
 - **5ers Compliance**: Max TDD 4.94%, Max DDD 3.61% (both within limits)
-- **Exit System**: 3 Take Profit levels (35%/30%/35% at 0.6R/1.2R/2.0R)
+- **Exit System**: 5 Take Profit levels (see 5-TP Exit System below)
 - **Entry Queue**: Signals wait for 0.3R proximity, spread protection active
 - **Scan Timing**: Daily at 00:15 server time (Tue-Fri), 01:00 Monday; midnight equity sync at 00:00
 
@@ -114,7 +115,7 @@ Automated MetaTrader 5 trading bot for **5ers 20K High Stakes** Challenge accoun
 
 ### Full Backtest (RECOMMENDED)
 ```bash
-python backtest/src/main_live_bot_backtest.py --start 2023-01-01 --end 2025-12-31 --balance 20000
+python backtest/src/main_live_bot_backtest.py --start 2023-01-01 --end 2025-12-31 --balance 50000
 ```
 
 ### Quick Signal Validation
@@ -136,23 +137,45 @@ python ftmo_challenge_analyzer.py --multi --trials 100   # NSGA-II
 - **Internal/Data**: OANDA format with underscores (`EUR_USD`, `XAU_USD`)
 - **MT5 Execution**: Broker format (`EURUSD`, `XAUUSD`)
 
-### Parameters - NEVER Hardcode
+### Parameters — Twee bronnen, twee doelen
+
+**BELANGRIJK**: Er zijn twee soorten parameters in dit project. Ken het verschil.
+
+#### 1. Account-level risk limits → `config.py` + `challenge_rules.py`
+Drawdown limieten, account grootte, dagelijkse verlieslimieten. Dit zijn vaste 5ers-regels.
+```python
+from config import ACCOUNT_SIZE, MAX_DAILY_LOSS_PCT, MAX_TOTAL_LOSS_PCT
+# ACCOUNT_SIZE = 50000
+# MAX_DAILY_LOSS_PCT = 0.05  → $2,500 max daily loss
+# MAX_TOTAL_LOSS_PCT = 0.10  → $5,000 max drawdown, stop-out bij $45,000
+```
+
+#### 2. Strategie parameters → `params/current_params.json` (via `params_loader.py`)
+ALLE trading parameters komen hieruit: risk per trade, confluence drempels, TP/SL levels, enz.
+Dit bestand wordt overschreven door de optimizer. **Nooit hardcoden.**
+
 ```python
 # ✅ CORRECT
 from params.params_loader import load_strategy_params
 params = load_strategy_params()
+risk_pct = params.risk_per_trade_pct  # Huidig: 1.1%
 
-# ❌ WRONG
-MIN_CONFLUENCE = 5  # Don't hardcode
+# ❌ FOUT — config.py zegt 0.6% maar dat is slechts een fallback
+risk_pct = 0.6
 ```
+
+**Actuele waarden in `current_params.json` (mei 2026):**
+- `risk_per_trade_pct`: **1.1%** → $550 per trade op $50K account
+- `min_confluence`: 6
+- `tp1_r_multiple`: 0.6R, `tp2_r_multiple`: 0.9R, ... t/m `tp5_r_multiple`: 3.5R
 
 ### Lot Sizing - At FILL Moment
 ```python
-# Lot size calculated when order FILLS, not when signal generated
-# This enables proper compounding
+# Lot size berekend op het moment van FILL, niet bij signaalgeneratie
+# Dit zorgt voor correcte compounding
 lot_size = calculate_lot_size(
-    balance=current_balance,  # Current, not signal-time balance
-    risk_pct=0.6,
+    balance=current_balance,        # Huidig saldo, niet saldo bij signaal
+    risk_pct=params.risk_per_trade_pct,  # Uit current_params.json (1.1%)
     entry=fill_price,
     stop_loss=sl,
 )
@@ -162,15 +185,20 @@ lot_size = calculate_lot_size(
 
 ## 5ers Challenge Rules
 
-| Rule | Limit |
-|------|-------|
-| Account Size | $20,000 |
-| Max Total DD | 10% below start ($18K stop-out) - STATIC |
-| Max Daily DD | 5% from day start ($1K max daily loss) |
-| Step 1 Target | 8% = $1,600 |
-| Step 2 Target | 5% = $1,000 |
+| Rule | Limiet | Bedrag bij $50K |
+|------|--------|-----------------|
+| Account Size | $50,000 | — |
+| Max Total DD | 10% van startbalans — STATIC | $5,000 max verlies, stop-out bij $45,000 |
+| Max Daily DD | 5% van dagstart | $2,500 max daily loss |
+| Step 1 Target | 8% | $4,000 |
+| Step 2 Target | 5% | $2,500 |
 
-**Key**: TDD is STATIC from initial balance, NOT trailing.
+**Key**: TDD is STATIC van initial balance ($50K), NIET trailing.
+
+### Wat `config.py` WEL en NIET is
+- ✅ `config.py` = account-level limieten (drawdown %, account size, DDD halt %)
+- ❌ `config.py` is NIET de bron voor `risk_per_trade_pct` — dat staat in `current_params.json`
+- De `RISK_PER_TRADE_PCT = 0.006` in `config.py` is een **fallback**, niet de actieve waarde
 
 ---
 
@@ -184,4 +212,4 @@ lot_size = calculate_lot_size(
 
 ---
 
-**Last Updated**: January 20, 2026
+**Last Updated**: May 19, 2026
