@@ -1,0 +1,30 @@
+{
+  "rendement": {
+    "profit_factor": 1.72,
+    "win_rate_pct": 69.2,
+    "real_rr": 0.77,
+    "ev_per_trade_usd": 14744.64,
+    "breakeven_wr_pct": 56.6
+  },
+  "risico": {
+    "sharpe_ratio": 3.1,
+    "sortino_ratio": 9.83,
+    "calmar_ratio": 11.0,
+    "ulcer_index_pct": 2.4,
+    "max_drawdown_pct": 10.34
+  },
+  "consistentie": {
+    "positieve_maanden": 115,
+    "totale_maanden": 132,
+    "positieve_maanden_pct": 87.1
+  },
+  "summary": {
+    "initial_balance": 20000.0,
+    "final_balance": 84477271.99,
+    "total_trades": 5728,
+    "winners": 3964,
+    "losers": 1764,
+    "cagr_pct": 113.7,
+    "years": 11.0
+  }
+}

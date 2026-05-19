@@ -64,8 +64,8 @@ closed_today.json
 data/sr_cache/
 data/sr_levels/
 
-# H1 data files (too large for git, can be regenerated)
-data/ohlcv/*_H1_*.csv
+# OHLCV data files — too large for git, regenerate with download_m*_data.py scripts
+data/ohlcv/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

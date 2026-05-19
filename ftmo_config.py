@@ -146,6 +146,12 @@ class Fiveers60KConfig:
     equity_reduce_threshold_pct: float = 2.0  # Reduce size after 2% loss
     equity_reduce_multiplier: float = 1.0  # DISABLED - not in simulator
 
+    # === THE 5ERS TRADING FEES ===
+    # Spread paid on every trade open/close (already applied via spread_pips in simulator).
+    # Buy limit fills additionally pay 1 spread on open (market orders already pay via ask price).
+    # These are the only fees modelled - no payout/profit-split simulation.
+    challenge_fee_usd: float = 329.0  # Informational only (one-time challenge cost)
+
     # === MAJOR NEWS EVENTS (UTC Times) ===
     # News events that trigger trading blackout periods
     # Format: (day_of_week, hour, minute) where day_of_week: 0=Monday, 4=Friday

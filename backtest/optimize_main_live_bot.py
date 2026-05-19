@@ -18,9 +18,18 @@ are loaded from current_params.json and passed through unchanged.
 
 Starts from current params (trial 0 = current_params.json values).
 
+Walk-Forward mode (--walk-forward):
+    Evaluates each trial across 3 distinct 4-month market regimes:
+    1. RECENT (2025-01-01 to 2025-04-30)  - current market conditions
+    2. COVID_CRASH (2020-02-01 to 2020-05-31) - extreme drawdown + recovery
+    3. BULL_RUN (2020-11-01 to 2021-02-28)  - post-vaccine USD-weakness rally
+    Score = weighted average; any period breaching DDD heavily penalised.
+    This finds parameters robust across very different market regimes.
+
 Usage:
     python backtest/optimize_main_live_bot.py --trials 50 --start 2024-01-01 --end 2024-03-31
     python backtest/optimize_main_live_bot.py --trials 100 --start 2023-01-01 --end 2025-12-31 --parallel 4
+    python backtest/optimize_main_live_bot.py --trials 100 --walk-forward --parallel 4
 """
 
 import sys
@@ -45,6 +54,39 @@ except ImportError:
     print("ERROR: optuna not installed. Run: pip install optuna")
     sys.exit(1)
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# THE 5ERS FEES
+# ═══════════════════════════════════════════════════════════════════════════════
+FIVEERS_CHALLENGE_FEE_USD = 329.0   # One-time challenge fee (20K High Stakes, 2025)
+FIVEERS_PROFIT_SPLIT_PCT  = 0.80    # Trader keeps 80% of each payout
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# WALK-FORWARD PERIODS  (3 x 4-month regimes covering very different markets)
+# ═══════════════════════════════════════════════════════════════════════════════
+WALK_FORWARD_PERIODS = [
+    {
+        "name": "RECENT",
+        "label": "Jan-Apr 2025 (recent market)",
+        "start": "2025-01-01",
+        "end":   "2025-04-30",
+        "weight": 1.0,
+    },
+    {
+        "name": "COVID_CRASH",
+        "label": "Feb-May 2020 (COVID crash + recovery)",
+        "start": "2020-02-01",
+        "end":   "2020-05-31",
+        "weight": 1.2,   # Extra weight: hardest stress-test
+    },
+    {
+        "name": "BULL_RUN",
+        "label": "Nov 2020 - Feb 2021 (post-vaccine USD-weakness rally)",
+        "start": "2020-11-01",
+        "end":   "2021-02-28",
+        "weight": 1.0,
+    },
+]
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # OPTIMIZATION PARAMETER RANGES
@@ -85,6 +127,10 @@ class OptimizationResult:
     monthly_stats: Dict[str, Any] = None
     safety_events: int = 0
     tdd_warnings: int = 0
+    # Fee metrics (populated from backtest results.json)
+    total_firm_cuts: float = 0.0    # Sum of all 20% payout cuts
+    trader_net_pnl: float = 0.0     # final_balance - initial - firm_cuts - challenge_fee
+    trader_return_pct: float = 0.0  # trader_net_pnl / initial_balance * 100
 
 
 def load_current_params() -> Dict[str, Any]:
@@ -148,6 +194,11 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 
             with open(results_file, 'r') as f:
                 data = json.load(f)
 
+            total_firm_cuts = data.get('total_firm_cuts', 0.0)
+            trader_net_pnl  = data.get('trader_net_pnl',
+                data.get('final_balance', balance) - balance
+                - total_firm_cuts - FIVEERS_CHALLENGE_FEE_USD)
+            trader_return_pct = trader_net_pnl / balance * 100 if balance > 0 else 0.0
             return OptimizationResult(
                 params=params,
                 net_return_pct=data.get('return_pct', 0),
@@ -160,7 +211,10 @@ def run_backtest(params: Dict[str, Any], start: str, end: str, balance: float = 
                 valid=(data.get('max_tdd_pct', 100) < 10 and data.get('max_ddd_pct', 100) < 5),
                 monthly_stats=data.get('monthly_stats', {}),
                 safety_events=data.get('safety_events', data.get('ddd_halts', 0)),
-                tdd_warnings=data.get('tdd_warnings', 0)
+                tdd_warnings=data.get('tdd_warnings', 0),
+                total_firm_cuts=total_firm_cuts,
+                trader_net_pnl=trader_net_pnl,
+                trader_return_pct=trader_return_pct,
             )
         else:
             return parse_stdout_results(result.stdout, params, balance)
@@ -316,6 +370,8 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
 
     # Store result metrics
     trial.set_user_attr('net_return_pct', result.net_return_pct)
+    trial.set_user_attr('trader_return_pct', result.trader_return_pct)
+    trial.set_user_attr('total_firm_cuts', result.total_firm_cuts)
     trial.set_user_attr('total_trades', result.total_trades)
     trial.set_user_attr('win_rate', result.win_rate)
     trial.set_user_attr('max_tdd_pct', result.max_tdd_pct)
@@ -327,10 +383,17 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
     trial.set_user_attr('tdd_warnings', result.tdd_warnings)
     trial.set_user_attr('valid', result.valid)
 
-    print(f"    → Return: {result.net_return_pct:+.1f}%, Trades: {result.total_trades}, Win: {result.win_rate:.1f}%")
-    print(f"    → TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%, DDD Halts: {result.ddd_halts}, Valid: {result.valid}")
+    print(f"    → Return: {result.net_return_pct:+.1f}% (trader net: {result.trader_return_pct:+.1f}% after fees ${result.total_firm_cuts:,.0f})")
+    print(f"    → Trades: {result.total_trades}, Win: {result.win_rate:.1f}%  TDD: {result.max_tdd_pct:.2f}%, DDD: {result.max_ddd_pct:.2f}%, Halts: {result.ddd_halts}, Valid: {result.valid}")
 
-    # ── Scoring ───────────────────────────────────────────────────────────────
+    return _score_single_result(result, balance)
+
+
+def _score_single_result(result: OptimizationResult, balance: float) -> float:
+    """
+    Shared scoring logic for a single backtest result.
+    Uses trader_return_pct (after 5ers fees) instead of raw return.
+    """
     if not result.valid:
         return -1000 - result.max_ddd_pct * 10
 
@@ -341,17 +404,11 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
         return -500 + result.total_trades
 
     win_rate_factor = result.win_rate / 100.0
-    if win_rate_factor >= 0.5:
-        wr_multiplier = 0.5 + (win_rate_factor * 1.5)
-    else:
-        wr_multiplier = win_rate_factor
-
+    wr_multiplier = 0.5 + (win_rate_factor * 1.5) if win_rate_factor >= 0.5 else win_rate_factor
     trade_bonus = min(result.total_trades / 5, 20)
 
-    score = (
-        result.net_return_pct * wr_multiplier +
-        trade_bonus
-    )
+    # Use trader net return (after profit split) as the primary metric
+    score = result.trader_return_pct * wr_multiplier + trade_bonus
 
     if result.max_tdd_pct > 5.0:
         score -= (result.max_tdd_pct - 5.0) * 15
@@ -360,6 +417,106 @@ def objective(trial: optuna.Trial, start: str, end: str, balance: float, num_tps
         score += 10
 
     return score
+
+
+def run_backtest_walk_forward(
+    params: Dict[str, Any],
+    balance: float,
+    periods: list = None,
+) -> Tuple[float, Dict[str, Any]]:
+    """
+    Run backtest on all 3 walk-forward periods and return combined score + per-period results.
+
+    Scoring:
+    - Each period scored individually (after 5ers fees)
+    - Weighted average of all 3 scores
+    - Extra penalty if ANY period breaches DDD (DDD halt > 0)
+    - Strategy must survive all 3 regimes to score well
+
+    Returns:
+        (combined_score, period_results_dict)
+    """
+    if periods is None:
+        periods = WALK_FORWARD_PERIODS
+
+    period_results = {}
+    period_scores = []
+    total_weight = sum(p['weight'] for p in periods)
+
+    for period in periods:
+        result = run_backtest(params, period['start'], period['end'], balance)
+        score = _score_single_result(result, balance)
+        period_results[period['name']] = {
+            'label':              period['label'],
+            'score':              score,
+            'trader_return_pct':  result.trader_return_pct,
+            'net_return_pct':     result.net_return_pct,
+            'total_trades':       result.total_trades,
+            'win_rate':           result.win_rate,
+            'max_ddd_pct':        result.max_ddd_pct,
+            'max_tdd_pct':        result.max_tdd_pct,
+            'ddd_halts':          result.ddd_halts,
+            'total_firm_cuts':    result.total_firm_cuts,
+            'trader_net_pnl':     result.trader_net_pnl,
+            'valid':              result.valid,
+        }
+        period_scores.append((score, period['weight']))
+
+    # Weighted average score
+    combined_score = sum(s * w for s, w in period_scores) / total_weight
+
+    # Hard penalty: if any period is invalid (DDD/TDD breach), tank the score
+    for p in period_results.values():
+        if not p['valid']:
+            combined_score = min(combined_score, -200)
+
+    return combined_score, period_results
+
+
+def objective_walk_forward(
+    trial: optuna.Trial,
+    balance: float,
+    num_tps: int,
+    base_params: Dict[str, Any],
+) -> float:
+    """Walk-forward objective: evaluated on all 3 market regime periods."""
+    params = dict(base_params)
+    tp_sl_params = sample_tp_and_sl_params(trial, num_tps)
+    params.update(tp_sl_params)
+
+    print(f"\n  Trial {trial.number} [WALK-FORWARD]: Running 3 periods...")
+    print(f"    TPs: {params.get('tp1_r_multiple', 0):.1f}R / {params.get('tp2_r_multiple', 0):.1f}R / "
+          f"{params.get('tp3_r_multiple', 0):.1f}R / {params.get('tp4_r_multiple', 0):.1f}R / "
+          f"{params.get('tp5_r_multiple', 0):.1f}R")
+
+    combined_score, period_results = run_backtest_walk_forward(params, balance)
+
+    # Store per-period results as trial attributes
+    for period_name, pr in period_results.items():
+        for k, v in pr.items():
+            if isinstance(v, (int, float, bool, str)):
+                trial.set_user_attr(f'{period_name}_{k}', v)
+
+    # Aggregate metrics for display
+    all_valid = all(pr['valid'] for pr in period_results.values())
+    avg_return = sum(pr['trader_return_pct'] for pr in period_results.values()) / len(period_results)
+    avg_ddd = max(pr['max_ddd_pct'] for pr in period_results.values())
+    avg_halts = sum(pr['ddd_halts'] for pr in period_results.values())
+    total_fees = sum(pr['total_firm_cuts'] for pr in period_results.values())
+
+    trial.set_user_attr('combined_score', combined_score)
+    trial.set_user_attr('avg_trader_return_pct', avg_return)
+    trial.set_user_attr('max_ddd_across_periods', avg_ddd)
+    trial.set_user_attr('total_ddd_halts', avg_halts)
+    trial.set_user_attr('total_firm_cuts', total_fees)
+    trial.set_user_attr('all_valid', all_valid)
+
+    print(f"    → Combined score: {combined_score:.1f} | Avg trader return: {avg_return:+.1f}% | All valid: {all_valid}")
+    for period_name, pr in period_results.items():
+        print(f"       {period_name}: {pr['trader_return_pct']:+.1f}% (fees ${pr['total_firm_cuts']:,.0f}) "
+              f"DDD={pr['max_ddd_pct']:.1f}% halts={pr['ddd_halts']} valid={pr['valid']}")
+
+    return combined_score
 
 
 def _enqueue_current_params(study: optuna.Study, num_tps: int, base_params: Dict[str, Any]) -> None:
@@ -410,6 +567,7 @@ def run_optimization(
     output_dir: str = 'backtest/optimization_results',
     n_jobs: int = 1,
     startup_trials: int = 10,
+    walk_forward: bool = False,
 ) -> Dict[str, Any]:
     """Run the optimization study."""
 
@@ -417,10 +575,18 @@ def run_optimization(
     base_params = load_current_params()
 
     print("=" * 70)
-    print("MAIN LIVE BOT BACKTEST OPTIMIZER - TP/SL LEVELS ONLY")
+    if walk_forward:
+        print("MAIN LIVE BOT OPTIMIZER - WALK-FORWARD (3 MARKET REGIMES)")
+    else:
+        print("MAIN LIVE BOT BACKTEST OPTIMIZER - TP/SL LEVELS ONLY")
     print("=" * 70)
     print(f"  Trials: {trials}")
-    print(f"  Period: {start} to {end}")
+    if walk_forward:
+        print("  Mode: WALK-FORWARD across 3 periods:")
+        for p in WALK_FORWARD_PERIODS:
+            print(f"    [{p['name']}] {p['label']}  (weight={p['weight']})")
+    else:
+        print(f"  Period: {start} to {end}")
     print(f"  Balance: ${balance:,.0f}")
     print(f"  TP Levels: {num_tps}")
     print(f"  Sampler: {sampler.upper()}")
@@ -429,6 +595,7 @@ def run_optimization(
     print("  Fixed (from current_params.json): all other params")
     print(f"  SL after TP1: 0.05R (hardcoded, not optimized)")
     print(f"  Random startup trials: {startup_trials}")
+    print(f"  5ers challenge fee: ${FIVEERS_CHALLENGE_FEE_USD:.0f}  |  profit split: {FIVEERS_PROFIT_SPLIT_PCT:.0%} to trader")
     print("=" * 70)
 
     current_tps = [base_params.get(f'tp{i}_r_multiple', '?') for i in range(1, 6)]
@@ -451,8 +618,13 @@ def run_optimization(
     _enqueue_current_params(study, num_tps, base_params)
 
     # Run optimization
+    if walk_forward:
+        obj_fn = lambda trial: objective_walk_forward(trial, balance, num_tps, base_params)
+    else:
+        obj_fn = lambda trial: objective(trial, start, end, balance, num_tps, base_params)
+
     study.optimize(
-        lambda trial: objective(trial, start, end, balance, num_tps, base_params),
+        obj_fn,
         n_trials=trials,
         n_jobs=n_jobs,
         show_progress_bar=True,
@@ -465,12 +637,30 @@ def run_optimization(
     print("OPTIMIZATION COMPLETE")
     print("=" * 70)
     print(f"  Best Score: {best.value:.2f}")
-    print(f"  Return: {best.user_attrs.get('net_return_pct', 0):+.1f}%")
-    print(f"  Trades: {best.user_attrs.get('total_trades', 0)}")
-    print(f"  Win Rate: {best.user_attrs.get('win_rate', 0):.1f}%")
-    print(f"  Max TDD: {best.user_attrs.get('max_tdd_pct', 0):.2f}%")
-    print(f"  Max DDD: {best.user_attrs.get('max_ddd_pct', 0):.2f}%")
-    print(f"  Safety Events: {best.user_attrs.get('safety_events', best.user_attrs.get('ddd_halts', 0))}")
+    if walk_forward:
+        print(f"  Avg trader return (after fees): {best.user_attrs.get('avg_trader_return_pct', 0):+.1f}%")
+        print(f"  Max DDD across periods: {best.user_attrs.get('max_ddd_across_periods', 0):.2f}%")
+        print(f"  Total DDD halts (all periods): {best.user_attrs.get('total_ddd_halts', 0)}")
+        print(f"  Total firm cuts (all periods): ${best.user_attrs.get('total_firm_cuts', 0):,.2f}")
+        print(f"  All periods valid: {best.user_attrs.get('all_valid', False)}")
+        print(f"\n  Per-period results:")
+        for p in WALK_FORWARD_PERIODS:
+            n = p['name']
+            print(f"    [{n}] {p['label']}")
+            print(f"      Trader return: {best.user_attrs.get(f'{n}_trader_return_pct', 0):+.1f}%  "
+                  f"DDD={best.user_attrs.get(f'{n}_max_ddd_pct', 0):.1f}%  "
+                  f"halts={best.user_attrs.get(f'{n}_ddd_halts', 0)}  "
+                  f"fees=${best.user_attrs.get(f'{n}_total_firm_cuts', 0):,.0f}  "
+                  f"valid={best.user_attrs.get(f'{n}_valid', False)}")
+    else:
+        print(f"  Return: {best.user_attrs.get('net_return_pct', 0):+.1f}%")
+        print(f"  Trader return (after fees): {best.user_attrs.get('trader_return_pct', 0):+.1f}%")
+        print(f"  Total firm cuts: ${best.user_attrs.get('total_firm_cuts', 0):,.2f}")
+        print(f"  Trades: {best.user_attrs.get('total_trades', 0)}")
+        print(f"  Win Rate: {best.user_attrs.get('win_rate', 0):.1f}%")
+        print(f"  Max TDD: {best.user_attrs.get('max_tdd_pct', 0):.2f}%")
+        print(f"  Max DDD: {best.user_attrs.get('max_ddd_pct', 0):.2f}%")
+        print(f"  Safety Events: {best.user_attrs.get('safety_events', best.user_attrs.get('ddd_halts', 0))}")
     print("=" * 70)
 
     # Reconstruct best TP/SL params from best trial
@@ -512,17 +702,29 @@ def run_optimization(
     print("\n" + "=" * 70)
     print("ALL TRIALS SUMMARY")
     print("=" * 70)
-    print(f"{'#':>3} {'Score':>8} {'Return':>8} {'Trades':>7} {'WR%':>6} {'TDD':>6} {'DDD':>6} {'Safe':>5}")
-    print("-" * 70)
-    for t in sorted(study.trials, key=lambda x: x.value if x.value else -999, reverse=True)[:20]:
-        score = t.value if t.value else -999
-        ret = t.user_attrs.get('net_return_pct', 0)
-        trades = t.user_attrs.get('total_trades', 0)
-        wr = t.user_attrs.get('win_rate', 0)
-        tdd = t.user_attrs.get('max_tdd_pct', 0)
-        ddd = t.user_attrs.get('max_ddd_pct', 0)
-        safe = t.user_attrs.get('safety_events', t.user_attrs.get('ddd_halts', 0))
-        print(f"{t.number:>3} {score:>8.1f} {ret:>+7.1f}% {trades:>7} {wr:>5.1f}% {tdd:>5.1f}% {ddd:>5.1f}% {safe:>5}")
+    if walk_forward:
+        print(f"{'#':>3} {'Score':>8} {'AvgRet%':>9} {'MaxDDD':>8} {'Halts':>6} {'Fees$':>8} {'Valid':>6}")
+        print("-" * 70)
+        for t in sorted(study.trials, key=lambda x: x.value if x.value else -999, reverse=True)[:20]:
+            score = t.value if t.value else -999
+            avg_ret = t.user_attrs.get('avg_trader_return_pct', 0)
+            max_ddd = t.user_attrs.get('max_ddd_across_periods', 0)
+            halts = t.user_attrs.get('total_ddd_halts', 0)
+            fees = t.user_attrs.get('total_firm_cuts', 0)
+            valid = t.user_attrs.get('all_valid', False)
+            print(f"{t.number:>3} {score:>8.1f} {avg_ret:>+8.1f}% {max_ddd:>7.1f}% {halts:>6} ${fees:>7,.0f} {str(valid):>6}")
+    else:
+        print(f"{'#':>3} {'Score':>8} {'NetRet%':>9} {'TrdRet%':>9} {'Trades':>7} {'WR%':>6} {'DDD':>6} {'Fees$':>8}")
+        print("-" * 70)
+        for t in sorted(study.trials, key=lambda x: x.value if x.value else -999, reverse=True)[:20]:
+            score = t.value if t.value else -999
+            ret = t.user_attrs.get('net_return_pct', 0)
+            tret = t.user_attrs.get('trader_return_pct', ret)
+            trades = t.user_attrs.get('total_trades', 0)
+            wr = t.user_attrs.get('win_rate', 0)
+            ddd = t.user_attrs.get('max_ddd_pct', 0)
+            fees = t.user_attrs.get('total_firm_cuts', 0)
+            print(f"{t.number:>3} {score:>8.1f} {ret:>+8.1f}% {tret:>+8.1f}% {trades:>7} {wr:>5.1f}% {ddd:>5.1f}% ${fees:>7,.0f}")
     print("-" * 70)
     if len(study.trials) > 20:
         print(f"  (Showing top 20 of {len(study.trials)} trials)")
@@ -532,26 +734,38 @@ def run_optimization(
     output_path.mkdir(parents=True, exist_ok=True)
 
     results = {
-        "optimization_mode": sampler.upper(),
+        "optimization_mode": "WALK_FORWARD" if walk_forward else sampler.upper(),
         "optimization_scope": "TP_SL_LEVELS_ONLY",
         "timestamp": datetime.now().isoformat(),
+        "fiveers_fees": {
+            "challenge_fee_usd": FIVEERS_CHALLENGE_FEE_USD,
+            "profit_split_pct": FIVEERS_PROFIT_SPLIT_PCT,
+        },
+        "walk_forward_periods": WALK_FORWARD_PERIODS if walk_forward else None,
         "config": {
             "trials": trials,
             "start": start,
             "end": end,
             "balance": balance,
             "num_tps": num_tps,
+            "walk_forward": walk_forward,
         },
         "fixed_params": {k: v for k, v in base_params.items()
                          if not k.startswith('tp') and not k.startswith('sl_after_tp')},
         "best_score": best.value,
         "best_metrics": {
-            "net_return_pct": best.user_attrs.get('net_return_pct', 0),
-            "total_trades": best.user_attrs.get('total_trades', 0),
-            "win_rate": best.user_attrs.get('win_rate', 0),
-            "max_tdd_pct": best.user_attrs.get('max_tdd_pct', 0),
-            "max_ddd_pct": best.user_attrs.get('max_ddd_pct', 0),
-            "valid": best.user_attrs.get('valid', False),
+            "net_return_pct":     best.user_attrs.get('net_return_pct', 0),
+            "trader_return_pct":  best.user_attrs.get('trader_return_pct',
+                                      best.user_attrs.get('avg_trader_return_pct', 0)),
+            "total_firm_cuts":    best.user_attrs.get('total_firm_cuts', 0),
+            "total_trades":       best.user_attrs.get('total_trades', 0),
+            "win_rate":           best.user_attrs.get('win_rate', 0),
+            "max_tdd_pct":        best.user_attrs.get('max_tdd_pct',
+                                      best.user_attrs.get('max_ddd_across_periods', 0)),
+            "max_ddd_pct":        best.user_attrs.get('max_ddd_pct',
+                                      best.user_attrs.get('max_ddd_across_periods', 0)),
+            "valid":              best.user_attrs.get('valid',
+                                      best.user_attrs.get('all_valid', False)),
         },
         "best_parameters": best.params,
         "all_trials": [
@@ -636,6 +850,9 @@ if __name__ == "__main__":
     parser.add_argument('--parallel', '-j', type=int, default=1, help='Number of parallel workers')
     parser.add_argument('--startup-trials', type=int, default=10,
                         help='Number of random exploration trials before TPE kicks in (default: 10)')
+    parser.add_argument('--walk-forward', action='store_true',
+                        help='Walk-forward mode: evaluate on 3 market regimes (RECENT, COVID_CRASH, BULL_RUN). '
+                             'Ignores --start/--end.')
 
     args = parser.parse_args()
 
@@ -652,4 +869,5 @@ if __name__ == "__main__":
             output_dir=args.output,
             n_jobs=args.parallel,
             startup_trials=args.startup_trials,
+            walk_forward=args.walk_forward,
         )

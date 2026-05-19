@@ -820,6 +820,54 @@ class LiveTradingBot:
         except Exception as e:
             log.error(f"  ✗ Failed to update setups: {e}")
 
+    def _emergency_close_all_intrabar(self, day_start_equity: float, halt_pct: float):
+        """
+        Emergency close all positions at bar close, then force balance down to
+        day_start_equity * (1 - 0.044).
+
+        The flat 4.4% deduction approximates what happens on a live 1-min chart:
+        the DDD halt triggers at ~3.2%, plus typical spread/slippage on fast close
+        brings the actual realized loss to ~4.4% of the day's starting equity.
+        Using bar-close prices with an explicit balance adjustment is simpler and
+        more honest than complex intrabar interpolation.
+        """
+        INTRABAR_LOSS_PCT = 0.044   # 4.4% flat deduction from day_start_equity
+
+        # Cancel pending orders first
+        try:
+            for order in self.mt5.get_pending_orders():
+                self.mt5.cancel_pending_order(order.ticket)
+        except Exception as e:
+            log.error(f"  ✗ Failed to cancel pending orders (intrabar): {e}")
+
+        # Close all positions at current bar close price
+        try:
+            for pos in list(self.mt5.get_my_positions()):
+                self.mt5.close_position(pos.ticket)
+                log.error(f"  [INTRABAR DDD] Closed {pos.symbol} at bar close")
+        except Exception as e:
+            log.error(f"  ✗ Failed to close positions (intrabar): {e}")
+
+        # Force balance to day_start_equity * (1 - 4.4%) — only if that's lower
+        target_balance = day_start_equity * (1.0 - INTRABAR_LOSS_PCT)
+        if self.mt5._balance > target_balance:
+            self.mt5._balance = target_balance
+        log.error(f"  [INTRABAR DDD] Balance adjusted to ${self.mt5._balance:,.2f}"
+                  f" (-4.4% of ${day_start_equity:,.2f} day start)")
+
+        # Pause pending setups (same as _emergency_close_all)
+        try:
+            if hasattr(self, 'pending_setups') and self.pending_setups:
+                for symbol, setup in self.pending_setups.items():
+                    if setup.status == "pending":
+                        setup.status = "paused_ddd"
+                        setup.order_ticket = None
+                    elif setup.status == "filled":
+                        setup.status = "closed_ddd"
+                self._save_pending_setups()
+        except Exception as e:
+            log.error(f"  ✗ Failed to update setups (intrabar): {e}")
+
     PENDING_SETUPS_FILE = "pending_setups.json"
     TRADING_DAYS_FILE = "trading_days.json"
     FIRST_RUN_FLAG_FILE = "first_run_complete.flag"
@@ -4952,19 +5000,17 @@ class LiveTradingBot:
     
     def run_backtest(self) -> Dict:
         """
-        Run backtest simulation on M15 historical data.
-        
-        This method replicates EXACTLY what run() does, but:
-        1. Steps through M15 timeline instead of real-time
-        2. Uses CSV data instead of live MT5 feed
-        3. Simulates order fills on M15 bar touches
-        4. Returns results dict instead of running forever
-        
+        Run backtest simulation on M5 historical data (falls back to M15 if M5 not loaded).
+
+        Uses 5-minute bars for order fills, SL/TP, and DDD checks.
+        Signal generation (scan_all_symbols) still fires at M15-aligned times only
+        (XX:00, XX:15, XX:30, XX:45) — matching the live bot's 15-minute scheduler.
+
         Returns:
             Dict with backtest results (trades, P&L, drawdown, etc.)
         """
         from tqdm import tqdm
-        
+
         log.info("=" * 70)
         log.info("MAIN LIVE BOT BACKTEST")
         log.info("=" * 70)
@@ -4972,19 +5018,30 @@ class LiveTradingBot:
         log.info(f"  End: {self.end_date}")
         log.info(f"  Balance: ${self.initial_balance:,.0f}")
         log.info("=" * 70)
-        
-        # Connect (loads data)
+
+        # Connect (loads M15 data)
         if not self.connect():
             log.error("Failed to connect (load data)")
             return {"error": "Failed to connect"}
-        
-        # Get M15 timeline
-        timeline = self.mt5.get_m15_timeline(self.start_date, self.end_date)
+
+        # Attempt to load M5 data (silently skips if files not yet available)
+        all_symbols = list(self.mt5._m15_indexed.keys())
+        self.mt5.load_m5_data(all_symbols, self.start_date, self.end_date)
+        use_m5 = self.mt5.has_m5_data()
+
+        # Choose timeline: prefer M5 for finer fill/SL-TP simulation
+        if use_m5:
+            timeline = self.mt5.get_m5_timeline(self.start_date, self.end_date)
+            bar_label = "M5"
+        else:
+            timeline = self.mt5.get_m15_timeline(self.start_date, self.end_date)
+            bar_label = "M15"
+
         if not timeline:
-            log.error("No M15 data in date range")
+            log.error(f"No {bar_label} data in date range")
             return {"error": "No data"}
-        
-        log.info(f"M15 timeline: {len(timeline)} bars")
+
+        log.info(f"{bar_label} timeline: {len(timeline)} bars")
         log.info(f"From {timeline[0]} to {timeline[-1]}")
         
         # Tracking
@@ -4997,6 +5054,7 @@ class LiveTradingBot:
         day_start_equity = self.initial_balance
         safety_events = []
         trading_halted_today = False
+
         
         pbar = tqdm(timeline, desc="Backtesting", mininterval=1.0)
         
@@ -5043,7 +5101,8 @@ class LiveTradingBot:
                 # Resume paused orders from DDD halt or reduce (with remaining expiry)
                 if was_halted or was_reduced:
                     self._resume_ddd_paused_orders()
-            
+
+
             # ═══════════════════════════════════════════════════════════════
             # WEEKEND HANDLING - Same as live bot
             # Friday 19:30+: Close/reduce positions, pause pending orders
@@ -5107,6 +5166,42 @@ class LiveTradingBot:
             warning_pct = getattr(FIVEERS_CONFIG, "daily_loss_warning_pct", 2.0)
             reduce_pct = getattr(FIVEERS_CONFIG, "daily_loss_reduce_pct", 3.0)
             halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.5)
+
+            # ── INTRABAR DDD CHECK ──────────────────────────────────────────────
+            # Check worst-case equity for every open bar (M5 or M15).
+            # If worst-case equity breaches halt_pct, trigger the halt and
+            # deduct a flat 4.4% from day_start_equity (see _emergency_close_all_intrabar).
+            # Informational: also log how far the bar extreme exceeded the halt level.
+            if not trading_halted_today and self.mt5.get_my_positions():
+                worst_equity = self.mt5.get_worst_case_equity_intrabar()
+                intrabar_ddd_pct = max(0, (day_start_equity - worst_equity) / day_start_equity * 100) if day_start_equity > 0 else 0
+                if intrabar_ddd_pct > max_ddd:
+                    max_ddd = intrabar_ddd_pct
+
+                if intrabar_ddd_pct >= halt_pct:
+                    overshoot_pct = intrabar_ddd_pct - halt_pct
+                    log.warning(
+                        f"🚨 DDD INTRABAR HALT at {current_time}: "
+                        f"worst-case {intrabar_ddd_pct:.2f}% >= {halt_pct}% "
+                        f"(bar overshoot: +{overshoot_pct:.2f}% — informational)"
+                    )
+                    self._emergency_close_all_intrabar(day_start_equity, halt_pct)
+                    trading_halted_today = True
+                    self.ddd_halted = True
+                    safety_events.append({
+                        'time': str(current_time),
+                        'type': 'DDD_HALT',
+                        'ddd_pct': intrabar_ddd_pct,
+                        'halt_pct': halt_pct,
+                        'bar_overshoot_pct': round(overshoot_pct, 3),  # informational
+                        'intrabar': True,
+                    })
+                    # Refresh equity after closing + balance adjustment
+                    account = self.mt5.get_account_info()
+                    equity = account.get("equity", equity)
+                    balance = account.get("balance", balance)
+                    continue
+            # ───────────────────────────────────────────────────────────────────
 
             ddd_pct = max(0, (day_start_equity - equity) / day_start_equity * 100) if day_start_equity > 0 else 0
             max_ddd = max(max_ddd, ddd_pct)
@@ -5200,30 +5295,30 @@ class LiveTradingBot:
                 log.debug(f"Order {ticket} filled")
             
             # ═══════════════════════════════════════════════════════════════
-            # DAILY SCAN at 00:00-00:30 (first M15 bar of day)
+            # M15-ALIGNED GATE — signal generation / management runs only at
+            # XX:00, XX:15, XX:30, XX:45 (matches live bot's 15-min scheduler).
+            # With M5 bars the loop runs 3× more often, so we gate everything
+            # that would otherwise fire every bar.
             # ═══════════════════════════════════════════════════════════════
-            if today != last_scanned_date and current_time.hour == 0 and current_time.minute < 30:
+            is_m15_bar = current_time.minute % 15 == 0
+
+            # ── DAILY SCAN at 00:00 (first M15-aligned bar of day) ─────────
+            if is_m15_bar and today != last_scanned_date \
+                    and current_time.hour == 0 and current_time.minute < 15:
                 log.info(f"📊 DAILY SCAN - {current_time.strftime('%Y-%m-%d')}")
                 self.scan_all_symbols()
                 last_scanned_date = today
-            
-            # ═══════════════════════════════════════════════════════════════
-            # ENTRY QUEUE CHECK (every 30 min in M15 terms = every 2 bars)
-            # ═══════════════════════════════════════════════════════════════
-            if current_time.minute in [0, 30]:
+
+            # ── ENTRY QUEUE CHECK every 30 min ────────────────────────────
+            if is_m15_bar and current_time.minute in [0, 30]:
                 self.check_awaiting_entry_signals()
             
-            # ═══════════════════════════════════════════════════════════════
-            # PARTIAL TAKE PROFIT MANAGEMENT
-            # ═══════════════════════════════════════════════════════════════
-            self.manage_partial_takes()
-            
-            # ═══════════════════════════════════════════════════════════════
-            # CHECK PENDING ORDERS (from pending_setups)
-            # ═══════════════════════════════════════════════════════════════
-            self.check_pending_orders()
-            
-            # Update position profits
+            # ── PARTIAL TAKE PROFIT / PENDING ORDER MANAGEMENT (M15 only) ─
+            if is_m15_bar:
+                self.manage_partial_takes()
+                self.check_pending_orders()
+
+            # Update floating profits every bar (M5 or M15)
             self.mt5.update_all_position_profits()
         
         # ═══════════════════════════════════════════════════════════════════
@@ -5346,6 +5441,7 @@ class LiveTradingBot:
         print(f"   DDD reduces (>=3%): {results['ddd_reduces']}")
         print(f"   DDD halts (>=3.5%): {results['ddd_halts']}")
         print(f"   TDD stop-outs (>=10%): {results['tdd_stopouts']}")
+
         
         # Monthly breakdown
         if monthly_stats:
