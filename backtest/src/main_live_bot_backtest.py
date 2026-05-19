@@ -378,17 +378,17 @@ class DrawdownMonitor:
     CRITICAL 5ERS DIFFERENCES:
     - Total DD = 10% van STARTBALANS (constant, niet trailing!)
     - GEEN daily DD limiet bij 5ers (unlike FTMO's 5%)
-    - Stop-out level = $54,000 (voor 60K account) - CONSTANT
-    
+    - Stop-out level = $45,000 (voor 50K account) - CONSTANT
+
     Dit is NIET hetzelfde als FTMO waar daily DD wel geldt!
     """
-    
-    initial_balance: float = 20000.0
-    
+
+    initial_balance: float = 50000.0
+
     def __post_init__(self):
-        self.stop_out_level = self.initial_balance * 0.90  # $54,000
-        self.warning_level = self.initial_balance * 0.93   # $55,800 (7% DD)
-        self.caution_level = self.initial_balance * 0.95   # $57,000 (5% DD)
+        self.stop_out_level = self.initial_balance * 0.90  # $45,000
+        self.warning_level = self.initial_balance * 0.93   # $46,500 (7% DD)
+        self.caution_level = self.initial_balance * 0.95   # $47,500 (5% DD)
         
         # Tracking
         self.high_water_mark = self.initial_balance
@@ -522,7 +522,7 @@ sig_module.signal(sig_module.SIGTERM, signal_handler)
 
 class LiveTradingBot:
     """
-    Main live trading bot for 5ers 60K High Stakes Challenge.
+    Main live trading bot for 5ers 50K High Stakes Challenge.
 
     Uses the EXACT SAME strategy logic as backtest.py for perfect parity.
     Now uses pending orders to match backtest entry behavior exactly.
@@ -836,9 +836,9 @@ class LiveTradingBot:
     # NOTE: Correlation filter REMOVED - was never in main_live_bot.py
     # Keeping backtest in parity with production live bot
     
-    def __init__(self, immediate_scan: bool = False, 
+    def __init__(self, immediate_scan: bool = False,
                  data_dir: str = "data/ohlcv",
-                 initial_balance: float = 20000.0,
+                 initial_balance: float = 50000.0,
                  start_date: datetime = None,
                  end_date: datetime = None,
                  custom_params: dict = None):
@@ -2200,7 +2200,7 @@ class LiveTradingBot:
         Monitor drawdown levels (5ers compliant - NO daily DD limit!).
         
         CRITICAL: 5ers only tracks total DD from START BALANCE.
-        Stop-out = $54,000 for 60K account (constant, not trailing).
+        Stop-out = $45,000 for 50K account (constant, not trailing).
         
         Returns:
             True if stop-out triggered (halt trading), False otherwise
@@ -2441,7 +2441,7 @@ class LiveTradingBot:
             
             if CHALLENGE_MODE:
                 from ftmo_config import FIVEERS_CONFIG
-                log.info("Initializing Challenge Risk Manager (5ers 60K COMPLIANT)...")
+                log.info("Initializing Challenge Risk Manager (5ers 50K COMPLIANT)...")
                 config = ChallengeConfig(
                     enabled=True,
                     phase=self.risk_manager.state.phase,
@@ -3411,11 +3411,11 @@ class LiveTradingBot:
         """
         Place order for a validated setup.
         
-        5ERS 60K OPTIMIZED:
+        5ERS 50K OPTIMIZED:
         - Uses market order when price is at entry (like backtest instant fill)
         - Uses pending order when price is near but not at entry
         - Validates all risk limits before placing
-        - Calculates proper lot size for 60K account
+        - Calculates proper lot size for 50K account
         - Spread check: If spread too wide, adds to awaiting_spread queue
         - Proximity check: If price too far, adds to awaiting_entry queue
         
@@ -4689,7 +4689,7 @@ class LiveTradingBot:
     
     def run(self):
         """
-        Main trading loop - runs 24/7 for 5ers 60K High Stakes Challenge.
+        Main trading loop - runs 24/7 for 5ers 50K High Stakes Challenge.
         
         5ERS-SPECIFIC FEATURES:
         - First run: Immediate scan after restart/weekend (if --first-run or flag missing)
@@ -4706,7 +4706,7 @@ class LiveTradingBot:
         - Monday 00:00-02:00: Weekend gap protection
         """
         log.info("=" * 70)
-        log.info("TRADR BOT - 5ERS 60K HIGH STAKES CHALLENGE")
+        log.info("TRADR BOT - 5ERS 50K HIGH STAKES CHALLENGE")
         log.info("=" * 70)
         log.info(f"KRITIEKE 5ERS REGELS:")
         log.info(f"  - Account: ${ACCOUNT_SIZE:,.0f}")
@@ -5367,7 +5367,7 @@ def main():
     """Entry point with command line arguments."""
     import argparse
     
-    parser = argparse.ArgumentParser(description='Tradr Bot - 5ers 60K High Stakes Challenge')
+    parser = argparse.ArgumentParser(description='Tradr Bot - 5ers 50K High Stakes Challenge')
     parser.add_argument('--demo', action='store_true', help='Force demo mode')
     parser.add_argument('--dry-run', action='store_true', help='Run without executing trades')
     parser.add_argument('--validate-symbols', action='store_true', help='Validate symbol mapping only')
@@ -5565,7 +5565,7 @@ def main():
     parser = argparse.ArgumentParser(description='Main Live Bot Backtest')
     parser.add_argument('--start', type=str, default='2023-01-01', help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end', type=str, default='2025-12-31', help='End date (YYYY-MM-DD)')
-    parser.add_argument('--balance', type=float, default=20000, help='Initial balance')
+    parser.add_argument('--balance', type=float, default=50000, help='Initial balance')
     parser.add_argument('--data-dir', type=str, default='data/ohlcv', help='Data directory')
     parser.add_argument('--output', type=str, default='ftmo_analysis_output/main_live_bot_backtest', help='Output directory')
     parser.add_argument('--params-file', type=str, default=None, help='Custom params JSON file (for optimizer)')
