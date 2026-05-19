@@ -3079,17 +3079,27 @@ class LiveTradingBot:
                     5: entry - risk * tp5_r,
                 }
 
-            # Fetch last 2 hours of M1 candles
-            candles = self.mt5.get_ohlcv(broker_symbol, "M1", 120)
+            # Determine lookback window based on market type.
+            # Crypto trades 24/7 (including weekends), so we need enough candles
+            # to cover the full time since the position opened (up to 7 days).
+            # Forex/metals/indices are closed on weekends, so 2 hours covers any
+            # realistic intra-session outage; a weekend gap produces no candles anyway.
+            position_open_time = pos.time
+            now_utc = datetime.now(timezone.utc)
+            minutes_since_open = int((now_utc - position_open_time).total_seconds() / 60) + 1
+            if is_crypto_pair(sym):
+                candle_count = min(minutes_since_open, 10080)  # cap at 7 days of M1
+            else:
+                candle_count = 120  # 2 hours is enough for forex/metals/indices
+
+            candles = self.mt5.get_ohlcv(broker_symbol, "M1", candle_count)
             if not candles:
                 log.warning(f"[{broker_symbol}] Could not fetch M1 candles for missed TP check")
                 continue
 
             # Only consider candles that formed AFTER the position was opened.
-            # Without this filter, pre-trade candles that happened to touch TP2
-            # would cause a false "missed TP" detection on every bot startup for
-            # a freshly-entered trade, wrongly moving the stop loss immediately.
-            position_open_time = pos.time
+            # Without this filter, pre-trade candles that happened to touch a TP
+            # level cause a false "missed TP" on startup, wrongly moving the SL.
             candles = [c for c in candles if c["time"] >= position_open_time]
             if not candles:
                 log.info(f"[{broker_symbol}] No completed M1 candles after position open — skipping missed TP check")
