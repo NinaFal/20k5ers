@@ -1,5 +1,5 @@
 """
-Challenge Risk Manager for 5ers 60K High Stakes
+Challenge Risk Manager for 5ers 50K High Stakes
 
 Tracks daily P&L, total drawdown, and enforces risk limits to protect the challenge account.
 """
@@ -70,8 +70,8 @@ class ChallengeConfig:
     # Core settings
     enabled: bool = True
     phase: int = 1
-    account_size: float = 60000.0
-    
+    account_size: float = 50000.0
+
     # Risk limits (from FIVEERS_CONFIG)
     max_risk_per_trade_pct: float = 0.75
     max_cumulative_risk_pct: float = 5.0
@@ -183,18 +183,18 @@ class ChallengeRiskManager:
     def _load_state(self):
         """Load persisted state from file."""
         # CRITICAL: Hardcoded fallback to protect initial balance
-        PROTECTED_INITIAL_BALANCE = 20000.0
+        PROTECTED_INITIAL_BALANCE = 50000.0
 
         if self.state_file.exists():
             try:
                 with open(self.state_file, 'r') as f:
                     state = json.load(f)
 
-                # PROTECTED: Always use $20,000 if starting_balance is missing from JSON
+                # PROTECTED: Always use $50,000 if starting_balance is missing from JSON
                 self.starting_balance = state.get('starting_balance', PROTECTED_INITIAL_BALANCE)
 
-                # Prevent accidental overwrite: If starting_balance in JSON is clearly wrong (> $25k or < $15k), reset to $20k
-                if self.starting_balance > 25000.0 or self.starting_balance < 15000.0:
+                # Prevent accidental overwrite: If starting_balance in JSON is clearly wrong (> $65k or < $35k), reset to $50k
+                if self.starting_balance > 65000.0 or self.starting_balance < 35000.0:
                     log.warning(f"⚠️ starting_balance in JSON ({self.starting_balance:,.2f}) seems incorrect. Resetting to ${PROTECTED_INITIAL_BALANCE:,.2f}")
                     self.starting_balance = PROTECTED_INITIAL_BALANCE
 
@@ -226,10 +226,10 @@ class ChallengeRiskManager:
                 log.info(f"Loaded challenge state: starting_balance=${self.starting_balance:,.2f}, peak_equity=${self.peak_equity:,.2f}")
             except Exception as e:
                 log.warning(f"Could not load state file: {e}")
-                # PROTECTED: Use hardcoded value if file load fails
+                # PROTECTED: Use $50K if file load fails
                 self.starting_balance = PROTECTED_INITIAL_BALANCE
         else:
-            # PROTECTED: Use hardcoded value for new challenges
+            # PROTECTED: Use $50K for new challenges
             log.info(f"No state file found. Using protected initial balance: ${PROTECTED_INITIAL_BALANCE:,.2f}")
             self.starting_balance = PROTECTED_INITIAL_BALANCE
     
@@ -528,7 +528,7 @@ class ChallengeRiskManager:
         profit_pct = (self.current_balance - self.starting_balance) / self.starting_balance * 100 if self.starting_balance > 0 else 0.0
         
         # Determine phase and target based on profit
-        # 5ers 20K: Phase 1 = 8% target ($1,600), Phase 2 = 5% target ($1,000)
+        # 5ers 50K: Phase 1 = 8% target ($4,000), Phase 2 = 5% target ($2,500)
         phase = 1
         target_pct = 8.0  # Phase 1 default
         
@@ -735,7 +735,7 @@ class ChallengeRiskManager:
 
 
 def create_challenge_manager(
-    account_size: float = 60000.0,
+    account_size: float = 50000.0,
     mt5_client: Any = None,
     **kwargs
 ) -> ChallengeRiskManager:

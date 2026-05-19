@@ -1,6 +1,5 @@
 """
-5ers 50K High Stakes Challenge Rules Definition
-Defines the rules for the 5ers 50K High Stakes challenge
+5ers 50K High Stakes Challenge Rules
 """
 
 from dataclasses import dataclass
@@ -38,7 +37,7 @@ class ChallengeRules:
 
 
 # Create the default 5ers 50K High Stakes rules
-FIVEERS_60K_RULES = ChallengeRules(
+FIVEERS_50K_RULES = ChallengeRules(
     account_currency="USD",
     account_size=50000.0,
     max_daily_loss_pct=5.0,
@@ -54,5 +53,6 @@ FIVEERS_60K_RULES = ChallengeRules(
     max_trades_per_day=10,
 )
 
-# Backward compatibility alias
-FIVERS_10K_RULES = FIVEERS_60K_RULES
+# Backward compatibility aliases
+FIVEERS_60K_RULES = FIVEERS_50K_RULES
+FIVERS_10K_RULES = FIVEERS_50K_RULES

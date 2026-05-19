@@ -28,26 +28,26 @@ except ImportError:
 except Exception as e:
     print(f"[config] ERROR loading .env: {e}")
 
-from challenge_rules import FIVEERS_60K_RULES
+from challenge_rules import FIVEERS_50K_RULES
 
 
-# ==== 5ers 60K High Stakes Risk Model ====
+# ==== 5ers 50K High Stakes Risk Model ====
 # All challenge rules are centralized in challenge_rules.py
 # These values are exported for backward compatibility
 
-ACCOUNT_CURRENCY = FIVEERS_60K_RULES.account_currency
-ACCOUNT_SIZE = FIVEERS_60K_RULES.account_size  # 50,000 USD (5ers 50K High Stakes)
-MAX_DAILY_LOSS_PCT = FIVEERS_60K_RULES.max_daily_loss_pct / 100  # 0.05 (5%)
-MAX_TOTAL_LOSS_PCT = FIVEERS_60K_RULES.max_total_drawdown_pct / 100  # 0.10 (10%)
-RISK_PER_TRADE_PCT = FIVEERS_60K_RULES.risk_per_trade_pct / 100  # 0.006 (0.6%)
-MAX_OPEN_RISK_PCT = FIVEERS_60K_RULES.max_open_risk_pct / 100  # 0.03 (3%)
+ACCOUNT_CURRENCY = FIVEERS_50K_RULES.account_currency
+ACCOUNT_SIZE = FIVEERS_50K_RULES.account_size  # 50,000 USD (5ers 50K High Stakes)
+MAX_DAILY_LOSS_PCT = FIVEERS_50K_RULES.max_daily_loss_pct / 100  # 0.05 (5%)
+MAX_TOTAL_LOSS_PCT = FIVEERS_50K_RULES.max_total_drawdown_pct / 100  # 0.10 (10%)
+RISK_PER_TRADE_PCT = FIVEERS_50K_RULES.risk_per_trade_pct / 100  # 0.006 (0.6%)
+MAX_OPEN_RISK_PCT = FIVEERS_50K_RULES.max_open_risk_pct / 100  # 0.03 (3%)
 MIN_WITHDRAWAL_USD = 150
 
 # Challenge-specific constants (5ers)
-STEP1_PROFIT_TARGET_PCT = FIVEERS_60K_RULES.step1_profit_target_pct  # 8% (5ers Step 1)
-STEP2_PROFIT_TARGET_PCT = FIVEERS_60K_RULES.step2_profit_target_pct  # 5% (Verification)
-MIN_PROFITABLE_DAYS = FIVEERS_60K_RULES.min_profitable_days  # 3 (5ers requires 3 profitable days)
-PROFITABLE_DAY_THRESHOLD_PCT = FIVEERS_60K_RULES.profitable_day_threshold_pct  # 0.5%
+STEP1_PROFIT_TARGET_PCT = FIVEERS_50K_RULES.step1_profit_target_pct  # 8% (5ers Step 1)
+STEP2_PROFIT_TARGET_PCT = FIVEERS_50K_RULES.step2_profit_target_pct  # 5% (Verification)
+MIN_PROFITABLE_DAYS = FIVEERS_50K_RULES.min_profitable_days  # 3 (5ers requires 3 profitable days)
+PROFITABLE_DAY_THRESHOLD_PCT = FIVEERS_50K_RULES.profitable_day_threshold_pct  # 0.5%
 
 CONTRACT_SPECS = {
     "EUR_USD": {"pip_value": 0.0001, "contract_size": 100000, "pip_location": 4},
