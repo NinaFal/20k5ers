@@ -2989,17 +2989,23 @@ class LiveTradingBot:
         
         # 4. DEDUP: Remove duplicate MT5 pending orders for same symbol + rescale lot sizes
         deduped_count, rescaled_count = self._dedup_and_rescale_mt5_orders(my_pending_orders)
-        
-        # 5. Log final state
-        log.info("=" * 70)
-        # 6. CRITICAL: Recover orphaned MT5 positions not in pending_setups
-        # This handles positions opened when bot was down or crashed after fill
+
+        # 5. Recover orphaned MT5 pending orders not in pending_setups
+        # This catches the race condition: order sent to MT5, connection dropped before
+        # the response arrived, bot restarted without the ticket in its JSON state.
+        recovered_pending_count = self._recover_orphaned_pending_orders(my_pending_orders)
+
+        # 6. Recover orphaned MT5 positions not in pending_setups
+        # This handles positions opened when bot was down or crashed after fill.
         recovered_count = self._recover_orphaned_positions(my_positions)
-        
+
+        log.info("=" * 70)
         log.info(f"✅ STARTUP SYNC COMPLETE")
         log.info(f"  Active pending_setups: {len(self.pending_setups)}")
         log.info(f"  Active awaiting_entry: {len(self.awaiting_entry)}")
         log.info(f"  Active awaiting_spread: {len(self.awaiting_spread)}")
+        if recovered_pending_count > 0:
+            log.info(f"  ⚠️ Recovered orphaned pending orders: {recovered_pending_count}")
         if recovered_count > 0:
             log.info(f"  ⚠️ Recovered orphaned positions: {recovered_count}")
         if deduped_count > 0:
@@ -3423,7 +3429,133 @@ class LiveTradingBot:
         if recovered > 0:
             self._save_pending_setups()
             log.info(f"💾 Saved {recovered} recovered position(s) to pending_setups.json")
-        
+
+        return recovered
+
+    def _recover_orphaned_pending_orders(self, my_pending_orders: list) -> int:
+        """
+        Recover MT5 pending orders (limit/stop) that are not tracked in pending_setups.
+
+        This covers the disconnect-during-placement race condition: the bot sends an
+        order to MT5, the connection drops before the response arrives, and the bot
+        restarts without the order ticket in its JSON state. The order is live in MT5
+        but invisible to the bot, so it would fill without any TP/SL management.
+
+        For each orphaned order we reconstruct a minimal PendingSetup (status="pending")
+        using the order's own price, SL, volume, and TP levels from current params.
+
+        Returns: number of orders recovered.
+        """
+        if not my_pending_orders:
+            return 0
+
+        reverse_symbol_map = {v: k for k, v in self.symbol_map.items()}
+
+        # Collect all order tickets already tracked in pending_setups
+        tracked_tickets = {
+            setup.order_ticket
+            for setup in self.pending_setups.values()
+            if setup.status == "pending" and setup.order_ticket is not None
+        }
+
+        # MT5 order type → direction
+        # BUY_LIMIT=2, BUY_STOP=4  → bullish
+        # SELL_LIMIT=3, SELL_STOP=5 → bearish
+        BUY_TYPES = {0, 2, 4, 6}
+
+        tp1_r = getattr(self.params, 'tp1_r_multiple', 0.6)
+        tp2_r = getattr(self.params, 'tp2_r_multiple', 0.9)
+        tp3_r = getattr(self.params, 'tp3_r_multiple', 1.3)
+        tp4_r = getattr(self.params, 'tp4_r_multiple', 2.0)
+        tp5_r = getattr(self.params, 'tp5_r_multiple', 3.5)
+
+        recovered = 0
+        for order in my_pending_orders:
+            if order.ticket in tracked_tickets:
+                continue
+
+            broker_symbol = order.symbol
+            oanda_symbol = reverse_symbol_map.get(broker_symbol, broker_symbol)
+
+            if oanda_symbol not in self.symbol_map:
+                log.debug(f"[{broker_symbol}] Orphaned pending order not in symbol_map — skipping")
+                continue
+
+            log.warning(
+                f"[{oanda_symbol}] ⚠️ ORPHANED PENDING ORDER (ticket={order.ticket}, "
+                f"broker={broker_symbol}) — not in pending_setups, recovering"
+            )
+
+            direction = "bullish" if order.type in BUY_TYPES else "bearish"
+            entry = order.price
+            sl = order.sl if order.sl > 0 else None
+
+            if sl:
+                risk = abs(entry - sl)
+            else:
+                risk = entry * 0.02
+                log.warning(f"[{oanda_symbol}] No SL on orphaned order, estimating risk as 2% of entry")
+
+            if direction == "bullish":
+                calc_sl = sl if sl else entry - risk
+                tp1 = entry + tp1_r * risk
+                tp2 = entry + tp2_r * risk
+                tp3 = entry + tp3_r * risk
+                tp4 = entry + tp4_r * risk
+                tp5 = entry + tp5_r * risk
+            else:
+                calc_sl = sl if sl else entry + risk
+                tp1 = entry - tp1_r * risk
+                tp2 = entry - tp2_r * risk
+                tp3 = entry - tp3_r * risk
+                tp4 = entry - tp4_r * risk
+                tp5 = entry - tp5_r * risk
+
+            created_at = (
+                order.time_setup.isoformat()
+                if hasattr(order, 'time_setup') and order.time_setup
+                else datetime.now(timezone.utc).isoformat()
+            )
+
+            recovery_setup = PendingSetup(
+                symbol=oanda_symbol,
+                direction=direction,
+                entry_price=entry,
+                stop_loss=calc_sl,
+                tp1=tp1,
+                tp2=tp2,
+                tp3=tp3,
+                tp4=tp4,
+                tp5=tp5,
+                confluence=0,
+                confluence_score=0,
+                quality_factors=0,
+                entry_distance_r=0.0,
+                created_at=created_at,
+                order_ticket=order.ticket,
+                status="pending",
+                lot_size=order.volume,
+                partial_closes=0,
+                trailing_sl=None,
+                tp1_hit=False,
+                tp2_hit=False,
+                tp3_hit=False,
+                tp4_hit=False,
+                tp5_hit=False,
+                progressive_trail_applied=False,
+            )
+
+            self.pending_setups[oanda_symbol] = recovery_setup
+            recovered += 1
+            log.info(
+                f"[{oanda_symbol}] ✅ Recovered pending order: {order.volume} lots "
+                f"@ {entry:.5f}, SL={calc_sl:.5f}, TP1={tp1:.5f}"
+            )
+
+        if recovered > 0:
+            self._save_pending_setups()
+            log.info(f"💾 Saved {recovered} recovered pending order(s) to pending_setups.json")
+
         return recovered
 
     def _sync_tp_levels_to_current_params(self):
@@ -5931,9 +6063,12 @@ class LiveTradingBot:
                         # 5-TP partial close management
                         self.manage_partial_takes()
 
-                        # Recover any MT5 positions not tracked in pending_setups
-                        # (handles fills missed during restarts or mid-session gaps)
+                        # Recover orphaned MT5 orders/positions not tracked in pending_setups.
+                        # Pending orders: catches the disconnect-during-placement race condition.
+                        # Positions: catches fills missed during restarts or mid-session gaps.
                         if (now - last_orphan_check).total_seconds() >= ORPHAN_CHECK_INTERVAL_SECONDS:
+                            live_pending_orders = self.mt5.get_my_pending_orders()
+                            self._recover_orphaned_pending_orders(live_pending_orders)
                             live_positions = self.mt5.get_my_positions()
                             self._recover_orphaned_positions(live_positions)
                             last_orphan_check = now
