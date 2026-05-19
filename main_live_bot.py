@@ -525,11 +525,17 @@ class DrawdownMonitor:
         return 1.0  # Normal risk
 
 # Print broker config on startup
+_params_file = Path(__file__).parent / "params" / "current_params.json"
+try:
+    import json as _json
+    _startup_risk_pct = _json.loads(_params_file.read_text())["parameters"]["risk_per_trade_pct"]
+except Exception:
+    _startup_risk_pct = BROKER_CONFIG.risk_per_trade_pct
 log.info("=" * 70)
 log.info(f"BROKER: {BROKER_NAME}")
 log.info(f"Demo Mode: {'YES ⚠️' if IS_DEMO else 'NO (LIVE)'}")
 log.info(f"Account Size: ${ACCOUNT_SIZE:,.0f}")
-log.info(f"Risk per Trade: {BROKER_CONFIG.risk_per_trade_pct}% = ${BROKER_CONFIG.risk_amount:.0f}")
+log.info(f"Risk per Trade: {_startup_risk_pct}% = ${ACCOUNT_SIZE * _startup_risk_pct / 100:.0f} (from current_params.json)")
 log.info(f"Tradable Symbols: {len(TRADABLE_SYMBOLS)}")
 log.info("=" * 70)
 
