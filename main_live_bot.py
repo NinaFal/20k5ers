@@ -2748,9 +2748,6 @@ class LiveTradingBot:
         log.info(f"Equity: ${account.get('equity', 0):,.2f}")
         log.info(f"Leverage: 1:{account.get('leverage', 0)}")
 
-        # Fix any filled setups with entry_price=0.0 (now that MT5 is connected)
-        self._fix_zero_entry_prices()
-
         # Discover available symbols
         log.info("\n" + "=" * 70)
         log.info(f"DISCOVERING BROKER SYMBOLS ({BROKER_NAME})")
@@ -3017,7 +3014,13 @@ class LiveTradingBot:
         # 6. Sync TP levels to current params
         self._sync_tp_levels_to_current_params()
 
-        # 7. Check for missed TPs during downtime (price hit TP then reversed)
+        # 7. Fix any filled setups with entry_price=0.0.
+        # Must run AFTER symbol_map is built (so broker symbols resolve correctly)
+        # and BEFORE _check_missed_tps_on_startup (so TP levels and tp_hit flags
+        # are correct before the candle scan).
+        self._fix_zero_entry_prices()
+
+        # 8. Check for missed TPs during downtime (price hit TP then reversed)
         self._check_missed_tps_on_startup()
 
     def _check_missed_tps_on_startup(self):
