@@ -543,15 +543,33 @@ class MT5Client:
                 success=False,
                 error=f"Order failed: {result.comment} (code: {result.retcode})"
             )
-        
+
+        fill_price = result.price
+
+        # Some brokers (e.g. 5ers) use async execution and return price=0.0.
+        # In that case, fetch the actual fill price from the opened position.
+        if fill_price == 0.0:
+            import time as _time
+            for _ in range(5):
+                _time.sleep(0.3)
+                positions = mt5.positions_get(ticket=result.order)
+                if positions:
+                    fill_price = positions[0].price_open
+                    break
+            # Fallback: check deal history
+            if fill_price == 0.0 and result.deal:
+                deals = mt5.history_deals_get(ticket=result.deal)
+                if deals:
+                    fill_price = deals[0].price
+
         return TradeResult(
             success=True,
             order_id=result.order,
             deal_id=result.deal,
-            price=result.price,
+            price=fill_price,
             volume=result.volume,
         )
-    
+
     def close_position(self, ticket: int) -> TradeResult:
         """Close a position by ticket."""
         if not self.connected:
@@ -670,12 +688,25 @@ class MT5Client:
         if result is None or result.retcode != mt5.TRADE_RETCODE_DONE:
             error = result.comment if result else "Unknown error"
             return TradeResult(success=False, error=f"Partial close failed: {error}")
-        
+
+        fill_price = result.price
+
+        # Some brokers return price=0.0 with async execution — fetch from deal history.
+        if fill_price == 0.0:
+            import time as _time
+            for _ in range(5):
+                _time.sleep(0.3)
+                if result.deal:
+                    deals = mt5.history_deals_get(ticket=result.deal)
+                    if deals:
+                        fill_price = deals[0].price
+                        break
+
         return TradeResult(
             success=True,
             order_id=result.order,
             deal_id=result.deal,
-            price=result.price,
+            price=fill_price,
             volume=result.volume,
         )
     
