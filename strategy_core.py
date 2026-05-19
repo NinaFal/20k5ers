@@ -2084,25 +2084,25 @@ def _h4_confirmation(
 
 def _find_structure_sl(candles: List[Dict], direction: str, lookback: int = 35) -> Optional[float]:
     """
-    Find structure-based stop loss level.
-    
-    Returns:
-        Stop loss price level or None
+    Find structure-based stop loss level using the most recent daily swing high/low.
+
+    For bearish: returns the most recent swing high (SL placed just above it).
+    For bullish: returns the most recent swing low (SL placed just below it).
     """
     if not candles or len(candles) < 5:
         return None
-    
+
     recent = candles[-lookback:] if len(candles) >= lookback else candles
     swing_highs, swing_lows = _find_pivots(recent, lookback=3)
-    
+
     if direction == "bullish":
         if swing_lows:
-            return min(swing_lows[-3:]) if len(swing_lows) >= 3 else min(swing_lows)
+            return swing_lows[-1]  # most recent swing low
         else:
             return min(c["low"] for c in recent[-10:])
     else:
         if swing_highs:
-            return max(swing_highs[-3:]) if len(swing_highs) >= 3 else max(swing_highs)
+            return swing_highs[-1]  # most recent swing high
         else:
             return max(c["high"] for c in recent[-10:])
 
@@ -2324,9 +2324,8 @@ def compute_trade_levels(
     
     leg = _find_last_swing_leg_for_fib(daily_candles, direction)
     
-    sl_candles = h4_candles if h4_candles and len(h4_candles) >= 20 else daily_candles
-    h4_lookback = 20
-    structure_sl = _find_structure_sl(sl_candles, direction, lookback=h4_lookback)
+    # Always use daily candles for structure SL — SL must respect daily swing highs/lows
+    structure_sl = _find_structure_sl(daily_candles, direction, lookback=15)
     
     if leg:
         lo, hi = leg
