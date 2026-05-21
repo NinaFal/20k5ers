@@ -761,6 +761,102 @@ class LiveTradingBot:
     def _positions_count(self) -> int:
         return len(self.mt5._positions) if hasattr(self.mt5, '_positions') else 0
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # PROTECTION LAYERS (rollover, news, correlation, smart halt)
+    # ═══════════════════════════════════════════════════════════════════════
+
+    _VULNERABLE_PAIRS = {
+        "XAU_USD",
+        "GBP_NZD", "GBP_CAD", "GBP_CHF", "GBP_JPY",
+        "EUR_NZD", "AUD_NZD", "NZD_CAD", "NZD_CHF",
+    }
+
+    @staticmethod
+    def _is_rollover_window(t) -> bool:
+        # 21:30 - 22:30 UTC daily
+        if t.hour == 21 and t.minute >= 30:
+            return True
+        if t.hour == 22 and t.minute < 30:
+            return True
+        return False
+
+    @staticmethod
+    def _is_news_blackout(t) -> bool:
+        # NFP: first Friday of the month, 13:00-15:00 UTC
+        if t.weekday() == 4 and t.day <= 7:
+            if (t.hour == 13) or (t.hour == 14):
+                return True
+        # FOMC scheduled meetings (Wednesdays, decision at 18:00-20:00 UTC)
+        # Conservative: every Wednesday 18:00-20:00 UTC during typical FOMC weeks
+        # We hardcode known FOMC announcement dates 2015-2025 below
+        fomc_dates = {
+            # 2015
+            (2015, 1, 28), (2015, 3, 18), (2015, 4, 29), (2015, 6, 17),
+            (2015, 7, 29), (2015, 9, 17), (2015, 10, 28), (2015, 12, 16),
+            # 2016
+            (2016, 1, 27), (2016, 3, 16), (2016, 4, 27), (2016, 6, 15),
+            (2016, 7, 27), (2016, 9, 21), (2016, 11, 2), (2016, 12, 14),
+            # 2017
+            (2017, 2, 1), (2017, 3, 15), (2017, 5, 3), (2017, 6, 14),
+            (2017, 7, 26), (2017, 9, 20), (2017, 11, 1), (2017, 12, 13),
+            # 2018
+            (2018, 1, 31), (2018, 3, 21), (2018, 5, 2), (2018, 6, 13),
+            (2018, 8, 1), (2018, 9, 26), (2018, 11, 8), (2018, 12, 19),
+            # 2019
+            (2019, 1, 30), (2019, 3, 20), (2019, 5, 1), (2019, 6, 19),
+            (2019, 7, 31), (2019, 9, 18), (2019, 10, 30), (2019, 12, 11),
+            # 2020
+            (2020, 1, 29), (2020, 3, 15), (2020, 4, 29), (2020, 6, 10),
+            (2020, 7, 29), (2020, 9, 16), (2020, 11, 5), (2020, 12, 16),
+            # 2021
+            (2021, 1, 27), (2021, 3, 17), (2021, 4, 28), (2021, 6, 16),
+            (2021, 7, 28), (2021, 9, 22), (2021, 11, 3), (2021, 12, 15),
+            # 2022
+            (2022, 1, 26), (2022, 3, 16), (2022, 5, 4), (2022, 6, 15),
+            (2022, 7, 27), (2022, 9, 21), (2022, 11, 2), (2022, 12, 14),
+            # 2023
+            (2023, 2, 1), (2023, 3, 22), (2023, 5, 3), (2023, 6, 14),
+            (2023, 7, 26), (2023, 9, 20), (2023, 11, 1), (2023, 12, 13),
+            # 2024
+            (2024, 1, 31), (2024, 3, 20), (2024, 5, 1), (2024, 6, 12),
+            (2024, 7, 31), (2024, 9, 18), (2024, 11, 7), (2024, 12, 18),
+            # 2025
+            (2025, 1, 29), (2025, 3, 19), (2025, 5, 7), (2025, 6, 18),
+            (2025, 7, 30), (2025, 9, 17), (2025, 10, 29), (2025, 12, 10),
+        }
+        if (t.year, t.month, t.day) in fomc_dates:
+            if 17 <= t.hour <= 20:
+                return True
+        return False
+
+    def _protection_block(self, symbol: str, direction: str):
+        """Return (blocked, reason) for new entries based on Layers 1, 2."""
+        t = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
+
+        # Layer 1: Rollover window
+        if self._is_rollover_window(t):
+            return True, "rollover-window (21:30-22:30 UTC)"
+
+        # Layer 2: News blackout
+        if self._is_news_blackout(t):
+            return True, "news-blackout (NFP/FOMC)"
+
+        return False, ""
+
+    def _dynamic_halt_pct(self, base_halt_pct: float) -> float:
+        """Layer 5: tighten halt threshold under risky conditions."""
+        t = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
+        n_positions = self._positions_count()
+
+        halt = base_halt_pct
+        # In rollover window: tighten halt (spread risk)
+        if self._is_rollover_window(t):
+            halt = min(halt, 2.5)
+        # Many open positions: tighten by 0.4% (more closing slippage)
+        if n_positions > 5:
+            halt = min(halt, base_halt_pct - 0.4)
+        return halt
+
     def _emergency_close_all(self):
         """
         Emergency close all positions and cancel all pending orders.
@@ -3566,6 +3662,12 @@ class LiveTradingBot:
             if total_exposure >= max_trades:
                 log.info(f"[{symbol}] Max trades reached: {total_exposure}/{max_trades} (positions: {open_positions}, pending: {pending_count})")
                 return False
+
+            # Protection layers (rollover window + news blackout)
+            blocked, reason = self._protection_block(symbol, direction)
+            if blocked:
+                log.info(f"[{symbol}] Trade blocked by protection layer: {reason}")
+                return False
             
             # NOTE: NO cumulative risk check - removed to match simulator
             # Simulator has no cumulative risk limits, only position count limit
@@ -5123,7 +5225,9 @@ class LiveTradingBot:
             # DDD check - graduated tiers matching live bot
             warning_pct = getattr(FIVEERS_CONFIG, "daily_loss_warning_pct", 2.0)
             reduce_pct = getattr(FIVEERS_CONFIG, "daily_loss_reduce_pct", 3.0)
-            halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.5)
+            base_halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.5)
+            # Layer 5: tighten halt during rollover or with many open positions
+            halt_pct = self._dynamic_halt_pct(base_halt_pct)
 
             ddd_pct = max(0, (day_start_equity - equity) / day_start_equity * 100) if day_start_equity > 0 else 0
             max_ddd = max(max_ddd, ddd_pct)
