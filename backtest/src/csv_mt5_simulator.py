@@ -1087,3 +1087,64 @@ class CSVMT5Simulator:
         """Update profit for all positions."""
         for pos in self._positions.values():
             pos.profit = self._calculate_position_pnl(pos)
+
+    def calculate_worst_case_floating_pnl(self) -> float:
+        """
+        Compute worst-case floating P&L across all open positions, using the
+        adverse extreme of the current M15 bar for each position (low for buys,
+        high for sells). Approximates the worst intra-candle equity dip.
+
+        Positions whose SL is inside the bar are capped at SL price (since the
+        bar wouldn't drive equity below SL — the SL would close first).
+        """
+        from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
+
+        worst_pnl = 0.0
+        for pos in self._positions.values():
+            bar = self.get_m15_bar(pos.symbol, self._current_time)
+            if bar is None:
+                worst_pnl += pos.profit
+                continue
+
+            specs = get_fiveers_contract_specs(pos.symbol)
+            pip_size = specs.get('pip_size', 0.0001)
+            pip_value_per_lot = specs.get('pip_value_per_lot', 10.0)
+
+            if pos.type == 0:  # Buy: worst price is low, capped at SL
+                worst_price = bar['low']
+                if pos.sl > 0:
+                    worst_price = max(worst_price, pos.sl)
+                price_diff = worst_price - pos.price_open
+            else:  # Sell: worst price is high, capped at SL
+                worst_price = bar['high']
+                if pos.sl > 0:
+                    worst_price = min(worst_price, pos.sl)
+                price_diff = pos.price_open - worst_price
+
+            pips = price_diff / pip_size
+            worst_pnl += pips * pip_value_per_lot * pos.volume
+
+        return worst_pnl
+
+    def close_all_at_worst_case(self) -> float:
+        """
+        Close all open positions at worst-case intra-candle price (low for
+        buys, high for sells), capped at SL if SL would have fired first.
+        Returns total closing commission applied.
+        """
+        commission_before = self._total_commission
+        for ticket, pos in list(self._positions.items()):
+            bar = self.get_m15_bar(pos.symbol, self._current_time)
+            if bar is None:
+                self.close_position(ticket)
+                continue
+            if pos.type == 0:
+                close_price = bar['low']
+                if pos.sl > 0:
+                    close_price = max(close_price, pos.sl)
+            else:
+                close_price = bar['high']
+                if pos.sl > 0:
+                    close_price = min(close_price, pos.sl)
+            self.close_position(ticket, close_price=close_price)
+        return self._total_commission - commission_before

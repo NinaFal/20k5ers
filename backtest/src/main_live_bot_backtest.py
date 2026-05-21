@@ -758,6 +758,9 @@ class LiveTradingBot:
         t = threading.Thread(target=ddd_protection_worker, daemon=True)
         t.start()
     
+    def _positions_count(self) -> int:
+        return len(self.mt5._positions) if hasattr(self.mt5, '_positions') else 0
+
     def _emergency_close_all(self):
         """
         Emergency close all positions and cancel all pending orders.
@@ -5125,6 +5128,40 @@ class LiveTradingBot:
             ddd_pct = max(0, (day_start_equity - equity) / day_start_equity * 100) if day_start_equity > 0 else 0
             max_ddd = max(max_ddd, ddd_pct)
 
+            # === WORST-CASE INTRA-CANDLE DDD CHECK (M15 low/high) ===
+            # Approximates if DDD would have hit halt threshold mid-candle.
+            # If yes, close all at worst-case price + apply $2/lot closing commission.
+            if not trading_halted_today and self._positions_count() > 0:
+                worst_floating_pnl = self.mt5.calculate_worst_case_floating_pnl()
+                realized_today = balance - day_start_equity  # already-realized daily PnL
+                worst_equity = balance + worst_floating_pnl
+                worst_ddd_pct = max(0, (day_start_equity - worst_equity) / day_start_equity * 100) if day_start_equity > 0 else 0
+                if worst_ddd_pct >= halt_pct:
+                    log.warning(f"🚨 DDD TIER 3 HALT (intra-candle worst-case) at {current_time}: worst-case DDD {worst_ddd_pct:.2f}% >= {halt_pct}%")
+                    close_commission = self.mt5.close_all_at_worst_case()
+                    # Cancel pending orders too
+                    for order in self.mt5.get_my_pending_orders():
+                        self.mt5.cancel_pending_order(order.ticket)
+                    # Recompute actual DDD after close (includes closing commission)
+                    account_after = self.mt5.get_account_info()
+                    equity_after = account_after.get('equity', day_start_equity)
+                    actual_ddd_pct = max(0, (day_start_equity - equity_after) / day_start_equity * 100) if day_start_equity > 0 else 0
+                    max_ddd = max(max_ddd, actual_ddd_pct)
+                    log.warning(f"  💸 Close commission: ${close_commission:.2f} | Actual DDD after close: {actual_ddd_pct:.2f}% (worst-case projected: {worst_ddd_pct:.2f}%)")
+                    if actual_ddd_pct >= 5.0:
+                        log.error(f"  ⚠️ 5ERS BREACH: DDD {actual_ddd_pct:.2f}% >= 5.0%!")
+                    trading_halted_today = True
+                    self.ddd_halted = True
+                    safety_events.append({
+                        'time': str(current_time),
+                        'type': 'DDD_HALT_INTRA',
+                        'projected_ddd_pct': worst_ddd_pct,
+                        'actual_ddd_pct': actual_ddd_pct,
+                        'close_commission': close_commission,
+                        'breach_5pct': actual_ddd_pct >= 5.0,
+                    })
+                    continue
+
             # === TIER 3: DDD >= 3.5% → CLOSE ALL + HALT ===
             if ddd_pct >= halt_pct and not trading_halted_today:
                 log.warning(f"🚨 DDD TIER 3 HALT at {current_time}: {ddd_pct:.1f}% >= {halt_pct}%")
@@ -5332,7 +5369,9 @@ class LiveTradingBot:
             'max_tdd_pct': round(max_tdd, 2),
             'max_ddd_pct': round(max_ddd, 2),
             'safety_events': len(safety_events),
-            'ddd_halts': sum(1 for e in safety_events if e.get('type') == 'DDD_HALT'),
+            'ddd_halts': sum(1 for e in safety_events if e.get('type') in ('DDD_HALT', 'DDD_HALT_INTRA')),
+            'ddd_halts_intra': sum(1 for e in safety_events if e.get('type') == 'DDD_HALT_INTRA'),
+            'breaches_5pct': sum(1 for e in safety_events if e.get('breach_5pct')),
             'ddd_reduces': sum(1 for e in safety_events if e.get('type') == 'DDD_REDUCE'),
             'ddd_warnings': sum(1 for e in safety_events if e.get('type') == 'DDD_WARNING'),
             'tdd_stopouts': sum(1 for e in safety_events if e.get('type') == 'TDD_STOPOUT'),
