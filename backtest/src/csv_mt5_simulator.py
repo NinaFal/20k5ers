@@ -60,6 +60,7 @@ class Position:
     time: datetime
     magic: int
     comment: str
+    swap: float = 0.0
 
 
 @dataclass
@@ -220,9 +221,52 @@ class CSVMT5Simulator:
         # Date filter for optimized data loading (set via set_date_filter)
         self._filter_start: Optional[datetime] = None
         self._filter_end: Optional[datetime] = None
-        
+
         # Closed trades log
         self._closed_trades: List[dict] = []
+
+        # Fee tracking
+        self._total_commission: float = 0.0
+        self._total_swap: float = 0.0
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # FEE SIMULATION - 5ers realistic costs
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # Indices with zero commission on 5ers
+    _ZERO_COMMISSION_SYMBOLS = {"NAS100_USD", "UK100_USD", "US500_USD", "GER40_USD"}
+
+    # Approximate daily swap rates (in USD per lot) — negative = cost, positive = credit
+    # Source: typical 5ers broker rates, long/short averaged as cost
+    _SWAP_RATES_USD_PER_LOT: Dict[str, float] = {
+        "EUR_USD": -0.70, "GBP_USD": -0.50, "USD_JPY": 0.20,
+        "USD_CHF": -0.30, "USD_CAD": -0.10, "AUD_USD": -0.60,
+        "NZD_USD": -0.50, "EUR_GBP": -0.80, "EUR_JPY": -0.40,
+        "EUR_CHF": -0.60, "EUR_AUD": -0.90, "EUR_CAD": -0.70,
+        "EUR_NZD": -0.80, "GBP_JPY": -0.30, "GBP_CHF": -0.70,
+        "GBP_AUD": -0.80, "GBP_CAD": -0.60, "GBP_NZD": -0.90,
+        "AUD_JPY": -0.20, "AUD_CHF": -0.50, "AUD_CAD": -0.40,
+        "AUD_NZD": -0.60, "NZD_CHF": -0.50, "NZD_CAD": -0.40,
+        "CAD_JPY": -0.20, "CAD_CHF": -0.40, "CHF_JPY": -0.30,
+        "XAU_USD": -3.50, "XAG_USD": -1.20,
+        "NAS100_USD": -5.00, "UK100_USD": -4.00,
+        "BTC_USD": -15.00, "ETH_USD": -8.00,
+    }
+
+    def _get_commission(self, symbol: str, volume: float) -> float:
+        """Calculate 5ers commission: $4/lot round trip for forex/metals, $0 for indices."""
+        if symbol in self._ZERO_COMMISSION_SYMBOLS:
+            return 0.0
+        return 4.0 * volume  # $4 per lot round trip
+
+    def _apply_daily_swap(self):
+        """Apply overnight swap to all open positions (called once per simulated day)."""
+        for pos in self._positions.values():
+            rate = self._SWAP_RATES_USD_PER_LOT.get(pos.symbol, -0.50)
+            swap_cost = rate * pos.volume  # negative = debit from balance
+            pos.swap = getattr(pos, 'swap', 0.0) + swap_cost
+            self._balance += swap_cost
+            self._total_swap += swap_cost
     
     # ═══════════════════════════════════════════════════════════════════════
     # SIMULATION CONTROL (not in MT5Client, but needed for backtest)
@@ -699,9 +743,10 @@ class CSVMT5Simulator:
         
         if close_volume >= pos.volume:
             # Full close
+            swap_accrued = getattr(pos, 'swap', 0.0)
             del self._positions[ticket]
             self._balance += pnl
-            
+
             # Log closed trade
             self._closed_trades.append({
                 'ticket': ticket,
@@ -713,6 +758,7 @@ class CSVMT5Simulator:
                 'open_time': pos.time,
                 'close_time': self._current_time,
                 'pnl': pnl,
+                'swap': swap_accrued,
                 'sl': pos.sl,
                 'tp': pos.tp,
             })
@@ -720,7 +766,7 @@ class CSVMT5Simulator:
             # Partial close - also log this!
             pos.volume -= close_volume
             self._balance += pnl
-            
+
             # Log partial close as separate trade entry
             self._closed_trades.append({
                 'ticket': f"{ticket}_partial_{int(self._current_time.timestamp())}",
@@ -732,9 +778,10 @@ class CSVMT5Simulator:
                 'open_time': pos.time,
                 'close_time': self._current_time,
                 'pnl': pnl,
+                'swap': 0.0,
                 'sl': pos.sl,
                 'tp': pos.tp,
-                'partial': True,  # Mark as partial close
+                'partial': True,
             })
         
         return TradeResult(
@@ -837,7 +884,12 @@ class CSVMT5Simulator:
         )
         
         self._positions[ticket] = pos
-        
+
+        # Apply opening commission (half of round-trip on entry)
+        commission = self._get_commission(symbol, volume)
+        self._balance -= commission
+        self._total_commission += commission
+
         return TradeResult(
             success=True,
             order_id=ticket,

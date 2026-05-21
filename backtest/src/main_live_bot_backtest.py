@@ -4894,9 +4894,13 @@ class LiveTradingBot:
                             self._save_ddd_halt_state()
                             log.info("✅ Trading re-enabled!")
 
+                        # Apply overnight swap to all open positions (once per day)
+                        if hasattr(self.mt5, '_apply_daily_swap'):
+                            self.mt5._apply_daily_swap()
+
                         # Update daily tracking and reset for new day
                         self.risk_manager._check_new_day()
-                        
+
                         # Update day_start_equity BEFORE scan per 5ers rules: MAX(equity, balance)
                         # This is the equity at daily close which becomes the new day's starting point
                         account = self.mt5.get_account_info()
