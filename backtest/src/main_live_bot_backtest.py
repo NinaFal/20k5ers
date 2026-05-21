@@ -680,11 +680,21 @@ class LiveTradingBot:
                     if daily_loss_pct >= halt_pct:
                         log.error("=" * 70)
                         log.error(f"🚨 DDD TIER 3 HALT: Equity ${current_equity:,.2f} is {daily_loss_pct:.2f}% below day start (${day_start_equity:,.2f})")
+                        commission_before = getattr(self.mt5, '_total_commission', 0.0)
                         log.error(f"  DDD {daily_loss_pct:.2f}% >= {halt_pct:.2f}%! CLOSING ALL TRADES AND ORDERS!")
                         log.error("=" * 70)
-                        
+
                         # Cancel ALL pending/limit orders and close all positions
                         self._emergency_close_all()
+
+                        # Log extra commission cost from forced closes
+                        commission_after = getattr(self.mt5, '_total_commission', 0.0)
+                        close_commission = commission_after - commission_before
+                        if close_commission > 0:
+                            account_after = self.mt5.get_account_info()
+                            equity_after = account_after.get('equity', day_start_equity) if account_after else day_start_equity
+                            actual_ddd = abs(min(0, equity_after - day_start_equity)) / day_start_equity * 100
+                            log.error(f"  💸 Close commission: ${close_commission:.2f} | Actual DDD after close: {actual_ddd:.2f}% (was {daily_loss_pct:.2f}% at halt)")
                         
                         # Set a flag to halt trading until next day
                         self.ddd_halted = True

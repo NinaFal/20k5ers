@@ -253,11 +253,15 @@ class CSVMT5Simulator:
         "BTC_USD": -15.00, "ETH_USD": -8.00,
     }
 
-    def _get_commission(self, symbol: str, volume: float) -> float:
-        """Calculate 5ers commission: $4/lot round trip for forex/metals, $0 for indices."""
+    def _get_commission_one_way(self, symbol: str, volume: float) -> float:
+        """One-way commission (open OR close): $2/lot for forex/metals, $0 for indices."""
         if symbol in self._ZERO_COMMISSION_SYMBOLS:
             return 0.0
-        return 4.0 * volume  # $4 per lot round trip
+        return 2.0 * volume  # $2/lot per side ($4 round trip)
+
+    def _get_commission(self, symbol: str, volume: float) -> float:
+        """Round-trip commission: $4/lot for forex/metals, $0 for indices."""
+        return self._get_commission_one_way(symbol, volume) * 2
 
     def _apply_daily_swap(self):
         """Apply overnight swap to all open positions (called once per simulated day)."""
@@ -749,6 +753,9 @@ class CSVMT5Simulator:
         if close_volume >= pos.volume:
             # Full close
             swap_accrued = getattr(pos, 'swap', 0.0)
+            close_commission = self._get_commission_one_way(pos.symbol, close_volume)
+            self._balance -= close_commission
+            self._total_commission += close_commission
             del self._positions[ticket]
             self._balance += pnl
 
@@ -768,7 +775,10 @@ class CSVMT5Simulator:
                 'tp': pos.tp,
             })
         else:
-            # Partial close - also log this!
+            # Partial close
+            close_commission = self._get_commission_one_way(pos.symbol, close_volume)
+            self._balance -= close_commission
+            self._total_commission += close_commission
             pos.volume -= close_volume
             self._balance += pnl
 
@@ -890,8 +900,8 @@ class CSVMT5Simulator:
         
         self._positions[ticket] = pos
 
-        # Apply opening commission (half of round-trip on entry)
-        commission = self._get_commission(symbol, volume)
+        # Apply opening commission ($2/lot on entry)
+        commission = self._get_commission_one_way(symbol, volume)
         self._balance -= commission
         self._total_commission += commission
 
