@@ -261,12 +261,17 @@ class CSVMT5Simulator:
 
     def _apply_daily_swap(self):
         """Apply overnight swap to all open positions (called once per simulated day)."""
+        if not self._positions:
+            return
+        day_swap = 0.0
         for pos in self._positions.values():
             rate = self._SWAP_RATES_USD_PER_LOT.get(pos.symbol, -0.50)
-            swap_cost = rate * pos.volume  # negative = debit from balance
-            pos.swap = getattr(pos, 'swap', 0.0) + swap_cost
+            swap_cost = rate * pos.volume
+            pos.swap = pos.swap + swap_cost
             self._balance += swap_cost
             self._total_swap += swap_cost
+            day_swap += swap_cost
+        log.debug(f"Daily swap applied: ${day_swap:.2f} | Total swap: ${self._total_swap:.2f} | Total commission: ${self._total_commission:.2f}")
     
     # ═══════════════════════════════════════════════════════════════════════
     # SIMULATION CONTROL (not in MT5Client, but needed for backtest)

@@ -5304,11 +5304,16 @@ class LiveTradingBot:
             'win_rate': round(v['winners'] / v['trades'] * 100, 1) if v['trades'] > 0 else 0
         } for k, v in monthly_stats.items()}
         
+        total_commission = getattr(self.mt5, '_total_commission', 0.0)
+        total_swap = getattr(self.mt5, '_total_swap', 0.0)
+
         results = {
             'initial_balance': self.initial_balance,
             'final_balance': round(final_balance, 2),
             'net_pnl': round(total_pnl, 2),
-            'closed_trades_pnl': round(closed_pnl, 2),  # P&L from closed trades only
+            'closed_trades_pnl': round(closed_pnl, 2),
+            'total_commission': round(total_commission, 2),
+            'total_swap': round(total_swap, 2),
             'return_pct': round((final_balance - self.initial_balance) / self.initial_balance * 100, 2),
             'total_trades': total_trades,
             'winners': winners,
@@ -5334,7 +5339,10 @@ class LiveTradingBot:
         print(f"   Losers: {total_trades - winners}")
         
         print(f"\n💰 PROFIT/LOSS:")
-        print(f"   Net PnL: ${total_pnl:,.2f}")
+        print(f"   Net PnL:     ${total_pnl:,.2f}")
+        print(f"   Commission:  ${total_commission:,.2f}")
+        print(f"   Swap:        ${total_swap:,.2f}")
+        print(f"   Gross PnL:   ${total_pnl + total_commission - total_swap:,.2f}")
         
         print(f"\n📈 ACCOUNT:")
         print(f"   Starting: ${self.initial_balance:,.0f}")
