@@ -5312,40 +5312,6 @@ class LiveTradingBot:
             ddd_pct = max(0, (day_start_equity - equity) / day_start_equity * 100) if day_start_equity > 0 else 0
             max_ddd = max(max_ddd, ddd_pct)
 
-            # === WORST-CASE INTRA-CANDLE DDD CHECK (M15 low/high) ===
-            # Approximates if DDD would have hit halt threshold mid-candle.
-            # If yes, close all at worst-case price + apply $2/lot closing commission.
-            if not trading_halted_today and self._positions_count() > 0:
-                worst_floating_pnl = self.mt5.calculate_worst_case_floating_pnl()
-                realized_today = balance - day_start_equity  # already-realized daily PnL
-                worst_equity = balance + worst_floating_pnl
-                worst_ddd_pct = max(0, (day_start_equity - worst_equity) / day_start_equity * 100) if day_start_equity > 0 else 0
-                if worst_ddd_pct >= halt_pct:
-                    log.warning(f"🚨 DDD TIER 3 HALT (intra-candle worst-case) at {current_time}: worst-case DDD {worst_ddd_pct:.2f}% >= {halt_pct}%")
-                    close_commission = self.mt5.close_all_at_worst_case()
-                    # Cancel pending orders too
-                    for order in self.mt5.get_my_pending_orders():
-                        self.mt5.cancel_pending_order(order.ticket)
-                    # Recompute actual DDD after close (includes closing commission)
-                    account_after = self.mt5.get_account_info()
-                    equity_after = account_after.get('equity', day_start_equity)
-                    actual_ddd_pct = max(0, (day_start_equity - equity_after) / day_start_equity * 100) if day_start_equity > 0 else 0
-                    max_ddd = max(max_ddd, actual_ddd_pct)
-                    log.warning(f"  💸 Close commission: ${close_commission:.2f} | Actual DDD after close: {actual_ddd_pct:.2f}% (worst-case projected: {worst_ddd_pct:.2f}%)")
-                    if actual_ddd_pct >= 5.0:
-                        log.error(f"  ⚠️ 5ERS BREACH: DDD {actual_ddd_pct:.2f}% >= 5.0%!")
-                    trading_halted_today = True
-                    self.ddd_halted = True
-                    safety_events.append({
-                        'time': str(current_time),
-                        'type': 'DDD_HALT_INTRA',
-                        'projected_ddd_pct': worst_ddd_pct,
-                        'actual_ddd_pct': actual_ddd_pct,
-                        'close_commission': close_commission,
-                        'breach_5pct': actual_ddd_pct >= 5.0,
-                    })
-                    continue
-
             # === TIER 3: DDD >= 3.5% → CLOSE ALL + HALT ===
             if ddd_pct >= halt_pct and not trading_halted_today:
                 log.warning(f"🚨 DDD TIER 3 HALT at {current_time}: {ddd_pct:.1f}% >= {halt_pct}%")
@@ -5391,18 +5357,81 @@ class LiveTradingBot:
 
             if trading_halted_today:
                 continue
-            
+
             # ═══════════════════════════════════════════════════════════════
-            # CHECK SL/TP HITS ON M15 BAR
+            # CHECK SL/TP HITS ON M15 BAR — one by one with DDD re-check
+            # Mimics live DDD thread: equity is checked after each hit.
+            # SL hits sorted by proximity to bar open (closest = earliest hit).
             # ═══════════════════════════════════════════════════════════════
             sl_tp_hits = self.mt5.check_sl_tp_hits()
-            for hit in sl_tp_hits:
-                # Close at HIT PRICE (not current bar close!)
+
+            # Sort: SL hits closest to bar open price first (most likely hit earliest)
+            def _hit_priority(hit):
+                pos = self.mt5._positions.get(hit['ticket'])
+                if pos is None:
+                    return 999999.0
+                bar = self.mt5.get_m15_bar(pos.symbol, current_time)
+                bar_open = bar['open'] if bar else pos.price_open
+                return abs(hit['price'] - bar_open)
+
+            sl_hits = sorted([h for h in sl_tp_hits if h['type'] == 'sl'], key=_hit_priority)
+            tp_hits = [h for h in sl_tp_hits if h['type'] != 'sl']
+
+            for hit in sl_hits:
+                if trading_halted_today:
+                    break
                 pos = self.mt5._positions.get(hit['ticket'])
                 if pos:
-                    # Pass the exact hit price for accurate P&L calculation
                     self.mt5.close_position(hit['ticket'], close_price=hit['price'])
-                    log.info(f"[{pos.symbol}] {hit['type'].upper()} HIT at {hit['price']:.5f}")
+                    log.info(f"[{pos.symbol}] SL HIT at {hit['price']:.5f}")
+
+                    # Re-check DDD after this SL hit (mimics live DDD thread)
+                    acct = self.mt5.get_account_info()
+                    eq_now = acct.get('equity', equity)
+                    bal_now = acct.get('balance', balance)
+                    ddd_now = max(0, (day_start_equity - eq_now) / day_start_equity * 100) if day_start_equity > 0 else 0
+                    tdd_now = max(0, (self.initial_balance - eq_now) / self.initial_balance * 100)
+                    max_ddd = max(max_ddd, ddd_now)
+
+                    if tdd_now >= 10.0:
+                        log.error(f"🚨 TDD STOP-OUT mid-bar at {current_time}: {tdd_now:.2f}%")
+                        self._emergency_close_all()
+                        safety_events.append({'time': str(current_time), 'type': 'TDD_STOPOUT', 'tdd_pct': tdd_now})
+                        trading_halted_today = True
+                        break
+
+                    if ddd_now >= halt_pct:
+                        log.warning(f"🚨 DDD HALT mid-bar at {current_time}: {ddd_now:.2f}% >= {halt_pct:.2f}% after SL on {pos.symbol}")
+                        commission_before = getattr(self.mt5, '_total_commission', 0.0)
+                        # Close remaining open positions at worst-case price
+                        close_comm = self.mt5.close_all_at_worst_case()
+                        for order in self.mt5.get_my_pending_orders():
+                            self.mt5.cancel_pending_order(order.ticket)
+                        acct2 = self.mt5.get_account_info()
+                        eq2 = acct2.get('equity', day_start_equity)
+                        actual_ddd = max(0, (day_start_equity - eq2) / day_start_equity * 100) if day_start_equity > 0 else 0
+                        max_ddd = max(max_ddd, actual_ddd)
+                        log.warning(f"  💸 Close commission: ${close_comm:.2f} | Actual DDD: {actual_ddd:.2f}%")
+                        if actual_ddd >= 5.0:
+                            log.error(f"  ⚠️ 5ERS BREACH: DDD {actual_ddd:.2f}% >= 5.0%!")
+                        trading_halted_today = True
+                        self.ddd_halted = True
+                        safety_events.append({
+                            'time': str(current_time),
+                            'type': 'DDD_HALT_MIDBAR',
+                            'ddd_pct': ddd_now,
+                            'actual_ddd_pct': actual_ddd,
+                            'close_commission': close_comm,
+                            'breach_5pct': actual_ddd >= 5.0,
+                        })
+                        break
+
+            if not trading_halted_today:
+                for hit in tp_hits:
+                    pos = self.mt5._positions.get(hit['ticket'])
+                    if pos:
+                        self.mt5.close_position(hit['ticket'], close_price=hit['price'])
+                        log.info(f"[{pos.symbol}] TP HIT at {hit['price']:.5f}")
             
             # ═══════════════════════════════════════════════════════════════
             # CLEANUP: Remove filled setups for closed positions
@@ -5574,8 +5603,8 @@ class LiveTradingBot:
             'max_tdd_pct': round(max_tdd, 2),
             'max_ddd_pct': round(max_ddd, 2),
             'safety_events': len(safety_events),
-            'ddd_halts': sum(1 for e in safety_events if e.get('type') in ('DDD_HALT', 'DDD_HALT_INTRA')),
-            'ddd_halts_intra': sum(1 for e in safety_events if e.get('type') == 'DDD_HALT_INTRA'),
+            'ddd_halts': sum(1 for e in safety_events if e.get('type') in ('DDD_HALT', 'DDD_HALT_MIDBAR')),
+            'ddd_halts_midbar': sum(1 for e in safety_events if e.get('type') == 'DDD_HALT_MIDBAR'),
             'breaches_5pct': sum(1 for e in safety_events if e.get('breach_5pct')),
             'ddd_reduces': sum(1 for e in safety_events if e.get('type') == 'DDD_REDUCE'),
             'ddd_warnings': sum(1 for e in safety_events if e.get('type') == 'DDD_WARNING'),
