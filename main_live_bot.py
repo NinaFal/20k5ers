@@ -703,7 +703,20 @@ class LiveTradingBot:
                     # Get all DDD thresholds from config
                     warning_pct = getattr(FIVEERS_CONFIG, "daily_loss_warning_pct", 2.0)
                     reduce_pct = getattr(FIVEERS_CONFIG, "daily_loss_reduce_pct", 3.0)
-                    halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.5)
+                    base_halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.5)
+
+                    # Layer 5: dynamic halt — tighten threshold in risky conditions
+                    # Rollover window (21:30-22:30 UTC): spreads spike → lower to 2.5%
+                    # >5 open positions: more closing commission/slippage → lower by 0.4%
+                    _now = datetime.now(timezone.utc)
+                    _in_rollover = (_now.hour == 21 and _now.minute >= 30) or \
+                                   (_now.hour == 22 and _now.minute < 30)
+                    _n_positions = len(self.mt5.get_my_positions()) if self.mt5 else 0
+                    halt_pct = base_halt_pct
+                    if _in_rollover:
+                        halt_pct = min(halt_pct, 2.5)
+                    if _n_positions > 5:
+                        halt_pct = min(halt_pct, base_halt_pct - 0.4)
                     
                     # === ALSO CHECK TDD (Total DrawDown) ===
                     # TDD is calculated from INITIAL balance (not day start)
