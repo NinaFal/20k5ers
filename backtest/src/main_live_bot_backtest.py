@@ -827,6 +827,48 @@ class LiveTradingBot:
         if (t.year, t.month, t.day) in fomc_dates:
             if 17 <= t.hour <= 20:
                 return True
+
+        # ECB rate decisions: announcement ~12:45 UTC, Draghi/Lagarde presser 13:30 UTC
+        # Block 12:30-15:00 UTC on ECB days
+        ecb_dates = {
+            # 2015
+            (2015, 1, 22), (2015, 3, 5), (2015, 4, 15), (2015, 6, 3),
+            (2015, 7, 16), (2015, 9, 3), (2015, 10, 22), (2015, 12, 3),
+            # 2016
+            (2016, 1, 21), (2016, 3, 10), (2016, 4, 21), (2016, 6, 2),
+            (2016, 7, 21), (2016, 9, 8), (2016, 10, 20), (2016, 12, 8),
+            # 2017
+            (2017, 1, 19), (2017, 3, 9), (2017, 4, 27), (2017, 6, 8),
+            (2017, 7, 20), (2017, 9, 7), (2017, 10, 26), (2017, 12, 14),
+            # 2018
+            (2018, 1, 25), (2018, 3, 8), (2018, 4, 26), (2018, 6, 14),
+            (2018, 7, 26), (2018, 9, 13), (2018, 10, 25), (2018, 12, 13),
+            # 2019
+            (2019, 1, 24), (2019, 3, 7), (2019, 4, 10), (2019, 6, 6),
+            (2019, 7, 25), (2019, 9, 12), (2019, 10, 24), (2019, 12, 12),
+            # 2020
+            (2020, 1, 23), (2020, 3, 12), (2020, 4, 30), (2020, 6, 4),
+            (2020, 7, 16), (2020, 9, 10), (2020, 10, 29), (2020, 12, 10),
+            # 2021
+            (2021, 1, 21), (2021, 3, 11), (2021, 4, 22), (2021, 6, 10),
+            (2021, 7, 22), (2021, 9, 9), (2021, 10, 28), (2021, 12, 16),
+            # 2022
+            (2022, 2, 3), (2022, 3, 10), (2022, 4, 14), (2022, 6, 9),
+            (2022, 7, 21), (2022, 9, 8), (2022, 10, 27), (2022, 12, 15),
+            # 2023
+            (2023, 2, 2), (2023, 3, 16), (2023, 5, 4), (2023, 6, 15),
+            (2023, 7, 27), (2023, 9, 14), (2023, 10, 26), (2023, 12, 14),
+            # 2024
+            (2024, 1, 25), (2024, 3, 7), (2024, 4, 11), (2024, 6, 6),
+            (2024, 7, 18), (2024, 9, 12), (2024, 10, 17), (2024, 12, 12),
+            # 2025
+            (2025, 1, 30), (2025, 3, 6), (2025, 4, 17), (2025, 6, 5),
+            (2025, 7, 24), (2025, 9, 11), (2025, 10, 30), (2025, 12, 18),
+        }
+        if (t.year, t.month, t.day) in ecb_dates:
+            if 12 <= t.hour <= 14:
+                return True
+
         return False
 
     def _protection_block(self, symbol: str, direction: str):
@@ -5347,6 +5389,24 @@ class LiveTradingBot:
                         log.info(f"[{symbol}] Pending order {setup.order_ticket} expired/cancelled - removing setup")
                         del self.pending_setups[symbol]
             
+            # ═══════════════════════════════════════════════════════════════
+            # LAYER 1+2: Cancel pending fills during rollover / news blackout
+            # Prevents orders placed earlier in the day from filling during
+            # high-spread / high-volatility windows (ECB, FOMC, NFP, rollover)
+            # ═══════════════════════════════════════════════════════════════
+            if self._is_rollover_window(current_time) or self._is_news_blackout(current_time):
+                pending = self.mt5.get_my_pending_orders()
+                if pending:
+                    reason = "rollover-window" if self._is_rollover_window(current_time) else "news-blackout"
+                    for order in pending:
+                        self.mt5.cancel_pending_order(order.ticket)
+                    # Mark setups as paused so they can be restored tomorrow
+                    for sym, setup in self.pending_setups.items():
+                        if setup.status == "pending":
+                            setup.status = "paused_ddd"
+                            setup.order_ticket = None
+                    log.info(f"⛔ {reason}: cancelled {len(pending)} pending orders (will resume next day)")
+
             # ═══════════════════════════════════════════════════════════════
             # CHECK PENDING ORDER FILLS
             # ═══════════════════════════════════════════════════════════════
