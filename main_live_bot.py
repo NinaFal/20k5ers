@@ -4700,6 +4700,16 @@ class LiveTradingBot:
             if total_exposure >= max_trades:
                 log.info(f"[{symbol}] Max trades reached: {total_exposure}/{max_trades} (positions: {open_positions}, pending: {pending_count})")
                 return False
+
+            # Layer 1: Rollover window — no new entries 21:30-22:30 UTC
+            # Spread widens 5-50x during rollover; floating equity spikes can
+            # trigger false DDD halts. Existing positions ride it out normally.
+            now_utc = datetime.now(timezone.utc)
+            in_rollover = (now_utc.hour == 21 and now_utc.minute >= 30) or \
+                          (now_utc.hour == 22 and now_utc.minute < 30)
+            if in_rollover:
+                log.info(f"[{symbol}] New entry blocked — rollover window (21:30-22:30 UTC)")
+                return False
             
             # NOTE: NO cumulative risk check - removed to match simulator
             # Simulator has no cumulative risk limits, only position count limit
