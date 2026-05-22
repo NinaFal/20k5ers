@@ -871,6 +871,44 @@ class LiveTradingBot:
 
         return False
 
+    def _news_affected_currencies(self, t) -> list:
+        """Return list of currency codes whose pending orders should be cancelled during this news event."""
+        # ECB → EUR pairs
+        ecb_dates = {
+            (2015,1,22),(2015,3,5),(2015,4,15),(2015,6,3),(2015,7,16),(2015,9,3),(2015,10,22),(2015,12,3),
+            (2016,1,21),(2016,3,10),(2016,4,21),(2016,6,2),(2016,7,21),(2016,9,8),(2016,10,20),(2016,12,8),
+            (2017,1,19),(2017,3,9),(2017,4,27),(2017,6,8),(2017,7,20),(2017,9,7),(2017,10,26),(2017,12,14),
+            (2018,1,25),(2018,3,8),(2018,4,26),(2018,6,14),(2018,7,26),(2018,9,13),(2018,10,25),(2018,12,13),
+            (2019,1,24),(2019,3,7),(2019,4,10),(2019,6,6),(2019,7,25),(2019,9,12),(2019,10,24),(2019,12,12),
+            (2020,1,23),(2020,3,12),(2020,4,30),(2020,6,4),(2020,7,16),(2020,9,10),(2020,10,29),(2020,12,10),
+            (2021,1,21),(2021,3,11),(2021,4,22),(2021,6,10),(2021,7,22),(2021,9,9),(2021,10,28),(2021,12,16),
+            (2022,2,3),(2022,3,10),(2022,4,14),(2022,6,9),(2022,7,21),(2022,9,8),(2022,10,27),(2022,12,15),
+            (2023,2,2),(2023,3,16),(2023,5,4),(2023,6,15),(2023,7,27),(2023,9,14),(2023,10,26),(2023,12,14),
+            (2024,1,25),(2024,3,7),(2024,4,11),(2024,6,6),(2024,7,18),(2024,9,12),(2024,10,17),(2024,12,12),
+            (2025,1,30),(2025,3,6),(2025,4,17),(2025,6,5),(2025,7,24),(2025,9,11),(2025,10,30),(2025,12,18),
+        }
+        if (t.year, t.month, t.day) in ecb_dates and 12 <= t.hour <= 14:
+            return ['EUR']
+        # NFP + FOMC → USD pairs
+        if t.weekday() == 4 and t.day <= 7 and 13 <= t.hour <= 14:
+            return ['USD']
+        fomc_dates = {
+            (2015,1,28),(2015,3,18),(2015,4,29),(2015,6,17),(2015,7,29),(2015,9,17),(2015,10,28),(2015,12,16),
+            (2016,1,27),(2016,3,16),(2016,4,27),(2016,6,15),(2016,7,27),(2016,9,21),(2016,11,2),(2016,12,14),
+            (2017,2,1),(2017,3,15),(2017,5,3),(2017,6,14),(2017,7,26),(2017,9,20),(2017,11,1),(2017,12,13),
+            (2018,1,31),(2018,3,21),(2018,5,2),(2018,6,13),(2018,8,1),(2018,9,26),(2018,11,8),(2018,12,19),
+            (2019,1,30),(2019,3,20),(2019,5,1),(2019,6,19),(2019,7,31),(2019,9,18),(2019,10,30),(2019,12,11),
+            (2020,1,29),(2020,3,15),(2020,4,29),(2020,6,10),(2020,7,29),(2020,9,16),(2020,11,5),(2020,12,16),
+            (2021,1,27),(2021,3,17),(2021,4,28),(2021,6,16),(2021,7,28),(2021,9,22),(2021,11,3),(2021,12,15),
+            (2022,1,26),(2022,3,16),(2022,5,4),(2022,6,15),(2022,7,27),(2022,9,21),(2022,11,2),(2022,12,14),
+            (2023,2,1),(2023,3,22),(2023,5,3),(2023,6,14),(2023,7,26),(2023,9,20),(2023,11,1),(2023,12,13),
+            (2024,1,31),(2024,3,20),(2024,5,1),(2024,6,12),(2024,7,31),(2024,9,18),(2024,11,7),(2024,12,18),
+            (2025,1,29),(2025,3,19),(2025,5,7),(2025,6,18),(2025,7,30),(2025,9,17),(2025,10,29),(2025,12,10),
+        }
+        if (t.year, t.month, t.day) in fomc_dates and 17 <= t.hour <= 20:
+            return ['USD']
+        return []
+
     def _protection_block(self, symbol: str, direction: str):
         """Return (blocked, reason) for new entries based on Layers 1, 2."""
         t = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
@@ -5390,22 +5428,25 @@ class LiveTradingBot:
                         del self.pending_setups[symbol]
             
             # ═══════════════════════════════════════════════════════════════
-            # LAYER 1+2: Cancel pending fills during rollover / news blackout
-            # Prevents orders placed earlier in the day from filling during
-            # high-spread / high-volatility windows (ECB, FOMC, NFP, rollover)
+            # LAYER 2: Cancel affected-currency pending orders during news
+            # Only cancel pairs linked to the news event (ECB→EUR, NFP/FOMC→USD)
+            # Rollover is handled by Layer 5 (dynamic halt at 2.5%) — no cancel needed
             # ═══════════════════════════════════════════════════════════════
-            if self._is_rollover_window(current_time) or self._is_news_blackout(current_time):
-                pending = self.mt5.get_my_pending_orders()
-                if pending:
-                    reason = "rollover-window" if self._is_rollover_window(current_time) else "news-blackout"
-                    for order in pending:
-                        self.mt5.cancel_pending_order(order.ticket)
-                    # Mark setups as paused so they can be restored tomorrow
+            if self._is_news_blackout(current_time):
+                affected = self._news_affected_currencies(current_time)
+                if affected:
+                    cancelled = []
+                    for order in self.mt5.get_my_pending_orders():
+                        sym = order.symbol if hasattr(order, 'symbol') else ""
+                        if any(ccy in sym for ccy in affected):
+                            self.mt5.cancel_pending_order(order.ticket)
+                            cancelled.append(order.ticket)
                     for sym, setup in self.pending_setups.items():
-                        if setup.status == "pending":
+                        if setup.status == "pending" and any(c in sym for c in affected):
                             setup.status = "paused_ddd"
                             setup.order_ticket = None
-                    log.info(f"⛔ {reason}: cancelled {len(pending)} pending orders (will resume next day)")
+                    if cancelled:
+                        log.info(f"⛔ news-blackout ({','.join(affected)}): cancelled {len(cancelled)} pending orders")
 
             # ═══════════════════════════════════════════════════════════════
             # CHECK PENDING ORDER FILLS
