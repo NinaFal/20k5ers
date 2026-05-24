@@ -96,52 +96,52 @@ class TradeResult:
 
 SYMBOL_SPECS = {
     # Forex majors
-    "EURUSD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "GBPUSD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "USDJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "USDCHF": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "USDCAD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "AUDUSD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "NZDUSD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
+    "EURUSD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "GBPUSD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "USDJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "USDCHF": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "USDCAD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "AUDUSD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "NZDUSD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
     # Forex crosses
-    "EURJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "GBPJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "AUDJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "NZDJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "CADJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "CHFJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "EURGBP": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "EURAUD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "EURCAD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "EURNZD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "EURCHF": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "GBPAUD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "GBPCAD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "GBPNZD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "GBPCHF": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "AUDCAD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "AUDNZD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "AUDCHF": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "NZDCAD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "NZDCHF": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "CADCHF": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
+    "EURJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "GBPJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "AUDJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "NZDJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "CADJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "CHFJPY": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "EURGBP": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "EURAUD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "EURCAD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "EURNZD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "EURCHF": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "GBPAUD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "GBPCAD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "GBPNZD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "GBPCHF": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "AUDCAD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "AUDNZD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "AUDCHF": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "NZDCAD": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "NZDCHF": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "CADCHF": {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
     # Metals
-    "XAUUSD": {"point": 0.01, "digits": 2, "pip_size": 0.1, "contract_size": 100, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "XAGUSD": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 5000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
+    "XAUUSD": {"point": 0.01, "digits": 2, "pip_size": 0.1, "contract_size": 100, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "XAGUSD": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 5000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
     # Indices (5ers format)
-    "US500": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "NAS100": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "US30": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "UK100": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
+    "US500": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "NAS100": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "US30": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "UK100": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
     # Oil / Energy
-    "XBRUSD": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "XTIUSD": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
+    "XBRUSD": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "XTIUSD": {"point": 0.001, "digits": 3, "pip_size": 0.01, "contract_size": 100, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
     # Crypto
-    "BTCUSD": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
-    "ETHUSD": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01},
+    "BTCUSD": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
+    "ETHUSD": {"point": 0.01, "digits": 2, "pip_size": 1.0, "contract_size": 1, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01},
 }
 
-DEFAULT_SPEC = {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 100.0, "volume_step": 0.01}
+DEFAULT_SPEC = {"point": 0.00001, "digits": 5, "pip_size": 0.0001, "contract_size": 100000, "volume_min": 0.01, "volume_max": 50.0, "volume_step": 0.01}
 
 
 def _normalize_symbol(symbol: str) -> str:
@@ -229,6 +229,12 @@ class CSVMT5Simulator:
         self._total_commission: float = 0.0
         self._total_swap: float = 0.0
 
+        # 5ers scaling model
+        self._max_balance: float = 4_000_000.0  # $4M hard cap
+        self._total_withdrawn: float = 0.0  # total trader profit withdrawn
+        self._funded_level: float = initial_balance  # current funded level
+        self._scaling_log: list = []  # log of scaling events
+
     # ═══════════════════════════════════════════════════════════════════════
     # FEE SIMULATION - 5ers realistic costs
     # ═══════════════════════════════════════════════════════════════════════
@@ -300,6 +306,61 @@ class CSVMT5Simulator:
     def set_balance(self, balance: float):
         """Set account balance."""
         self._balance = balance
+
+    def _apply_fiveers_scaling(self):
+        """Apply 5ers scaling rules after each balance change.
+
+        At each 10% profit milestone on current funded level, scale up by $50K.
+        Cap at $4M. Track trader profit withdrawals with tiered profit split.
+        """
+        if self._balance <= self._funded_level:
+            return  # no profit yet, nothing to do
+
+        # Check if 10% milestone reached on current funded level
+        milestone = self._funded_level * 1.10
+        if self._balance < milestone:
+            return  # not yet at milestone
+
+        profit_made = self._balance - self._funded_level
+
+        # Profit split tiers (5ers rules)
+        if self._funded_level >= 2_500_000:
+            split = 1.00
+        elif self._funded_level >= 2_000_000:
+            split = 0.80
+        else:
+            split = 0.50
+
+        trader_profit = profit_made * split
+        self._total_withdrawn += trader_profit
+
+        if self._funded_level < self._max_balance:
+            # Scale up: advance to next $50K level
+            next_level = min(self._funded_level + 50_000, self._max_balance)
+            old_level = self._funded_level
+            self._funded_level = next_level
+            # Reset balance to new funded level (5ers adds capital, we keep trading)
+            self._balance = next_level
+            self._scaling_log.append({
+                'time': str(self._current_time),
+                'old_level': old_level,
+                'new_level': next_level,
+                'profit_made': round(profit_made, 2),
+                'trader_payout': round(trader_profit, 2),
+                'profit_split': split,
+            })
+        else:
+            # At $4M cap: withdraw excess profits, stay at $4M
+            self._balance = self._max_balance
+            self._scaling_log.append({
+                'time': str(self._current_time),
+                'old_level': self._funded_level,
+                'new_level': self._funded_level,
+                'profit_made': round(profit_made, 2),
+                'trader_payout': round(trader_profit, 2),
+                'profit_split': split,
+                'note': 'at_cap',
+            })
     
     def get_closed_trades(self) -> List[dict]:
         """Get list of closed trades (for results)."""
@@ -758,6 +819,7 @@ class CSVMT5Simulator:
             self._total_commission += close_commission
             del self._positions[ticket]
             self._balance += pnl
+            self._apply_fiveers_scaling()
 
             # Log closed trade
             self._closed_trades.append({
@@ -781,6 +843,7 @@ class CSVMT5Simulator:
             self._total_commission += close_commission
             pos.volume -= close_volume
             self._balance += pnl
+            self._apply_fiveers_scaling()
 
             # Log partial close as separate trade entry
             self._closed_trades.append({
