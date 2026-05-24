@@ -620,9 +620,21 @@ class LiveTradingBot:
         
         def ddd_protection_worker():
             from time import sleep
+            import time as _time_mod
             last_log_time = 0
-            
+            last_alive_write = 0
+
             while running:
+                # Health-check heartbeat: log + write /tmp/ddd_thread_alive every 60 s
+                _now_mono = _time_mod.time()
+                if _now_mono - last_alive_write >= 60:
+                    log.debug("[DDD Protection] DDD thread alive")
+                    try:
+                        with open("/tmp/ddd_thread_alive", "w") as _hb:
+                            _hb.write(str(_now_mono))
+                    except Exception:
+                        pass
+                    last_alive_write = _now_mono
                 try:
                     # Get current account info
                     account = self.mt5.get_account_info()
@@ -830,9 +842,17 @@ class LiveTradingBot:
                     import traceback
                     log.error(traceback.format_exc())
                     sleep(5)
-        t = threading.Thread(target=ddd_protection_worker, daemon=True)
+        t = threading.Thread(target=ddd_protection_worker, daemon=True, name="ddd_protection")
         t.start()
-    
+        self._ddd_thread = t
+
+    def _ensure_ddd_thread_alive(self):
+        """Watchdog: restart DDD protection thread if it has died."""
+        t = getattr(self, '_ddd_thread', None)
+        if t is None or not t.is_alive():
+            log.error("[DDD Protection] 🚨 DDD thread is DEAD — restarting now!")
+            self.start_ddd_protection_loop()
+
     def _emergency_close_all(self):
         """
         Emergency close all positions and cancel all pending orders.
@@ -2625,6 +2645,10 @@ class LiveTradingBot:
     def _save_pending_setups(self):
         """Save pending setups to file."""
         try:
+            import shutil
+            bak = self.PENDING_SETUPS_FILE + ".bak"
+            if Path(self.PENDING_SETUPS_FILE).exists():
+                shutil.copy2(self.PENDING_SETUPS_FILE, bak)
             data = {symbol: setup.to_dict() for symbol, setup in self.pending_setups.items()}
             with open(self.PENDING_SETUPS_FILE, 'w') as f:
                 json.dump(data, f, indent=2, default=str)
@@ -4086,6 +4110,29 @@ class LiveTradingBot:
             log.warning(f"[{symbol}] Risk percentage is 0 - trading halted (NO TRADE)")
             return 0.0
 
+        # ═══════════════════════════════════════════════════════════════
+        # SPREAD FILTER + BID/ASK AWARE ENTRY
+        # ═══════════════════════════════════════════════════════════════
+        from ftmo_config import get_pip_size
+        _pip_size_for_spread = get_pip_size(symbol) or 0.0001
+        _tick = self.mt5.get_tick(broker_symbol) if self.mt5 else None
+        _spread_pips = 0.0
+        if _tick is not None:
+            _spread_price = abs(_tick.ask - _tick.bid)
+            _spread_pips = _spread_price / _pip_size_for_spread if _pip_size_for_spread > 0 else 0.0
+            _max_normal = FIVEERS_CONFIG.get_max_spread_pips(symbol)
+            if _spread_pips > 3 * _max_normal:
+                log.warning(f"[{symbol}] Spread filter: {_spread_pips:.1f} pips > 3×{_max_normal:.1f} normal — skipping candle")
+                return 0.0
+            # Widen effective stop by current spread so lot size accounts for slippage at fill
+            _is_buy = entry > sl
+            if _is_buy:
+                entry = entry + _spread_price   # effective open = ask
+            else:
+                entry = entry - _spread_price   # effective open = bid
+            if _spread_pips > 0:
+                log.info(f"[{symbol}] Spread-adjusted entry: +{_spread_pips:.1f} pips ({'buy' if _is_buy else 'sell'}) — lot will be slightly smaller")
+
         # Get symbol info
         symbol_info = self.mt5.get_symbol_info(broker_symbol)
         max_lot = symbol_info.get('max_lot', 100.0) if symbol_info else 100.0
@@ -4641,7 +4688,17 @@ class LiveTradingBot:
         elif is_market_order:
             log.debug(f"[{symbol}] Spread check skipped for market order (check_spread=False)")
         else:
-            log.debug(f"[{symbol}] Limit order - spread at placement doesn't matter")
+            # Spread filter at order-placement moment for LIMIT orders:
+            # If spread > 3× normal right now, price is at entry but spread is spiked →
+            # skip this candle and retry next bar (prevents bad fills during rollover/news).
+            _tick_lim = self.mt5.get_tick(broker_symbol)
+            if _tick_lim is not None:
+                _pip_sz_lim = get_pip_size(symbol) or 0.0001
+                _spread_lim = abs(_tick_lim.ask - _tick_lim.bid) / _pip_sz_lim
+                _max_norm_lim = FIVEERS_CONFIG.get_max_spread_pips(symbol)
+                if _spread_lim > 3 * _max_norm_lim:
+                    log.warning(f"[{symbol}] Spread {_spread_lim:.1f} pips > 3×{_max_norm_lim:.1f} at order placement — deferring to next candle")
+                    return False
         
         # Additional spread sanity check for market orders only
         if FIVEERS_CONFIG.min_spread_check and is_market_order:
@@ -6094,6 +6151,9 @@ class LiveTradingBot:
                                 log.error("Emergency close triggered - halting all trading")
                                 continue
                         
+                        # DDD thread watchdog — restart if dead
+                        self._ensure_ddd_thread_alive()
+
                         # 5-TP partial close management
                         self.manage_partial_takes()
 
