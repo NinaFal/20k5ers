@@ -431,10 +431,10 @@ def is_market_open() -> bool:
 def is_friday_closing_period() -> bool:
     """
     Check if we're in the Friday closing period (no new orders allowed).
-    Friday 19:30 UTC onwards = no new forex orders (weekend gap protection).
+    Friday 18:30 UTC onwards = no new forex orders (weekend gap protection).
 
     Returns:
-        True if Friday 19:30+ UTC (no new orders)
+        True if Friday 18:30+ UTC (no new orders)
         False otherwise (orders allowed)
     """
     now = datetime.now(timezone.utc)
@@ -442,8 +442,8 @@ def is_friday_closing_period() -> bool:
     hour = now.hour
     minute = now.minute
 
-    # Friday 19:30+ UTC = closing period
-    if weekday == 4 and (hour > 19 or (hour == 19 and minute >= 30)):
+    # Friday 18:30+ UTC = closing period
+    if weekday == 4 and (hour > 18 or (hour == 18 and minute >= 30)):
         return True
 
     return False
@@ -1791,7 +1791,7 @@ class LiveTradingBot:
     def handle_friday_position_closing(self):
         """
         TIER 1: Correlation-aware Friday position closing
-        Runs Friday 19:30+ UTC to reduce weekend gap exposure
+        Runs Friday 18:30+ UTC to reduce weekend gap exposure
 
         Actions:
         - Close losing positions (< 0R)
@@ -1802,9 +1802,9 @@ class LiveTradingBot:
         """
         now = datetime.now(timezone.utc)
 
-        # Only run Friday 19:30+ UTC
-        if now.weekday() != 4 or not (now.hour > 19 or (now.hour == 19 and now.minute >= 30)):
-            # Reset flag on non-Friday or before 19:30
+        # Only run Friday 18:30+ UTC
+        if now.weekday() != 4 or not (now.hour > 18 or (now.hour == 18 and now.minute >= 30)):
+            # Reset flag on non-Friday or before 18:30
             if now.weekday() != 4:
                 self.friday_closing_done = False
             return
