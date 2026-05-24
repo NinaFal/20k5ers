@@ -4135,14 +4135,14 @@ class LiveTradingBot:
 
         # Get symbol info
         symbol_info = self.mt5.get_symbol_info(broker_symbol)
-        max_lot = symbol_info.get('max_lot', 100.0) if symbol_info else 100.0
+        max_lot = symbol_info.get('max_lot', 50.0) if symbol_info else 50.0
         min_lot = symbol_info.get('min_lot', 0.01) if symbol_info else 0.01
 
         # Ensure min_lot and max_lot are valid
         if min_lot <= 0:
             min_lot = 0.01
-        if max_lot <= 0:
-            max_lot = 100.0
+        if max_lot <= 0 or max_lot > 50.0:
+            max_lot = 50.0  # 5ers broker hard cap
 
         # Get DYNAMIC pip value based on current exchange rates
         try:
