@@ -3884,13 +3884,16 @@ class LiveTradingBot:
 
         MT5 calculates floating P&L using bid for BUY positions and ask for SELL positions.
         During weekends, rollover, and news events spreads widen massively, making MT5 equity
-        look much lower than the 5ers platform (which uses mid-price). This causes false DDD
-        halts that fire _emergency_close_all() → "Market closed" errors.
+        look lower than the 5ers platform. 5ers confirmed they use Bid price for equity,
+        exactly like MT5 does for BUY positions. For SELL positions however:
+          - MT5 uses Ask price  → profit = (OpenPrice - Ask) × vol
+          - 5ers uses Bid price → profit = (OpenPrice - Bid) × vol
+          - Difference = +spread × vol per SELL position
 
-        Formula per position: mid_correction = (spread/2) / pip_size * volume * pip_value_per_lot
-        Both BUY and SELL benefit equally (mid is always between bid and ask).
+        So BUY positions need no correction (both use Bid), SELL positions need
+        a full-spread correction to convert from Ask-based to Bid-based P&L.
 
-        Returns: balance + sum(floating P&L at mid-price)
+        Returns: balance + sum(floating P&L at Bid price, matching 5ers)
         """
         from ftmo_config import get_pip_size
 
@@ -3904,31 +3907,34 @@ class LiveTradingBot:
             if not positions:
                 return balance
 
-            total_mid_pnl = 0.0
+            total_bid_pnl = 0.0
             reverse_map = {v: k for k, v in self.symbol_map.items()}
 
             for pos in positions:
                 broker_sym = pos.symbol
                 internal_sym = reverse_map.get(broker_sym, broker_sym)
-
-                # Use MT5 profit as base, then add spread correction to get mid-price P&L
                 base_pnl = getattr(pos, 'profit', 0.0)
 
+                # BUY positions: MT5 already uses Bid → no correction needed
+                if getattr(pos, 'type', 0) == 0:
+                    total_bid_pnl += base_pnl
+                    continue
+
+                # SELL positions: MT5 uses Ask, 5ers uses Bid → add full spread back
                 try:
                     tick = self.mt5.get_tick(broker_sym)
                     if tick is None:
-                        total_mid_pnl += base_pnl
+                        total_bid_pnl += base_pnl
                         continue
 
                     spread_price = abs(tick.ask - tick.bid)
                     if spread_price <= 0:
-                        total_mid_pnl += base_pnl
+                        total_bid_pnl += base_pnl
                         continue
 
                     pip_size = get_pip_size(internal_sym) or 0.0001
                     spread_pips = spread_price / pip_size
 
-                    # Get pip value (dollars per pip per lot) — use cached symbol_info for speed
                     sym_info = self.mt5.get_symbol_info(broker_sym)
                     if sym_info:
                         tick_value = sym_info.get('tick_value', 0)
@@ -3940,14 +3946,14 @@ class LiveTradingBot:
                     else:
                         pip_value = 10.0
 
-                    # Both BUY (bid-based) and SELL (ask-based) get +spread/2 correction
-                    correction = (spread_pips / 2) * pos.volume * pip_value
-                    total_mid_pnl += base_pnl + correction
+                    # SELL correction: convert Ask-based → Bid-based (full spread)
+                    correction = spread_pips * pos.volume * pip_value
+                    total_bid_pnl += base_pnl + correction
 
                 except Exception:
-                    total_mid_pnl += base_pnl
+                    total_bid_pnl += base_pnl
 
-            return balance + total_mid_pnl
+            return balance + total_bid_pnl
 
         except Exception as e:
             log.error(f"[DDD] _calculate_mid_equity error: {e}")
