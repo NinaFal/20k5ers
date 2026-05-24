@@ -270,6 +270,10 @@ class ChallengeRiskManager:
             'last_update': datetime.now().isoformat()
         }
         try:
+            import shutil
+            bak = self.state_file + ".bak"
+            if Path(self.state_file).exists():
+                shutil.copy2(self.state_file, bak)
             with open(self.state_file, 'w') as f:
                 json.dump(state, f, indent=2)
         except Exception as e:
