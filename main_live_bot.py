@@ -636,6 +636,24 @@ class LiveTradingBot:
                         pass
                     last_alive_write = _now_mono
                 try:
+                    # Skip DDD check when market is closed or in the first 30 min after
+                    # open (Sunday 22:00-22:30 UTC). MT5 equity is unreliable during
+                    # weekends and at market open because spread-widening inflates
+                    # floating losses vs the 5ers mid-price calculation. Halting on a
+                    # false equity reading would fire _emergency_close_all() which then
+                    # fails with "Market closed" errors.
+                    if not is_market_open():
+                        sleep(30)
+                        continue
+                    _now_utc = datetime.now(timezone.utc)
+                    _market_open_grace = (
+                        _now_utc.weekday() == 6 and _now_utc.hour == 22 and _now_utc.minute < 30
+                    )
+                    if _market_open_grace:
+                        log.debug("[DDD Protection] Market open grace period (Sun 22:00-22:30 UTC) — skipping equity check")
+                        sleep(30)
+                        continue
+
                     # Get current account info
                     account = self.mt5.get_account_info()
                     if not account:
@@ -644,7 +662,7 @@ class LiveTradingBot:
                         continue
                     current_equity = account.get("equity", 0)
                     current_balance = account.get("balance", 0)
-                    
+
                     # Get fixed day_start_equity from challenge_manager (never updated during day)
                     if not self.challenge_manager:
                         log.error("[DDD Protection] CRITICAL: challenge_manager is None! Protection NOT active!")
