@@ -636,21 +636,9 @@ class LiveTradingBot:
                         pass
                     last_alive_write = _now_mono
                 try:
-                    # Skip DDD check when market is closed or in the first 30 min after
-                    # open (Sunday 22:00-22:30 UTC). MT5 equity is unreliable during
-                    # weekends and at market open because spread-widening inflates
-                    # floating losses vs the 5ers mid-price calculation. Halting on a
-                    # false equity reading would fire _emergency_close_all() which then
-                    # fails with "Market closed" errors.
+                    # Skip DDD halt execution when market is closed (can't close anyway)
+                    # but still allow monitoring. Mid-equity handles spread distortion.
                     if not is_market_open():
-                        sleep(30)
-                        continue
-                    _now_utc = datetime.now(timezone.utc)
-                    _market_open_grace = (
-                        _now_utc.weekday() == 6 and _now_utc.hour == 22 and _now_utc.minute < 30
-                    )
-                    if _market_open_grace:
-                        log.debug("[DDD Protection] Market open grace period (Sun 22:00-22:30 UTC) — skipping equity check")
                         sleep(30)
                         continue
 
@@ -660,8 +648,15 @@ class LiveTradingBot:
                         log.warning("[DDD Protection] Could not get MT5 account info - connection lost?")
                         sleep(5)
                         continue
-                    current_equity = account.get("equity", 0)
                     current_balance = account.get("balance", 0)
+
+                    # Use mid-price equity to match 5ers dashboard calculation.
+                    # MT5 equity uses bid for BUY / ask for SELL, which inflates losses
+                    # during spread spikes (rollover, news, weekend open). Mid-price
+                    # eliminates that distortion: correction = spread/2 per position.
+                    current_equity = self._calculate_mid_equity()
+                    if current_equity <= 0:
+                        current_equity = account.get("equity", 0)  # fallback
 
                     # Get fixed day_start_equity from challenge_manager (never updated during day)
                     if not self.challenge_manager:
@@ -3883,6 +3878,81 @@ class LiveTradingBot:
         # Fallback: return as-is if not found
         return broker_symbol
     
+    def _calculate_mid_equity(self) -> float:
+        """
+        Calculate equity using mid-price (bid+ask)/2 instead of MT5's bid/ask-based equity.
+
+        MT5 calculates floating P&L using bid for BUY positions and ask for SELL positions.
+        During weekends, rollover, and news events spreads widen massively, making MT5 equity
+        look much lower than the 5ers platform (which uses mid-price). This causes false DDD
+        halts that fire _emergency_close_all() → "Market closed" errors.
+
+        Formula per position: mid_correction = (spread/2) / pip_size * volume * pip_value_per_lot
+        Both BUY and SELL benefit equally (mid is always between bid and ask).
+
+        Returns: balance + sum(floating P&L at mid-price)
+        """
+        from ftmo_config import get_pip_size
+
+        try:
+            account = self.mt5.get_account_info()
+            if not account:
+                return 0.0
+            balance = account.get('balance', 0.0)
+            positions = self.mt5.get_my_positions() if self.mt5 else []
+
+            if not positions:
+                return balance
+
+            total_mid_pnl = 0.0
+            reverse_map = {v: k for k, v in self.symbol_map.items()}
+
+            for pos in positions:
+                broker_sym = pos.symbol
+                internal_sym = reverse_map.get(broker_sym, broker_sym)
+
+                # Use MT5 profit as base, then add spread correction to get mid-price P&L
+                base_pnl = getattr(pos, 'profit', 0.0)
+
+                try:
+                    tick = self.mt5.get_tick(broker_sym)
+                    if tick is None:
+                        total_mid_pnl += base_pnl
+                        continue
+
+                    spread_price = abs(tick.ask - tick.bid)
+                    if spread_price <= 0:
+                        total_mid_pnl += base_pnl
+                        continue
+
+                    pip_size = get_pip_size(internal_sym) or 0.0001
+                    spread_pips = spread_price / pip_size
+
+                    # Get pip value (dollars per pip per lot) — use cached symbol_info for speed
+                    sym_info = self.mt5.get_symbol_info(broker_sym)
+                    if sym_info:
+                        tick_value = sym_info.get('tick_value', 0)
+                        tick_size = sym_info.get('tick_size', pip_size)
+                        if tick_value and tick_value > 0 and tick_size > 0:
+                            pip_value = tick_value * (pip_size / tick_size)
+                        else:
+                            pip_value = 10.0
+                    else:
+                        pip_value = 10.0
+
+                    # Both BUY (bid-based) and SELL (ask-based) get +spread/2 correction
+                    correction = (spread_pips / 2) * pos.volume * pip_value
+                    total_mid_pnl += base_pnl + correction
+
+                except Exception:
+                    total_mid_pnl += base_pnl
+
+            return balance + total_mid_pnl
+
+        except Exception as e:
+            log.error(f"[DDD] _calculate_mid_equity error: {e}")
+            return 0.0
+
     def _get_dynamic_pip_value(self, symbol: str, broker_symbol: str) -> float:
         """
         Get pip value using MT5's tick_value (most accurate source).
