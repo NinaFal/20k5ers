@@ -257,10 +257,10 @@ def get_fiveers_live_config() -> BrokerConfig:
         # All symbols
         trade_forex=True,
         trade_metals=True,  # ENABLED - XAU/XAG included
-        trade_oil=True,     # ENABLED - WTI only (Brent excluded, see below)
+        trade_oil=False,    # DISABLED - XBR/XTI both excluded (extreme gaps)
         trade_indices=True,
         trade_crypto=True,
-        excluded_symbols=["XBR_USD"],  # Brent crude: gaps too extreme
+        excluded_symbols=[],
     )
 
 
