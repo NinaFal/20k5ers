@@ -431,10 +431,10 @@ def is_market_open() -> bool:
 def is_friday_closing_period() -> bool:
     """
     Check if we're in the Friday closing period (no new orders allowed).
-    Friday 19:30 UTC onwards = no new forex orders (weekend gap protection).
+    Friday 18:30 UTC onwards = no new forex orders (weekend gap protection).
 
     Returns:
-        True if Friday 19:30+ UTC (no new orders)
+        True if Friday 18:30+ UTC (no new orders)
         False otherwise (orders allowed)
     """
     now = datetime.now(timezone.utc)
@@ -442,8 +442,8 @@ def is_friday_closing_period() -> bool:
     hour = now.hour
     minute = now.minute
 
-    # Friday 19:30+ UTC = closing period
-    if weekday == 4 and (hour > 19 or (hour == 19 and minute >= 30)):
+    # Friday 18:30+ UTC = closing period
+    if weekday == 4 and (hour > 18 or (hour == 18 and minute >= 30)):
         return True
 
     return False
@@ -1791,7 +1791,7 @@ class LiveTradingBot:
     def handle_friday_position_closing(self):
         """
         TIER 1: Correlation-aware Friday position closing
-        Runs Friday 19:30+ UTC to reduce weekend gap exposure
+        Runs Friday 18:30+ UTC to reduce weekend gap exposure
 
         Actions:
         - Close losing positions (< 0R)
@@ -1802,9 +1802,9 @@ class LiveTradingBot:
         """
         now = datetime.now(timezone.utc)
 
-        # Only run Friday 19:30+ UTC
-        if now.weekday() != 4 or not (now.hour > 19 or (now.hour == 19 and now.minute >= 30)):
-            # Reset flag on non-Friday or before 19:30
+        # Only run Friday 18:30+ UTC
+        if now.weekday() != 4 or not (now.hour > 18 or (now.hour == 18 and now.minute >= 30)):
+            # Reset flag on non-Friday or before 18:30
             if now.weekday() != 4:
                 self.friday_closing_done = False
             return
@@ -1988,7 +1988,7 @@ class LiveTradingBot:
         - Tomorrow is a full market holiday and it's 17:00+ UTC today (weekday), OR
         - Today has an early close and we're within 1 hour of that close time.
 
-        Fires earlier than Friday safety (19:30 UTC) to give more buffer before
+        Fires earlier than Friday safety (18:30 UTC) to give more buffer before
         thin holiday liquidity. Uses the same position-management logic as
         handle_friday_position_closing().
         """
@@ -2004,7 +2004,7 @@ class LiveTradingBot:
             tomorrow_is_holiday
             and today.weekday() < 5           # today is a weekday
             and not is_market_holiday(today)  # today itself is not a holiday
-            and now.hour >= 17               # 17:00 UTC - earlier than Friday safety (19:30 UTC)
+            and now.hour >= 17               # 17:00 UTC - earlier than Friday safety (18:30 UTC)
         )
         trigger_early_close = False
         if early_close:
@@ -6168,7 +6168,7 @@ class LiveTradingBot:
                             last_orphan_check = now
 
                         # Weekend gap risk management
-                        self.handle_friday_position_closing()  # Friday 19:30+ UTC
+                        self.handle_friday_position_closing()  # Friday 18:30+ UTC
                         self.handle_holiday_position_closing()  # Pre-holiday or early-close days
                         self.handle_sunday_gap_detection()  # Sunday 22:00+ UTC
                         self.handle_monday_order_resume()  # Monday/post-holiday 01:00+ server time
