@@ -2001,7 +2001,7 @@ class LiveTradingBot:
         - Tomorrow is a full market holiday and it's 17:00+ UTC today (weekday), OR
         - Today has an early close and we're within 1 hour of that close time.
 
-        Fires earlier than Friday safety (19:30 UTC) to give more buffer before
+        Fires earlier than Friday safety (18:30 UTC) to give more buffer before
         thin holiday liquidity. Uses the same position-management logic as
         handle_friday_position_closing().
         """
@@ -2017,7 +2017,7 @@ class LiveTradingBot:
             tomorrow_is_holiday
             and today.weekday() < 5           # today is a weekday
             and not is_market_holiday(today)  # today itself is not a holiday
-            and now.hour >= 17               # 17:00 UTC - earlier than Friday safety (19:30 UTC)
+            and now.hour >= 17               # 17:00 UTC - earlier than Friday safety (18:30 UTC)
         )
         trigger_early_close = False
         if early_close:
@@ -6262,7 +6262,7 @@ class LiveTradingBot:
                             last_orphan_check = now
 
                         # Weekend gap risk management
-                        self.handle_friday_position_closing()  # Friday 19:30+ UTC
+                        self.handle_friday_position_closing()  # Friday 18:30+ UTC
                         self.handle_holiday_position_closing()  # Pre-holiday or early-close days
                         self.handle_sunday_gap_detection()  # Sunday 22:00+ UTC
                         self.handle_monday_order_resume()  # Monday/post-holiday 01:00+ server time
