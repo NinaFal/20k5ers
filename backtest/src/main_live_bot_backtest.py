@@ -2593,7 +2593,9 @@ class LiveTradingBot:
 
         # BACKTEST: Load M15 data for all symbols (filtered by date range)
         from config import FOREX_PAIRS, METALS, OIL_ASSETS, INDICES, CRYPTO_ASSETS
-        all_symbols = FOREX_PAIRS + METALS + OIL_ASSETS + INDICES + CRYPTO_ASSETS
+        _excluded = {"XBR_USD", "XTI_USD"}  # Oil: extreme gaps
+        all_symbols = [s for s in FOREX_PAIRS + METALS + OIL_ASSETS + INDICES + CRYPTO_ASSETS
+                       if s not in _excluded]
         self.mt5.load_m15_data(all_symbols,
                                start_date=self.start_date,
                                end_date=self.end_date)
@@ -5587,6 +5589,9 @@ class LiveTradingBot:
         
         total_commission = getattr(self.mt5, '_total_commission', 0.0)
         total_swap = getattr(self.mt5, '_total_swap', 0.0)
+        total_withdrawn = getattr(self.mt5, '_total_withdrawn', 0.0)
+        scaling_log = getattr(self.mt5, '_scaling_log', [])
+        final_funded_level = getattr(self.mt5, '_funded_level', self.initial_balance)
 
         results = {
             'initial_balance': self.initial_balance,
@@ -5610,6 +5615,10 @@ class LiveTradingBot:
             'ddd_warnings': sum(1 for e in safety_events if e.get('type') == 'DDD_WARNING'),
             'tdd_stopouts': sum(1 for e in safety_events if e.get('type') == 'TDD_STOPOUT'),
             'monthly_stats': monthly_stats,
+            'fiveers_total_withdrawn': round(total_withdrawn, 2),
+            'fiveers_final_funded_level': round(final_funded_level, 2),
+            'fiveers_scaling_events': len(scaling_log),
+            'fiveers_scaling_log': scaling_log,
         }
         
         # Print results
@@ -5641,7 +5650,15 @@ class LiveTradingBot:
         print(f"   DDD reduces (>=3%): {results['ddd_reduces']}")
         print(f"   DDD halts (>=3.5%): {results['ddd_halts']}")
         print(f"   TDD stop-outs (>=10%): {results['tdd_stopouts']}")
-        
+
+        print(f"\n🏦 5ers SCALING (with $4M cap):")
+        print(f"   Final funded level: ${results['fiveers_final_funded_level']:,.0f}")
+        print(f"   Scaling events:     {results['fiveers_scaling_events']}")
+        print(f"   Total withdrawn:    ${results['fiveers_total_withdrawn']:,.0f}")
+        if scaling_log:
+            print(f"   Last scale-up: {scaling_log[-1]['time'][:10]}  "
+                  f"${scaling_log[-1]['old_level']:,.0f} → ${scaling_log[-1]['new_level']:,.0f}")
+
         # Monthly breakdown
         if monthly_stats:
             print(f"\n📅 MONTHLY BREAKDOWN:")
