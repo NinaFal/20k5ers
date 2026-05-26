@@ -2646,7 +2646,7 @@ class LiveTradingBot:
         """Save pending setups to file."""
         try:
             import shutil
-            bak = self.PENDING_SETUPS_FILE + ".bak"
+            bak = Path(self.PENDING_SETUPS_FILE).with_suffix('.bak')
             if Path(self.PENDING_SETUPS_FILE).exists():
                 shutil.copy2(self.PENDING_SETUPS_FILE, bak)
             data = {symbol: setup.to_dict() for symbol, setup in self.pending_setups.items()}
