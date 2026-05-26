@@ -271,7 +271,7 @@ class ChallengeRiskManager:
         }
         try:
             import shutil
-            bak = self.state_file + ".bak"
+            bak = Path(self.state_file).with_suffix('.bak')
             if Path(self.state_file).exists():
                 shutil.copy2(self.state_file, bak)
             with open(self.state_file, 'w') as f:
