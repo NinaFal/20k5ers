@@ -756,10 +756,12 @@ class LiveTradingBot:
                         halt_pct = min(halt_pct, 2.5)
                     if _n_positions > 5:
                         halt_pct = min(halt_pct, base_halt_pct - 0.4)
-                    # TDD buffer guard: cap DDD halt at 50% of remaining TDD buffer
+                    # TDD buffer guard: cap DDD halt at 50% of remaining TDD buffer,
+                    # but never below 1.0% — avoids false triggers from spread/commission
+                    # noise when TDD is already near the limit.
                     _tdd_remaining = max(0.0, tdd_halt_pct - total_dd_pct)
-                    _max_ddd_from_tdd = _tdd_remaining * 0.5
-                    halt_pct = min(halt_pct, _max_ddd_from_tdd) if _max_ddd_from_tdd > 0 else halt_pct
+                    _max_ddd_from_tdd = max(1.0, _tdd_remaining * 0.5)
+                    halt_pct = min(halt_pct, _max_ddd_from_tdd)
                     # Scale warning/reduce proportionally if halt was tightened
                     if halt_pct < base_halt_pct:
                         scale = halt_pct / base_halt_pct
@@ -1598,11 +1600,14 @@ class LiveTradingBot:
         Check signals waiting for better spread.
         Called every SPREAD_CHECK_INTERVAL_MINUTES.
         """
-        # CRITICAL: Don't place orders during DDD halt
+        # CRITICAL: Don't place orders during DDD halt or Tier 2 reduce block
         if getattr(self, 'ddd_halted', False):
             log.debug("Skipping spread queue check - DDD halt active")
             return
-        
+        if getattr(self, '_ddd_reduce_done_today', False):
+            log.debug("Skipping spread queue check - DDD Tier 2 block active")
+            return
+
         if not self.awaiting_spread:
             return
         
