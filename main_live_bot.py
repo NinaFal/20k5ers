@@ -733,9 +733,20 @@ class LiveTradingBot:
                     reduce_pct = getattr(FIVEERS_CONFIG, "daily_loss_reduce_pct", 2.5)
                     base_halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.2)
 
-                    # Layer 5: dynamic halt — tighten threshold in risky conditions
-                    # Rollover window (21:30-22:30 UTC): spreads spike → lower to 2.5%
-                    # >5 open positions: more closing commission/slippage → lower by 0.4%
+                    # === ALSO CHECK TDD (Total DrawDown) ===
+                    # TDD is calculated from INITIAL balance (not day start)
+                    starting_balance = self.challenge_manager.starting_balance
+                    if starting_balance > 0:
+                        total_dd_pct = max(0, (starting_balance - current_equity) / starting_balance * 100)
+                    else:
+                        total_dd_pct = 0.0
+                    tdd_halt_pct = 10.0  # 5ers: 10% max total drawdown
+
+                    # Dynamic halt — tighten DDD threshold in risky conditions:
+                    # 1. Rollover window (21:30-22:30 UTC): spreads spike → lower to 2.5%
+                    # 2. >5 open positions: more closing commission/slippage → lower by 0.4%
+                    # 3. TDD buffer protection: DDD halt can't consume more than half the
+                    #    remaining TDD buffer (prevents DDD close-all from breaching TDD)
                     _now = datetime.now(timezone.utc)
                     _in_rollover = (_now.hour == 21 and _now.minute >= 30) or \
                                    (_now.hour == 22 and _now.minute < 30)
@@ -745,15 +756,15 @@ class LiveTradingBot:
                         halt_pct = min(halt_pct, 2.5)
                     if _n_positions > 5:
                         halt_pct = min(halt_pct, base_halt_pct - 0.4)
-                    
-                    # === ALSO CHECK TDD (Total DrawDown) ===
-                    # TDD is calculated from INITIAL balance (not day start)
-                    starting_balance = self.challenge_manager.starting_balance
-                    if starting_balance > 0:
-                        total_dd_pct = max(0, (starting_balance - current_equity) / starting_balance * 100)
-                    else:
-                        total_dd_pct = 0.0
-                    tdd_halt_pct = 10.0  # 5ers: 10% max total drawdown
+                    # TDD buffer guard: cap DDD halt at 50% of remaining TDD buffer
+                    _tdd_remaining = max(0.0, tdd_halt_pct - total_dd_pct)
+                    _max_ddd_from_tdd = _tdd_remaining * 0.5
+                    halt_pct = min(halt_pct, _max_ddd_from_tdd) if _max_ddd_from_tdd > 0 else halt_pct
+                    # Scale warning/reduce proportionally if halt was tightened
+                    if halt_pct < base_halt_pct:
+                        scale = halt_pct / base_halt_pct
+                        warning_pct = min(warning_pct, round(2.0 * scale, 2))
+                        reduce_pct = min(reduce_pct, round(2.5 * scale, 2))
                     
                     # Log status only every 5 min OR when DDD/TDD changes significantly
                     import time as time_module
