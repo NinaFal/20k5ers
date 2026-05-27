@@ -727,8 +727,8 @@ class LiveTradingBot:
                     
                     # Get all DDD thresholds from config
                     warning_pct = getattr(FIVEERS_CONFIG, "daily_loss_warning_pct", 2.0)
-                    reduce_pct = getattr(FIVEERS_CONFIG, "daily_loss_reduce_pct", 3.0)
-                    base_halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.5)
+                    reduce_pct = getattr(FIVEERS_CONFIG, "daily_loss_reduce_pct", 2.5)
+                    base_halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.2)
 
                     # Layer 5: dynamic halt — tighten threshold in risky conditions
                     # Rollover window (21:30-22:30 UTC): spreads spike → lower to 2.5%
@@ -805,7 +805,7 @@ class LiveTradingBot:
                         # Sleep longer to avoid repeated closes
                         sleep(30)
                     
-                    # === TIER 2: DDD >= 3.0% → BLOCK new entries, keep existing orders ===
+                    # === TIER 2: DDD >= 2.5% → BLOCK new entries, keep existing orders ===
                     elif daily_loss_pct >= reduce_pct:
                         if not getattr(self, '_ddd_reduce_logged', False):
                             log.warning("=" * 70)
@@ -5944,14 +5944,14 @@ class LiveTradingBot:
             log.info(f"📊 PRE-SCAN RISK CHECK")
             log.info(f"  Day Start Equity: ${day_start:,.2f}")
             log.info(f"  Current Equity: ${equity:,.2f}")
-            log.info(f"  DDD: {daily_loss_pct:.2f}% (halt at 3.5%, block new entries at 3.0%)")
+            log.info(f"  DDD: {daily_loss_pct:.2f}% (warn: 2.0%, block entries: 2.5%, halt: 3.2%)")
             log.info(f"  TDD: {total_dd_pct:.2f}% (halt at 10%)")
             log.info("=" * 70)
             
-            # Block scan entirely if DDD >= 3.5% (HALT tier)
-            if daily_loss_pct >= 3.5:
+            # Block scan entirely if DDD >= 3.2% (HALT tier)
+            if daily_loss_pct >= 3.2:
                 log.error("=" * 70)
-                log.error(f"🚫 SCAN BLOCKED: DDD {daily_loss_pct:.2f}% >= 3.5%")
+                log.error(f"🚫 SCAN BLOCKED: DDD {daily_loss_pct:.2f}% >= 3.2%")
                 log.error("  No new orders will be placed until next trading day")
                 log.error("=" * 70)
                 return
