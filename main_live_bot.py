@@ -4175,9 +4175,19 @@ class LiveTradingBot:
 
         # Calculate risk percentage
         # Use risk_per_trade_pct from params (matches optimizer output)
-        # but still apply DDD/TDD safety reductions
+        # but still apply DDD/TDD safety reductions and funded-level scaling
         base_risk = getattr(self.params, 'risk_per_trade_pct', FIVEERS_CONFIG.risk_per_trade_pct)
-        
+
+        # Scale risk down as funded level grows to prevent DDD breaches.
+        # At higher balances, dollar-risk per trade would otherwise become
+        # too large relative to the fixed 5% DDD limit.
+        if current_balance >= 2_000_000:
+            base_risk = min(base_risk, 0.25)
+        elif current_balance >= 1_000_000:
+            base_risk = min(base_risk, 0.40)
+        elif current_balance >= 300_000:
+            base_risk = min(base_risk, 0.60)
+
         # Apply safety reductions based on drawdown levels
         if daily_loss_pct >= FIVEERS_CONFIG.daily_loss_reduce_pct or total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
             risk_pct = min(base_risk, FIVEERS_CONFIG.ultra_safe_risk_pct)
@@ -4185,8 +4195,8 @@ class LiveTradingBot:
             risk_pct = min(base_risk, FIVEERS_CONFIG.max_risk_conservative_pct)
         else:
             risk_pct = base_risk
-        
-        log.info(f"[{symbol}] Risk: {risk_pct:.3f}% (base from params: {base_risk:.3f}%, DDD safety applied)")
+
+        log.info(f"[{symbol}] Risk: {risk_pct:.3f}% (base from params: {base_risk:.3f}%, balance: ${current_balance:,.0f}, DDD safety applied)")
 
         if risk_pct <= 0:
             log.warning(f"[{symbol}] Risk percentage is 0 - trading halted (NO TRADE)")

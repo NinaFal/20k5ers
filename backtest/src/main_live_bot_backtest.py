@@ -3098,9 +3098,20 @@ class LiveTradingBot:
 
         # Calculate risk percentage
         # Use risk_per_trade_pct from params (optimizer can tune this)
-        # but still apply DDD/TDD safety reductions
+        # but still apply DDD/TDD safety reductions and funded-level scaling
         base_risk = getattr(self.params, 'risk_per_trade_pct', FIVEERS_CONFIG.risk_per_trade_pct)
-        
+
+        # Scale risk down as funded level grows to prevent DDD breaches.
+        # At higher balances, dollar-risk per trade would otherwise become
+        # too large relative to the fixed 5% DDD limit.
+        funded_level = getattr(self.mt5, '_funded_level', current_balance)
+        if funded_level >= 2_000_000:
+            base_risk = min(base_risk, 0.25)
+        elif funded_level >= 1_000_000:
+            base_risk = min(base_risk, 0.40)
+        elif funded_level >= 300_000:
+            base_risk = min(base_risk, 0.60)
+
         # Apply safety reductions based on drawdown levels
         if daily_loss_pct >= FIVEERS_CONFIG.daily_loss_reduce_pct or total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
             risk_pct = min(base_risk, FIVEERS_CONFIG.ultra_safe_risk_pct)
@@ -3108,8 +3119,8 @@ class LiveTradingBot:
             risk_pct = min(base_risk, FIVEERS_CONFIG.max_risk_conservative_pct)
         else:
             risk_pct = base_risk
-        
-        log.info(f"[{symbol}] Risk: {risk_pct:.3f}% (base from params: {base_risk:.3f}%, DDD safety applied)")
+
+        log.info(f"[{symbol}] Risk: {risk_pct:.3f}% (base from params: {base_risk:.3f}%, funded: ${funded_level:,.0f}, DDD safety applied)")
 
         if risk_pct <= 0:
             log.warning(f"[{symbol}] Risk percentage is 0 - trading halted (NO TRADE)")
@@ -5231,6 +5242,14 @@ class LiveTradingBot:
                 if self.challenge_manager:
                     self.challenge_manager.day_start_equity = day_start_equity
                     self.challenge_manager.day_start_balance = day_balance
+                    # Sync starting_balance to current funded level so TDD is always
+                    # measured from the current funded level (resets with each scaling event)
+                    funded_now = getattr(self.mt5, '_funded_level', self.initial_balance)
+                    if funded_now > self.challenge_manager.starting_balance:
+                        log.info(f"📈 Funded level updated: ${self.challenge_manager.starting_balance:,.0f} → ${funded_now:,.0f} (TDD reference reset)")
+                        self.challenge_manager.starting_balance = funded_now
+                        self.challenge_manager.initial_balance = funded_now
+                        self.initial_balance = funded_now
                     log.info(f"📊 New day {today}: day_start_equity = MAX(${day_equity:,.2f}, ${day_balance:,.2f}) = ${day_start_equity:,.2f}")
                 
                 # Reset DDD halt and tier flags for new day
@@ -5392,7 +5411,8 @@ class LiveTradingBot:
                     eq_now = acct.get('equity', equity)
                     bal_now = acct.get('balance', balance)
                     ddd_now = max(0, (day_start_equity - eq_now) / day_start_equity * 100) if day_start_equity > 0 else 0
-                    tdd_now = max(0, (self.initial_balance - eq_now) / self.initial_balance * 100)
+                    tdd_ref = self.challenge_manager.starting_balance if self.challenge_manager else self.initial_balance
+                    tdd_now = max(0, (tdd_ref - eq_now) / tdd_ref * 100) if tdd_ref > 0 else 0
                     max_ddd = max(max_ddd, ddd_now)
 
                     if tdd_now >= 10.0:
