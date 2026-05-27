@@ -1776,6 +1776,7 @@ def _location_context(
         return "Location: Insufficient data", False
 
     # MONTHLY RANGE FILTER: block sells near multi-year lows, buys near multi-year highs
+    # Only applies WITHIN the range — breakouts above/below are allowed in both directions
     if monthly_candles and len(monthly_candles) >= 6:
         mn_highs = [c["high"] for c in monthly_candles]
         mn_lows = [c["low"] for c in monthly_candles]
@@ -1784,10 +1785,12 @@ def _location_context(
         mn_range = mn_high - mn_low
         if mn_range > 0:
             price_position = (price - mn_low) / mn_range  # 0.0 = bottom, 1.0 = top
-            if direction == "bearish" and price_position < 0.20:
-                return f"Location: Near multi-year low ({price_position:.0%} of MN range) — no sell", False
-            if direction == "bullish" and price_position > 0.80:
-                return f"Location: Near multi-year high ({price_position:.0%} of MN range) — no buy", False
+            within_range = 0.0 <= price_position <= 1.0
+            if within_range:
+                if direction == "bearish" and price_position < 0.20:
+                    return f"Location: Near multi-year low ({price_position:.0%} of MN range) — no sell", False
+                if direction == "bullish" and price_position > 0.80:
+                    return f"Location: Near multi-year high ({price_position:.0%} of MN range) — no buy", False
     
     highs = [c["high"] for c in daily_candles[-50:]] if len(daily_candles) >= 50 else [c["high"] for c in daily_candles]
     lows = [c["low"] for c in daily_candles[-50:]] if len(daily_candles) >= 50 else [c["low"] for c in daily_candles]
