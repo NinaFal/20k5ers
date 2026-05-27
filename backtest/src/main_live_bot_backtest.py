@@ -5233,7 +5233,6 @@ class LiveTradingBot:
                     if funded_now > self.challenge_manager.starting_balance:
                         log.info(f"📈 Funded level updated: ${self.challenge_manager.starting_balance:,.0f} → ${funded_now:,.0f} (TDD reference reset)")
                         self.challenge_manager.starting_balance = funded_now
-                        self.challenge_manager.initial_balance = funded_now
                         self.initial_balance = funded_now
                     log.info(f"📊 New day {today}: day_start_equity = MAX(${day_equity:,.2f}, ${day_balance:,.2f}) = ${day_start_equity:,.2f}")
                 
