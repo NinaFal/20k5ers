@@ -315,8 +315,11 @@ class ChallengeRiskManager:
             equity: Current account equity
             sim_date: Optional simulated date for backtesting (if None, uses real date)
         """
-        from datetime import timedelta
-        today = sim_date if sim_date else date.today()
+        from datetime import timedelta, timezone
+        # Use UTC+2 (MT5 server timezone) so rollover at 22:00 UTC is handled
+        # correctly. Passing sim_date overrides this (used in backtesting).
+        _SERVER_TZ = timezone(timedelta(hours=2))
+        today = sim_date if sim_date else datetime.now(_SERVER_TZ).date()
 
         # Check for new day OR if we missed days (weekend/week gap)
         days_difference = (today - self.current_date).days if self.current_date else 0

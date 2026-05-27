@@ -5709,6 +5709,15 @@ class LiveTradingBot:
         emergency_triggered = False
         
         for action in actions_sorted:
+            # Suppress repeated REDUCE_RISK logs — it fires every 10s in CONSERVATIVE mode.
+            # Only log once per hour to avoid noise.
+            if action.action == ActionType.REDUCE_RISK:
+                last_logged = getattr(self, '_reduce_risk_last_logged', 0)
+                import time as _time
+                if _time.time() - last_logged < 3600:
+                    action.executed = True
+                    continue
+                self._reduce_risk_last_logged = _time.time()
             log.warning(f"[RISK] Executing protection action: {action.action.value} - {action.reason}")
             
             try:
