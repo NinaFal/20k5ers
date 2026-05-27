@@ -4231,15 +4231,23 @@ class LiveTradingBot:
         elif current_balance >= 300_000:
             base_risk = min(base_risk, 0.60)
 
-        # Apply safety reductions based on drawdown levels
-        if daily_loss_pct >= FIVEERS_CONFIG.daily_loss_reduce_pct or total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
+        # Apply safety reductions based on drawdown levels.
+        # Graduated recovery: TDD must drop to <3% before returning to full 1.1% risk,
+        # preventing sudden jumps from 0.4% to 1.1% after only a small recovery.
+        if daily_loss_pct >= FIVEERS_CONFIG.daily_loss_reduce_pct or total_dd_pct >= 7.0:
+            # TDD ≥7% or DDD ≥ reduce threshold → ultra-safe 0.25%
             risk_pct = min(base_risk, FIVEERS_CONFIG.ultra_safe_risk_pct)
-        elif daily_loss_pct >= FIVEERS_CONFIG.daily_loss_warning_pct or total_dd_pct >= FIVEERS_CONFIG.total_dd_warning_pct:
+        elif daily_loss_pct >= FIVEERS_CONFIG.daily_loss_warning_pct or total_dd_pct >= 5.0:
+            # TDD 5-7% → reduced 0.4%
             risk_pct = min(base_risk, FIVEERS_CONFIG.max_risk_conservative_pct)
+        elif total_dd_pct >= 3.0:
+            # TDD 3-5% → cautious recovery 0.6% (not yet back to full risk)
+            risk_pct = min(base_risk, 0.60)
         else:
+            # TDD <3% → full risk (1.1% or funded-level cap)
             risk_pct = base_risk
 
-        log.info(f"[{symbol}] Risk: {risk_pct:.3f}% (base from params: {base_risk:.3f}%, balance: ${current_balance:,.0f}, DDD safety applied)")
+        log.info(f"[{symbol}] Risk: {risk_pct:.3f}% (base from params: {base_risk:.3f}%, funded: ${current_balance:,.0f}, TDD: {total_dd_pct:.1f}%, DDD safety applied)")
 
         if risk_pct <= 0:
             log.warning(f"[{symbol}] Risk percentage is 0 - trading halted (NO TRADE)")
