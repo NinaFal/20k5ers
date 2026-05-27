@@ -386,26 +386,47 @@ class CSVMT5Simulator:
                       start_date: datetime = None, end_date: datetime = None):
         """Pre-load M15 data for fast access during simulation (OPTIMIZED).
 
-        Args:
-            symbols: List of symbols to load
-            start_date: Only load data from this date (with lookback buffer for indicators)
-            end_date: Only load data up to this date
+        Uses a pickle cache keyed on symbols + date range to avoid reloading
+        CSV files on subsequent runs with the same parameters.
         """
+        import pickle, hashlib, os
+        from pathlib import Path
+
         log.info(f"Loading M15 data for {len(symbols)} symbols...")
         if start_date or end_date:
             log.info(f"  Date filter: {start_date} to {end_date}")
 
+        # Build a cache key from symbols + date range
+        key_str = f"{sorted(symbols)}_{start_date}_{end_date}"
+        cache_key = hashlib.md5(key_str.encode()).hexdigest()[:12]
+        cache_dir = Path(self.data_dir).parent / ".cache"
+        cache_dir.mkdir(exist_ok=True)
+        cache_file = cache_dir / f"m15_cache_{cache_key}.pkl"
+
+        # Check if cache is valid (newer than all CSV files in data_dir)
+        if cache_file.exists():
+            csv_mtime = max(
+                (os.path.getmtime(f) for f in Path(self.data_dir).glob("*.csv")),
+                default=0
+            )
+            if cache_file.stat().st_mtime > csv_mtime:
+                log.info(f"📦 Loading from cache: {cache_file.name} ...")
+                with open(cache_file, 'rb') as f:
+                    cached = pickle.load(f)
+                self._m15_indexed = cached['m15_indexed']
+                self._available_symbols = cached['available_symbols']
+                log.info(f"✅ Cache loaded: {len(self._available_symbols)} symbols in seconds")
+                return
+
+        log.info("No cache found — loading from CSV files (this takes a while)...")
         for symbol in symbols:
             df = self._load_data(symbol, "M15")
             if df is not None and not df.empty:
                 self._available_symbols.append(symbol)
 
-                # OPTIMIZED: Vectorized indexing instead of iterrows
-                # Convert time column to proper datetime with UTC
                 if df['time'].dt.tz is None:
                     df['time'] = df['time'].dt.tz_localize('UTC')
 
-                # DATE FILTER: Only keep data in range (with 60-day lookback for indicators)
                 if start_date is not None:
                     lookback_start = _to_utc_ts(start_date) - pd.Timedelta(days=60)
                     df = df[df['time'] >= lookback_start]
@@ -416,11 +437,16 @@ class CSVMT5Simulator:
                 if df.empty:
                     continue
 
-                # Create dict with timestamp as key using vectorized operations
                 df_indexed = df.set_index('time')[['open', 'high', 'low', 'close', 'volume']].to_dict('index')
                 self._m15_indexed[symbol] = df_indexed
 
-        log.info(f"Loaded M15 data for {len(self._available_symbols)} symbols")
+        log.info(f"Loaded M15 data for {len(self._available_symbols)} symbols — saving cache...")
+        with open(cache_file, 'wb') as f:
+            pickle.dump({
+                'm15_indexed': self._m15_indexed,
+                'available_symbols': self._available_symbols,
+            }, f, protocol=pickle.HIGHEST_PROTOCOL)
+        log.info(f"✅ Cache saved: {cache_file.name}")
     
     def get_m15_bar(self, symbol: str, time: datetime) -> Optional[dict]:
         """Get M15 bar at specific time."""
