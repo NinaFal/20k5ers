@@ -339,13 +339,10 @@ class CSVMT5Simulator:
 
         profit_made = self._balance - self._funded_level
 
-        # Profit split tiers (5ers rules)
-        if self._funded_level >= 2_500_000:
-            split = 1.00
-        elif self._funded_level >= 2_000_000:
-            split = 0.80
-        else:
-            split = 0.50
+        # 5ers profit split: 80% standard, 100% at top tier
+        # Payouts are requested by trader every 2 weeks (independent of scaling).
+        # At each scaling event we track the trader's share of the profit made.
+        split = 1.00 if self._funded_level >= 2_500_000 else 0.80
 
         trader_profit = profit_made * split
         self._total_withdrawn += trader_profit
