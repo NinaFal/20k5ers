@@ -716,6 +716,8 @@ class LiveTradingBot:
                         else:
                             # Normal new day transition - sync with MT5
                             self.challenge_manager.sync_with_mt5(current_balance, current_equity)
+                            self.challenge_manager.current_date = today
+                            self.challenge_manager._save_state()
 
                         # Check if 5ers scaled the account overnight
                         self._detect_fiveers_scaling(current_balance)
@@ -5948,20 +5950,11 @@ class LiveTradingBot:
                     action.executed = True
                 
                 elif action.action == ActionType.REDUCE_RISK:
-                    # Risk is already reduced in challenge_risk_manager via risk_mode
-                    # Just log and cancel pending orders to reduce exposure
-                    log.warning(f"[RISK] Risk REDUCED (risk mode: conservative): {action.reason}")
-                    
-                    # Cancel pending orders to reduce exposure
-                    pending_orders = self.mt5.get_my_pending_orders()
-                    if pending_orders:
-                        log.warning(f"  Cancelling {len(pending_orders)} pending orders to reduce exposure...")
-                        for order in pending_orders:
-                            try:
-                                self.mt5.cancel_pending_order(order.ticket)
-                                log.info(f"  ✓ Cancelled pending order {order.ticket} ({order.symbol})")
-                            except Exception as e:
-                                log.error(f"  ✗ Failed to cancel {order.ticket}: {e}")
+                    # Risk is already reduced via graduated TDD risk system (0.4%/0.25% lot sizing).
+                    # Pending limit orders don't increase current exposure — they only fill if
+                    # price returns to entry, at which point lot size is already reduced.
+                    # Do NOT cancel pending orders here; that would defeat the purpose of scanning.
+                    log.warning(f"[RISK] Risk mode conservative — lot sizes already reduced per TDD tier. {action.reason}")
                     action.executed = True
                     
             except Exception as e:
