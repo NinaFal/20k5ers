@@ -714,7 +714,10 @@ class LiveTradingBot:
                         else:
                             # Normal new day transition - sync with MT5
                             self.challenge_manager.sync_with_mt5(current_balance, current_equity)
-                    
+
+                        # Check if 5ers scaled the account overnight
+                        self._detect_fiveers_scaling(current_balance)
+
                     day_start_equity = self.challenge_manager.day_start_equity
                     if day_start_equity <= 0:
                         log.error(f"[DDD Protection] day_start_equity is {day_start_equity}! Using current equity as fallback.")
@@ -1183,6 +1186,35 @@ class LiveTradingBot:
             self.ddd_halted = False
             self.ddd_halt_reason = ""
     
+    # Official 5ers funded account levels
+    FIVEERS_LEVELS = [
+        50_000, 60_000, 70_000, 80_000, 100_000,
+        125_000, 150_000, 175_000, 200_000,
+        250_000, 300_000, 350_000, 400_000, 450_000, 500_000,
+        600_000, 700_000, 800_000, 1_000_000,
+        1_250_000, 1_500_000, 1_750_000, 2_000_000,
+        2_500_000, 3_000_000, 3_500_000, 4_000_000,
+    ]
+
+    def _detect_fiveers_scaling(self, current_balance: float):
+        """Detect if 5ers scaled the account overnight and update TDD reference."""
+        stored = self.challenge_manager.starting_balance
+        if current_balance <= stored * 1.05:
+            return  # No significant jump, nothing to do
+
+        # Find which 5ers level matches current balance (within 2%)
+        for level in self.FIVEERS_LEVELS:
+            if abs(current_balance - level) / level < 0.02 and level > stored:
+                log.warning("=" * 70)
+                log.warning(f"🎉 5ERS SCALING DETECTED!")
+                log.warning(f"   Old funded level: ${stored:,.0f}")
+                log.warning(f"   New funded level: ${level:,.0f}")
+                log.warning(f"   MT5 balance: ${current_balance:,.0f}")
+                log.warning("=" * 70)
+                self.challenge_manager.starting_balance = level
+                self.challenge_manager._save_state()
+                return
+
     def _save_ddd_halt_state(self):
         """Save DDD halt state to file."""
         try:
