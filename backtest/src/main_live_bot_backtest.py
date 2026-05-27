@@ -705,30 +705,15 @@ class LiveTradingBot:
                         # Sleep longer to avoid repeated closes
                         sleep(30)
                     
-                    # === TIER 2: DDD >= 3.0% → REDUCE RISK (cancel pending orders only) ===
+                    # === TIER 2: DDD >= 2.5% → BLOCK new entries, keep existing orders ===
                     elif daily_loss_pct >= reduce_pct:
                         if not getattr(self, '_ddd_reduce_logged', False):
                             log.warning("=" * 70)
-                            log.warning(f"⚠️ DDD TIER 2 REDUCE: Equity ${current_equity:,.2f} is {daily_loss_pct:.2f}% below day start")
-                            log.warning(f"  DDD {daily_loss_pct:.2f}% >= {reduce_pct:.2f}%! Reducing risk, cancelling pending orders...")
+                            log.warning(f"⚠️ DDD TIER 2: Equity ${current_equity:,.2f} is {daily_loss_pct:.2f}% below day start")
+                            log.warning(f"  DDD {daily_loss_pct:.2f}% >= {reduce_pct:.2f}%! Blocking new entries — existing orders kept.")
                             log.warning("=" * 70)
-                            
-                            # Cancel pending orders to reduce exposure
-                            try:
-                                pending_orders = self.mt5.get_pending_orders()
-                                if pending_orders:
-                                    log.warning(f"  Cancelling {len(pending_orders)} pending orders...")
-                                    for order in pending_orders:
-                                        try:
-                                            self.mt5.cancel_pending_order(order.ticket)
-                                            log.info(f"  ✓ Cancelled pending order {order.symbol}")
-                                        except Exception as e:
-                                            log.error(f"  ✗ Failed to cancel {order.symbol}: {e}")
-                            except Exception as e:
-                                log.error(f"  ✗ Failed to get pending orders: {e}")
-                            
                             self._ddd_reduce_logged = True
-                        self.ddd_halted = False  # Don't halt, just reduce
+                        self.ddd_halted = False
                         self.ddd_halt_reason = ""
                     
                     # === TIER 1: DDD >= 2.0% → WARNING ===
@@ -5346,18 +5331,10 @@ class LiveTradingBot:
                 })
                 continue
 
-            # === TIER 2: DDD >= 3.0% → CANCEL PENDING ORDERS (reduce risk) ===
+            # === TIER 2: DDD >= 2.5% → BLOCK new entries, keep existing orders ===
             elif ddd_pct >= reduce_pct and not trading_halted_today:
                 if not getattr(self, '_ddd_reduce_done_today', False):
-                    log.warning(f"⚠️ DDD TIER 2 REDUCE at {current_time}: {ddd_pct:.1f}% >= {reduce_pct}%")
-                    # Cancel pending orders to reduce exposure, but preserve setups
-                    for order in self.mt5.get_my_pending_orders():
-                        self.mt5.cancel_pending_order(order.ticket)
-                    for sym, setup in self.pending_setups.items():
-                        if setup.status == "pending":
-                            setup.status = "paused_ddd"
-                            setup.order_ticket = None
-                    self._save_pending_setups()
+                    log.warning(f"⚠️ DDD TIER 2 at {current_time}: {ddd_pct:.1f}% >= {reduce_pct}% — blocking new entries, existing orders kept")
                     self._ddd_reduce_done_today = True
                     safety_events.append({
                         'time': str(current_time),
