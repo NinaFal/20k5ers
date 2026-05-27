@@ -239,3 +239,5 @@ cython_debug/
 backtest/src/closed_today.json
 backtest/src/logs/
 closed_today.json
+logs/
+logs/
