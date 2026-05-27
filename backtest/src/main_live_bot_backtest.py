@@ -1047,7 +1047,8 @@ class LiveTradingBot:
         self.start_date = start_date or datetime(2023, 1, 1, tzinfo=timezone.utc)
         self.end_date = end_date or datetime(2025, 12, 31, tzinfo=timezone.utc)
         self.initial_balance = initial_balance
-        
+        self._original_initial_balance = initial_balance  # Never changes, used for final PnL calc
+
         self.risk_manager = RiskManager(state_file="challenge_state.json")
         # STRICT: Load params (merged with defaults) - no fallback to dataclass defaults
         # load_best_params_from_file() returns StrategyParams with defaults merged
@@ -5520,6 +5521,8 @@ class LiveTradingBot:
         # ═══════════════════════════════════════════════════════════════════
         final_account = self.mt5.get_account_info()
         final_balance = final_account.get("balance", self.initial_balance)
+        total_withdrawn = getattr(self.mt5, '_total_withdrawn', 0.0)
+        original_balance = getattr(self, '_original_initial_balance', self.initial_balance)
         
         closed_trades = self.mt5.get_closed_trades()
         
@@ -5532,8 +5535,9 @@ class LiveTradingBot:
         win_rate = (winners / total_trades * 100) if total_trades > 0 else 0
         
         # Net PnL includes ALL closes (full + partial)
-        closed_pnl = sum(t.get('pnl', 0) for t in closed_trades)  # All P&L from closed_trades
-        total_pnl = final_balance - self.initial_balance  # This is the REAL net P&L
+        closed_pnl = sum(t.get('pnl', 0) for t in closed_trades)
+        # Total economic value: current balance + all 5ers payouts - original starting capital
+        total_pnl = (final_balance + total_withdrawn) - original_balance
         
         # Log partial close info
         if partial_closes:
@@ -5596,7 +5600,7 @@ class LiveTradingBot:
             'closed_trades_pnl': round(closed_pnl, 2),
             'total_commission': round(total_commission, 2),
             'total_swap': round(total_swap, 2),
-            'return_pct': round((final_balance - self.initial_balance) / self.initial_balance * 100, 2),
+            'return_pct': round(total_pnl / original_balance * 100, 2),
             'total_trades': total_trades,
             'winners': winners,
             'losers': total_trades - winners,
