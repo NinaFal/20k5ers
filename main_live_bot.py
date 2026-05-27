@@ -665,8 +665,10 @@ class LiveTradingBot:
                         continue
                     
                     # AUTOMATIC RESET: Check if DDD halt is from a PREVIOUS day and auto-reset
-                    today = date.today()
-                    today_str = today.strftime("%Y-%m-%d")
+                    # Use SERVER date (UTC+2) so reset fires at 22:00 UTC (server midnight),
+                    # not at 00:00 UTC which is 2 hours too late.
+                    today = get_server_date()
+                    today_str = today.isoformat()
                     if self.ddd_halted and self.ddd_halt_date and self.ddd_halt_date != today_str:
                         log.warning("=" * 70)
                         log.warning(f"[DDD Protection] 🌅 AUTO-RESET: DDD halt was from {self.ddd_halt_date}, today is {today_str}")
@@ -756,11 +758,17 @@ class LiveTradingBot:
                         halt_pct = min(halt_pct, 2.5)
                     if _n_positions > 5:
                         halt_pct = min(halt_pct, base_halt_pct - 0.4)
-                    # TDD buffer guard: cap DDD halt at 50% of remaining TDD buffer,
-                    # but never below 1.0% — avoids false triggers from spread/commission
-                    # noise when TDD is already near the limit.
-                    _tdd_remaining = max(0.0, tdd_halt_pct - total_dd_pct)
-                    _max_ddd_from_tdd = max(1.0, _tdd_remaining * 0.5)
+                    # TDD buffer guard: ensure DDD halt fires BEFORE the TDD floor is hit.
+                    # Computed in DOLLARS to avoid denominator mismatch (TDD% is vs $50K
+                    # starting balance; DDD% is vs day_start which changes daily).
+                    tdd_floor_dollar = starting_balance * (1 - tdd_halt_pct / 100)
+                    if day_start_equity > tdd_floor_dollar:
+                        # Max loss allowed before hitting TDD floor (in day-start-relative %)
+                        _max_loss_to_tdd_dollar = day_start_equity - tdd_floor_dollar
+                        # Only use 50% of that buffer for DDD halt headroom
+                        _max_ddd_from_tdd = max(1.0, (_max_loss_to_tdd_dollar * 0.5) / day_start_equity * 100)
+                    else:
+                        _max_ddd_from_tdd = 1.0  # Already at/near TDD floor
                     halt_pct = min(halt_pct, _max_ddd_from_tdd)
                     # Scale warning/reduce proportionally if halt was tightened
                     if halt_pct < base_halt_pct:
@@ -796,7 +804,7 @@ class LiveTradingBot:
                         
                         self.ddd_halted = True
                         self.ddd_halt_reason = f"TDD {total_dd_pct:.2f}% >= {tdd_halt_pct:.2f}% - ACCOUNT BREACHED"
-                        self.ddd_halt_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                        self.ddd_halt_date = get_server_date().isoformat()
                         self._save_ddd_halt_state()  # Persist halt state
                         log.error(f"  🛑 TRADING PERMANENTLY HALTED. {self.ddd_halt_reason}")
                         sleep(60)  # Sleep longer - this is permanent
@@ -815,7 +823,7 @@ class LiveTradingBot:
                         # Set a flag to halt trading until next day
                         self.ddd_halted = True
                         self.ddd_halt_reason = f"DDD {daily_loss_pct:.2f}% >= {halt_pct:.2f}%"
-                        self.ddd_halt_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                        self.ddd_halt_date = get_server_date().isoformat()
                         self._save_ddd_halt_state()  # Persist halt state for restart survival
                         log.error(f"  🛑 Trading halted until next day. Reason: {self.ddd_halt_reason}")
                         # Sleep longer to avoid repeated closes
@@ -1123,8 +1131,8 @@ class LiveTradingBot:
                     state = json.load(f)
                 
                 saved_date = state.get("date", "")
-                today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-                
+                today = get_server_date().isoformat()
+
                 if saved_date == today:
                     self.closed_today = set(state.get("symbols", []))
                     self.closed_today_date = saved_date
@@ -1139,7 +1147,7 @@ class LiveTradingBot:
     def _save_closed_today(self):
         """Save symbols closed today to file."""
         try:
-            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            today = get_server_date().isoformat()
             state = {
                 "date": today,
                 "symbols": list(self.closed_today),
@@ -1160,8 +1168,8 @@ class LiveTradingBot:
     
     def is_symbol_closed_today(self, symbol: str) -> bool:
         """Check if symbol was closed today (blocked from re-entry)."""
-        # Check if we need to reset for new day
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        # Check if we need to reset for new day (server date = UTC+2)
+        today = get_server_date().isoformat()
         if self.closed_today_date != today:
             log.info(f"📋 New day detected - clearing closed_today list")
             self.closed_today.clear()
@@ -1178,8 +1186,8 @@ class LiveTradingBot:
                     state = json.load(f)
                 
                 halt_date = state.get("halt_date", "")
-                today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-                
+                today = get_server_date().isoformat()
+
                 if halt_date == today:
                     # Same day - restore halt state
                     self.ddd_halted = state.get("halted", False)
@@ -1234,7 +1242,7 @@ class LiveTradingBot:
             state = {
                 "halted": self.ddd_halted,
                 "reason": self.ddd_halt_reason,
-                "halt_date": self.ddd_halt_date or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                "halt_date": self.ddd_halt_date or get_server_date().isoformat(),
                 "saved_at": datetime.now(timezone.utc).isoformat(),
             }
             with open(self.DDD_HALT_STATE_FILE, 'w') as f:
