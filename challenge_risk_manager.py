@@ -193,8 +193,9 @@ class ChallengeRiskManager:
                 # PROTECTED: Always use $50,000 if starting_balance is missing from JSON
                 self.starting_balance = state.get('starting_balance', PROTECTED_INITIAL_BALANCE)
 
-                # Prevent accidental overwrite: If starting_balance in JSON is clearly wrong (> $65k or < $35k), reset to $50k
-                if self.starting_balance > 65000.0 or self.starting_balance < 35000.0:
+                # Protect against clearly wrong values. Only reject below $35K (corruption).
+                # Values above $65K are valid after 5ers scaling events.
+                if self.starting_balance < 35000.0:
                     log.warning(f"⚠️ starting_balance in JSON ({self.starting_balance:,.2f}) seems incorrect. Resetting to ${PROTECTED_INITIAL_BALANCE:,.2f}")
                     self.starting_balance = PROTECTED_INITIAL_BALANCE
 

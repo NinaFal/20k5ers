@@ -307,19 +307,35 @@ class CSVMT5Simulator:
         """Set account balance."""
         self._balance = balance
 
+    # Real 5ers funded account level progression (from official scaling plan)
+    FIVEERS_LEVELS = [
+        50_000, 60_000, 70_000, 80_000, 100_000,
+        125_000, 150_000, 175_000, 200_000,
+        250_000, 300_000, 350_000, 400_000, 450_000, 500_000,
+        600_000, 700_000, 800_000, 1_000_000,
+        1_250_000, 1_500_000, 1_750_000, 2_000_000,
+        2_500_000, 3_000_000, 3_500_000, 4_000_000,
+    ]
+
+    def _next_fiveers_level(self, current: float) -> float:
+        """Get the next funded level after current."""
+        for level in self.FIVEERS_LEVELS:
+            if level > current + 1:
+                return level
+        return self._max_balance
+
     def _apply_fiveers_scaling(self):
         """Apply 5ers scaling rules after each balance change.
 
-        At each 10% profit milestone on current funded level, scale up by $50K.
-        Cap at $4M. Track trader profit withdrawals with tiered profit split.
+        At each 10% profit milestone on current funded level, advance to the
+        next level per the official 5ers scaling plan. Cap at $4M.
         """
         if self._balance <= self._funded_level:
-            return  # no profit yet, nothing to do
+            return
 
-        # Check if 10% milestone reached on current funded level
         milestone = self._funded_level * 1.10
         if self._balance < milestone:
-            return  # not yet at milestone
+            return
 
         profit_made = self._balance - self._funded_level
 
@@ -335,11 +351,9 @@ class CSVMT5Simulator:
         self._total_withdrawn += trader_profit
 
         if self._funded_level < self._max_balance:
-            # Scale up: advance to next $50K level
-            next_level = min(self._funded_level + 50_000, self._max_balance)
+            next_level = self._next_fiveers_level(self._funded_level)
             old_level = self._funded_level
             self._funded_level = next_level
-            # Reset balance to new funded level (5ers adds capital, we keep trading)
             self._balance = next_level
             self._scaling_log.append({
                 'time': str(self._current_time),
@@ -350,7 +364,6 @@ class CSVMT5Simulator:
                 'profit_split': split,
             })
         else:
-            # At $4M cap: withdraw excess profits, stay at $4M
             self._balance = self._max_balance
             self._scaling_log.append({
                 'time': str(self._current_time),
