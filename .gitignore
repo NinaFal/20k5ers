@@ -238,3 +238,4 @@ cython_debug/
 # Backtest runtime files (generated, not source)
 backtest/src/closed_today.json
 backtest/src/logs/
+closed_today.json
