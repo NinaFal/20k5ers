@@ -766,7 +766,7 @@ class LiveTradingBot:
                     
                     if ddd_changed or tdd_changed or time_elapsed:
                         log.info(f"[DDD/TDD Protection] Equity: ${current_equity:,.2f} | Day Start: ${day_start_equity:,.2f} | Starting: ${starting_balance:,.2f}")
-                        log.info(f"[DDD/TDD Protection] DDD: {daily_loss_pct:.2f}% (warn: {warning_pct}%, reduce: {reduce_pct}%, halt: {halt_pct}%) | TDD: {total_dd_pct:.2f}% (halt at {tdd_halt_pct:.2f}%)")
+                        log.info(f"[DDD/TDD Protection] DDD: {daily_loss_pct:.2f}% (warn: {warning_pct:.2f}%, reduce: {reduce_pct:.2f}%, halt: {halt_pct:.2f}%) | TDD: {total_dd_pct:.2f}% (halt at {tdd_halt_pct:.2f}%)")
                         last_log_time = now
                         self._last_logged_ddd = daily_loss_pct
                         self._last_logged_tdd = total_dd_pct
