@@ -571,8 +571,10 @@ class LiveTradingBot:
                         continue
                     
                     # AUTOMATIC RESET: Check if DDD halt is from a PREVIOUS day and auto-reset
-                    today = date.today()
-                    today_str = today.strftime("%Y-%m-%d")
+                    # Use simulated time so date comparisons work correctly in backtest
+                    sim_time = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else None
+                    today = sim_time.date() if sim_time else get_server_date()
+                    today_str = today.isoformat()
                     if self.ddd_halted and self.ddd_halt_date and self.ddd_halt_date != today_str:
                         log.warning("=" * 70)
                         log.warning(f"[DDD Protection] 🌅 AUTO-RESET: DDD halt was from {self.ddd_halt_date}, today is {today_str}")
@@ -615,8 +617,9 @@ class LiveTradingBot:
                             log.info(f"[DDD Protection] ✅ Trading re-enabled for new day with fresh DDD baseline")
                         else:
                             # Normal new day transition - sync with MT5
-                            sim_date = self.mt5.get_current_time().date() if hasattr(self.mt5, 'get_current_time') else None
-                            self.challenge_manager.sync_with_mt5(current_balance, current_equity, sim_date=sim_date)
+                            self.challenge_manager.sync_with_mt5(current_balance, current_equity, sim_date=today)
+                            self.challenge_manager.current_date = today
+                            self.challenge_manager._save_state()
                     
                     day_start_equity = self.challenge_manager.day_start_equity
                     if day_start_equity <= 0:
@@ -630,9 +633,10 @@ class LiveTradingBot:
                     
                     # Get all DDD thresholds from config
                     warning_pct = getattr(FIVEERS_CONFIG, "daily_loss_warning_pct", 2.0)
-                    reduce_pct = getattr(FIVEERS_CONFIG, "daily_loss_reduce_pct", 3.0)
-                    halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.5)
-                    
+                    reduce_pct = getattr(FIVEERS_CONFIG, "daily_loss_reduce_pct", 2.5)
+                    base_halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.2)
+                    halt_pct = base_halt_pct
+
                     # === ALSO CHECK TDD (Total DrawDown) ===
                     # TDD is calculated from INITIAL balance (not day start)
                     starting_balance = self.challenge_manager.starting_balance
@@ -641,6 +645,25 @@ class LiveTradingBot:
                     else:
                         total_dd_pct = 0.0
                     tdd_halt_pct = 10.0  # 5ers: 10% max total drawdown
+
+                    # Dynamic DDD halt - tighten if many positions open
+                    _n_positions = len(self.mt5._positions) if hasattr(self.mt5, '_positions') else 0
+                    if _n_positions > 5:
+                        halt_pct = min(halt_pct, base_halt_pct - 0.4)
+                    # TDD buffer guard: ensure DDD halt fires BEFORE the TDD floor is hit.
+                    # Computed in DOLLARS to avoid denominator mismatch (TDD% is vs starting
+                    # balance; DDD% is vs day_start which changes daily).
+                    tdd_floor_dollar = starting_balance * (1 - tdd_halt_pct / 100)
+                    if day_start_equity > tdd_floor_dollar:
+                        _max_loss_to_tdd_dollar = day_start_equity - tdd_floor_dollar
+                        _max_ddd_from_tdd = max(1.0, (_max_loss_to_tdd_dollar * 0.5) / day_start_equity * 100)
+                    else:
+                        _max_ddd_from_tdd = 1.0
+                    halt_pct = min(halt_pct, _max_ddd_from_tdd)
+                    if halt_pct < base_halt_pct:
+                        scale = halt_pct / base_halt_pct
+                        warning_pct = min(warning_pct, round(2.0 * scale, 2))
+                        reduce_pct = min(reduce_pct, round(2.5 * scale, 2))
                     
                     # Log status only every 5 min OR when DDD/TDD changes significantly
                     import time as time_module
@@ -653,7 +676,7 @@ class LiveTradingBot:
                     
                     if ddd_changed or tdd_changed or time_elapsed:
                         log.info(f"[DDD/TDD Protection] Equity: ${current_equity:,.2f} | Day Start: ${day_start_equity:,.2f} | Starting: ${starting_balance:,.2f}")
-                        log.info(f"[DDD/TDD Protection] DDD: {daily_loss_pct:.2f}% (warn: {warning_pct}%, reduce: {reduce_pct}%, halt: {halt_pct}%) | TDD: {total_dd_pct:.2f}% (halt at {tdd_halt_pct:.2f}%)")
+                        log.info(f"[DDD/TDD Protection] DDD: {daily_loss_pct:.2f}% (warn: {warning_pct:.2f}%, reduce: {reduce_pct:.2f}%, halt: {halt_pct:.2f}%) | TDD: {total_dd_pct:.2f}% (halt at {tdd_halt_pct:.2f}%)")
                         last_log_time = now
                         self._last_logged_ddd = daily_loss_pct
                         self._last_logged_tdd = total_dd_pct
@@ -670,7 +693,7 @@ class LiveTradingBot:
                         
                         self.ddd_halted = True
                         self.ddd_halt_reason = f"TDD {total_dd_pct:.2f}% >= {tdd_halt_pct:.2f}% - ACCOUNT BREACHED"
-                        self.ddd_halt_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                        self.ddd_halt_date = today_str
                         self._save_ddd_halt_state()  # Persist halt state
                         log.error(f"  🛑 TRADING PERMANENTLY HALTED. {self.ddd_halt_reason}")
                         sleep(60)  # Sleep longer - this is permanent
@@ -699,7 +722,7 @@ class LiveTradingBot:
                         # Set a flag to halt trading until next day
                         self.ddd_halted = True
                         self.ddd_halt_reason = f"DDD {daily_loss_pct:.2f}% >= {halt_pct:.2f}%"
-                        self.ddd_halt_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                        self.ddd_halt_date = today_str
                         self._save_ddd_halt_state()  # Persist halt state for restart survival
                         log.error(f"  🛑 Trading halted until next day. Reason: {self.ddd_halt_reason}")
                         # Sleep longer to avoid repeated closes
@@ -4699,20 +4722,11 @@ class LiveTradingBot:
                     action.executed = True
                 
                 elif action.action == ActionType.REDUCE_RISK:
-                    # Risk is already reduced in challenge_risk_manager via risk_mode
-                    # Just log and cancel pending orders to reduce exposure
-                    log.warning(f"[RISK] Risk REDUCED (risk mode: conservative): {action.reason}")
-                    
-                    # Cancel pending orders to reduce exposure
-                    pending_orders = self.mt5.get_my_pending_orders()
-                    if pending_orders:
-                        log.warning(f"  Cancelling {len(pending_orders)} pending orders to reduce exposure...")
-                        for order in pending_orders:
-                            try:
-                                self.mt5.cancel_pending_order(order.ticket)
-                                log.info(f"  ✓ Cancelled pending order {order.ticket} ({order.symbol})")
-                            except Exception as e:
-                                log.error(f"  ✗ Failed to cancel {order.ticket}: {e}")
+                    # Risk is already reduced via graduated TDD risk system (0.4%/0.25% lot sizing).
+                    # Pending limit orders don't increase current exposure — they only fill if
+                    # price returns to entry, at which point lot size is already reduced.
+                    # Do NOT cancel pending orders here; that would defeat the purpose of scanning.
+                    log.warning(f"[RISK] Risk mode conservative — lot sizes already reduced per TDD tier. {action.reason}")
                     action.executed = True
                     
             except Exception as e:
