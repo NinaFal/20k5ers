@@ -68,25 +68,37 @@ def resolve_symbol(symbol: str) -> str | None:
 
 
 def download_symbol_tf(symbol: str, broker_symbol: str, tf_name: str, tf_const: int) -> bool:
-    rates = mt5.copy_rates_range(broker_symbol, tf_const, START_DATE, END_DATE)
-    if rates is None or len(rates) == 0:
-        print(f"  [{symbol} {tf_name}] No data returned — error: {mt5.last_error()}")
-        return False
+    # Download year by year to avoid MT5's per-request bar limit
+    current_year = END_DATE.year
+    any_data = False
+    for year in range(START_DATE.year, current_year + 1):
+        year_start = datetime(year, 1, 1, tzinfo=timezone.utc)
+        year_end   = datetime(year, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 
-    df = pd.DataFrame(rates)
-    df['time'] = pd.to_datetime(df['time'], unit='s', utc=True)
-    df = df[['time', 'open', 'high', 'low', 'close', 'tick_volume']].rename(
-        columns={'tick_volume': 'volume'}
-    )
-    df = df.sort_values('time').reset_index(drop=True)
-
-    # Split by year so files stay manageable
-    for year, group in df.groupby(df['time'].dt.year):
         fname = OUTPUT_DIR / f"{symbol}_{tf_name}_{year}.csv"
-        group.to_csv(fname, index=False)
-        print(f"  [{symbol} {tf_name}] {year}: {len(group):,} bars → {fname.name}")
+        if fname.exists():
+            print(f"  [{symbol} {tf_name}] {year}: already exists, skipping")
+            any_data = True
+            continue
 
-    return True
+        rates = mt5.copy_rates_range(broker_symbol, tf_const, year_start, year_end)
+        if rates is None or len(rates) == 0:
+            err = mt5.last_error()
+            if err[0] != 0:
+                print(f"  [{symbol} {tf_name}] {year}: no data ({err[1]})")
+            continue
+
+        df = pd.DataFrame(rates)
+        df['time'] = pd.to_datetime(df['time'], unit='s', utc=True)
+        df = df[['time', 'open', 'high', 'low', 'close', 'tick_volume']].rename(
+            columns={'tick_volume': 'volume'}
+        )
+        df = df.sort_values('time').reset_index(drop=True)
+        df.to_csv(fname, index=False)
+        print(f"  [{symbol} {tf_name}] {year}: {len(df):,} bars → {fname.name}")
+        any_data = True
+
+    return any_data
 
 
 def main():
