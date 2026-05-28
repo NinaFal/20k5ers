@@ -1005,6 +1005,8 @@ class LiveTradingBot:
         self._weekend_paused_orders: list = []  # Pending orders cancelled for weekend
         self._weekend_resume_done: bool = False  # Track if Monday resume already ran
         self._holiday_closing_done: bool = False  # Track if holiday position safety already ran
+        self._rollover_queued_setups: Dict[str, Dict] = {}  # Setups blocked by rollover, re-placed after 22:30 UTC
+        self._was_in_rollover: bool = False  # Track rollover state transitions
         
         # Limit order compounding - update lot sizes every 30 minutes based on current equity
         self.last_limit_order_update: Optional[datetime] = None
@@ -1604,7 +1606,27 @@ class LiveTradingBot:
         }
         self._save_awaiting_spread()
         log.info(f"[{symbol}] Added to spread queue - waiting for better conditions")
-    
+
+    def _place_rollover_queued_setups(self):
+        """Re-place all setups that were blocked by the rollover window (21:30-22:30 UTC)."""
+        if not self._rollover_queued_setups:
+            return
+        total = len(self._rollover_queued_setups)
+        log.info(f"⏰ Rollover ended — placing {total} queued setup(s)")
+        placed = 0
+        for symbol, setup in list(self._rollover_queued_setups.items()):
+            broker_symbol = self.symbol_map.get(symbol, symbol)
+            if self.check_existing_position(broker_symbol):
+                log.info(f"[{symbol}] Already in position, skipping post-rollover placement")
+            elif self.place_setup_order(setup, check_spread=True, skip_proximity_check=True):
+                log.info(f"[{symbol}] ✅ Post-rollover order placed")
+                placed += 1
+            else:
+                log.warning(f"[{symbol}] Post-rollover placement failed, queuing for entry check")
+                self.add_to_awaiting_entry(setup)
+            del self._rollover_queued_setups[symbol]
+        log.info(f"⏰ Post-rollover: placed {placed}/{total} orders")
+
     def check_awaiting_spread_signals(self):
         """
         Check signals waiting for better spread.
@@ -4936,7 +4958,8 @@ class LiveTradingBot:
             in_rollover = (now_utc.hour == 21 and now_utc.minute >= 30) or \
                           (now_utc.hour == 22 and now_utc.minute < 30)
             if in_rollover:
-                log.info(f"[{symbol}] New entry blocked — rollover window (21:30-22:30 UTC)")
+                log.info(f"[{symbol}] New entry blocked — rollover window (21:30-22:30 UTC), queuing for post-rollover placement")
+                self._rollover_queued_setups[symbol] = setup
                 return False
             
             # NOTE: NO cumulative risk check - removed to match simulator
@@ -6340,6 +6363,15 @@ class LiveTradingBot:
                     time.sleep(60)
                     continue
                 
+                # ═══════════════════════════════════════════════════════════════
+                # POST-ROLLOVER QUEUE — fire once when rollover window ends
+                # ═══════════════════════════════════════════════════════════════
+                _in_rollover_now = (now.hour == 21 and now.minute >= 30) or \
+                                   (now.hour == 22 and now.minute < 30)
+                if self._was_in_rollover and not _in_rollover_now:
+                    self._place_rollover_queued_setups()
+                self._was_in_rollover = _in_rollover_now
+
                 # ═══════════════════════════════════════════════════════════════
                 # SPREAD QUEUE CHECK - Every SPREAD_CHECK_INTERVAL_MINUTES
                 # ═══════════════════════════════════════════════════════════════
