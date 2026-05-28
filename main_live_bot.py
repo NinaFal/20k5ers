@@ -3022,6 +3022,7 @@ class LiveTradingBot:
                         "entry_distance_r": setup.entry_distance_r,
                         "created_at": setup.created_at,
                         "current_price": 0,
+                        "force_limit": True,
                     })
             
             elif setup.status == "filled":
@@ -5000,7 +5001,7 @@ class LiveTradingBot:
                           (now_utc.hour == 22 and now_utc.minute < 30)
             if in_rollover:
                 log.info(f"[{symbol}] New entry blocked — rollover window (21:30-22:30 UTC), queuing for post-rollover placement")
-                self._rollover_queued_setups[symbol] = setup
+                self._rollover_queued_setups[symbol] = {**setup, "force_limit": True}
                 return False
             
             # NOTE: NO cumulative risk check - removed to match simulator
@@ -5039,7 +5040,7 @@ class LiveTradingBot:
             self.add_to_awaiting_entry(setup)
             return False
         
-        if entry_distance_r <= FIVEERS_CONFIG.immediate_entry_r:
+        if not setup.get("force_limit") and entry_distance_r <= FIVEERS_CONFIG.immediate_entry_r:
             order_type = "MARKET"
             log.info(f"[{symbol}] Price at entry ({entry_distance_r:.2f}R) - using MARKET ORDER")
             
