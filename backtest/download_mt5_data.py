@@ -13,7 +13,7 @@ The CSV files are what the backtest simulator reads from data/ohlcv/.
 import sys
 import os
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime
 import pandas as pd
 
 # Add project root to path
@@ -44,8 +44,8 @@ TIMEFRAMES = {
     'W1':  mt5.TIMEFRAME_W1,
 }
 
-START_DATE = datetime(2010, 1, 1, tzinfo=timezone.utc)
-END_DATE   = datetime.now(timezone.utc)
+START_YEAR = 2010
+END_YEAR   = datetime.now().year
 
 OUTPUT_DIR = Path(__file__).parent / "src" / "data" / "ohlcv"
 
@@ -68,12 +68,12 @@ def resolve_symbol(symbol: str) -> str | None:
 
 
 def download_symbol_tf(symbol: str, broker_symbol: str, tf_name: str, tf_const: int) -> bool:
-    # Download year by year to avoid MT5's per-request bar limit
-    current_year = END_DATE.year
+    # Download year by year to avoid MT5's per-request bar limit.
+    # MT5 requires naive datetime objects (no tzinfo) — it treats all times as UTC.
     any_data = False
-    for year in range(START_DATE.year, current_year + 1):
-        year_start = datetime(year, 1, 1, tzinfo=timezone.utc)
-        year_end   = datetime(year, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+    for year in range(START_YEAR, END_YEAR + 1):
+        year_start = datetime(year, 1, 1)
+        year_end   = datetime(year, 12, 31, 23, 59, 59)
 
         fname = OUTPUT_DIR / f"{symbol}_{tf_name}_{year}.csv"
         if fname.exists():
@@ -112,7 +112,7 @@ def main():
     info = mt5.account_info()
     print(f"Connected: {info.name} | Server: {info.server} | Balance: ${info.balance:,.2f}")
     print(f"Downloading {len(SYMBOLS)} symbols × {len(TIMEFRAMES)} timeframes")
-    print(f"Range: {START_DATE.date()} → {END_DATE.date()}")
+    print(f"Range: {START_YEAR} → {END_YEAR}")
     print(f"Output: {OUTPUT_DIR}\n")
 
     failed = []
