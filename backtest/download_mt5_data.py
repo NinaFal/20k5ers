@@ -51,10 +51,26 @@ OUTPUT_DIR = Path(__file__).parent / "src" / "data" / "ohlcv"
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
-def download_symbol_tf(symbol: str, tf_name: str, tf_const: int) -> bool:
-    rates = mt5.copy_rates_range(symbol, tf_const, START_DATE, END_DATE)
+def resolve_symbol(symbol: str) -> str | None:
+    """Find the actual broker symbol name (handles suffixes like 'm', '.', etc.)."""
+    # Try exact name first
+    if mt5.symbol_info(symbol) is not None:
+        mt5.symbol_select(symbol, True)
+        return symbol
+    # Search all broker symbols for a match (e.g. 'EURUSDm', 'EURUSD.')
+    all_symbols = mt5.symbols_get()
+    if all_symbols:
+        for s in all_symbols:
+            if s.name.upper().startswith(symbol.upper()) or s.name.upper() == symbol.upper():
+                mt5.symbol_select(s.name, True)
+                return s.name
+    return None
+
+
+def download_symbol_tf(symbol: str, broker_symbol: str, tf_name: str, tf_const: int) -> bool:
+    rates = mt5.copy_rates_range(broker_symbol, tf_const, START_DATE, END_DATE)
     if rates is None or len(rates) == 0:
-        print(f"  [{symbol} {tf_name}] No data returned (symbol may not exist on this broker)")
+        print(f"  [{symbol} {tf_name}] No data returned — error: {mt5.last_error()}")
         return False
 
     df = pd.DataFrame(rates)
@@ -89,9 +105,15 @@ def main():
 
     failed = []
     for symbol in SYMBOLS:
-        print(f"→ {symbol}")
+        broker_symbol = resolve_symbol(symbol)
+        if broker_symbol is None:
+            print(f"→ {symbol} — NOT FOUND on broker (skipping all timeframes)")
+            failed.append(symbol)
+            continue
+        label = f"{symbol} ({broker_symbol})" if broker_symbol != symbol else symbol
+        print(f"→ {label}")
         for tf_name, tf_const in TIMEFRAMES.items():
-            ok = download_symbol_tf(symbol, tf_name, tf_const)
+            ok = download_symbol_tf(symbol, broker_symbol, tf_name, tf_const)
             if not ok:
                 failed.append(f"{symbol}_{tf_name}")
 
