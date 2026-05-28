@@ -2996,14 +2996,16 @@ class LiveTradingBot:
         
         # 1. Clean up pending_setups that no longer exist in MT5
         orphaned_setups = []
+        orphaned_to_replace = []  # (symbol, PendingSetup) tuples — re-place after cleanup
         for symbol, setup in list(self.pending_setups.items()):
             broker_symbol = self.symbol_map.get(symbol, symbol)
 
             if setup.status == "pending":
                 # Check if pending order still exists
                 if setup.order_ticket and setup.order_ticket not in pending_order_tickets:
-                    log.warning(f"[{symbol}] Orphaned pending setup (order {setup.order_ticket} not in MT5) - removing, next scan will re-place")
+                    log.warning(f"[{symbol}] Orphaned pending setup (order {setup.order_ticket} not in MT5) - removing, will re-place")
                     orphaned_setups.append(symbol)
+                    orphaned_to_replace.append((symbol, setup))
             
             elif setup.status == "filled":
                 # Check if position still exists
@@ -3058,7 +3060,41 @@ class LiveTradingBot:
         if orphaned_setups:
             self._save_pending_setups()
             log.info(f"Cleaned up {len(orphaned_setups)} orphaned setups")
-        
+
+        # Re-place orphaned pending setups with live entry_distance_r (same as daily scan)
+        if orphaned_to_replace:
+            now_utc = datetime.now(timezone.utc)
+            _in_rollover = (now_utc.hour == 21 and now_utc.minute >= 30) or \
+                           (now_utc.hour == 22 and now_utc.minute < 30)
+            if _in_rollover:
+                log.info(f"⏰ Rollover active on startup — queuing {len(orphaned_to_replace)} orphaned setup(s) for post-rollover placement")
+                for sym, ps in orphaned_to_replace:
+                    setup_dict = ps.to_dict()
+                    setup_dict["force_limit"] = True
+                    self._rollover_queued_setups[sym] = setup_dict
+            else:
+                log.info(f"🔄 Re-placing {len(orphaned_to_replace)} orphaned pending setup(s) on startup")
+                from ftmo_config import get_pip_size
+                for sym, ps in orphaned_to_replace:
+                    broker_sym = self.symbol_map.get(sym, sym)
+                    tick = self.mt5.get_tick(broker_sym)
+                    if tick is None:
+                        log.warning(f"[{sym}] Cannot get tick on startup — skipping re-placement")
+                        continue
+                    risk = abs(ps.entry_price - ps.stop_loss)
+                    if risk <= 0:
+                        log.warning(f"[{sym}] Invalid risk on startup re-place — skipping")
+                        continue
+                    cur_price = tick.bid if ps.direction == "bullish" else tick.ask
+                    live_distance_r = abs(cur_price - ps.entry_price) / risk
+                    setup_dict = ps.to_dict()
+                    setup_dict["entry_distance_r"] = live_distance_r
+                    setup_dict["current_price"] = cur_price
+                    setup_dict["broker_symbol"] = broker_sym
+                    setup_dict["force_limit"] = True  # Never market on startup
+                    log.info(f"[{sym}] Startup re-place: live distance {live_distance_r:.2f}R from entry")
+                    self.place_setup_order(setup_dict, check_spread=True, skip_proximity_check=False)
+
         # 2. Clean up expired signals in awaiting_entry
         now = datetime.now(timezone.utc)
         expired_entry = []
