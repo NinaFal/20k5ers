@@ -5219,7 +5219,51 @@ class LiveTradingBot:
         day_start_equity = self.initial_balance
         safety_events = []
         trading_halted_today = False
-        
+
+        # ── TERMINAL-ON-BREACH ───────────────────────────────────────────────
+        # 5ers reality: the FIRST 5% daily-drawdown breach permanently ends the
+        # account. The simulator previously logged the breach and traded on,
+        # which makes the 50k→$4M scaling path fiction. When enabled (default),
+        # the run stops at the first daily breach and records where it died.
+        # Set env TERMINAL_ON_BREACH=0 to restore the old "trade through" mode
+        # for A/B comparison.
+        terminal_on_breach = os.getenv("TERMINAL_ON_BREACH", "1").strip().lower() \
+            not in ("0", "false", "no", "off")
+        account_failed = False
+        fail_info = None
+
+        # Normalize the run start so we can report survival in days.
+        _t0 = timeline[0]
+        if hasattr(_t0, 'to_pydatetime'):
+            _t0 = _t0.to_pydatetime()
+        if getattr(_t0, 'tzinfo', None) is None:
+            _t0 = _t0.replace(tzinfo=timezone.utc)
+        run_start_dt = _t0
+
+        def _register_breach(when, ddd_value, source):
+            """Record a 5% daily-drawdown breach as a terminal account failure."""
+            nonlocal account_failed, fail_info
+            if account_failed:
+                return
+            funded = getattr(self.mt5, '_funded_level', self.initial_balance)
+            try:
+                survived = (when - run_start_dt).days
+            except Exception:
+                survived = None
+            fail_info = {
+                'failed': True,
+                'reason': f'5% daily drawdown breached ({ddd_value:.2f}%) [{source}]',
+                'time': str(when),
+                'funded_level_at_failure': round(funded, 2),
+                'ddd_pct_at_failure': round(ddd_value, 2),
+                'survived_days': survived,
+            }
+            account_failed = True
+            log.error("=" * 70)
+            log.error(f"🛑 ACCOUNT FAILED — 5% DAILY BREACH at {when}")
+            log.error(f"   DDD {ddd_value:.2f}% | Funded ${funded:,.0f} | Survived {survived} days")
+            log.error("=" * 70)
+
         pbar = tqdm(timeline, desc="Backtesting", mininterval=1.0)
         
         for current_time in pbar:
@@ -5342,6 +5386,22 @@ class LiveTradingBot:
             ddd_pct = max(0, (day_start_equity - equity) / day_start_equity * 100) if day_start_equity > 0 else 0
             max_ddd = max(max_ddd, ddd_pct)
 
+            # === TERMINAL 5% DAILY BREACH (equity basis) ===
+            # Equity is mark-to-market (incl. floating PnL), exactly what 5ers
+            # measures DDD against. If a gap/spike puts us >=5% below day-start
+            # equity before the 3.2% halt could close out, the account is dead.
+            if ddd_pct >= 5.0 and not account_failed:
+                _register_breach(current_time, ddd_pct, 'bar')
+                safety_events.append({
+                    'time': str(current_time),
+                    'type': 'DDD_HALT',
+                    'ddd_pct': ddd_pct,
+                    'breach_5pct': True,
+                })
+                self._emergency_close_all()
+                if terminal_on_breach:
+                    break  # account terminated — stop the run
+
             # === TIER 3: DDD >= 3.5% → CLOSE ALL + HALT ===
             if ddd_pct >= halt_pct and not trading_halted_today:
                 log.warning(f"🚨 DDD TIER 3 HALT at {current_time}: {ddd_pct:.1f}% >= {halt_pct}%")
@@ -5437,6 +5497,7 @@ class LiveTradingBot:
                         log.warning(f"  💸 Close commission: ${close_comm:.2f} | Actual DDD: {actual_ddd:.2f}%")
                         if actual_ddd >= 5.0:
                             log.error(f"  ⚠️ 5ERS BREACH: DDD {actual_ddd:.2f}% >= 5.0%!")
+                            _register_breach(current_time, actual_ddd, 'midbar')
                         trading_halted_today = True
                         self.ddd_halted = True
                         safety_events.append({
@@ -5448,6 +5509,10 @@ class LiveTradingBot:
                             'breach_5pct': actual_ddd >= 5.0,
                         })
                         break
+
+            # Terminal breach detected during mid-bar SL processing — stop the run.
+            if account_failed and terminal_on_breach:
+                break
 
             if not trading_halted_today:
                 for hit in tp_hits:
@@ -5643,6 +5708,10 @@ class LiveTradingBot:
             'fiveers_final_funded_level': round(final_funded_level, 2),
             'fiveers_scaling_events': len(scaling_log),
             'fiveers_scaling_log': scaling_log,
+            # Terminal-on-breach outcome (5ers reality: 1st 5% daily breach = dead)
+            'terminal_on_breach': terminal_on_breach,
+            'account_failed': account_failed,
+            'fail_info': fail_info,
         }
         
         # Print results
@@ -5674,6 +5743,15 @@ class LiveTradingBot:
         print(f"   DDD reduces (>=3%): {results['ddd_reduces']}")
         print(f"   DDD halts (>=3.5%): {results['ddd_halts']}")
         print(f"   TDD stop-outs (>=10%): {results['tdd_stopouts']}")
+
+        print(f"\n🏁 CHALLENGE OUTCOME (terminal_on_breach={terminal_on_breach}):")
+        if account_failed:
+            print(f"   🛑 ACCOUNT FAILED — {fail_info['reason']}")
+            print(f"      Died: {fail_info['time']}")
+            print(f"      Funded level at failure: ${fail_info['funded_level_at_failure']:,.0f}")
+            print(f"      Survived: {fail_info['survived_days']} days from start")
+        else:
+            print(f"   ✅ Survived the full period with no 5% daily breach.")
 
         print(f"\n🏦 5ers SCALING (with $4M cap):")
         print(f"   Final funded level: ${results['fiveers_final_funded_level']:,.0f}")

@@ -437,6 +437,8 @@ class CSVMT5Simulator:
                 if df.empty:
                     continue
 
+                # Drop duplicate timestamps (keep last — MT5 data sometimes has DST dupes)
+                df = df.drop_duplicates(subset='time', keep='last')
                 df_indexed = df.set_index('time')[['open', 'high', 'low', 'close', 'volume']].to_dict('index')
                 self._m15_indexed[symbol] = df_indexed
 
@@ -730,14 +732,19 @@ class CSVMT5Simulator:
         try:
             # Multiple year files (e.g. EURUSD_M15_2015.csv, EURUSD_M15_2016.csv, ...)
             # → concatenate all of them so the full history is available.
+            # Lowercase columns BEFORE concat to avoid mixed-case column merging (NaN issue).
+            def _read_norm(path):
+                d = pd.read_csv(path, parse_dates=['time'])
+                d.columns = [c.lower() for c in d.columns]
+                return d
+
             if len(candidates) == 1:
-                df = pd.read_csv(candidates[0], parse_dates=['time'])
+                df = _read_norm(candidates[0])
             else:
                 df = pd.concat(
-                    [pd.read_csv(f, parse_dates=['time']) for f in candidates],
+                    [_read_norm(f) for f in candidates],
                     ignore_index=True,
                 )
-            df.columns = [c.lower() for c in df.columns]
             df = df.sort_values('time').reset_index(drop=True)
 
             # DATE FILTER: If date range is set, trim higher-TF data too
