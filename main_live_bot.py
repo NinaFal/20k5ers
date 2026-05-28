@@ -2996,34 +2996,14 @@ class LiveTradingBot:
         
         # 1. Clean up pending_setups that no longer exist in MT5
         orphaned_setups = []
-        setups_to_replace: list = []  # Orphaned pending setups to re-place as fresh limit orders
         for symbol, setup in list(self.pending_setups.items()):
             broker_symbol = self.symbol_map.get(symbol, symbol)
 
             if setup.status == "pending":
                 # Check if pending order still exists
                 if setup.order_ticket and setup.order_ticket not in pending_order_tickets:
-                    log.warning(f"[{symbol}] Orphaned pending setup (order {setup.order_ticket} not in MT5) - will re-place")
+                    log.warning(f"[{symbol}] Orphaned pending setup (order {setup.order_ticket} not in MT5) - removing, next scan will re-place")
                     orphaned_setups.append(symbol)
-                    # Convert PendingSetup → setup dict for place_setup_order
-                    setups_to_replace.append({
-                        "symbol": setup.symbol,
-                        "broker_symbol": broker_symbol,
-                        "direction": setup.direction,
-                        "entry": setup.entry_price,
-                        "stop_loss": setup.stop_loss,
-                        "tp1": setup.tp1,
-                        "tp2": setup.tp2,
-                        "tp3": setup.tp3,
-                        "tp4": setup.tp4,
-                        "tp5": setup.tp5,
-                        "confluence": setup.confluence,
-                        "quality_factors": setup.quality_factors,
-                        "entry_distance_r": setup.entry_distance_r,
-                        "created_at": setup.created_at,
-                        "current_price": 0,
-                        "force_limit": True,
-                    })
             
             elif setup.status == "filled":
                 # Check if position still exists
@@ -3134,33 +3114,11 @@ class LiveTradingBot:
         # This handles positions opened when bot was down or crashed after fill.
         recovered_count = self._recover_orphaned_positions(my_positions)
 
-        # Re-place orphaned pending setups as fresh limit orders
-        replaced_count = 0
-        if setups_to_replace:
-            now_utc = datetime.now(timezone.utc)
-            _in_rollover = (now_utc.hour == 21 and now_utc.minute >= 30) or \
-                           (now_utc.hour == 22 and now_utc.minute < 30)
-            if _in_rollover:
-                log.info(f"⏰ Rollover active — queuing {len(setups_to_replace)} orphaned setup(s) for post-rollover placement")
-                for s in setups_to_replace:
-                    self._rollover_queued_setups[s["symbol"]] = s
-            else:
-                log.info(f"🔄 Re-placing {len(setups_to_replace)} orphaned pending setup(s) as limit orders")
-                for s in setups_to_replace:
-                    if self.place_setup_order(s, check_spread=True, skip_proximity_check=True):
-                        replaced_count += 1
-                        log.info(f"[{s['symbol']}] ✅ Re-placed as limit order on startup")
-                    else:
-                        log.warning(f"[{s['symbol']}] Re-placement failed — adding to entry queue")
-                        self.add_to_awaiting_entry(s)
-
         log.info("=" * 70)
         log.info(f"✅ STARTUP SYNC COMPLETE")
         log.info(f"  Active pending_setups: {len(self.pending_setups)}")
         log.info(f"  Active awaiting_entry: {len(self.awaiting_entry)}")
         log.info(f"  Active awaiting_spread: {len(self.awaiting_spread)}")
-        if replaced_count > 0:
-            log.info(f"  🔄 Re-placed orphaned orders: {replaced_count}/{len(setups_to_replace)}")
         if recovered_pending_count > 0:
             log.info(f"  ⚠️ Recovered orphaned pending orders: {recovered_pending_count}")
         if recovered_count > 0:
