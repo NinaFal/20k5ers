@@ -104,10 +104,13 @@ def download_symbol_tf(symbol: str, broker_symbol: str, tf_name: str, tf_const: 
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    if not mt5.initialize():
+    print("Connecting to MT5...", flush=True)
+    # timeout=30000ms so it doesn't hang forever if MT5 is busy
+    if not mt5.initialize(timeout=30000):
         print(f"MT5 initialize() failed: {mt5.last_error()}")
         print("Make sure MT5 is running and logged in to your 5ers account.")
         sys.exit(1)
+    print("Connected.", flush=True)
 
     info = mt5.account_info()
     print(f"Connected: {info.name} | Server: {info.server} | Balance: ${info.balance:,.2f}")
