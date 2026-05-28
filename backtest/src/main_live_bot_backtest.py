@@ -1041,7 +1041,7 @@ class LiveTradingBot:
                  custom_params: dict = None):
         """
         Initialize backtest bot.
-        
+
         Args:
             immediate_scan: Ignored in backtest mode
             data_dir: Directory with CSV data files
@@ -1053,7 +1053,21 @@ class LiveTradingBot:
         self.ddd_halted = False
         self.ddd_halt_reason = ""
         self.ddd_halt_date: Optional[str] = None  # Track which day the halt occurred
-        
+
+        # BACKTEST MODE: Use an isolated temp directory for all state files so the
+        # live bot's state (pending_setups.json, challenge_state.json, etc.) is never
+        # touched. A fresh directory is created per backtest run.
+        import tempfile
+        self._backtest_state_dir = Path(tempfile.mkdtemp(prefix="backtest_state_"))
+        self.PENDING_SETUPS_FILE   = str(self._backtest_state_dir / "pending_setups.json")
+        self.TRADING_DAYS_FILE     = str(self._backtest_state_dir / "trading_days.json")
+        self.FIRST_RUN_FLAG_FILE   = str(self._backtest_state_dir / "first_run_complete.flag")
+        self.AWAITING_SPREAD_FILE  = str(self._backtest_state_dir / "awaiting_spread.json")
+        self.AWAITING_ENTRY_FILE   = str(self._backtest_state_dir / "awaiting_entry.json")
+        self.DDD_HALT_STATE_FILE   = str(self._backtest_state_dir / "ddd_halt_state.json")
+        self.CLOSED_TODAY_FILE     = str(self._backtest_state_dir / "closed_today.json")
+        log.info(f"Backtest state dir: {self._backtest_state_dir} (isolated from live bot)")
+
         # BACKTEST MODE: Use CSV simulator instead of real MT5
         self.mt5 = MT5Client(
             server=MT5_SERVER,
@@ -1062,17 +1076,17 @@ class LiveTradingBot:
             data_dir=data_dir,
             initial_balance=initial_balance,
         )
-        
+
         # Enable simulator time for log timestamps
         set_simulator_for_logging(self.mt5)
-        
+
         # Backtest date range
         self.start_date = start_date or datetime(2023, 1, 1, tzinfo=timezone.utc)
         self.end_date = end_date or datetime(2025, 12, 31, tzinfo=timezone.utc)
         self.initial_balance = initial_balance
         self._original_initial_balance = initial_balance  # Never changes, used for final PnL calc
 
-        self.risk_manager = RiskManager(state_file="challenge_state.json")
+        self.risk_manager = RiskManager(state_file=str(self._backtest_state_dir / "challenge_state.json"))
         # STRICT: Load params (merged with defaults) - no fallback to dataclass defaults
         # load_best_params_from_file() returns StrategyParams with defaults merged
         # If custom_params provided (from optimizer), overlay those on top
@@ -2664,12 +2678,8 @@ class LiveTradingBot:
                     profit_ultra_safe_threshold_pct=FIVEERS_CONFIG.profit_ultra_safe_threshold_pct,
                     ultra_safe_risk_pct=FIVEERS_CONFIG.ultra_safe_risk_pct,
                 )
-                # BACKTEST: Use a temp state file to avoid conflicts with live state
-                import tempfile
-                backtest_state_file = Path(tempfile.gettempdir()) / "backtest_challenge_state.json"
-                # Remove old backtest state to ensure fresh start
-                if backtest_state_file.exists():
-                    backtest_state_file.unlink()
+                # BACKTEST: Use isolated state dir (same one created in __init__)
+                backtest_state_file = self._backtest_state_dir / "challenge_risk_state.json"
                 
                 self.challenge_manager = ChallengeRiskManager(
                     config=config,

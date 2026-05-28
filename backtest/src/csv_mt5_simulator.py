@@ -469,7 +469,9 @@ class CSVMT5Simulator:
             end_ts = end_ts.tz_localize('UTC')
         
         all_times = set()
-        for symbol in list(self._m15_indexed.keys())[:5]:  # Sample from first 5
+        # Use all symbols to build timeline — [:5] sampling caused missing bars when
+        # cache was stale or a symbol had sparse data in that range.
+        for symbol in self._m15_indexed:
             for t in self._m15_indexed[symbol].keys():
                 if start_ts <= t <= end_ts:
                     all_times.add(t)
