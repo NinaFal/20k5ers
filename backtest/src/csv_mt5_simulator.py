@@ -721,21 +721,22 @@ class CSVMT5Simulator:
             for name in [f"{symbol}_{timeframe}.csv", f"{symbol_no_underscore}_{timeframe}.csv"]:
                 p = self.data_dir / name
                 if p.exists():
-                    filepath = p
+                    candidates = [p]
                     break
-        else:
-            # Pick the file whose name contains the earliest start year
-            import re
-            def _start_year(p):
-                m = re.search(r'_(\d{4})_\d{4}', p.stem)
-                return int(m.group(1)) if m else 9999
-            filepath = min(candidates, key=_start_year)
 
-        if filepath is None:
+        if not candidates:
             return None
 
         try:
-            df = pd.read_csv(filepath, parse_dates=['time'])
+            # Multiple year files (e.g. EURUSD_M15_2015.csv, EURUSD_M15_2016.csv, ...)
+            # → concatenate all of them so the full history is available.
+            if len(candidates) == 1:
+                df = pd.read_csv(candidates[0], parse_dates=['time'])
+            else:
+                df = pd.concat(
+                    [pd.read_csv(f, parse_dates=['time']) for f in candidates],
+                    ignore_index=True,
+                )
             df.columns = [c.lower() for c in df.columns]
             df = df.sort_values('time').reset_index(drop=True)
 
