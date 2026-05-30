@@ -43,6 +43,41 @@ Realistic read: as sized and configured, the strategy breaches the 5% daily
 limit within ~6 months of the 2015 start. Whether that generalises across start
 dates and gap regimes is what #6/#7 measure.
 
+### UPDATE (v6) — the "day 178" death was a HARNESS BUG, not a strategy failure
+
+A third sim bug was found after the items above: the weekend safety handlers
+(`handle_friday_position_closing` etc.) were wrapped in outer `if weekday == …`
+guards. But `handle_friday_position_closing()` only re-arms its once-per-week
+flag (`friday_closing_done`) when called on a **non-Friday**. With the outer
+Friday-only guard, that reset branch was never reached — the flag latched True
+after the very first Friday and the Tier-1 weekend reduction **fired on exactly
+1 Friday in 6 months**. The full-size correlated basket therefore rode
+un-reduced into the 2015-06-28 Greek-referendum weekend gap and breached.
+
+The **live bot does not have this bug** — it calls
+`handle_friday_position_closing()` every protection cycle
+(`main_live_bot.py` ~5052), so the reset runs on non-Fridays and the reducer
+fires weekly as designed. → Fixed in the backtest (commit `cbe6f41`); the
+handlers are now called every cycle and self-gate on simulator time.
+
+**v6 result (Friday-safety fixed, TERMINAL_ON_BREACH=1, 50K start):**
+
+| Metric | v5 (bug present) | v6 (fixed) |
+|---|---|---|
+| Survived | 178 days | **838 days (~2.3y)** |
+| Died | 2015-06-28 (Sun gap) | **2017-04-18 (Tuesday)** |
+| Funded at failure | $125,000 | **$500,000** |
+| Breach DDD | 5.26% | **5.04%** (marginal) |
+| Withdrawn before death | $29,210 | **$394,381** |
+| Friday handler fired | 1 Friday/6mo | **119 Fridays** |
+
+The v6 death is a **Tuesday intraday breach at 5.04%, source `[bar]`** — i.e. it
+tripped the M15 worst-case-intrabar equity assumption by 0.04%. This is the
+textbook **M15-vs-live resolution artifact** (#2): on the live M1 chart with 5s
+polling, the 3.2% halt would almost certainly have closed positions before
+equity reached 5.04%. So the 2017 death is *likely* an artifact and needs the
+#2 M1 re-drive to confirm; the 2015 weekend-gap death is now resolved.
+
 ---
 
 ## Is the live bot "very good"? — read this before concluding that
