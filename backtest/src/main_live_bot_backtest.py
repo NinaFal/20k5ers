@@ -5327,20 +5327,26 @@ class LiveTradingBot:
             weekday = current_time.weekday()
             hour = current_time.hour
 
-            # Friday 19:30+ UTC: Close/reduce positions for weekend
+            # Weekend handlers. These self-gate on day/time using SIMULATOR time
+            # (get_current_time) and own their once-per-week reset flags, so they
+            # must be called every cycle — exactly like the live bot
+            # (main_live_bot.py ~line 5052).
+            #
+            # BUGFIX: previously these were wrapped in outer `if weekday == 4 ...`
+            # guards. handle_friday_position_closing() only resets its
+            # friday_closing_done flag on a NON-Friday call, so with the outer
+            # guard the reset branch was never reached: the flag latched True after
+            # the very first Friday and the weekend reduction NEVER fired again
+            # (log showed it ran on exactly 1 Friday in 6 months). That let the
+            # full-size basket ride into the 2015-06-28 Greek-gap weekend and breach.
             minute = current_time.minute
-            if weekday == 4 and (hour > 19 or (hour == 19 and minute >= 30)):
-                self.handle_friday_position_closing()
-
-            # Sunday 22:00+: Gap detection (forex markets reopen)
-            if weekday == 6 and hour >= 22:
-                self.handle_sunday_gap_detection()
-
-            # Monday morning: Resume paused orders + gap check
+            self.handle_friday_position_closing()   # self-gates (sim time): Friday 19:30+ UTC
+            self.handle_sunday_gap_detection()      # self-gates (sim time): Sunday 22:00+ / Mon <02:00
+            self.handle_monday_order_resume(current_time)  # self-gates (sim time): Monday only
+            # handle_weekend_gap_positions() gates on get_server_time() (wall clock),
+            # which is meaningless under simulation — keep an explicit sim-time guard.
             if weekday == 0 and hour < 2:
                 self.handle_weekend_gap_positions()
-            if weekday == 0:
-                self.handle_monday_order_resume(current_time)
 
             # Skip Saturday entirely + Sunday before 22:00 (market closed)
             if weekday == 5:
