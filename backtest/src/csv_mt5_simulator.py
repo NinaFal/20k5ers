@@ -196,7 +196,19 @@ class CSVMT5Simulator:
         self.password = password
         self.data_dir = Path(data_dir)
         self.spread_pips = spread_pips
-        
+
+        # ── Execution friction (env-gated; defaults reproduce frictionless v5) ──
+        # SLIPPAGE_PIPS: adverse pips added to every entry fill and SL exit.
+        # GAP_FILLS: when a stop/SL trigger is gapped through, fill at the bar
+        #            OPEN (worse) instead of the optimistic exact-trigger price.
+        import os as _os
+        try:
+            self._slippage_pips = float(_os.getenv("SLIPPAGE_PIPS", "0") or "0")
+        except ValueError:
+            self._slippage_pips = 0.0
+        self._gap_fills = _os.getenv("GAP_FILLS", "1").strip().lower() \
+            not in ("0", "false", "no", "off")
+
         self.connected = False
         
         # Account state
@@ -1121,6 +1133,41 @@ class CSVMT5Simulator:
     # SIMULATION HELPERS - Check SL/TP/Order fills on M15 bar
     # ═══════════════════════════════════════════════════════════════════════
     
+    def _pip_size_for(self, symbol: str) -> float:
+        try:
+            from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
+            return get_fiveers_contract_specs(symbol).get('pip_size', 0.0001)
+        except Exception:
+            return 0.0001
+
+    def _adjust_fill_price(self, symbol, order_type, price, bar):
+        """Entry fill price with gap-through (#4) + adverse slippage (#3)."""
+        pip = self._pip_size_for(symbol)
+        slip = self._slippage_pips * pip
+        op = bar.get('open', price)
+        if order_type in (2, 4):  # buy_limit / buy_stop
+            base = price
+            if self._gap_fills and order_type == 4 and op > price:
+                base = op  # buy_stop gapped up -> worse fill at open
+            return base + slip
+        else:  # sell_limit / sell_stop
+            base = price
+            if self._gap_fills and order_type == 5 and op < price:
+                base = op  # sell_stop gapped down -> worse fill at open
+            return base - slip
+
+    def _exit_sl_price(self, pos, bar):
+        """SL exit price with gap-through (#4) + adverse slippage (#3)."""
+        pip = self._pip_size_for(pos.symbol)
+        slip = self._slippage_pips * pip
+        op = bar.get('open', pos.sl)
+        if pos.type == 0:  # buy: worse is lower
+            base = min(pos.sl, op) if self._gap_fills else pos.sl
+            return base - slip
+        else:  # sell: worse is higher
+            base = max(pos.sl, op) if self._gap_fills else pos.sl
+            return base + slip
+
     def check_pending_order_fills(self) -> List[int]:
         """Check if any pending orders should fill on current M15 bar."""
         filled_tickets = []
@@ -1151,6 +1198,8 @@ class CSVMT5Simulator:
             if filled:
                 # Convert to position
                 pos_type = 0 if order.type in (2, 4) else 1
+                # #3/#4: apply gap-through + adverse slippage to the fill price
+                fill_price = self._adjust_fill_price(order.symbol, order.type, order.price, bar)
                 pos = Position(
                     ticket=ticket,
                     symbol=order.symbol,
@@ -1182,16 +1231,16 @@ class CSVMT5Simulator:
             high, low = bar['high'], bar['low']
             
             if pos.type == 0:  # Buy position
-                # SL hit (price drops to SL)
+                # SL hit (price drops to SL) — #3/#4 gap-through + slippage on exit
                 if pos.sl > 0 and low <= pos.sl:
-                    hits.append({'ticket': ticket, 'type': 'sl', 'price': pos.sl})
+                    hits.append({'ticket': ticket, 'type': 'sl', 'price': self._exit_sl_price(pos, bar)})
                 # TP hit (price rises to TP)
                 elif pos.tp > 0 and high >= pos.tp:
                     hits.append({'ticket': ticket, 'type': 'tp', 'price': pos.tp})
             else:  # Sell position
-                # SL hit (price rises to SL)
+                # SL hit (price rises to SL) — #3/#4 gap-through + slippage on exit
                 if pos.sl > 0 and high >= pos.sl:
-                    hits.append({'ticket': ticket, 'type': 'sl', 'price': pos.sl})
+                    hits.append({'ticket': ticket, 'type': 'sl', 'price': self._exit_sl_price(pos, bar)})
                 # TP hit (price drops to TP)
                 elif pos.tp > 0 and low <= pos.tp:
                     hits.append({'ticket': ticket, 'type': 'tp', 'price': pos.tp})
