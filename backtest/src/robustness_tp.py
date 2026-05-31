@@ -116,18 +116,24 @@ def main():
 
     # ---- 1. Walk-forward, year by year -------------------------------------
     print("=" * 78); print("WALK-FORWARD (winner, each year independent)"); print("=" * 78)
-    print(f"  {'year':6} {'surv':5} {'net':>12} {'TDD%':>7} {'WR%':>6} {'trades':>7}")
+    print(f"  {'year':6} {'surv':5} {'net':>12} {'TDD%':>6} {'DDD%':>6} "
+          f"{'d>=9.0':>7} {'d>=9.5':>7} {'halts':>6} {'trades':>7}")
     for yr in range(2015, 2025):
         res, _ = run(WINNER, f"{yr}-01-01", f"{yr}-12-31")
         if res is None:
             print(f"  {yr}: ENGINE ERROR"); out["walk_forward"][yr] = {"error": True}; continue
         surv = not res.get("account_failed")
         row = {"survived": surv, "net_pnl": res.get("net_pnl"),
-               "max_tdd": res.get("max_tdd_pct"), "win_rate": res.get("win_rate"),
-               "trades": res.get("total_trades")}
+               "max_tdd": res.get("max_tdd_pct"), "max_ddd": res.get("max_ddd_pct"),
+               "tdd_days_ge_9_0": res.get("tdd_days_ge_9_0"),
+               "tdd_days_ge_9_5": res.get("tdd_days_ge_9_5"),
+               "ddd_halts": res.get("ddd_halts"),
+               "win_rate": res.get("win_rate"), "trades": res.get("total_trades")}
         out["walk_forward"][yr] = row
         print(f"  {yr:6} {'OK' if surv else 'FAIL':5} {row['net_pnl'] or 0:>12,.0f} "
-              f"{row['max_tdd'] or 0:>7} {row['win_rate'] or 0:>6} {row['trades'] or 0:>7}")
+              f"{row['max_tdd'] or 0:>6} {row['max_ddd'] or 0:>6} "
+              f"{row['tdd_days_ge_9_0'] or 0:>7} {row['tdd_days_ge_9_5'] or 0:>7} "
+              f"{row['ddd_halts'] or 0:>6} {row['trades'] or 0:>7}")
 
     # ---- 2. Monte-Carlo on full OOS 2018-2021 ------------------------------
     print("\n" + "=" * 78); print(f"MONTE-CARLO TDD ({args.mc} shuffles, OOS 2018-2021)"); print("=" * 78)
