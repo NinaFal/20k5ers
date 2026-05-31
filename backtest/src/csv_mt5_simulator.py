@@ -1141,19 +1141,29 @@ class CSVMT5Simulator:
             return 0.0001
 
     def _adjust_fill_price(self, symbol, order_type, price, bar):
-        """Entry fill price with gap-through (#4) + adverse slippage (#3)."""
+        """Entry fill price.
+
+        LIMIT entries (buy_limit=2, sell_limit=3) fill at price-or-better, so a
+        limit order cannot take negative slippage — these fill frictionless at
+        the limit price (matches 5ers: golden-pocket Fib limit entries).
+        STOP entries (buy_stop=4, sell_stop=5) are market-on-touch and CAN slip /
+        gap through, so they keep adverse slippage (#3) + gap-through (#4).
+        """
+        # Limit entries: exact price, no friction.
+        if order_type in (2, 3):
+            return price
         pip = self._pip_size_for(symbol)
         slip = self._slippage_pips * pip
         op = bar.get('open', price)
-        if order_type in (2, 4):  # buy_limit / buy_stop
+        if order_type == 4:  # buy_stop
             base = price
-            if self._gap_fills and order_type == 4 and op > price:
-                base = op  # buy_stop gapped up -> worse fill at open
+            if self._gap_fills and op > price:
+                base = op  # gapped up -> worse fill at open
             return base + slip
-        else:  # sell_limit / sell_stop
+        else:  # sell_stop (5)
             base = price
-            if self._gap_fills and order_type == 5 and op < price:
-                base = op  # sell_stop gapped down -> worse fill at open
+            if self._gap_fills and op < price:
+                base = op  # gapped down -> worse fill at open
             return base - slip
 
     def _exit_sl_price(self, pos, bar):
