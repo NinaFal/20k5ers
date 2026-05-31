@@ -494,7 +494,18 @@ def load_best_params_from_file(custom_params: dict = None):
     
     # Use the same merge logic as optimizer
     params_obj = load_strategy_params()
-    
+
+    # Env overlay for optimization (OPT_PARAMS='{"atr_sl_multiplier":1.8,...}').
+    # Merges into custom_params so a sweep can tune strategy params without files.
+    _env_params = os.getenv("OPT_PARAMS")
+    if _env_params:
+        try:
+            import json as _json
+            _ep = _json.loads(_env_params)
+            custom_params = {**(custom_params or {}), **_ep}
+        except Exception as _e:
+            log.warning(f"[OPT_PARAMS] ignored (bad JSON): {_e}")
+
     # If custom_params provided (from optimizer), overlay them
     if custom_params:
         log.info("[OPTIMIZER] Applying %d custom parameters", len(custom_params))
