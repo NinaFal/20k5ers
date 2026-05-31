@@ -43,6 +43,36 @@ Realistic read: as sized and configured, the strategy breaches the 5% daily
 limit within ~6 months of the 2015 start. Whether that generalises across start
 dates and gap regimes is what #6/#7 measure.
 
+### UPDATE (v10) — WHY v4 made ~$4M and the fixed runs don't: it's the STOP fills
+
+Comparison over the same window (2015-01 .. 2018-01) and full-decade win rate:
+
+| Run | Execution model | Win rate | Outcome |
+|-----|-----------------|----------|---------|
+| v4  | ALL fills frictionless (entries + stops) + NaN/breach bugs | **70.9%** | "$4M" (fiction) |
+| v7  | limit entries slipped + stops slip (too harsh on entries)  | 53.3% | dies 2018-01, $175K |
+| v10 | limit entries frictionless + stops slip (CORRECT model)    | **52.3%** | dies 2017-07, $125K |
+
+Limit entries are ~88% of all entries (1695 limit vs 240 stop) and a limit order
+fills at price-or-better, so penalising them was wrong — commit `7ad2f18` makes
+them frictionless. **But fixing the entries barely moved the win rate (53.3 ->
+52.3%).** That proves v4's inflated 70.9% win rate did NOT come from entry fills;
+it came almost entirely from **frictionless STOP-LOSS exits** — v4 closed losers
+at the exact SL price with no slippage/gap-through, so trades that pierced their
+stop and recovered counted as wins. Real stop-outs slip (a stop is a market
+order), especially on the volatile pairs/gaps this bot trades.
+
+The compounding amplifier then multiplies it: v4's fake ~70% WR spins the
+win->bigger-balance->bigger-lots->scale-up flywheel to $4M; the real ~52% WR
+(roughly 1:1 R:R) is near break-even and the flywheel never starts.
+
+Conclusion: **v4's extra profit is ~95% fictional, sourced from impossible
+zero-slippage stop exits, not from the entry model.** v10 is the most accurate
+execution model and represents the strategy's true (marginal) edge. (v10 dies
+earlier than v7 only due to path-dependence — different fills reshuffle the
+trade sequence into an earlier bad cluster; the ~equal win rate is the real
+comparison, not the death date.)
+
 ### UPDATE (v8) — the 7% no-trade halt was NOT the trap; signal drought was
 
 Hypothesis tested: the 7% TDD hard "NO TRADE" halt (separate from the risk
