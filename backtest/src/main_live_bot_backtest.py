@@ -3793,6 +3793,34 @@ class LiveTradingBot:
                 log.info(f"[{symbol}] Max trades reached: {total_exposure}/{max_trades} (positions: {open_positions}, pending: {pending_count})")
                 return False
 
+            # ── CORRELATION CAP (env-gated; CORR_GROUP_CAP, 0 = off/default) ──
+            # The root driver of the 10% total-DD death is clustered exposure: one
+            # signal sweep fills many pairs in the same correlation group in the
+            # same direction, so a single adverse session digs a deep hole. Cap the
+            # number of concurrent open+pending positions per correlation group.
+            _corr_cap = 0
+            try:
+                _corr_cap = int(os.getenv("CORR_GROUP_CAP", "0"))
+            except ValueError:
+                _corr_cap = 0
+            if _corr_cap > 0:
+                try:
+                    import weekend_gap_manager as _wgm
+                    grp = _wgm.get_correlation_group(symbol)
+                    if grp and grp != 'UNCORRELATED':
+                        same = 0
+                        for p in (self.mt5.get_my_positions() if self.mt5 else []):
+                            if _wgm.get_correlation_group(p.symbol) == grp:
+                                same += 1
+                        for s in self.pending_setups.values():
+                            if s.status == "pending" and _wgm.get_correlation_group(s.symbol) == grp:
+                                same += 1
+                        if same >= _corr_cap:
+                            log.info(f"[{symbol}] Correlation cap: {grp} already has {same} (cap {_corr_cap}) — NO TRADE")
+                            return False
+                except Exception as _e:
+                    log.debug(f"[{symbol}] corr-cap skipped: {_e}")
+
             # Protection layers (rollover window + news blackout)
             blocked, reason = self._protection_block(symbol, direction)
             if blocked:
