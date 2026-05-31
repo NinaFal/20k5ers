@@ -43,6 +43,28 @@ Realistic read: as sized and configured, the strategy breaches the 5% daily
 limit within ~6 months of the 2015 start. Whether that generalises across start
 dates and gap regimes is what #6/#7 measure.
 
+### UPDATE (v8) — the 7% no-trade halt was NOT the trap; signal drought was
+
+Hypothesis tested: the 7% TDD hard "NO TRADE" halt (separate from the risk
+throttle) was suspected of creating a recovery lockout — once TDD ≥ 7% the bot
+stops trading and can't win its way back below 7%, bleeding to the 10% wall.
+The halt was made env-gated (`TDD_EMERGENCY_HALT`, commit `82039a9`) and v8 ran
+with it OFF (throttle kept).
+
+**Result: removing the halt changed nothing.** v8 is identical to v7 *to the
+trade* — same 844 trades, same 51.4% WR, dies 2018-01-22 (vs v7's 2018-01-23),
+same $175K funded. In H2-2017 v8 placed only **17 orders** even with the halt
+removed. So the near-zero trading in late 2017 was **not** the halt freezing the
+account — the **strategy generated almost no signals** in that window (one
+"Active signals: 21" line in 6 months; mostly empty scans). The death is a
+**signal drought + slow bleed** (swaps + the rare losing trade) carrying the
+post-March-2017 hole to the 10% wall — not a safety lockout.
+
+Correction to record: my earlier "7% halt = recovery trap" claim was wrong.
+The halt is still redundant with the throttle (a fair cleanup), but it is not
+what kills the account. The real bottleneck is **signal generation / edge in
+quiet regimes**, on top of the root position-count/correlation risk.
+
 ### UPDATE (v6) — the "day 178" death was a HARNESS BUG, not a strategy failure
 
 A third sim bug was found after the items above: the weekend safety handlers
