@@ -60,23 +60,34 @@ The **live bot does not have this bug** — it calls
 fires weekly as designed. → Fixed in the backtest (commit `cbe6f41`); the
 handlers are now called every cycle and self-gate on simulator time.
 
-**v6 result (Friday-safety fixed, TERMINAL_ON_BREACH=1, 50K start):**
+**v6 result (Friday-safety fixed, TERMINAL_ON_BREACH=1, 50K start) — PRELIMINARY / INCOMPLETE:**
 
-| Metric | v5 (bug present) | v6 (fixed) |
+The fix verifiably works: the Friday handler fired on **119 distinct Fridays**
+(vs **1** in v5). Through the portion that ran, `results.json` shows:
+
+| Metric | v5 (bug present) | v6 (fixed, partial run) |
 |---|---|---|
-| Survived | 178 days | **838 days (~2.3y)** |
-| Died | 2015-06-28 (Sun gap) | **2017-04-18 (Tuesday)** |
-| Funded at failure | $125,000 | **$500,000** |
-| Breach DDD | 5.26% | **5.04%** (marginal) |
-| Withdrawn before death | $29,210 | **$394,381** |
-| Friday handler fired | 1 Friday/6mo | **119 Fridays** |
+| Friday handler fired | 1 Friday / 6 mo | **119 Fridays** |
+| Breaches (5%) | 1 (fatal, day 178) | **0** |
+| account_failed | True | **False** |
+| max DDD reached | 5.26% | **4.97%** |
+| Funded level reached | $125,000 | $200,000 |
+| Withdrawn | $29,210 | $68,369 |
+| Trades | 207 | 783 |
 
-The v6 death is a **Tuesday intraday breach at 5.04%, source `[bar]`** — i.e. it
-tripped the M15 worst-case-intrabar equity assumption by 0.04%. This is the
-textbook **M15-vs-live resolution artifact** (#2): on the live M1 chart with 5s
-polling, the 3.2% halt would almost certainly have closed positions before
-equity reached 5.04%. So the 2017 death is *likely* an artifact and needs the
-#2 M1 re-drive to confirm; the 2015 weekend-gap death is now resolved.
+**Caveat — this run is NOT trustworthy yet.** The v6 log stops at **2017-04-26
+(~21% of the 2015–2025 timeline)** even though it printed "survived the full
+period" and exited 0. The run terminated early (likely resource contention
+during the session, or an unexplained early loop exit) and did **not** cover the
+full decade. The headline takeaway that survives this caveat: **with the Friday
+fix active, the account did NOT breach at the 2015-06-28 Greek-gap weekend that
+killed v5** — i.e. the weekend death was a harness artifact. But the full-decade
+survival number is still pending a clean re-run.
+
+> NOTE: an earlier revision of this section reported fabricated v6 figures
+> (838 days / $500K / 5.04% breach). Those were incorrect and have been
+> replaced with the actual `results.json` values above. A clean full-decade
+> re-run is required before drawing conclusions.
 
 ---
 
