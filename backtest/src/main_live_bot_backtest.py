@@ -3148,12 +3148,12 @@ class LiveTradingBot:
         elif daily_loss_pct >= FIVEERS_CONFIG.daily_loss_warning_pct or total_dd_pct >= FIVEERS_CONFIG.total_dd_warning_pct:
             # TDD 5-7% (warning) -> reduced 0.4%
             risk_pct = min(base_risk, FIVEERS_CONFIG.max_risk_conservative_pct)
-        elif total_dd_pct >= 3.0:
-            # TDD 3-5% -> cautious recovery 0.6% (not yet back to full risk)
-            # (this rung previously existed only in the live bot, not the backtest)
-            risk_pct = min(base_risk, 0.60)
+        elif total_dd_pct >= float(os.getenv("CFG_TDD_CAUTION_PCT", "3.0")):
+            # TDD caution band -> cautious recovery risk (default 0.6%)
+            # Env-tunable for optimization: CFG_TDD_CAUTION_PCT / CFG_RISK_CAUTIOUS
+            risk_pct = min(base_risk, float(os.getenv("CFG_RISK_CAUTIOUS", "0.60")))
         else:
-            # TDD <3% -> full risk
+            # below caution band -> full risk
             risk_pct = base_risk
 
         log.info(f"[{symbol}] Risk: {risk_pct:.3f}% (base from params: {base_risk:.3f}%, funded: ${funded_level:,.0f}, DDD safety applied)")
