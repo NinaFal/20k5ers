@@ -2380,8 +2380,8 @@ def compute_trade_levels(
                     tp1 = entry + risk * params.tp1_r_multiple
                     tp2 = entry + risk * params.tp2_r_multiple
                     tp3 = entry + risk * params.tp3_r_multiple
-                    tp4 = entry + risk * (params.tp3_r_multiple + 1.0)  # TP3 + 1R
-                    tp5 = entry + risk * (params.tp3_r_multiple + 2.0)  # TP3 + 2R
+                    tp4 = entry + risk * getattr(params, 'tp4_r_multiple', params.tp3_r_multiple + 1.0)  # TP4 from params (matches live)
+                    tp5 = entry + risk * getattr(params, 'tp5_r_multiple', params.tp3_r_multiple + 2.0)  # TP5 from params (matches live)
 
                     note = f"R/R: Entry near {entry:.5f}, SL at {sl:.5f}"
                     return note, True, entry, sl, tp1, tp2, tp3, tp4, tp5
@@ -2406,8 +2406,8 @@ def compute_trade_levels(
                     tp1 = entry - risk * params.tp1_r_multiple
                     tp2 = entry - risk * params.tp2_r_multiple
                     tp3 = entry - risk * params.tp3_r_multiple
-                    tp4 = entry - risk * (params.tp3_r_multiple + 1.0)  # TP3 + 1R
-                    tp5 = entry - risk * (params.tp3_r_multiple + 2.0)  # TP3 + 2R
+                    tp4 = entry - risk * getattr(params, 'tp4_r_multiple', params.tp3_r_multiple + 1.0)  # TP4 from params (matches live)
+                    tp5 = entry - risk * getattr(params, 'tp5_r_multiple', params.tp3_r_multiple + 2.0)  # TP5 from params (matches live)
                     
                     note = f"R/R: Entry near {entry:.5f}, SL at {sl:.5f}"
                     return note, True, entry, sl, tp1, tp2, tp3, tp4, tp5
@@ -2426,8 +2426,8 @@ def compute_trade_levels(
         tp1 = entry + risk * params.tp1_r_multiple
         tp2 = entry + risk * params.tp2_r_multiple
         tp3 = entry + risk * params.tp3_r_multiple
-        tp4 = entry + risk * (params.tp3_r_multiple + 1.0)  # TP3 + 1R
-        tp5 = entry + risk * (params.tp3_r_multiple + 2.0)  # TP3 + 2R
+        tp4 = entry + risk * getattr(params, 'tp4_r_multiple', params.tp3_r_multiple + 1.0)  # TP4 from params (matches live)
+        tp5 = entry + risk * getattr(params, 'tp5_r_multiple', params.tp3_r_multiple + 2.0)  # TP5 from params (matches live)
     else:
         if structure_sl is not None:
             sl = max(entry + atr * sl_mult, structure_sl + atr * _struct_buf)
@@ -2438,8 +2438,8 @@ def compute_trade_levels(
         tp1 = entry - risk * params.tp1_r_multiple
         tp2 = entry - risk * params.tp2_r_multiple
         tp3 = entry - risk * params.tp3_r_multiple
-        tp4 = entry - risk * (params.tp3_r_multiple + 1.0)  # TP3 + 1R
-        tp5 = entry - risk * (params.tp3_r_multiple + 2.0)  # TP3 + 2R
+        tp4 = entry - risk * getattr(params, 'tp4_r_multiple', params.tp3_r_multiple + 1.0)  # TP4 from params (matches live)
+        tp5 = entry - risk * getattr(params, 'tp5_r_multiple', params.tp3_r_multiple + 2.0)  # TP5 from params (matches live)
     
     note = f"R/R: ATR+structure levels"
     return note, True, entry, sl, tp1, tp2, tp3, tp4, tp5
