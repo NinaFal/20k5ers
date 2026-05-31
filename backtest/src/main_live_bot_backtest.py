@@ -3107,9 +3107,16 @@ class LiveTradingBot:
             log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {FIVEERS_CONFIG.daily_loss_halt_pct}% (NO TRADE)")
             return 0.0
 
-        if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
-            log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}% (NO TRADE)")
-            return 0.0
+        # TDD emergency NO-TRADE halt. The graduated risk ladder below already
+        # throttles size hard in this zone (0.4% at 5-7%, 0.25% at >=7%), so this
+        # hard halt is redundant and creates a recovery trap: once TDD >= 7% the
+        # bot stops trading entirely and can never win its way back below 7%, so
+        # it bleeds to the 10% wall. Set TDD_EMERGENCY_HALT=0 to remove the halt
+        # and let the throttled ladder keep (small) trades flowing for recovery.
+        if os.getenv("TDD_EMERGENCY_HALT", "1").strip().lower() not in ("0", "false", "no", "off"):
+            if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
+                log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}% (NO TRADE)")
+                return 0.0
 
         # Get win/loss streaks
         win_streak = getattr(self.risk_manager.state, 'win_streak', 0) if hasattr(self.risk_manager, 'state') else 0
@@ -3769,10 +3776,11 @@ class LiveTradingBot:
                 log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {FIVEERS_CONFIG.daily_loss_halt_pct}%")
                 return False
             
-            if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
-                log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}%")
-                return False
-            
+            if os.getenv("TDD_EMERGENCY_HALT", "1").strip().lower() not in ("0", "false", "no", "off"):
+                if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
+                    log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}%")
+                    return False
+
             # STATIC POSITION LIMIT - Match simulator behavior
             # Simple hard cap at 100 positions (unlimited trades)
             max_trades = 100
