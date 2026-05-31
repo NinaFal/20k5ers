@@ -43,6 +43,27 @@ Realistic read: as sized and configured, the strategy breaches the 5% daily
 limit within ~6 months of the 2015 start. Whether that generalises across start
 dates and gap regimes is what #6/#7 measure.
 
+
+### UPDATE (v11) — frictionless stops (M1 best-case) STILL dies; NaN bug was the real $4M enabler
+
+v11 = stops fill AT the SL (no slippage/gap), the optimistic M1 bound, all real
+fixes kept. Result: win rate 52.3% (v10) -> **56.1%**, withdrawals $29K -> $71K,
+but the account **still hits the 10% total-DD wall in 2017-07** at $200K funded.
+
+| Run | Stop model | Pos WR | Outcome | Withdrawn |
+|-----|-----------|--------|---------|-----------|
+| v10 | M15 worst-case stops (lower bound) | 52.3% | dies 2017-07, $125K | $29.5K |
+| v11 | frictionless stops (M1 upper bound) | 56.1% | dies 2017-07, $200K | $70.8K |
+| v4  | frictionless + NaN bug + trade-through | 70.9% | "$4M" fiction | $4.6M |
+
+Conclusion: stop-fill realism is worth ~4 WR points and ~2x withdrawals (true M1
+edge ~54-56%), but it does NOT explain v4. The jump from v11's "dead at $200K"
+to v4's "$4M" is the **NaN-equity bug disabling DDD/TDD protection from 2020+**
+plus trade-through-breach — i.e. v4 ignored the same 10% wall that kills every
+honest run. True edge ~54-56% WR at ~1:1 R:R is real but thin and still hits the
+10% wall in the 2017 rough patch regardless of stop model. The fix is drawdown
+DEPTH (position count / correlation), not execution modeling.
+
 ### UPDATE (v10) — WHY v4 made ~$4M and the fixed runs don't: it's the STOP fills
 
 Comparison over the same window (2015-01 .. 2018-01) and full-decade win rate:
