@@ -60,6 +60,39 @@ The **live bot does not have this bug** — it calls
 fires weekly as designed. → Fixed in the backtest (commit `cbe6f41`); the
 handlers are now called every cycle and self-gate on simulator time.
 
+### UPDATE (v7) — backtest TDD risk ladder matched to live; death delayed, not prevented
+
+A fourth discrepancy was found and fixed: the live bot's graduated TDD risk
+throttle has four rungs (TDD≥7%→0.25%, 5–7%→0.4%, **3–5%→0.6%**, <3%→full), but
+the backtest was **missing the 3–5%→0.6% rung** — it jumped straight from full
+risk to the 0.4% rung. Added so the ladder is now identical to live (commit
+`80e3e0b`).
+
+**v7 (matched ladder, TERMINAL_ON_BREACH=1, full decade) vs v6:**
+
+| Metric | v6 (rung missing) | v7 (rung matched) |
+|---|---|---|
+| Cause of death | 10% TDD stop-out | 10% TDD stop-out |
+| Date of death | 2017-04-26 | **2018-01-23** |
+| Survived | ~847 days | **~1,118 days (~3.1 yr)** |
+| 5% daily breaches | 0 | **0** |
+| max daily DD | 4.97% | **4.96%** |
+| Funded at death | $200K | **$175K** |
+| Withdrawn before death | $68,369 | **$51,447** |
+| Trades / WR | 783 / 50.8% | **844 / 51.4%** |
+
+The extra rung helped modestly — the account rides out the 2017 rough patch and
+survives ~9 months longer — but a fresh losing cluster in **Jan 2018** walks
+total DD up the wall again (9.55→9.66→9.89→9.96→**10.0% stop-out** on
+2018-01-23). The throttle (verified working: 0 daily breaches, daily DD capped
+at 4.96%, size genuinely scaled down through each drawdown) **delays** the death
+but cannot prevent it: a normal ~51% win-rate strategy run across ~7 concurrent
+correlated positions draws ~10% off the high-water mark in an ordinary 2–4 week
+cold streak, and the 10% total-DD limit is terminal. Root driver remains
+**position count / correlation**, not the safety handlers.
+
+---
+
 **v6 result (Friday-safety fixed, TERMINAL_ON_BREACH=1, 50K start) — VERIFIED, clean isolated run:**
 
 The fix verifiably works: the Friday handler fired on **119 distinct Fridays**
