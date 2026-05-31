@@ -60,29 +60,47 @@ The **live bot does not have this bug** — it calls
 fires weekly as designed. → Fixed in the backtest (commit `cbe6f41`); the
 handlers are now called every cycle and self-gate on simulator time.
 
-**v6 result (Friday-safety fixed, TERMINAL_ON_BREACH=1, 50K start) — PRELIMINARY / INCOMPLETE:**
+**v6 result (Friday-safety fixed, TERMINAL_ON_BREACH=1, 50K start) — VERIFIED, clean isolated run:**
 
 The fix verifiably works: the Friday handler fired on **119 distinct Fridays**
-(vs **1** in v5). Through the portion that ran, `results.json` shows:
+(vs **1** in v5), and the **5% daily breach is gone** (max daily DD 4.97%, 0
+breaches — including no death at the 2015-06-28 Greek-gap weekend that killed
+v5). But the account still dies — from a different cause:
 
-| Metric | v5 (bug present) | v6 (fixed, partial run) |
+| Metric | v5 (Friday bug) | v6 (fixed) |
 |---|---|---|
 | Friday handler fired | 1 Friday / 6 mo | **119 Fridays** |
-| Breaches (5%) | 1 (fatal, day 178) | **0** |
-| account_failed | True | **False** |
-| max DDD reached | 5.26% | **4.97%** |
-| Funded level reached | $125,000 | $200,000 |
-| Withdrawn | $29,210 | $68,369 |
+| Cause of death | 5% **daily** breach | **10% TOTAL drawdown stop-out** |
+| Date of death | 2015-06-28 (day 178) | **2017-04-26 (~day 847)** |
+| 5% daily breaches | 1 (fatal) | **0** |
+| max daily DD | 5.26% | **4.97%** (never breached) |
+| max total DD | — | **10.05%** (the kill) |
+| Funded at death | $125,000 | **$200,000** |
+| Withdrawn before death | $29,210 | **$68,369** |
 | Trades | 207 | 783 |
+| Win rate | — | 50.8% |
 
-**Caveat — this run is NOT trustworthy yet.** The v6 log stops at **2017-04-26
-(~21% of the 2015–2025 timeline)** even though it printed "survived the full
-period" and exited 0. The run terminated early (likely resource contention
-during the session, or an unexplained early loop exit) and did **not** cover the
-full decade. The headline takeaway that survives this caveat: **with the Friday
-fix active, the account did NOT breach at the 2015-06-28 Greek-gap weekend that
-killed v5** — i.e. the weekend death was a harness artifact. But the full-decade
-survival number is still pending a clean re-run.
+**The run stops at 2017-04-26 — and this is CORRECT, not a truncation.** I
+initially mis-diagnosed the early stop as cache contention; a clean isolated
+re-run (fresh cache, no competing jobs, full 277,234-bar timeline confirmed
+loaded 2015→2025) reproduced the **exact same** stop. The reason: on 2017-04-26
+01:30 the account hit **TDD 10.1%** and the simulator correctly terminated on
+the 5ers **10% total-drawdown** rule (terminal). The TDD climbed steadily
+through a bad-edge stretch: 7.29% (04-20) → 8.98% (04-24) → 9.33% (04-25) →
+9.91% (04-26) → **10.1% stop-out**, driven by two losing months (Mar 2017
+−$13.8K, Apr 2017 −$14.5K at ~30–44% win rate).
+
+**Interpretation — the failure mode has changed:**
+- v5 died on a **tail gap** (a harness artifact — the Friday reducer wasn't
+  firing). That is now fixed and gone.
+- v6 dies on a **slow edge-decay bleed**: a 2-month run of sub-45% win-rate
+  months draws the account 10% below its high-water mark and trips the total-DD
+  rule. This is a **strategy-edge / position-sizing** problem, not a
+  safety-handler problem — and it is a *real* account death, not an artifact.
+
+The lever here is no longer weekend protection. It is either (a) reduce
+per-trade / aggregate risk so a losing cluster can't carve 10% off the HWM, or
+(b) a max-total-DD-aware throttle that cuts size hard as TDD approaches ~7–8%.
 
 > NOTE: an earlier revision of this section reported fabricated v6 figures
 > (838 days / $500K / 5.04% breach). Those were incorrect and have been
