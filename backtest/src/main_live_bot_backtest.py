@@ -5321,8 +5321,11 @@ class LiveTradingBot:
             _t0 = _t0.replace(tzinfo=timezone.utc)
         run_start_dt = _t0
 
-        def _register_breach(when, ddd_value, source):
-            """Record a 5% daily-drawdown breach as a terminal account failure."""
+        def _register_breach(when, dd_value, source, kind="daily"):
+            """Record a terminal account failure — either a 5% daily-drawdown
+            breach (kind='daily') or a 10% total-drawdown breach (kind='total').
+            Both permanently end a 5ers account; both must set account_failed so
+            survival flags and the optimizer's survivor scoring are correct."""
             nonlocal account_failed, fail_info
             if account_failed:
                 return
@@ -5331,18 +5334,23 @@ class LiveTradingBot:
                 survived = (when - run_start_dt).days
             except Exception:
                 survived = None
+            label = "10% TOTAL" if kind == "total" else "5% DAILY"
+            reason = (f'10% total drawdown breached ({dd_value:.2f}%) [{source}]'
+                      if kind == "total"
+                      else f'5% daily drawdown breached ({dd_value:.2f}%) [{source}]')
             fail_info = {
                 'failed': True,
-                'reason': f'5% daily drawdown breached ({ddd_value:.2f}%) [{source}]',
+                'breach_type': kind,
+                'reason': reason,
                 'time': str(when),
                 'funded_level_at_failure': round(funded, 2),
-                'ddd_pct_at_failure': round(ddd_value, 2),
+                'ddd_pct_at_failure': round(dd_value, 2),
                 'survived_days': survived,
             }
             account_failed = True
             log.error("=" * 70)
-            log.error(f"🛑 ACCOUNT FAILED — 5% DAILY BREACH at {when}")
-            log.error(f"   DDD {ddd_value:.2f}% | Funded ${funded:,.0f} | Survived {survived} days")
+            log.error(f"🛑 ACCOUNT FAILED — {label} BREACH at {when}")
+            log.error(f"   DD {dd_value:.2f}% | Funded ${funded:,.0f} | Survived {survived} days")
             log.error("=" * 70)
 
         pbar = tqdm(timeline, desc="Backtesting", mininterval=1.0)
@@ -5462,6 +5470,7 @@ class LiveTradingBot:
                     'type': 'TDD_STOPOUT',
                     'tdd_pct': tdd_pct,
                 })
+                _register_breach(current_time, tdd_pct, 'bar', kind='total')
                 break
 
             # DDD check - graduated tiers matching live bot
@@ -5569,6 +5578,7 @@ class LiveTradingBot:
                         log.error(f"🚨 TDD STOP-OUT mid-bar at {current_time}: {tdd_now:.2f}%")
                         self._emergency_close_all()
                         safety_events.append({'time': str(current_time), 'type': 'TDD_STOPOUT', 'tdd_pct': tdd_now})
+                        _register_breach(current_time, tdd_now, 'midbar', kind='total')
                         trading_halted_today = True
                         break
 
