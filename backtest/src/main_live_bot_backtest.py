@@ -5273,6 +5273,30 @@ class LiveTradingBot:
         equity_high = self.initial_balance
         last_scanned_date = None
         current_date = None
+
+        # TDD wall-press instrumentation: how often (and on how many distinct days)
+        # does total drawdown press into the danger bands near the 10% wall, and how
+        # many separate excursions cross 9.5%? Answers "is recovery skill or luck?".
+        _tdd_bands = (9.0, 9.5, 9.9)
+        tdd_bars = {b: 0 for b in _tdd_bands}
+        tdd_days = {b: set() for b in _tdd_bands}
+        tdd_excursions_95 = 0
+        _tdd_above_95 = False  # rising-edge tracker for distinct 9.5% excursions
+        _record_tdd_series = os.getenv("RECORD_TDD") == "1"
+        _tdd_series = []
+
+        def record_tdd(t, val):
+            nonlocal tdd_excursions_95, _tdd_above_95
+            d = getattr(t, "date", lambda: t)()
+            for b in _tdd_bands:
+                if val >= b:
+                    tdd_bars[b] += 1
+                    tdd_days[b].add(d)
+            if val >= 9.5 and not _tdd_above_95:
+                tdd_excursions_95 += 1
+            _tdd_above_95 = val >= 9.5
+            if _record_tdd_series:
+                _tdd_series.append((str(t), round(val, 3)))
         day_start_equity = self.initial_balance
         safety_events = []
         trading_halted_today = False
@@ -5428,6 +5452,7 @@ class LiveTradingBot:
             # TDD check (static from initial balance)
             tdd_pct = max(0, (self.initial_balance - equity) / self.initial_balance * 100)
             max_tdd = max(max_tdd, tdd_pct)
+            record_tdd(current_time, tdd_pct)
 
             if tdd_pct >= 10.0:
                 log.error(f"🚨 TDD STOP-OUT at {current_time}: {tdd_pct:.1f}%")
@@ -5538,6 +5563,7 @@ class LiveTradingBot:
                     tdd_ref = self.challenge_manager.starting_balance if self.challenge_manager else self.initial_balance
                     tdd_now = max(0, (tdd_ref - eq_now) / tdd_ref * 100) if tdd_ref > 0 else 0
                     max_ddd = max(max_ddd, ddd_now)
+                    record_tdd(current_time, tdd_now)
 
                     if tdd_now >= 10.0:
                         log.error(f"🚨 TDD STOP-OUT mid-bar at {current_time}: {tdd_now:.2f}%")
@@ -5759,6 +5785,10 @@ class LiveTradingBot:
             'win_rate': round(win_rate, 1),
             'max_tdd_pct': round(max_tdd, 2),
             'max_ddd_pct': round(max_ddd, 2),
+            # TDD wall-press counts: bars/distinct-days in each danger band + 9.5% excursions
+            'tdd_bars_ge_9_0': tdd_bars[9.0], 'tdd_bars_ge_9_5': tdd_bars[9.5], 'tdd_bars_ge_9_9': tdd_bars[9.9],
+            'tdd_days_ge_9_0': len(tdd_days[9.0]), 'tdd_days_ge_9_5': len(tdd_days[9.5]), 'tdd_days_ge_9_9': len(tdd_days[9.9]),
+            'tdd_excursions_ge_9_5': tdd_excursions_95,
             'safety_events': len(safety_events),
             'ddd_halts': sum(1 for e in safety_events if e.get('type') in ('DDD_HALT', 'DDD_HALT_MIDBAR')),
             'ddd_halts_midbar': sum(1 for e in safety_events if e.get('type') == 'DDD_HALT_MIDBAR'),
@@ -5836,7 +5866,10 @@ class LiveTradingBot:
             print(f"   {'-'*55}")
         
         print(f"\n{'='*70}")
-        
+
+        # Stash for the outer run_backtest to persist (output_dir lives there).
+        self._tdd_series = _tdd_series if _record_tdd_series else []
+
         return results
 
 
@@ -6128,7 +6161,12 @@ def main():
     closed_trades = bot.mt5.get_closed_trades()
     if closed_trades:
         pd.DataFrame(closed_trades).to_csv(output_dir / 'trades.csv', index=False)
-    
+
+    # Save TDD time-series if instrumentation was enabled (RECORD_TDD=1)
+    tdd_series = getattr(bot, '_tdd_series', [])
+    if tdd_series:
+        pd.DataFrame(tdd_series, columns=['time', 'tdd_pct']).to_csv(output_dir / 'tdd_series.csv', index=False)
+
     print(f"\n✅ Results saved to: {output_dir}")
 
 
