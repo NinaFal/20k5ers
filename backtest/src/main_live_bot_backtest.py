@@ -4868,8 +4868,16 @@ class LiveTradingBot:
                 log.error("=" * 70)
                 return
             
-            # Block scan if TDD >= 7% (emergency zone)
-            if total_dd_pct >= 7.0:
+            # Block scan if TDD >= 7% (emergency zone) — gated by TDD_EMERGENCY_HALT.
+            # This mirrors the sizing-path halt (~3129): a HARD scan block here
+            # recreates the documented "recovery trap" — once TDD >= 7% the bot
+            # stops opening trades and can never win back below 7%, so it freezes
+            # (and in backtest, never trades again). When the halt is disabled the
+            # graduated ladder still throttles to ultra-safe 0.25% in this zone,
+            # letting small trades flow for recovery instead of deadlocking.
+            _tdd_halt_on = os.getenv("TDD_EMERGENCY_HALT", "1").strip().lower() \
+                not in ("0", "false", "no", "off")
+            if total_dd_pct >= 7.0 and _tdd_halt_on:
                 log.error("=" * 70)
                 log.error(f"🚫 SCAN BLOCKED: TDD {total_dd_pct:.2f}% >= 7%")
                 log.error("  No new orders will be placed - approaching 10% limit!")
