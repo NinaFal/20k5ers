@@ -3335,23 +3335,34 @@ class LiveTradingBot:
         m_high = float(os.getenv("VOL_SIZE_MULT_HIGH", "1.0"))
         if m_low == 1.0 and m_high == 1.0:
             return 1.0
+        # Memoize per (symbol, sim-day): the vol regime only changes daily, so we
+        # compute it once per symbol per day instead of on every fill (which was
+        # re-fetching 4 timeframes per call — the cause of a ~6x slowdown).
+        period, look = 14, int(os.getenv("VOL_SIZE_LOOKBACK", "120"))
+        ct = getattr(self.mt5, "_current_time", None)
+        day = ct.date() if ct is not None and hasattr(ct, "date") else None
+        cache = getattr(self, "_vol_mult_cache", None)
+        if cache is None:
+            cache = self._vol_mult_cache = {}
+        key = (symbol, day)
+        if key in cache:
+            return cache[key]
+        broker = self.symbol_map.get(symbol, symbol)
         try:
-            candles = self.get_candle_data(symbol).get("daily", [])
+            candles = self.mt5.get_ohlcv(broker, "D1", look + period + 1)  # daily only
         except Exception:
             return 1.0
-        period, look = 14, int(os.getenv("VOL_SIZE_LOOKBACK", "120"))
-        if len(candles) < period + 20:
-            return 1.0  # insufficient history -> neutral
-        candles = candles[-(look + period + 1):]
-        atrs = [self._calculate_atr(candles[i - period:i + 1], period)
-                for i in range(period, len(candles))]
-        atrs = [a for a in atrs if a > 0]
-        if len(atrs) < 20:
-            return 1.0
-        cur = atrs[-1]
-        pct = sum(1 for a in atrs if a <= cur) / len(atrs)  # 0=calmest, 1=most turbulent
-        mult = m_low + (m_high - m_low) * pct
-        return max(0.1, min(3.0, mult))
+        mult = 1.0
+        if candles and len(candles) >= period + 20:
+            atrs = [self._calculate_atr(candles[i - period:i + 1], period)
+                    for i in range(period, len(candles))]
+            atrs = [a for a in atrs if a > 0]
+            if len(atrs) >= 20:
+                cur = atrs[-1]
+                pct = sum(1 for a in atrs if a <= cur) / len(atrs)  # 0=calm, 1=turbulent
+                mult = max(0.1, min(3.0, m_low + (m_high - m_low) * pct))
+        cache[key] = mult
+        return mult
 
     def scan_symbol(self, symbol: str) -> Optional[Dict]:
         """
