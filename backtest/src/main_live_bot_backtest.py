@@ -2628,6 +2628,12 @@ class LiveTradingBot:
         # BACKTEST: Load M15 data for all symbols (filtered by date range)
         from config import FOREX_PAIRS, METALS, OIL_ASSETS, INDICES, CRYPTO_ASSETS
         _excluded = {"XBR_USD", "XTI_USD"}  # Oil: extreme gaps
+        # Additional exclusions via env (comma-separated), e.g. structurally
+        # net-negative tickers identified as bad across BOTH IS and OOS halves.
+        _env_excl = os.getenv("EXCLUDE_SYMBOLS", "").replace(" ", "")
+        if _env_excl:
+            _excluded |= {s for s in _env_excl.split(",") if s}
+            log.info(f"EXCLUDE_SYMBOLS active: {sorted(_excluded - {'XBR_USD','XTI_USD'})}")
         all_symbols = [s for s in FOREX_PAIRS + METALS + OIL_ASSETS + INDICES + CRYPTO_ASSETS
                        if s not in _excluded]
         self.mt5.load_m15_data(all_symbols,
