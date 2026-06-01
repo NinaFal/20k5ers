@@ -3189,23 +3189,18 @@ class LiveTradingBot:
         # recovery trades keep flowing (no deadlock) but the account can never be
         # traded INTO a breach. Active whenever in the emergency zone, regardless
         # of TDD_EMERGENCY_HALT.
+        # Emergency wall-guard (room-cap): in the high-TDD zone, cap each recovery
+        # trade so even a FULL stop-loss can't push TDD through the 10% wall — risk
+        # no more than room-to-wall / safety factor. Recovery trades keep flowing
+        # (no deadlock), but a single trade can never be sized into a breach.
+        #
+        # NOTE: an earlier "flat-before-entry" block (no new entry while any
+        # position was open) was tried and DELETED — it backfired by trapping the
+        # account holding its existing losers in the 7-10% zone with no ability to
+        # take diversifying recovery trades, turning a survivable 9.4% draw into a
+        # 10% breach (verified on cold-start 2015). The room-cap is the backstop.
         _emerg_pct = float(os.getenv("CFG_TDD_EMERGENCY_PCT", "7.0"))
         if total_dd_pct >= _emerg_pct and starting_balance > 0 and current_balance > 0:
-            # Optional flat-before-entry block (env-gated, DEFAULT OFF). The idea
-            # was to force sequential emergency-zone trades so concurrent positions
-            # can't collectively bleed through the wall. In practice it BACKFIRES:
-            # it traps the account holding its existing losers in the 7-10% zone
-            # with no ability to take the diversifying recovery trades that would
-            # heal it, turning a survivable 9.4% draw into a 10% breach (verified
-            # on cold-start 2015). Off by default; the room-cap below is the real
-            # backstop. Re-enable only if a continuous-run slow-bleed reappears.
-            if os.getenv("TDD_WALL_FLAT_FIRST", "0").strip().lower() in ("1", "true", "yes", "on"):
-                _open = len(self.mt5.get_my_positions()) if self.mt5 else 0
-                if _open > 0:
-                    log.info(f"[{symbol}] Wall-guard: TDD {total_dd_pct:.1f}% emergency zone, {_open} open -> NO new entry until flat")
-                    return 0.0
-            # Cap each recovery trade so even a FULL stop-loss can't push TDD
-            # through the 10% wall: risk no more than room-to-wall / safety factor.
             _room_usd = max(0.0, current_equity - starting_balance * 0.90)  # 10% wall
             _safety = float(os.getenv("TDD_WALL_SAFETY", "3.0"))
             _cap_pct = (_room_usd / _safety) / current_balance * 100
