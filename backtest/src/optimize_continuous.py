@@ -90,7 +90,14 @@ def run(env_over, params, start=START, end=END):
     env["OPT_PARAMS"] = json.dumps(params)
     cmd = [sys.executable, str(BACKTEST), "--start", start, "--end", end,
            "--balance", BAL, "--output", td, "--quiet"]
-    p = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=str(REPO))
+    # Per-RUN safety timeout only (a hung subprocess must not stall the pipeline);
+    # a healthy 10yr run is ~7-11 min, so 40 min is generous headroom. The OVERALL
+    # sweep itself stays uncapped. A timeout -> None -> scored as deep-negative.
+    try:
+        p = subprocess.run(cmd, env=env, capture_output=True, text=True,
+                           cwd=str(REPO), timeout=int(os.getenv("RUN_TIMEOUT_S", "2400")))
+    except subprocess.TimeoutExpired:
+        return None
     rj = Path(td) / "results.json"
     if p.returncode != 0 or not rj.exists():
         return None
@@ -205,7 +212,17 @@ def make_objective(stage, state):
             params = suggest_tp(trial)
         elif stage == "volrefine":
             env.update(suggest_volrefine(trial))
-        s, a = score(run(env, params))
+        # Exception-safe: a single crashing/timing-out backtest must NOT kill the
+        # whole study. Treat it as a deep-negative (worse than any real breach)
+        # so the sampler avoids that region and the sweep keeps going.
+        try:
+            s, a = score(run(env, params))
+        except optuna.TrialPruned:
+            raise
+        except Exception as e:
+            trial.set_user_attr("error", repr(e)[:300])
+            trial.set_user_attr("env", env); trial.set_user_attr("params", params)
+            return -3e9
         for k, v in a.items():
             trial.set_user_attr(k, v)
         trial.set_user_attr("env", env); trial.set_user_attr("params", params)
@@ -288,8 +305,18 @@ def main():
                 "TDD_WALL_SAFETY": 3.5, "VOL_SIZE_MULT_LOW": 1.3, "VOL_SIZE_MULT_HIGH": 0.2})
         elif args.stage == "tp":
             study.enqueue_trial({k: TP40[k] for k in TP40})  # opt#40 ladder
+    # --trials is a TOTAL target, not "this many more": count already-finished
+    # trials and only run the remainder. This makes restarts idempotent — a
+    # supervisor can re-invoke the stage after any crash/recycle and it resumes
+    # toward the same total instead of double-counting.
+    finished = sum(1 for t in study.trials
+                   if t.state in (optuna.trial.TrialState.COMPLETE,
+                                  optuna.trial.TrialState.PRUNED))
+    remaining = max(0, args.trials - finished)
+    print(f"stage {args.stage}: {finished} done, running {remaining} more to reach {args.trials}")
     t0 = time.time()
-    study.optimize(make_objective(args.stage, state), n_trials=args.trials, n_jobs=args.jobs)
+    if remaining:
+        study.optimize(make_objective(args.stage, state), n_trials=remaining, n_jobs=args.jobs)
     best = report_top(study)
     dt = time.time() - t0
     print(f"\nstage {args.stage}: {dt/60:.1f} min, best survived={not best.user_attrs.get('failed')}")
