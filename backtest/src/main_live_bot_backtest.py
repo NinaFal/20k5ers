@@ -3183,6 +3183,31 @@ class LiveTradingBot:
             risk_pct = risk_pct * _vm
             log.info(f"[{symbol}] Vol-size x{_vm:.2f} -> risk {risk_pct:.3f}%")
 
+        # Emergency wall-guard: in the high-TDD zone, cap per-trade risk so even a
+        # FULL stop-loss can't push TDD through the 10% wall (room-to-wall / safety
+        # factor). This is the principled replacement for the binary 7% freeze:
+        # recovery trades keep flowing (no deadlock) but the account can never be
+        # traded INTO a breach. Active whenever in the emergency zone, regardless
+        # of TDD_EMERGENCY_HALT.
+        _emerg_pct = float(os.getenv("CFG_TDD_EMERGENCY_PCT", "7.0"))
+        if total_dd_pct >= _emerg_pct and starting_balance > 0 and current_balance > 0:
+            # Require FLAT before a new recovery entry, so emergency-zone trades
+            # are SEQUENTIAL. Concurrent positions each sized against the same
+            # room collectively breach (the 2017 slow-bleed); sequential trades
+            # each risk a fraction of the SHRINKING room -> geometric decay that
+            # can never reach the wall, while still flowing for recovery.
+            _open = len(self.mt5.get_my_positions()) if self.mt5 else 0
+            if _open > 0:
+                log.info(f"[{symbol}] Wall-guard: TDD {total_dd_pct:.1f}% emergency zone, {_open} open -> NO new entry until flat")
+                return 0.0
+            # Cap the single recovery trade so even a full stop can't breach.
+            _room_usd = max(0.0, current_equity - starting_balance * 0.90)  # 10% wall
+            _safety = float(os.getenv("TDD_WALL_SAFETY", "3.0"))
+            _cap_pct = (_room_usd / _safety) / current_balance * 100
+            if _cap_pct < risk_pct:
+                log.info(f"[{symbol}] Wall-guard: TDD {total_dd_pct:.1f}%, room ${_room_usd:,.0f} -> risk {risk_pct:.3f}% capped to {_cap_pct:.3f}%")
+                risk_pct = _cap_pct
+
         if risk_pct <= 0:
             log.warning(f"[{symbol}] Risk percentage is 0 - trading halted (NO TRADE)")
             return 0.0
