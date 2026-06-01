@@ -3175,6 +3175,14 @@ class LiveTradingBot:
 
         log.info(f"[{symbol}] Risk: {risk_pct:.3f}% (base from params: {base_risk:.3f}%, funded: ${funded_level:,.0f}, DDD safety applied)")
 
+        # Volatility-scaled risk (env-gated, default no-op): size up in calm
+        # regimes / down in turbulent ones, where the edge is respectively
+        # positive / negative. Applied after the drawdown ladder so both stack.
+        _vm = self._vol_size_multiplier(symbol)
+        if _vm != 1.0:
+            risk_pct = risk_pct * _vm
+            log.info(f"[{symbol}] Vol-size x{_vm:.2f} -> risk {risk_pct:.3f}%")
+
         if risk_pct <= 0:
             log.warning(f"[{symbol}] Risk percentage is 0 - trading halted (NO TRADE)")
             return 0.0
@@ -3309,7 +3317,42 @@ class LiveTradingBot:
             return 0.0
         
         return sum(true_ranges[-period:]) / period
-    
+
+    def _vol_size_multiplier(self, symbol: str) -> float:
+        """Volatility-scaled risk multiplier (env-gated, default off).
+
+        Backtest diagnostics show risk-adjusted edge is strongly positive in
+        LOW-volatility regimes and negative in HIGH-volatility regimes. This
+        scales risk-per-trade by where the symbol's CURRENT 14d ATR sits in its
+        own recent ATR distribution (a causal, entry-time signal — no look-ahead):
+        higher size in calm regimes, lower in turbulent ones. The mapping is a
+        linear interp between VOL_SIZE_MULT_LOW (at the calm extreme) and
+        VOL_SIZE_MULT_HIGH (at the turbulent extreme); both default to 1.0 (no-op).
+        """
+        if os.getenv("VOL_SIZE_ENABLE", "0").strip().lower() not in ("1", "true", "yes", "on"):
+            return 1.0
+        m_low = float(os.getenv("VOL_SIZE_MULT_LOW", "1.0"))
+        m_high = float(os.getenv("VOL_SIZE_MULT_HIGH", "1.0"))
+        if m_low == 1.0 and m_high == 1.0:
+            return 1.0
+        try:
+            candles = self.get_candle_data(symbol).get("daily", [])
+        except Exception:
+            return 1.0
+        period, look = 14, int(os.getenv("VOL_SIZE_LOOKBACK", "120"))
+        if len(candles) < period + 20:
+            return 1.0  # insufficient history -> neutral
+        candles = candles[-(look + period + 1):]
+        atrs = [self._calculate_atr(candles[i - period:i + 1], period)
+                for i in range(period, len(candles))]
+        atrs = [a for a in atrs if a > 0]
+        if len(atrs) < 20:
+            return 1.0
+        cur = atrs[-1]
+        pct = sum(1 for a in atrs if a <= cur) / len(atrs)  # 0=calmest, 1=most turbulent
+        mult = m_low + (m_high - m_low) * pct
+        return max(0.1, min(3.0, mult))
+
     def scan_symbol(self, symbol: str) -> Optional[Dict]:
         """
         Scan a single symbol for trade setup.
