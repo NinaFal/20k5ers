@@ -3062,7 +3062,28 @@ class LiveTradingBot:
         # Final fallback - always return a valid positive value
         log.debug(f"[{symbol}] Using base pip value: ${base_pip_value:.2f}")
         return base_pip_value
-    
+
+    def _total_open_risk_usd(self) -> float:
+        """Sum the worst-case loss (to stop-loss) of all OPEN positions, in USD.
+        Mirrors the live RiskManager._calculate_total_open_risk so the backtest
+        can enforce the SAME cumulative-open-risk cap the live bot enforces via
+        risk_manager.check_trade (MAX_CUMULATIVE_RISK_PCT). Uses static contract
+        specs (good enough for a risk cap; FX cross drift is second-order)."""
+        from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
+        total = 0.0
+        for pos in (self.mt5.get_my_positions() if self.mt5 else []):
+            try:
+                if not getattr(pos, "sl", 0) or pos.sl <= 0:
+                    continue
+                specs = get_fiveers_contract_specs(pos.symbol)
+                pip_size = specs.get("pip_size", 0.0001) or 0.0001
+                pip_val = specs.get("pip_value_per_lot", 10.0) or 10.0
+                stop_pips = abs(pos.price_open - pos.sl) / pip_size
+                total += stop_pips * pip_val * pos.volume
+            except Exception:
+                continue
+        return total
+
     def _calculate_lot_size_at_fill(
         self,
         symbol: str,
@@ -3308,6 +3329,36 @@ class LiveTradingBot:
 
         if risk_ratio > 1.5:
             log.warning(f"[{symbol}] ⚠️ Risk slightly elevated: ${actual_risk_usd:.2f} vs intended ${intended_risk_usd:.2f} ({risk_ratio:.1f}x)")
+
+        # ═══════════════════════════════════════════════════════════════
+        # CUMULATIVE OPEN-RISK CAP (faithful to LIVE risk_manager.check_trade)
+        # ───────────────────────────────────────────────────────────────
+        # The live bot caps TOTAL simultaneous open risk at MAX_CUMULATIVE_RISK_PCT
+        # (=3%); the backtest had this check REMOVED ("to match simulator"), so it
+        # took on far more concurrent risk than live ever would — which is what
+        # produced the single-day 5-7% DAILY-DD breaches that live (capped at 3%)
+        # could not have. Re-enabling it here makes the backtest faithful to live.
+        # Env CFG_MAX_CUM_RISK (default 3.0 = live); set >=100 to disable.
+        _cum_cap = float(os.getenv("CFG_MAX_CUM_RISK", "3.0"))
+        if _cum_cap < 100.0 and current_balance > 0:
+            _existing = self._total_open_risk_usd()
+            _cap_usd = current_balance * _cum_cap / 100.0
+            _avail = _cap_usd - _existing
+            if _avail <= 0:
+                log.info(f"[{symbol}] Cum-risk cap: open risk ${_existing:,.0f} >= cap ${_cap_usd:,.0f} ({_cum_cap}%) — NO TRADE")
+                return 0.0
+            if actual_risk_usd > _avail:
+                _factor = (_avail / actual_risk_usd) * 0.95
+                _new_lot = lot_size * _factor
+                if symbol_info:
+                    _ls = symbol_info.get('lot_step', 0.01)
+                    if _ls > 0:
+                        _new_lot = round(_new_lot / _ls) * _ls
+                if _new_lot < min_lot:
+                    log.info(f"[{symbol}] Cum-risk cap: room ${_avail:,.0f} < min lot — NO TRADE")
+                    return 0.0
+                log.info(f"[{symbol}] Cum-risk cap: lot {lot_size}->{_new_lot} (open ${_existing:,.0f}, cap ${_cap_usd:,.0f})")
+                lot_size = _new_lot
 
         return lot_size
     
