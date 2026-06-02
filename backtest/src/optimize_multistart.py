@@ -34,7 +34,7 @@ oc = importlib.util.module_from_spec(spec); spec.loader.exec_module(oc)
 
 END = "2024-12-31"
 # Worst-first for early exit: 2016 (daily killer) & 2017 (total killer) first.
-STARTS = ["2016-01-01", "2017-01-01", "2018-01-01", "2015-01-01"]
+STARTS = ["2016-01-01", "2017-01-01", "2015-01-01", "2018-01-01", "2019-01-01"]
 WALL_MARGIN = float(os.getenv("WALL_MARGIN_START", "8.5"))
 MARGIN_K = float(os.getenv("MARGIN_K", "30000"))
 
@@ -47,25 +47,35 @@ NEWTP = {"tp1_r_multiple": 0.9, "tp2_r_multiple": 1.7, "tp3_r_multiple": 2.4,
 
 
 def build(trial):
-    tp = NEWTP if trial.suggest_categorical("tp", ["newtp", "opt40"]) == "newtp" else TP40
-    caut = trial.suggest_float("caut", 3.0, 5.5, step=0.5)
-    warn = trial.suggest_float("warn", caut + 0.5, 7.5, step=0.5)
-    emrg = trial.suggest_float("emrg", warn + 0.5, 9.0, step=0.5)
-    rc = trial.suggest_float("rc", 0.30, 0.70, step=0.05)
-    rco = trial.suggest_float("rco", 0.20, min(rc, 0.50), step=0.05)
-    ru = trial.suggest_float("ru", 0.10, min(rco, 0.30), step=0.05)
-    ws = trial.suggest_float("ws", 2.5, 5.0, step=0.5)
-    vlo = trial.suggest_float("vlo", 1.0, 1.8, step=0.1)
-    vhi = trial.suggest_float("vhi", 0.2, 0.7, step=0.1)
+    # ANCHORED on the $1.9M config (NEWTP ladder + its drawdown rungs). We do NOT
+    # re-tune the whole strategy; we tune the size/concurrency levers that decide
+    # whether the $1.9M config survives EVERY start while staying high-profit:
+    #   • vol size-up (a little lower size helps survive, costs some profit)
+    #   • cumulative open-risk cap (CFG_MAX_CUM_RISK) — the key lever: higher =
+    #     more concurrency/profit but more daily risk. We find the highest level
+    #     that's still robust; that value is also what live must be set to.
+    #   • correlation cap (clustered-exposure lever)
+    #   • how much rides to the last TP (tp5_close) — "daily close lower" idea:
+    #     closing more earlier vs letting more ride.
+    tp = dict(NEWTP)
+    vlo = trial.suggest_float("vlo", 1.3, 1.8, step=0.1)
+    vhi = trial.suggest_float("vhi", 0.3, 0.6, step=0.1)
     if vlo < vhi:
         raise optuna.TrialPruned()
+    cum = trial.suggest_categorical("cum_risk", [4.0, 4.5, 5.0, 5.5, 6.0, 7.0, 100.0])
     cap = trial.suggest_categorical("cap", [0, 2, 3, 4])
-    env = {"CFG_TDD_CAUTION_PCT": str(caut), "CFG_RISK_CAUTIOUS": str(rc),
-           "CFG_TDD_WARNING_PCT": str(warn), "CFG_RISK_CONSERVATIVE": str(rco),
-           "CFG_TDD_EMERGENCY_PCT": str(emrg), "CFG_RISK_ULTRASAFE": str(ru),
-           "TDD_WALL_SAFETY": str(ws), "VOL_SIZE_ENABLE": "1",
-           "VOL_SIZE_MULT_LOW": str(vlo), "VOL_SIZE_MULT_HIGH": str(vhi),
-           "CORR_GROUP_CAP": str(cap)}
+    # tp5 ride fraction: shift weight between TP4 and TP5 (close more earlier or
+    # let more ride). Keeps the ladder shape, tunes how much is exposed late.
+    t5 = trial.suggest_float("tp5_close_pct", 0.15, 0.40, step=0.05)
+    tp["tp5_close_pct"] = t5
+    tp["tp4_close_pct"] = round(0.40 - t5 if t5 <= 0.30 else 0.10, 4)  # rebalance vs TP4
+    env = {  # the $1.9M config's drawdown rungs (fixed)
+        "CFG_TDD_CAUTION_PCT": "5.5", "CFG_RISK_CAUTIOUS": "0.45",
+        "CFG_TDD_WARNING_PCT": "7.5", "CFG_RISK_CONSERVATIVE": "0.25",
+        "CFG_TDD_EMERGENCY_PCT": "8.5", "CFG_RISK_ULTRASAFE": "0.25",
+        "TDD_WALL_SAFETY": "4.5", "VOL_SIZE_ENABLE": "1",
+        "VOL_SIZE_MULT_LOW": str(vlo), "VOL_SIZE_MULT_HIGH": str(vhi),
+        "CORR_GROUP_CAP": str(cap), "CFG_MAX_CUM_RISK": str(cum)}
     return env, tp
 
 
@@ -104,15 +114,13 @@ def main():
 
     study = optuna.create_study(direction="maximize", study_name=args.study,
                                 storage=args.storage, load_if_exists=True)
-    if not study.trials:                       # warm-start from the closest configs
-        study.enqueue_trial({"tp": "newtp", "caut": 3.5, "warn": 5.5, "emrg": 7.0,
-            "rc": 0.35, "rco": 0.20, "ru": 0.15, "ws": 4.0, "vlo": 1.3, "vhi": 0.3, "cap": 0})  # T3
-        study.enqueue_trial({"tp": "newtp", "caut": 4.0, "warn": 6.0, "emrg": 7.5,
-            "rc": 0.40, "rco": 0.25, "ru": 0.20, "ws": 3.5, "vlo": 1.7, "vhi": 0.4, "cap": 2})  # T4
-        study.enqueue_trial({"tp": "newtp", "caut": 4.0, "warn": 6.0, "emrg": 7.5,
-            "rc": 0.40, "rco": 0.25, "ru": 0.20, "ws": 3.5, "vlo": 1.4, "vhi": 0.3, "cap": 3})
-        study.enqueue_trial({"tp": "opt40", "caut": 4.0, "warn": 6.5, "emrg": 8.0,
-            "rc": 0.45, "rco": 0.30, "ru": 0.20, "ws": 4.0, "vlo": 1.3, "vhi": 0.3, "cap": 2})
+    if not study.trials:                       # warm-start around the $1.9M config
+        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "cum_risk": 5.0, "cap": 0, "tp5_close_pct": 0.30})
+        study.enqueue_trial({"vlo": 1.6, "vhi": 0.5, "cum_risk": 5.0, "cap": 0, "tp5_close_pct": 0.30})
+        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "cum_risk": 4.0, "cap": 2, "tp5_close_pct": 0.25})
+        study.enqueue_trial({"vlo": 1.5, "vhi": 0.4, "cum_risk": 6.0, "cap": 2, "tp5_close_pct": 0.30})
+        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "cum_risk": 100.0, "cap": 3, "tp5_close_pct": 0.30})
+        study.enqueue_trial({"vlo": 1.6, "vhi": 0.5, "cum_risk": 6.0, "cap": 0, "tp5_close_pct": 0.20})
 
     finished = sum(1 for t in study.trials if t.state in
                    (optuna.trial.TrialState.COMPLETE, optuna.trial.TrialState.PRUNED))
@@ -126,11 +134,11 @@ def main():
     print(f"\n{len(done)} trials | {len(robust)} ROBUST (survive all {len(STARTS)} starts)", flush=True)
     print(f"{'':2}{'min_net':>12}{'worst_tdd':>10}  starts: 2015/2016/2017/2018")
     for t in sorted(robust, key=lambda t: t.user_attrs.get("min_net", 0), reverse=True)[:10]:
-        a = t.user_attrs
-        ns = "/".join(f"{a.get('net_'+y, 0)/1000:.0f}k" for y in ["2015", "2016", "2017", "2018"])
+        a = t.user_attrs; p = t.params
+        ns = "/".join(f"{a.get('net_'+y, 0)/1000:.0f}k" for y in ["2015", "2016", "2017", "2018", "2019"])
         print(f"  ${a['min_net']:>11,.0f}{a['worst_tdd']:>10}  {ns} | "
-              f"tp={t.params['tp']} vlo={t.params['vlo']} vhi={t.params['vhi']} cap={t.params['cap']} "
-              f"rungs {t.params['caut']}/{t.params['warn']}/{t.params['emrg']}", flush=True)
+              f"vlo={p['vlo']} vhi={p['vhi']} cum_risk={p['cum_risk']} cap={p['cap']} "
+              f"tp5={p['tp5_close_pct']}", flush=True)
     if robust:
         best = max(robust, key=lambda t: t.user_attrs.get("min_net", 0))
         Path("/tmp/multistart_best.json").write_text(json.dumps(
