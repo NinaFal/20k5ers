@@ -5615,6 +5615,22 @@ class LiveTradingBot:
             equity = account.get("equity", self.initial_balance)
             balance = account.get("balance", self.initial_balance)
 
+            # CONSERVATIVE breach DETECTION (env-gated, default off). Bar-close
+            # equity can MISS an intra-bar wick that pierces the 10% TDD / 5% DDD
+            # wall and recovers by the close — a false negative that would be a
+            # dead account live. When TDD_WORST_CASE is on, mark every open
+            # position to its M15 bar's adverse extreme (low for longs, high for
+            # shorts, capped at SL) and use that worst-case equity for the wall
+            # checks below. It's an UPPER bound on the dip (assumes adverse
+            # simultaneity), so it's the safe side for a prop account — a config
+            # that survives this is robust regardless of bar resolution. Used for
+            # final validation; the sweep stays on close-mark to find candidates.
+            if os.getenv("TDD_WORST_CASE", "0").strip().lower() in ("1", "true", "yes", "on"):
+                try:
+                    equity = min(equity, balance + self.mt5.calculate_worst_case_floating_pnl())
+                except Exception:
+                    pass
+
             equity_low = min(equity_low, equity)
             equity_high = max(equity_high, equity)
 
