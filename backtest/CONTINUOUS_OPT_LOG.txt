@@ -1,0 +1,560 @@
+=== PIPELINE START Mon Jun  1 19:49:00 UTC 2026 (JOBS=2) ===
+>>> STAGE safety target=60 Mon Jun  1 19:49:00 UTC 2026
+>>> [safety] attempt 1 Mon Jun  1 19:49:01 UTC 2026
+[I 2026-06-01 19:49:01,660] A new study created in RDB with name: cont_safety
+stage safety: 0 done, running 60 more to reach 60
+[I 2026-06-01 19:56:14,429] Trial 0 finished with value: -999767700.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.5, 'CFG_TDD_WARNING_PCT': 6.5, 'CFG_TDD_EMERGENCY_PCT': 7.0, 'CFG_RISK_CAUTIOUS': 0.4, 'CFG_RISK_CONSERVATIVE': 0.4, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 3.0, 'VOL_SIZE_MULT_LOW': 1.3, 'VOL_SIZE_MULT_HIGH': 0.3}. Best is trial 0 with value: -999767700.0.
+[I 2026-06-01 20:03:01,900] Trial 1 finished with value: 24291.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.5, 'CFG_TDD_WARNING_PCT': 5.5, 'CFG_TDD_EMERGENCY_PCT': 6.5, 'CFG_RISK_CAUTIOUS': 0.3, 'CFG_RISK_CONSERVATIVE': 0.2, 'CFG_RISK_ULTRASAFE': 0.15, 'TDD_WALL_SAFETY': 4.0, 'VOL_SIZE_MULT_LOW': 1.2, 'VOL_SIZE_MULT_HIGH': 0.3}. Best is trial 1 with value: 24291.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.35000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.35].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.1, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.1, 0.3].
+  optuna_warn(
+[I 2026-06-01 20:04:01,217] Trial 2 finished with value: -999753800.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 6.0, 'CFG_TDD_EMERGENCY_PCT': 7.0, 'CFG_RISK_CAUTIOUS': 0.4, 'CFG_RISK_CONSERVATIVE': 0.3, 'CFG_RISK_ULTRASAFE': 0.2, 'TDD_WALL_SAFETY': 3.5, 'VOL_SIZE_MULT_LOW': 1.3, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 1 with value: 24291.0.
+[I 2026-06-01 20:07:53,497] Trial 4 finished with value: 166335.0 and parameters: {'CFG_TDD_CAUTION_PCT': 6.0, 'CFG_TDD_WARNING_PCT': 6.5, 'CFG_TDD_EMERGENCY_PCT': 7.5, 'CFG_RISK_CAUTIOUS': 0.8, 'CFG_RISK_CONSERVATIVE': 0.2, 'CFG_RISK_ULTRASAFE': 0.2, 'TDD_WALL_SAFETY': 5.0, 'VOL_SIZE_MULT_LOW': 1.5, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 4 with value: 166335.0.
+[I 2026-06-01 20:08:45,435] Trial 3 finished with value: 8986.0 and parameters: {'CFG_TDD_CAUTION_PCT': 5.5, 'CFG_TDD_WARNING_PCT': 8.0, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.35000000000000003, 'CFG_RISK_CONSERVATIVE': 0.30000000000000004, 'CFG_RISK_ULTRASAFE': 0.2, 'TDD_WALL_SAFETY': 5.0, 'VOL_SIZE_MULT_LOW': 1.1, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 4 with value: 166335.0.
+[I 2026-06-01 20:09:41,406] Trial 5 finished with value: -999975000.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.5, 'CFG_TDD_WARNING_PCT': 6.0, 'CFG_TDD_EMERGENCY_PCT': 7.0, 'CFG_RISK_CAUTIOUS': 0.8, 'CFG_RISK_CONSERVATIVE': 0.55, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 5.0, 'VOL_SIZE_MULT_LOW': 1.6, 'VOL_SIZE_MULT_HIGH': 1.0}. Best is trial 4 with value: 166335.0.
+[I 2026-06-01 20:12:55,185] Trial 7 finished with value: -999911200.0 and parameters: {'CFG_TDD_CAUTION_PCT': 6.0, 'CFG_TDD_WARNING_PCT': 7.5, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.75, 'CFG_RISK_CONSERVATIVE': 0.4, 'CFG_RISK_ULTRASAFE': 0.2, 'TDD_WALL_SAFETY': 4.5, 'VOL_SIZE_MULT_LOW': 1.8, 'VOL_SIZE_MULT_HIGH': 0.30000000000000004}. Best is trial 4 with value: 166335.0.
+[I 2026-06-01 20:14:45,068] Trial 8 finished with value: -999975500.0 and parameters: {'CFG_TDD_CAUTION_PCT': 6.0, 'CFG_TDD_WARNING_PCT': 6.5, 'CFG_TDD_EMERGENCY_PCT': 7.5, 'CFG_RISK_CAUTIOUS': 0.65, 'CFG_RISK_CONSERVATIVE': 0.6, 'CFG_RISK_ULTRASAFE': 0.15000000000000002, 'TDD_WALL_SAFETY': 2.0, 'VOL_SIZE_MULT_LOW': 1.6, 'VOL_SIZE_MULT_HIGH': 0.8}. Best is trial 4 with value: 166335.0.
+[I 2026-06-01 20:17:15,192] Trial 6 finished with value: -999677300.0 and parameters: {'CFG_TDD_CAUTION_PCT': 5.0, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.65, 'CFG_RISK_CONSERVATIVE': 0.15, 'CFG_RISK_ULTRASAFE': 0.1, 'TDD_WALL_SAFETY': 3.5, 'VOL_SIZE_MULT_LOW': 1.3, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 4 with value: 166335.0.
+[I 2026-06-01 20:17:58,162] Trial 9 finished with value: -999911200.0 and parameters: {'CFG_TDD_CAUTION_PCT': 5.5, 'CFG_TDD_WARNING_PCT': 6.0, 'CFG_TDD_EMERGENCY_PCT': 9.0, 'CFG_RISK_CAUTIOUS': 0.75, 'CFG_RISK_CONSERVATIVE': 0.45000000000000007, 'CFG_RISK_ULTRASAFE': 0.2, 'TDD_WALL_SAFETY': 5.0, 'VOL_SIZE_MULT_LOW': 1.9, 'VOL_SIZE_MULT_HIGH': 0.30000000000000004}. Best is trial 4 with value: 166335.0.
+[I 2026-06-01 20:20:36,608] Trial 10 finished with value: -999911200.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.5, 'CFG_TDD_WARNING_PCT': 6.0, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.7, 'CFG_RISK_CONSERVATIVE': 0.45000000000000007, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 2.0, 'VOL_SIZE_MULT_LOW': 1.6, 'VOL_SIZE_MULT_HIGH': 0.6000000000000001}. Best is trial 4 with value: 166335.0.
+[I 2026-06-01 20:29:20,981] Trial 11 finished with value: 754427.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.0, 'CFG_TDD_WARNING_PCT': 4.0, 'CFG_TDD_EMERGENCY_PCT': 5.0, 'CFG_RISK_CAUTIOUS': 0.2, 'CFG_RISK_CONSERVATIVE': 0.15, 'CFG_RISK_ULTRASAFE': 0.1, 'TDD_WALL_SAFETY': 2.5, 'VOL_SIZE_MULT_LOW': 1.0, 'VOL_SIZE_MULT_HIGH': 0.6000000000000001}. Best is trial 11 with value: 754427.0.
+[I 2026-06-01 20:31:02,601] Trial 12 finished with value: 132420.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.0, 'CFG_TDD_WARNING_PCT': 4.0, 'CFG_TDD_EMERGENCY_PCT': 5.0, 'CFG_RISK_CAUTIOUS': 0.2, 'CFG_RISK_CONSERVATIVE': 0.15, 'CFG_RISK_ULTRASAFE': 0.1, 'TDD_WALL_SAFETY': 4.0, 'VOL_SIZE_MULT_LOW': 1.1, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 11 with value: 754427.0.
+[I 2026-06-01 20:37:37,696] Trial 13 finished with value: 12457.000000000025 and parameters: {'CFG_TDD_CAUTION_PCT': 3.0, 'CFG_TDD_WARNING_PCT': 4.0, 'CFG_TDD_EMERGENCY_PCT': 5.0, 'CFG_RISK_CAUTIOUS': 0.2, 'CFG_RISK_CONSERVATIVE': 0.15, 'CFG_RISK_ULTRASAFE': 0.1, 'TDD_WALL_SAFETY': 2.5, 'VOL_SIZE_MULT_LOW': 1.0, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 11 with value: 754427.0.
+[I 2026-06-01 20:39:22,948] Trial 15 finished with value: -999981300.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.5, 'CFG_TDD_WARNING_PCT': 5.5, 'CFG_TDD_EMERGENCY_PCT': 6.5, 'CFG_RISK_CAUTIOUS': 0.55, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.15000000000000002, 'TDD_WALL_SAFETY': 3.0, 'VOL_SIZE_MULT_LOW': 2.0, 'VOL_SIZE_MULT_HIGH': 0.8}. Best is trial 11 with value: 754427.0.
+[I 2026-06-01 20:39:57,662] Trial 14 finished with value: 140579.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.0, 'CFG_TDD_WARNING_PCT': 3.5, 'CFG_TDD_EMERGENCY_PCT': 4.0, 'CFG_RISK_CAUTIOUS': 0.55, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.15000000000000002, 'TDD_WALL_SAFETY': 2.5, 'VOL_SIZE_MULT_LOW': 1.0, 'VOL_SIZE_MULT_HIGH': 0.8}. Best is trial 11 with value: 754427.0.
+[I 2026-06-01 20:41:26,328] Trial 16 finished with value: -999972000.0 and parameters: {'CFG_TDD_CAUTION_PCT': 5.0, 'CFG_TDD_WARNING_PCT': 8.0, 'CFG_TDD_EMERGENCY_PCT': 9.0, 'CFG_RISK_CAUTIOUS': 0.5, 'CFG_RISK_CONSERVATIVE': 0.2, 'CFG_RISK_ULTRASAFE': 0.15000000000000002, 'TDD_WALL_SAFETY': 2.5, 'VOL_SIZE_MULT_LOW': 1.4, 'VOL_SIZE_MULT_HIGH': 0.8}. Best is trial 11 with value: 754427.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.3].
+  optuna_warn(
+[I 2026-06-01 20:42:14,544] Trial 17 finished with value: 26189.0 and parameters: {'CFG_TDD_CAUTION_PCT': 5.0, 'CFG_TDD_WARNING_PCT': 8.0, 'CFG_TDD_EMERGENCY_PCT': 9.0, 'CFG_RISK_CAUTIOUS': 0.5, 'CFG_RISK_CONSERVATIVE': 0.2, 'CFG_RISK_ULTRASAFE': 0.1, 'TDD_WALL_SAFETY': 3.0, 'VOL_SIZE_MULT_LOW': 1.4, 'VOL_SIZE_MULT_HIGH': 0.7}. Best is trial 11 with value: 754427.0.
+[I 2026-06-01 20:43:23,206] Trial 18 finished with value: -999975800.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 5.0, 'CFG_TDD_EMERGENCY_PCT': 6.0, 'CFG_RISK_CAUTIOUS': 0.30000000000000004, 'CFG_RISK_CONSERVATIVE': 0.2, 'CFG_RISK_ULTRASAFE': 0.1, 'TDD_WALL_SAFETY': 4.0, 'VOL_SIZE_MULT_LOW': 1.8, 'VOL_SIZE_MULT_HIGH': 1.0}. Best is trial 11 with value: 754427.0.
+[I 2026-06-01 20:44:06,397] Trial 19 finished with value: -999975800.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 5.0, 'CFG_TDD_EMERGENCY_PCT': 6.0, 'CFG_RISK_CAUTIOUS': 0.30000000000000004, 'CFG_RISK_CONSERVATIVE': 0.15, 'CFG_RISK_ULTRASAFE': 0.1, 'TDD_WALL_SAFETY': 4.0, 'VOL_SIZE_MULT_LOW': 1.8, 'VOL_SIZE_MULT_HIGH': 1.0}. Best is trial 11 with value: 754427.0.
+[I 2026-06-01 20:58:09,955] Trial 20 finished with value: 938792.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.6000000000000001, 'CFG_RISK_CONSERVATIVE': 0.30000000000000004, 'CFG_RISK_ULTRASAFE': 0.3, 'TDD_WALL_SAFETY': 4.5, 'VOL_SIZE_MULT_LOW': 1.5, 'VOL_SIZE_MULT_HIGH': 0.4}. Best is trial 20 with value: 938792.0.
+[I 2026-06-01 20:59:58,188] Trial 21 finished with value: 849095.0 and parameters: {'CFG_TDD_CAUTION_PCT': 5.5, 'CFG_TDD_WARNING_PCT': 7.5, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.6000000000000001, 'CFG_RISK_CONSERVATIVE': 0.30000000000000004, 'CFG_RISK_ULTRASAFE': 0.3, 'TDD_WALL_SAFETY': 4.5, 'VOL_SIZE_MULT_LOW': 1.5, 'VOL_SIZE_MULT_HIGH': 0.4}. Best is trial 20 with value: 938792.0.
+[I 2026-06-01 21:05:51,568] Trial 22 finished with value: -999718000.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.5, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.6000000000000001, 'CFG_RISK_CONSERVATIVE': 0.30000000000000004, 'CFG_RISK_ULTRASAFE': 0.3, 'TDD_WALL_SAFETY': 4.5, 'VOL_SIZE_MULT_LOW': 1.5, 'VOL_SIZE_MULT_HIGH': 0.4}. Best is trial 20 with value: 938792.0.
+[I 2026-06-01 21:07:49,634] Trial 23 finished with value: -999718000.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.5, 'CFG_TDD_WARNING_PCT': 7.5, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.6000000000000001, 'CFG_RISK_CONSERVATIVE': 0.35, 'CFG_RISK_ULTRASAFE': 0.35, 'TDD_WALL_SAFETY': 4.5, 'VOL_SIZE_MULT_LOW': 1.5, 'VOL_SIZE_MULT_HIGH': 0.4}. Best is trial 20 with value: 938792.0.
+[I 2026-06-01 21:08:59,881] Trial 24 finished with value: -999911200.0 and parameters: {'CFG_TDD_CAUTION_PCT': 5.5, 'CFG_TDD_WARNING_PCT': 7.5, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.6000000000000001, 'CFG_RISK_CONSERVATIVE': 0.35, 'CFG_RISK_ULTRASAFE': 0.35, 'TDD_WALL_SAFETY': 4.5, 'VOL_SIZE_MULT_LOW': 1.7000000000000002, 'VOL_SIZE_MULT_HIGH': 0.6000000000000001}. Best is trial 20 with value: 938792.0.
+[I 2026-06-01 21:23:38,394] Trial 25 finished with value: 1821028.0 and parameters: {'CFG_TDD_CAUTION_PCT': 5.5, 'CFG_TDD_WARNING_PCT': 7.5, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.45, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 4.5, 'VOL_SIZE_MULT_LOW': 1.7000000000000002, 'VOL_SIZE_MULT_HIGH': 0.6000000000000001}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 21:24:06,419] Trial 26 finished with value: 903110.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.55, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 3.5, 'VOL_SIZE_MULT_LOW': 1.4, 'VOL_SIZE_MULT_HIGH': 0.4}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 21:25:40,596] Trial 27 finished with value: -999963700.0 and parameters: {'CFG_TDD_CAUTION_PCT': 5.5, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.45, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 4.5, 'VOL_SIZE_MULT_LOW': 1.7000000000000002, 'VOL_SIZE_MULT_HIGH': 0.4}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 21:30:19,042] Trial 29 finished with value: -999863200.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.5, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 3.5, 'VOL_SIZE_MULT_LOW': 1.4, 'VOL_SIZE_MULT_HIGH': 0.7}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 21:32:34,978] Trial 28 finished with value: -999738200.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.45, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 3.5, 'VOL_SIZE_MULT_LOW': 1.7000000000000002, 'VOL_SIZE_MULT_HIGH': 0.7}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 21:34:16,554] Trial 31 finished with value: -999853800.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.5, 'CFG_TDD_WARNING_PCT': 6.5, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.4, 'CFG_RISK_CONSERVATIVE': 0.35, 'CFG_RISK_ULTRASAFE': 0.30000000000000004, 'TDD_WALL_SAFETY': 3.0, 'VOL_SIZE_MULT_LOW': 1.2, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 21:44:38,801] Trial 30 finished with value: 1263762.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.5, 'CFG_TDD_WARNING_PCT': 6.5, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.4, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 3.0, 'VOL_SIZE_MULT_LOW': 1.7000000000000002, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 21:47:32,221] Trial 32 finished with value: 637938.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.5, 'CFG_TDD_WARNING_PCT': 7.5, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.55, 'CFG_RISK_CONSERVATIVE': 0.30000000000000004, 'CFG_RISK_ULTRASAFE': 0.3, 'TDD_WALL_SAFETY': 4.0, 'VOL_SIZE_MULT_LOW': 1.5, 'VOL_SIZE_MULT_HIGH': 0.4}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 21:48:17,350] Trial 33 finished with value: -999911200.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.5, 'CFG_TDD_WARNING_PCT': 6.5, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.45, 'CFG_RISK_CONSERVATIVE': 0.30000000000000004, 'CFG_RISK_ULTRASAFE': 0.3, 'TDD_WALL_SAFETY': 3.0, 'VOL_SIZE_MULT_LOW': 1.6, 'VOL_SIZE_MULT_HIGH': 0.6000000000000001}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 21:50:00,162] Trial 35 finished with value: -13924.999999999978 and parameters: {'CFG_TDD_CAUTION_PCT': 5.0, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.35000000000000003, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.2, 'TDD_WALL_SAFETY': 3.5, 'VOL_SIZE_MULT_LOW': 1.9, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 21:51:03,642] Trial 34 finished with value: -999911200.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.5, 'CFG_TDD_WARNING_PCT': 6.5, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.45, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.2, 'TDD_WALL_SAFETY': 3.5, 'VOL_SIZE_MULT_LOW': 1.6, 'VOL_SIZE_MULT_HIGH': 0.6000000000000001}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 21:54:15,715] Trial 36 finished with value: -999907800.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 6.5, 'CFG_TDD_EMERGENCY_PCT': 7.5, 'CFG_RISK_CAUTIOUS': 0.4, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.2, 'TDD_WALL_SAFETY': 4.0, 'VOL_SIZE_MULT_LOW': 1.4, 'VOL_SIZE_MULT_HIGH': 0.30000000000000004}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 21:54:53,080] Trial 37 finished with value: -999907800.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 8.0, 'CFG_TDD_EMERGENCY_PCT': 9.0, 'CFG_RISK_CAUTIOUS': 0.4, 'CFG_RISK_CONSERVATIVE': 0.2, 'CFG_RISK_ULTRASAFE': 0.2, 'TDD_WALL_SAFETY': 4.0, 'VOL_SIZE_MULT_LOW': 1.4, 'VOL_SIZE_MULT_HIGH': 0.30000000000000004}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 22:06:27,354] Trial 39 finished with value: 536336.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.5, 'CFG_TDD_WARNING_PCT': 7.5, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.35000000000000003, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 5.0, 'VOL_SIZE_MULT_LOW': 1.2, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-01 22:10:32,066] Trial 38 finished with value: 1073042.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 7.5, 'CFG_TDD_EMERGENCY_PCT': 9.0, 'CFG_RISK_CAUTIOUS': 0.35000000000000003, 'CFG_RISK_CONSERVATIVE': 0.2, 'CFG_RISK_ULTRASAFE': 0.2, 'TDD_WALL_SAFETY': 3.0, 'VOL_SIZE_MULT_LOW': 1.7000000000000002, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 25 with value: 1821028.0.
+=== PIPELINE START Tue Jun  2 03:38:05 UTC 2026 (JOBS=2) ===
+>>> STAGE safety target=60 Tue Jun  2 03:38:05 UTC 2026
+>>> [safety] attempt 1 Tue Jun  2 03:38:06 UTC 2026
+[I 2026-06-02 03:38:07,102] Using an existing study with name 'cont_safety' instead of creating a new one.
+stage safety: 40 done, running 20 more to reach 60
+[I 2026-06-02 03:49:00,224] Trial 42 finished with value: 578352.0 and parameters: {'CFG_TDD_CAUTION_PCT': 5.0, 'CFG_TDD_WARNING_PCT': 7.5, 'CFG_TDD_EMERGENCY_PCT': 9.0, 'CFG_RISK_CAUTIOUS': 0.25, 'CFG_RISK_CONSERVATIVE': 0.2, 'CFG_RISK_ULTRASAFE': 0.15000000000000002, 'TDD_WALL_SAFETY': 3.0, 'VOL_SIZE_MULT_LOW': 1.7000000000000002, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 25 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.35000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.35].
+  optuna_warn(
+[I 2026-06-02 03:49:08,775] Trial 43 finished with value: 578352.0 and parameters: {'CFG_TDD_CAUTION_PCT': 5.0, 'CFG_TDD_WARNING_PCT': 7.5, 'CFG_TDD_EMERGENCY_PCT': 9.0, 'CFG_RISK_CAUTIOUS': 0.25, 'CFG_RISK_CONSERVATIVE': 0.2, 'CFG_RISK_ULTRASAFE': 0.15000000000000002, 'TDD_WALL_SAFETY': 3.0, 'VOL_SIZE_MULT_LOW': 1.7000000000000002, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 03:53:05,712] Trial 45 finished with value: 9354.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.35000000000000003, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 2.5, 'VOL_SIZE_MULT_LOW': 1.3, 'VOL_SIZE_MULT_HIGH': 0.4}. Best is trial 25 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.1, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.1, 0.3].
+  optuna_warn(
+[I 2026-06-02 03:55:57,148] Trial 46 finished with value: -999966500.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.5, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.4, 'CFG_RISK_CONSERVATIVE': 0.30000000000000004, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 3.0, 'VOL_SIZE_MULT_LOW': 1.9, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:06:42,743] Trial 44 finished with value: 687610.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 9.0, 'CFG_RISK_CAUTIOUS': 0.35000000000000003, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 3.0, 'VOL_SIZE_MULT_LOW': 1.3, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:09:12,451] Trial 48 finished with value: -999957400.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.5, 'CFG_TDD_WARNING_PCT': 6.5, 'CFG_TDD_EMERGENCY_PCT': 7.5, 'CFG_RISK_CAUTIOUS': 0.65, 'CFG_RISK_CONSERVATIVE': 0.4, 'CFG_RISK_ULTRASAFE': 0.30000000000000004, 'TDD_WALL_SAFETY': 3.5, 'VOL_SIZE_MULT_LOW': 1.8, 'VOL_SIZE_MULT_HIGH': 0.30000000000000004}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:13:35,033] Trial 49 finished with value: -999927200.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.5, 'CFG_TDD_WARNING_PCT': 6.0, 'CFG_TDD_EMERGENCY_PCT': 7.5, 'CFG_RISK_CAUTIOUS': 0.55, 'CFG_RISK_CONSERVATIVE': 0.4, 'CFG_RISK_ULTRASAFE': 0.4, 'TDD_WALL_SAFETY': 5.0, 'VOL_SIZE_MULT_LOW': 1.6, 'VOL_SIZE_MULT_HIGH': 0.6000000000000001}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:14:12,951] Trial 47 finished with value: 1103894.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.5, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.65, 'CFG_RISK_CONSERVATIVE': 0.4, 'CFG_RISK_ULTRASAFE': 0.30000000000000004, 'TDD_WALL_SAFETY': 5.0, 'VOL_SIZE_MULT_LOW': 1.6, 'VOL_SIZE_MULT_HIGH': 0.30000000000000004}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:18:42,265] Trial 50 finished with value: -999910700.0 and parameters: {'CFG_TDD_CAUTION_PCT': 6.0, 'CFG_TDD_WARNING_PCT': 7.5, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.65, 'CFG_RISK_CONSERVATIVE': 0.35, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 2.5, 'VOL_SIZE_MULT_LOW': 1.8, 'VOL_SIZE_MULT_HIGH': 0.7}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:19:04,073] Trial 51 finished with value: 166690.0 and parameters: {'CFG_TDD_CAUTION_PCT': 6.0, 'CFG_TDD_WARNING_PCT': 7.5, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.7, 'CFG_RISK_CONSERVATIVE': 0.5, 'CFG_RISK_ULTRASAFE': 0.35, 'TDD_WALL_SAFETY': 5.0, 'VOL_SIZE_MULT_LOW': 1.6, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:21:22,788] Trial 53 finished with value: -999957300.0 and parameters: {'CFG_TDD_CAUTION_PCT': 5.0, 'CFG_TDD_WARNING_PCT': 8.0, 'CFG_TDD_EMERGENCY_PCT': 9.0, 'CFG_RISK_CAUTIOUS': 0.75, 'CFG_RISK_CONSERVATIVE': 0.45000000000000007, 'CFG_RISK_ULTRASAFE': 0.35, 'TDD_WALL_SAFETY': 5.0, 'VOL_SIZE_MULT_LOW': 1.7000000000000002, 'VOL_SIZE_MULT_HIGH': 0.30000000000000004}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:23:32,803] Trial 52 finished with value: 166349.0 and parameters: {'CFG_TDD_CAUTION_PCT': 5.0, 'CFG_TDD_WARNING_PCT': 8.0, 'CFG_TDD_EMERGENCY_PCT': 9.0, 'CFG_RISK_CAUTIOUS': 0.75, 'CFG_RISK_CONSERVATIVE': 0.45000000000000007, 'CFG_RISK_ULTRASAFE': 0.35, 'TDD_WALL_SAFETY': 5.0, 'VOL_SIZE_MULT_LOW': 1.6, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:24:03,494] Trial 54 finished with value: -999951200.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.7, 'CFG_RISK_CONSERVATIVE': 0.35, 'CFG_RISK_ULTRASAFE': 0.30000000000000004, 'TDD_WALL_SAFETY': 4.5, 'VOL_SIZE_MULT_LOW': 1.6, 'VOL_SIZE_MULT_HIGH': 0.4}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:27:03,574] Trial 55 finished with value: -999944100.0 and parameters: {'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 7.0, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.65, 'CFG_RISK_CONSERVATIVE': 0.35, 'CFG_RISK_ULTRASAFE': 0.30000000000000004, 'TDD_WALL_SAFETY': 4.5, 'VOL_SIZE_MULT_LOW': 1.5, 'VOL_SIZE_MULT_HIGH': 0.30000000000000004}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:43:06,472] Trial 56 finished with value: 1068469.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.5, 'CFG_TDD_WARNING_PCT': 6.5, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.5, 'CFG_RISK_CONSERVATIVE': 0.30000000000000004, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 4.5, 'VOL_SIZE_MULT_LOW': 1.5, 'VOL_SIZE_MULT_HIGH': 0.30000000000000004}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:44:36,391] Trial 57 finished with value: 1266109.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.5, 'CFG_TDD_WARNING_PCT': 6.0, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.55, 'CFG_RISK_CONSERVATIVE': 0.30000000000000004, 'CFG_RISK_ULTRASAFE': 0.25, 'TDD_WALL_SAFETY': 2.0, 'VOL_SIZE_MULT_LOW': 1.7000000000000002, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:45:56,759] Trial 58 finished with value: -45525.99999999999 and parameters: {'CFG_TDD_CAUTION_PCT': 3.5, 'CFG_TDD_WARNING_PCT': 6.0, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.5, 'CFG_RISK_CONSERVATIVE': 0.30000000000000004, 'CFG_RISK_ULTRASAFE': 0.2, 'TDD_WALL_SAFETY': 4.5, 'VOL_SIZE_MULT_LOW': 1.7000000000000002, 'VOL_SIZE_MULT_HIGH': 0.30000000000000004}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:47:23,716] Trial 59 finished with value: -999928800.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.5, 'CFG_TDD_WARNING_PCT': 6.0, 'CFG_TDD_EMERGENCY_PCT': 8.5, 'CFG_RISK_CAUTIOUS': 0.5, 'CFG_RISK_CONSERVATIVE': 0.30000000000000004, 'CFG_RISK_ULTRASAFE': 0.2, 'TDD_WALL_SAFETY': 2.0, 'VOL_SIZE_MULT_LOW': 1.8, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 04:52:07,571] Trial 61 finished with value: -999911200.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.0, 'CFG_TDD_WARNING_PCT': 5.5, 'CFG_TDD_EMERGENCY_PCT': 7.0, 'CFG_RISK_CAUTIOUS': 0.45, 'CFG_RISK_CONSERVATIVE': 0.2, 'CFG_RISK_ULTRASAFE': 0.15000000000000002, 'TDD_WALL_SAFETY': 2.0, 'VOL_SIZE_MULT_LOW': 1.8, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 25 with value: 1821028.0.
+[I 2026-06-02 05:06:32,484] Trial 60 finished with value: 1112546.0 and parameters: {'CFG_TDD_CAUTION_PCT': 3.0, 'CFG_TDD_WARNING_PCT': 5.5, 'CFG_TDD_EMERGENCY_PCT': 7.0, 'CFG_RISK_CAUTIOUS': 0.5, 'CFG_RISK_CONSERVATIVE': 0.2, 'CFG_RISK_ULTRASAFE': 0.15000000000000002, 'TDD_WALL_SAFETY': 2.0, 'VOL_SIZE_MULT_LOW': 1.8, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 25 with value: 1821028.0.
+
+60 trials | 28 SURVIVED (0-breach)
+           net   TDD%   DDD%    funded scal         score
+OK   1,834,096   9.16   3.74 1,250,000   19     1,821,028
+OK   1,266,109   7.13   4.71   800,000   17     1,266,109
+OK   1,263,762    6.6   4.71   800,000   17     1,263,762
+OK   1,115,069   8.79   4.91   700,000   16     1,112,546
+OK   1,103,894    6.3   3.96   700,000   16     1,103,894
+OK   1,073,042   5.87   3.88   700,000   16     1,073,042
+OK   1,068,469   6.99   3.26   700,000   16     1,068,469
+OK     938,792   8.43   4.54   600,000   15       938,792
+OK     903,110   6.15   3.39   600,000   15       903,110
+OK     849,095    6.6   4.04   600,000   15       849,095
+
+stage safety: 88.4 min, best survived=True
+locked -> /tmp/cont_opt_state.json:
+  safety={'CFG_TDD_CAUTION_PCT': '5.5', 'CFG_RISK_CAUTIOUS': '0.45', 'CFG_TDD_WARNING_PCT': '7.5', 'CFG_RISK_CONSERVATIVE': '0.25', 'CFG_TDD_EMERGENCY_PCT': '8.5', 'CFG_RISK_ULTRASAFE': '0.25', 'TDD_WALL_SAFETY': '4.5', 'VOL_SIZE_ENABLE': '1', 'VOL_SIZE_MULT_LOW': '1.7000000000000002', 'VOL_SIZE_MULT_HIGH': '0.6000000000000001'}
+  tp={'tp1_r_multiple': 0.5, 'tp2_r_multiple': 0.9, 'tp3_r_multiple': 1.2, 'tp4_r_multiple': 1.5, 'tp5_r_multiple': 5.2, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.4, 'tp3_close_pct': 0.15, 'tp4_close_pct': 0.15, 'tp5_close_pct': 0.2, 'sl_after_tp2_r': 0.2, 'sl_after_tp3_r': 0.35, 'sl_after_tp4_r': 0.35}
+>>> STAGE safety COMPLETE Tue Jun  2 05:06:36 UTC 2026
+>>> STAGE tp target=80 Tue Jun  2 05:06:36 UTC 2026
+>>> [tp] attempt 1 Tue Jun  2 05:06:37 UTC 2026
+[I 2026-06-02 05:06:38,062] A new study created in RDB with name: cont_tp
+stage tp: 0 done, running 80 more to reach 80
+[I 2026-06-02 05:26:33,392] Trial 0 finished with value: 1821028.0 and parameters: {'tp1_r_multiple': 0.5, 'tp2_r_multiple': 0.9, 'tp3_r_multiple': 1.2, 'tp4_r_multiple': 1.5, 'tp5_r_multiple': 5.2, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.4, 'tp3_close_pct': 0.15, 'tp4_close_pct': 0.15, 'sl_after_tp2_r': 0.2, 'sl_after_tp3_r': 0.35, 'sl_after_tp4_r': 0.35}. Best is trial 0 with value: 1821028.0.
+[I 2026-06-02 05:26:33,456] Trial 1 pruned. 
+[I 2026-06-02 05:26:33,516] Trial 2 pruned. 
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.2, 0.6000000000000001] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.2, 0.6].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.30000000000000004, 1.3] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.30000000000000004, 1.25].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.6500000000000001, 2.2] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.6500000000000001, 2.15].
+  optuna_warn(
+[I 2026-06-02 05:26:50,808] Trial 0 finished with value: 1821028.0 and parameters: {'tp1_r_multiple': 0.5, 'tp2_r_multiple': 0.9, 'tp3_r_multiple': 1.2, 'tp4_r_multiple': 1.5, 'tp5_r_multiple': 5.2, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.4, 'tp3_close_pct': 0.15, 'tp4_close_pct': 0.15, 'sl_after_tp2_r': 0.2, 'sl_after_tp3_r': 0.35, 'sl_after_tp4_r': 0.35}. Best is trial 0 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.30000000000000004, 1.25] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.30000000000000004, 1.2].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.6500000000000001, 2.15] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.6500000000000001, 2.1].
+  optuna_warn(
+[I 2026-06-02 05:29:16,207] Trial 3 finished with value: 9822.0 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.3, 'tp3_r_multiple': 2.7, 'tp4_r_multiple': 4.0, 'tp5_r_multiple': 5.1, 'tp1_close_pct': 0.2, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.2, 'tp4_close_pct': 0.1, 'sl_after_tp2_r': 0.30000000000000004, 'sl_after_tp3_r': 0.6500000000000001, 'sl_after_tp4_r': 2.15}. Best is trial 0 with value: 1821028.0.
+Traceback (most recent call last):
+  File "/home/user/20k5ers/backtest/src/optimize_continuous.py", line 336, in <module>
+    main()
+  File "/home/user/20k5ers/backtest/src/optimize_continuous.py", line 319, in main
+    study.optimize(make_objective(args.stage, state), n_trials=remaining, n_jobs=args.jobs)
+  File "/usr/local/lib/python3.11/dist-packages/optuna/study/study.py", line 490, in optimize
+    _optimize(
+  File "/usr/local/lib/python3.11/dist-packages/optuna/study/_optimize.py", line 105, in _optimize
+    f.result()
+  File "/usr/lib/python3.11/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.11/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/optuna/study/_optimize.py", line 165, in _optimize_sequential
+    frozen_trial_id = _run_trial(study, func, catch)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/optuna/study/_optimize.py", line 218, in _run_trial
+    updated_state, values, warning_message = _tell_with_warning(
+                                             ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/optuna/study/_tell.py", line 114, in _tell_with_warning
+    raise ValueError(f"Cannot tell a {frozen_trial.state.name} trial.")
+ValueError: Cannot tell a COMPLETE trial.
+>>> [tp] attempt 2 Tue Jun  2 05:29:20 UTC 2026
+[I 2026-06-02 05:29:20,861] Using an existing study with name 'cont_tp' instead of creating a new one.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.30000000000000004, 1.25] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.30000000000000004, 1.2].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.6500000000000001, 2.15] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.6500000000000001, 2.1].
+  optuna_warn(
+stage tp: 4 done, running 76 more to reach 80
+[I 2026-06-02 05:29:21,034] Trial 5 pruned. 
+[I 2026-06-02 05:29:21,038] Trial 4 pruned. 
+[I 2026-06-02 05:29:21,160] Trial 6 pruned. 
+[I 2026-06-02 05:29:21,183] Trial 7 pruned. 
+[I 2026-06-02 05:29:21,318] Trial 9 pruned. 
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.9000000000000001, 1.8] and step=0.1, but the range is not divisible by `step`. It will be replaced with [0.9000000000000001, 1.7000000000000002].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [2.5999999999999996, 6.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [2.5999999999999996, 6.0].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.9000000000000001, 1.7000000000000002] and step=0.1, but the range is not divisible by `step`. It will be replaced with [0.9000000000000001, 1.7000000000000002].
+  optuna_warn(
+[I 2026-06-02 05:29:21,385] Trial 10 pruned. 
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.6000000000000001, 1.8] and step=0.1, but the range is not divisible by `step`. It will be replaced with [0.6000000000000001, 1.7000000000000002].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.2, 0.6000000000000001] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.2, 0.6].
+  optuna_warn(
+[I 2026-06-02 05:31:11,717] Trial 8 finished with value: 23810.0 and parameters: {'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.6, 'tp3_r_multiple': 2.6, 'tp4_r_multiple': 3.6, 'tp5_r_multiple': 5.1, 'tp1_close_pct': 0.2, 'tp2_close_pct': 0.25, 'tp3_close_pct': 0.3, 'tp4_close_pct': 0.1, 'sl_after_tp2_r': 0.8, 'sl_after_tp3_r': 1.0, 'sl_after_tp4_r': 1.25}. Best is trial 0 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.6000000000000001, 1.7000000000000002] and step=0.1, but the range is not divisible by `step`. It will be replaced with [0.6000000000000001, 1.7000000000000002].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.4, 0.6000000000000001] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.4, 0.6].
+  optuna_warn(
+[I 2026-06-02 05:32:10,719] Trial 11 finished with value: -999960900.0 and parameters: {'tp1_r_multiple': 0.4, 'tp2_r_multiple': 0.6000000000000001, 'tp3_r_multiple': 0.9, 'tp4_r_multiple': 1.2, 'tp5_r_multiple': 2.8, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.15000000000000002, 'tp3_close_pct': 0.3, 'tp4_close_pct': 0.05, 'sl_after_tp2_r': 0.2, 'sl_after_tp3_r': 0.25, 'sl_after_tp4_r': 0.25}. Best is trial 0 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [2.5999999999999996, 4.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [2.5999999999999996, 3.9999999999999996].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.5999999999999996, 6.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.5999999999999996, 6.0].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.9000000000000001, 1.6] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.9000000000000001, 1.55].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.5000000000000002, 2.2] and step=0.05, but the range is not divisible by `step`. It will be replaced with [1.5000000000000002, 2.1500000000000004].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.9000000000000001, 1.55] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.9000000000000001, 1.5].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.5000000000000002, 2.1500000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [1.5000000000000002, 2.1500000000000004].
+  optuna_warn(
+[I 2026-06-02 05:34:02,119] Trial 13 finished with value: 24060.0 and parameters: {'tp1_r_multiple': 1.0, 'tp2_r_multiple': 1.8, 'tp3_r_multiple': 2.3, 'tp4_r_multiple': 3.3, 'tp5_r_multiple': 4.1, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.1, 'tp3_close_pct': 0.25, 'tp4_close_pct': 0.15000000000000002, 'sl_after_tp2_r': 0.9000000000000001, 'sl_after_tp3_r': 1.5000000000000002, 'sl_after_tp4_r': 1.5000000000000002}. Best is trial 0 with value: 1821028.0.
+[I 2026-06-02 05:35:31,688] Trial 12 finished with value: -999925200.0 and parameters: {'tp1_r_multiple': 0.4, 'tp2_r_multiple': 0.6000000000000001, 'tp3_r_multiple': 0.8, 'tp4_r_multiple': 1.3, 'tp5_r_multiple': 3.1, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.15000000000000002, 'tp3_close_pct': 0.3, 'tp4_close_pct': 0.05, 'sl_after_tp2_r': 0.4, 'sl_after_tp3_r': 0.4, 'sl_after_tp4_r': 0.4}. Best is trial 0 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.4999999999999996, 6.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.4999999999999996, 6.0].
+  optuna_warn(
+[I 2026-06-02 05:36:45,071] Trial 14 finished with value: -999972000.0 and parameters: {'tp1_r_multiple': 0.4, 'tp2_r_multiple': 1.0, 'tp3_r_multiple': 2.2, 'tp4_r_multiple': 3.2, 'tp5_r_multiple': 4.1, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.1, 'tp3_close_pct': 0.25, 'tp4_close_pct': 0.15000000000000002, 'sl_after_tp2_r': 0.4, 'sl_after_tp3_r': 0.45, 'sl_after_tp4_r': 1.35}. Best is trial 0 with value: 1821028.0.
+[I 2026-06-02 05:36:45,157] Trial 16 pruned. 
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.2, 0.7000000000000001] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.2, 0.7].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.1, 1.9000000000000001] and step=0.05, but the range is not divisible by `step`. It will be replaced with [1.1, 1.9].
+  optuna_warn(
+[I 2026-06-02 05:37:21,265] Trial 15 finished with value: 23989.0 and parameters: {'tp1_r_multiple': 1.0, 'tp2_r_multiple': 1.8, 'tp3_r_multiple': 2.3, 'tp4_r_multiple': 3.1999999999999997, 'tp5_r_multiple': 3.9999999999999996, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.1, 'tp3_close_pct': 0.25, 'tp4_close_pct': 0.15000000000000002, 'sl_after_tp2_r': 0.9000000000000001, 'sl_after_tp3_r': 1.55, 'sl_after_tp4_r': 1.6500000000000001}. Best is trial 0 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.6000000000000001, 1.1] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.6000000000000001, 1.05].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.05, 1.9000000000000001] and step=0.05, but the range is not divisible by `step`. It will be replaced with [1.05, 1.9].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.6000000000000001, 1.05] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.6000000000000001, 1.0].
+  optuna_warn(
+[I 2026-06-02 05:40:30,133] Trial 18 finished with value: 38446.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.1, 'tp3_r_multiple': 1.9000000000000001, 'tp4_r_multiple': 2.9000000000000004, 'tp5_r_multiple': 3.6, 'tp1_close_pct': 0.15000000000000002, 'tp2_close_pct': 0.45, 'tp3_close_pct': 0.1, 'tp4_close_pct': 0.2, 'sl_after_tp2_r': 0.6000000000000001, 'sl_after_tp3_r': 1.05, 'sl_after_tp4_r': 1.55}. Best is trial 0 with value: 1821028.0.
+[I 2026-06-02 05:41:47,534] Trial 17 finished with value: -999916100.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.1, 'tp3_r_multiple': 1.9000000000000001, 'tp4_r_multiple': 2.9000000000000004, 'tp5_r_multiple': 3.7, 'tp1_close_pct': 0.15000000000000002, 'tp2_close_pct': 0.1, 'tp3_close_pct': 0.1, 'tp4_close_pct': 0.15000000000000002, 'sl_after_tp2_r': 0.65, 'sl_after_tp3_r': 1.1, 'sl_after_tp4_r': 1.6}. Best is trial 0 with value: 1821028.0.
+[I 2026-06-02 05:42:51,024] Trial 19 finished with value: -999976900.0 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.1, 'tp3_r_multiple': 1.8, 'tp4_r_multiple': 2.8000000000000003, 'tp5_r_multiple': 3.6, 'tp1_close_pct': 0.15000000000000002, 'tp2_close_pct': 0.45, 'tp3_close_pct': 0.05, 'tp4_close_pct': 0.2, 'sl_after_tp2_r': 0.5, 'sl_after_tp3_r': 1.0, 'sl_after_tp4_r': 1.1}. Best is trial 0 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.7000000000000002, 4.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.7000000000000002, 3.9000000000000004].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.7000000000000002, 3.9000000000000004] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.7000000000000002, 3.9000000000000004].
+  optuna_warn(
+[I 2026-06-02 05:42:51,116] Trial 21 pruned. 
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.6999999999999997, 6.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.6999999999999997, 6.0].
+  optuna_warn(
+[I 2026-06-02 05:45:06,130] Trial 20 finished with value: -5860.000000000044 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.1, 'tp3_r_multiple': 1.8, 'tp4_r_multiple': 2.7, 'tp5_r_multiple': 3.5, 'tp1_close_pct': 0.15000000000000002, 'tp2_close_pct': 0.45, 'tp3_close_pct': 0.05, 'tp4_close_pct': 0.2, 'sl_after_tp2_r': 0.5, 'sl_after_tp3_r': 0.9, 'sl_after_tp4_r': 1.05}. Best is trial 0 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [2.6999999999999997, 4.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [2.6999999999999997, 3.9999999999999996].
+  optuna_warn(
+[I 2026-06-02 05:47:46,157] Trial 22 finished with value: -999908300.0 and parameters: {'tp1_r_multiple': 0.8, 'tp2_r_multiple': 1.2, 'tp3_r_multiple': 2.0, 'tp4_r_multiple': 3.4, 'tp5_r_multiple': 4.3999999999999995, 'tp1_close_pct': 0.15000000000000002, 'tp2_close_pct': 0.45, 'tp3_close_pct': 0.1, 'tp4_close_pct': 0.2, 'sl_after_tp2_r': 0.65, 'sl_after_tp3_r': 1.2, 'sl_after_tp4_r': 1.6}. Best is trial 0 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [2.6999999999999997, 3.9999999999999996] and step=0.1, but the range is not divisible by `step`. It will be replaced with [2.6999999999999997, 3.9].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.9000000000000001, 2.8] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.9000000000000001, 2.7].
+  optuna_warn(
+[I 2026-06-02 05:49:47,345] Trial 23 finished with value: -999925900.0 and parameters: {'tp1_r_multiple': 0.8, 'tp2_r_multiple': 1.2, 'tp3_r_multiple': 2.4, 'tp4_r_multiple': 3.5, 'tp5_r_multiple': 4.3, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.35, 'tp3_close_pct': 0.1, 'tp4_close_pct': 0.1, 'sl_after_tp2_r': 0.65, 'sl_after_tp3_r': 1.1, 'sl_after_tp4_r': 2.1500000000000004}. Best is trial 0 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.9000000000000001, 2.7] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.9000000000000001, 2.6].
+  optuna_warn(
+[I 2026-06-02 05:51:38,224] Trial 25 finished with value: 23914.0 and parameters: {'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.7000000000000002, 'tp3_r_multiple': 2.2, 'tp4_r_multiple': 3.0, 'tp5_r_multiple': 4.8, 'tp1_close_pct': 0.2, 'tp2_close_pct': 0.4, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.15000000000000002, 'sl_after_tp2_r': 0.8, 'sl_after_tp3_r': 1.5, 'sl_after_tp4_r': 1.95}. Best is trial 0 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.2, 1.4000000000000001] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.2, 1.4].
+  optuna_warn(
+[I 2026-06-02 05:54:23,712] Trial 26 finished with value: 64721.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.4000000000000001, 'tp3_r_multiple': 2.1, 'tp4_r_multiple': 3.4, 'tp5_r_multiple': 6.0, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.2, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.2, 'sl_after_tp3_r': 0.7, 'sl_after_tp4_r': 0.85}. Best is trial 0 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [2.8999999999999995, 6.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [2.8999999999999995, 5.999999999999999].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [2.8999999999999995, 5.999999999999999] and step=0.1, but the range is not divisible by `step`. It will be replaced with [2.8999999999999995, 5.8999999999999995].
+  optuna_warn(
+[I 2026-06-02 05:56:25,269] Trial 27 finished with value: 23737.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.4000000000000001, 'tp3_r_multiple': 2.0, 'tp4_r_multiple': 2.5999999999999996, 'tp5_r_multiple': 5.999999999999999, 'tp1_close_pct': 0.15000000000000002, 'tp2_close_pct': 0.25, 'tp3_close_pct': 0.2, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.2, 'sl_after_tp3_r': 0.65, 'sl_after_tp4_r': 0.8}. Best is trial 0 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.30000000000000004, 1.4000000000000001] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.30000000000000004, 1.4000000000000001].
+  optuna_warn(
+[I 2026-06-02 05:59:24,519] Trial 28 finished with value: 39837.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.4000000000000001, 'tp3_r_multiple': 2.1, 'tp4_r_multiple': 3.0, 'tp5_r_multiple': 5.4, 'tp1_close_pct': 0.25, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.30000000000000004, 'sl_after_tp3_r': 0.75, 'sl_after_tp4_r': 0.85}. Best is trial 0 with value: 1821028.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.5999999999999999, 2.8] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.5999999999999999, 2.8].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [2.3999999999999995, 4.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [2.3999999999999995, 3.9999999999999996].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.2999999999999994, 6.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.2999999999999994, 5.999999999999999].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.7, 2.0999999999999996] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.7, 2.05].
+  optuna_warn(
+[I 2026-06-02 06:09:44,023] Trial 24 finished with value: 1943365.0 and parameters: {'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.7000000000000002, 'tp3_r_multiple': 2.4000000000000004, 'tp4_r_multiple': 3.4000000000000004, 'tp5_r_multiple': 4.7, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.35, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.1, 'sl_after_tp2_r': 0.7, 'sl_after_tp3_r': 1.6, 'sl_after_tp4_r': 2.0}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [2.3999999999999995, 3.9999999999999996] and step=0.1, but the range is not divisible by `step`. It will be replaced with [2.3999999999999995, 3.9999999999999996].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.2999999999999994, 5.999999999999999] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.2999999999999994, 5.8999999999999995].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.30000000000000004, 1.6] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.30000000000000004, 1.55].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.30000000000000004, 1.55] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.30000000000000004, 1.5].
+  optuna_warn(
+[I 2026-06-02 06:11:47,449] Trial 30 finished with value: 23768.0 and parameters: {'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.7000000000000002, 'tp3_r_multiple': 2.5, 'tp4_r_multiple': 3.4, 'tp5_r_multiple': 4.6, 'tp1_close_pct': 0.30000000000000004, 'tp2_close_pct': 0.35, 'tp3_close_pct': 0.2, 'tp4_close_pct': 0.05, 'sl_after_tp2_r': 0.30000000000000004, 'sl_after_tp3_r': 1.3, 'sl_after_tp4_r': 1.9000000000000001}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.0999999999999996, 4.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.0999999999999996, 3.9999999999999996].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.7999999999999994, 6.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.7999999999999994, 5.999999999999999].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.7999999999999994, 5.999999999999999] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.7999999999999994, 5.8999999999999995].
+  optuna_warn(
+[I 2026-06-02 06:14:24,526] Trial 31 finished with value: -999972000.0 and parameters: {'tp1_r_multiple': 0.5, 'tp2_r_multiple': 1.4, 'tp3_r_multiple': 2.8, 'tp4_r_multiple': 3.4999999999999996, 'tp5_r_multiple': 5.5, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.1, 'sl_after_tp2_r': 0.25, 'sl_after_tp3_r': 0.45, 'sl_after_tp4_r': 0.6000000000000001}. Best is trial 24 with value: 1943365.0.
+[I 2026-06-02 06:17:35,184] Trial 32 finished with value: 39790.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.4000000000000001, 'tp3_r_multiple': 2.4000000000000004, 'tp4_r_multiple': 3.3000000000000003, 'tp5_r_multiple': 5.4, 'tp1_close_pct': 0.25, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.30000000000000004, 'sl_after_tp3_r': 0.75, 'sl_after_tp4_r': 1.0}. Best is trial 24 with value: 1943365.0.
+[I 2026-06-02 06:17:35,330] Trial 33 pruned. 
+[I 2026-06-02 06:21:16,904] Trial 34 finished with value: -999932300.0 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.6, 'tp3_r_multiple': 2.4000000000000004, 'tp4_r_multiple': 3.5, 'tp5_r_multiple': 5.3, 'tp1_close_pct': 0.2, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.2, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.25, 'sl_after_tp3_r': 0.8, 'sl_after_tp4_r': 1.3}. Best is trial 24 with value: 1943365.0.
+[I 2026-06-02 06:21:50,007] Trial 29 finished with value: 1564764.0 and parameters: {'tp1_r_multiple': 0.5, 'tp2_r_multiple': 1.4, 'tp3_r_multiple': 2.0999999999999996, 'tp4_r_multiple': 2.9999999999999996, 'tp5_r_multiple': 5.3999999999999995, 'tp1_close_pct': 0.30000000000000004, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.25, 'sl_after_tp3_r': 0.7, 'sl_after_tp4_r': 0.85}. Best is trial 24 with value: 1943365.0.
+[I 2026-06-02 06:21:50,134] Trial 36 pruned. 
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.2, 0.9000000000000001] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.2, 0.9].
+  optuna_warn(
+[I 2026-06-02 06:23:22,404] Trial 35 finished with value: -999988800.0 and parameters: {'tp1_r_multiple': 0.8, 'tp2_r_multiple': 1.3, 'tp3_r_multiple': 1.7, 'tp4_r_multiple': 2.1, 'tp5_r_multiple': 4.800000000000001, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.30000000000000004, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.3, 'sl_after_tp2_r': 0.4, 'sl_after_tp3_r': 0.65, 'sl_after_tp4_r': 0.9}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.5000000000000002, 4.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.5000000000000002, 3.9000000000000004].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.9000000000000004, 6.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.9000000000000004, 5.9].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.2, 1.2000000000000002] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.2, 1.2].
+  optuna_warn(
+[I 2026-06-02 06:24:09,551] Trial 37 finished with value: -999969900.0 and parameters: {'tp1_r_multiple': 0.4, 'tp2_r_multiple': 0.9000000000000001, 'tp3_r_multiple': 1.3, 'tp4_r_multiple': 2.5, 'tp5_r_multiple': 5.8, 'tp1_close_pct': 0.30000000000000004, 'tp2_close_pct': 0.30000000000000004, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.1, 'sl_after_tp2_r': 0.2, 'sl_after_tp3_r': 0.25, 'sl_after_tp4_r': 0.65}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.5000000000000002, 3.9000000000000004] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.5000000000000002, 3.9000000000000004].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.9000000000000004, 5.9] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.9000000000000004, 5.800000000000001].
+  optuna_warn(
+[I 2026-06-02 06:24:09,648] Trial 39 pruned. 
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.4000000000000001, 2.8] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.4000000000000001, 2.7].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.25, 1.2000000000000002] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.25, 1.2].
+  optuna_warn(
+[I 2026-06-02 06:26:04,160] Trial 38 finished with value: 23938.0 and parameters: {'tp1_r_multiple': 0.4, 'tp2_r_multiple': 0.9000000000000001, 'tp3_r_multiple': 1.2000000000000002, 'tp4_r_multiple': 1.6000000000000003, 'tp5_r_multiple': 5.700000000000001, 'tp1_close_pct': 0.30000000000000004, 'tp2_close_pct': 0.30000000000000004, 'tp3_close_pct': 0.2, 'tp4_close_pct': 0.1, 'sl_after_tp2_r': 0.2, 'sl_after_tp3_r': 0.2, 'sl_after_tp4_r': 0.6000000000000001}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.4000000000000001, 2.7] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.4000000000000001, 2.6].
+  optuna_warn(
+[I 2026-06-02 06:27:02,625] Trial 40 finished with value: 38298.0 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.2000000000000002, 'tp3_r_multiple': 2.2, 'tp4_r_multiple': 3.7, 'tp5_r_multiple': 5.8, 'tp1_close_pct': 0.2, 'tp2_close_pct': 0.15000000000000002, 'tp3_close_pct': 0.2, 'tp4_close_pct': 0.1, 'sl_after_tp2_r': 0.25, 'sl_after_tp3_r': 0.55, 'sl_after_tp4_r': 1.1500000000000001}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.8500000000000001, 2.1] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.8500000000000001, 2.0500000000000003].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.8500000000000001, 2.0500000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.8500000000000001, 2.0500000000000003].
+  optuna_warn(
+[I 2026-06-02 06:31:47,896] Trial 42 finished with value: -999925100.0 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.5, 'tp3_r_multiple': 2.1, 'tp4_r_multiple': 3.1, 'tp5_r_multiple': 5.2, 'tp1_close_pct': 0.25, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.25, 'sl_after_tp3_r': 0.8500000000000001, 'sl_after_tp4_r': 1.4000000000000001}. Best is trial 24 with value: 1943365.0.
+[I 2026-06-02 06:31:47,998] Trial 43 pruned. 
+[I 2026-06-02 06:31:48,092] Trial 44 pruned. 
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 1.3] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 1.25].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 1.25] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 1.2].
+  optuna_warn(
+[I 2026-06-02 06:34:03,881] Trial 45 finished with value: -999975000.0 and parameters: {'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.3, 'tp3_r_multiple': 2.7, 'tp4_r_multiple': 3.4, 'tp5_r_multiple': 4.699999999999999, 'tp1_close_pct': 0.25, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.1, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.35000000000000003, 'sl_after_tp3_r': 0.75, 'sl_after_tp4_r': 0.95}. Best is trial 24 with value: 1943365.0.
+[I 2026-06-02 06:36:24,689] Trial 46 finished with value: -999972000.0 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.6, 'tp3_r_multiple': 2.2, 'tp4_r_multiple': 3.7, 'tp5_r_multiple': 5.3, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.25, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.3, 'sl_after_tp2_r': 0.25, 'sl_after_tp3_r': 0.55, 'sl_after_tp4_r': 0.8}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.7000000000000002, 2.8] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.7000000000000002, 2.7].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.30000000000000004, 1.5000000000000002] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.30000000000000004, 1.5].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.6000000000000001, 2.0] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.6000000000000001, 1.9500000000000002].
+  optuna_warn(
+[I 2026-06-02 06:38:30,083] Trial 41 finished with value: -999737900.0 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.5, 'tp3_r_multiple': 2.6, 'tp4_r_multiple': 3.7, 'tp5_r_multiple': 5.2, 'tp1_close_pct': 0.2, 'tp2_close_pct': 0.15000000000000002, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.2, 'sl_after_tp2_r': 0.25, 'sl_after_tp3_r': 0.55, 'sl_after_tp4_r': 1.1500000000000001}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.7000000000000002, 2.7] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.7000000000000002, 2.6].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.30000000000000004, 1.5] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.30000000000000004, 1.45].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.6000000000000001, 1.9500000000000002] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.6000000000000001, 1.9500000000000002].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.9000000000000001, 4.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.9000000000000001, 3.9].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.30000000000000004, 0.7999999999999999] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.30000000000000004, 0.75].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.6000000000000001, 1.6] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.6000000000000001, 1.55].
+  optuna_warn(
+[I 2026-06-02 06:39:36,414] Trial 47 finished with value: 37938.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.5000000000000002, 'tp3_r_multiple': 2.0, 'tp4_r_multiple': 3.9, 'tp5_r_multiple': 5.1000000000000005, 'tp1_close_pct': 0.15000000000000002, 'tp2_close_pct': 0.15000000000000002, 'tp3_close_pct': 0.2, 'tp4_close_pct': 0.05, 'sl_after_tp2_r': 0.30000000000000004, 'sl_after_tp3_r': 0.6000000000000001, 'sl_after_tp4_r': 0.8500000000000001}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.9000000000000001, 3.9] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.9000000000000001, 3.8000000000000003].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.30000000000000004, 0.75] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.30000000000000004, 0.7000000000000001].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.6000000000000001, 1.55] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.6000000000000001, 1.5].
+  optuna_warn(
+[I 2026-06-02 06:39:36,513] Trial 49 pruned. 
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.0999999999999996, 6.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.0999999999999996, 6.0].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 1.5999999999999999] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 1.55].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 1.55] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 1.5].
+  optuna_warn(
+[I 2026-06-02 06:41:37,475] Trial 50 finished with value: 24825.0 and parameters: {'tp1_r_multiple': 0.5, 'tp2_r_multiple': 1.2, 'tp3_r_multiple': 1.5999999999999999, 'tp4_r_multiple': 2.8, 'tp5_r_multiple': 5.9, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.25, 'tp3_close_pct': 0.1, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.2, 'sl_after_tp3_r': 0.35000000000000003, 'sl_after_tp4_r': 0.7000000000000001}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.5000000000000002, 2.8] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.5000000000000002, 2.7].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.5000000000000002, 2.7] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.5000000000000002, 2.6].
+  optuna_warn(
+[I 2026-06-02 06:41:37,574] Trial 51 pruned. 
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 1.4000000000000001] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 1.4000000000000001].
+  optuna_warn(
+[I 2026-06-02 06:44:21,519] Trial 48 finished with value: -999901400.0 and parameters: {'tp1_r_multiple': 0.5, 'tp2_r_multiple': 0.7999999999999999, 'tp3_r_multiple': 1.6, 'tp4_r_multiple': 2.8000000000000003, 'tp5_r_multiple': 5.0, 'tp1_close_pct': 0.15000000000000002, 'tp2_close_pct': 0.4, 'tp3_close_pct': 0.2, 'tp4_close_pct': 0.05, 'sl_after_tp2_r': 0.30000000000000004, 'sl_after_tp3_r': 0.6000000000000001, 'sl_after_tp4_r': 0.8}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 1.4] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 1.35].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.7000000000000001, 2.2] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.7000000000000001, 2.15].
+  optuna_warn(
+[I 2026-06-02 06:44:51,878] Trial 52 finished with value: 40004.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.4000000000000001, 'tp3_r_multiple': 2.3000000000000003, 'tp4_r_multiple': 3.2, 'tp5_r_multiple': 5.4, 'tp1_close_pct': 0.25, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.35000000000000003, 'sl_after_tp3_r': 0.75, 'sl_after_tp4_r': 1.0}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 1.35] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 1.3].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.7000000000000001, 2.15] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.7000000000000001, 2.1].
+  optuna_warn(
+[I 2026-06-02 06:46:45,317] Trial 53 finished with value: -999953300.0 and parameters: {'tp1_r_multiple': 0.8, 'tp2_r_multiple': 1.4, 'tp3_r_multiple': 2.5, 'tp4_r_multiple': 3.3, 'tp5_r_multiple': 5.3999999999999995, 'tp1_close_pct': 0.25, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.35000000000000003, 'sl_after_tp3_r': 0.7000000000000001, 'sl_after_tp4_r': 1.0}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.3999999999999995, 6.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.3999999999999995, 5.999999999999999].
+  optuna_warn(
+[I 2026-06-02 06:47:18,488] Trial 54 finished with value: -999924100.0 and parameters: {'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.4000000000000001, 'tp3_r_multiple': 2.3000000000000003, 'tp4_r_multiple': 3.1, 'tp5_r_multiple': 5.7, 'tp1_close_pct': 0.25, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.35000000000000003, 'sl_after_tp3_r': 0.75, 'sl_after_tp4_r': 0.95}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.3999999999999995, 5.999999999999999] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.3999999999999995, 5.8999999999999995].
+  optuna_warn(
+[I 2026-06-02 06:50:39,009] Trial 56 finished with value: -999927200.0 and parameters: {'tp1_r_multiple': 1.0, 'tp2_r_multiple': 1.5, 'tp3_r_multiple': 2.3, 'tp4_r_multiple': 3.1999999999999997, 'tp5_r_multiple': 5.6, 'tp1_close_pct': 0.30000000000000004, 'tp2_close_pct': 0.15000000000000002, 'tp3_close_pct': 0.1, 'tp4_close_pct': 0.2, 'sl_after_tp2_r': 0.75, 'sl_after_tp3_r': 0.9, 'sl_after_tp4_r': 2.0500000000000003}. Best is trial 24 with value: 1943365.0.
+[I 2026-06-02 06:51:41,918] Trial 55 finished with value: -999913400.0 and parameters: {'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.3, 'tp3_r_multiple': 2.3, 'tp4_r_multiple': 3.0999999999999996, 'tp5_r_multiple': 5.6, 'tp1_close_pct': 0.25, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.2, 'sl_after_tp2_r': 0.8, 'sl_after_tp3_r': 0.9, 'sl_after_tp4_r': 1.75}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.9000000000000001, 2.8] and step=0.1, but the range is not divisible by `step`. It will be replaced with [0.9000000000000001, 2.7].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.4000000000000001, 4.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.4000000000000001, 3.9].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 1.1] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 1.05].
+  optuna_warn(
+[I 2026-06-02 06:52:57,986] Trial 57 finished with value: -999975500.0 and parameters: {'tp1_r_multiple': 0.4, 'tp2_r_multiple': 1.0, 'tp3_r_multiple': 2.1, 'tp4_r_multiple': 3.4, 'tp5_r_multiple': 5.3, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.25, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.2, 'sl_after_tp2_r': 0.2, 'sl_after_tp3_r': 0.7, 'sl_after_tp4_r': 1.2}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.9000000000000001, 2.7] and step=0.1, but the range is not divisible by `step`. It will be replaced with [0.9000000000000001, 2.6].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.4000000000000001, 3.9] and step=0.1, but the range is not divisible by `step`. It will be replaced with [1.4000000000000001, 3.8000000000000003].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 1.05] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 1.0].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.1999999999999997, 6.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.1999999999999997, 6.0].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 1.5] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 1.45].
+  optuna_warn(
+[I 2026-06-02 06:54:16,123] Trial 58 finished with value: -28467.000000000044 and parameters: {'tp1_r_multiple': 0.4, 'tp2_r_multiple': 0.7000000000000001, 'tp3_r_multiple': 1.1, 'tp4_r_multiple': 1.7000000000000002, 'tp5_r_multiple': 4.6, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.25, 'tp3_close_pct': 0.1, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.2, 'sl_after_tp3_r': 0.35000000000000003, 'sl_after_tp4_r': 0.45000000000000007}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 1.45] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 1.4000000000000001].
+  optuna_warn(
+[I 2026-06-02 06:54:16,221] Trial 60 pruned. 
+[I 2026-06-02 06:54:16,314] Trial 61 pruned. 
+[I 2026-06-02 06:56:11,227] Trial 59 finished with value: 37664.99999999999 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.5, 'tp3_r_multiple': 2.2, 'tp4_r_multiple': 2.9, 'tp5_r_multiple': 5.1, 'tp1_close_pct': 0.15000000000000002, 'tp2_close_pct': 0.30000000000000004, 'tp3_close_pct': 0.1, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.35000000000000003, 'sl_after_tp3_r': 0.8, 'sl_after_tp4_r': 1.8}. Best is trial 24 with value: 1943365.0.
+[I 2026-06-02 06:57:35,151] Trial 62 finished with value: 39817.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.4000000000000001, 'tp3_r_multiple': 2.4000000000000004, 'tp4_r_multiple': 3.3000000000000003, 'tp5_r_multiple': 5.4, 'tp1_close_pct': 0.25, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.30000000000000004, 'sl_after_tp3_r': 0.8, 'sl_after_tp4_r': 1.05}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.45, 1.4000000000000001] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.45, 1.4].
+  optuna_warn(
+[I 2026-06-02 06:59:25,311] Trial 63 finished with value: 39790.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.4000000000000001, 'tp3_r_multiple': 2.4000000000000004, 'tp4_r_multiple': 3.3000000000000003, 'tp5_r_multiple': 5.4, 'tp1_close_pct': 0.25, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.30000000000000004, 'sl_after_tp3_r': 0.75, 'sl_after_tp4_r': 1.05}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [2.9000000000000004, 4.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [2.9000000000000004, 3.9000000000000004].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.5, 1.3000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.5, 1.3].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.8500000000000001, 2.2] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.8500000000000001, 2.15].
+  optuna_warn(
+[I 2026-06-02 07:00:36,562] Trial 64 finished with value: -999965900.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.4000000000000001, 'tp3_r_multiple': 2.4000000000000004, 'tp4_r_multiple': 3.3000000000000003, 'tp5_r_multiple': 5.7, 'tp1_close_pct': 0.30000000000000004, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.45, 'sl_after_tp3_r': 0.8, 'sl_after_tp4_r': 1.4000000000000001}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.8500000000000001, 2.15] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.8500000000000001, 2.1].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.25, 1.3000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.25, 1.3].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.9500000000000001, 2.2] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.9500000000000001, 2.15].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.9500000000000001, 2.15] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.9500000000000001, 2.1].
+  optuna_warn(
+[I 2026-06-02 07:03:09,252] Trial 66 finished with value: -999923300.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.3000000000000003, 'tp3_r_multiple': 2.5, 'tp4_r_multiple': 3.4, 'tp5_r_multiple': 5.3, 'tp1_close_pct': 0.35, 'tp2_close_pct': 0.15000000000000002, 'tp3_close_pct': 0.2, 'tp4_close_pct': 0.2, 'sl_after_tp2_r': 0.25, 'sl_after_tp3_r': 0.9500000000000001, 'sl_after_tp4_r': 1.05}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.8999999999999995, 6.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.8999999999999995, 5.999999999999999].
+  optuna_warn(
+[I 2026-06-02 07:04:18,112] Trial 65 finished with value: -999927200.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.3000000000000003, 'tp3_r_multiple': 2.6000000000000005, 'tp4_r_multiple': 3.3000000000000003, 'tp5_r_multiple': 5.7, 'tp1_close_pct': 0.30000000000000004, 'tp2_close_pct': 0.15000000000000002, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.5, 'sl_after_tp3_r': 0.8500000000000001, 'sl_after_tp4_r': 1.4000000000000001}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [3.8999999999999995, 5.999999999999999] and step=0.1, but the range is not divisible by `step`. It will be replaced with [3.8999999999999995, 5.8999999999999995].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 1.6] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 1.55].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.4000000000000001, 2.2] and step=0.05, but the range is not divisible by `step`. It will be replaced with [1.4000000000000001, 2.15].
+  optuna_warn(
+[I 2026-06-02 07:05:04,836] Trial 67 finished with value: -999992500.0 and parameters: {'tp1_r_multiple': 0.8, 'tp2_r_multiple': 1.8, 'tp3_r_multiple': 2.3, 'tp4_r_multiple': 3.5999999999999996, 'tp5_r_multiple': 5.199999999999999, 'tp1_close_pct': 0.2, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.3, 'sl_after_tp2_r': 0.5, 'sl_after_tp3_r': 1.35, 'sl_after_tp4_r': 1.4500000000000002}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.4000000000000001, 2.15] and step=0.05, but the range is not divisible by `step`. It will be replaced with [1.4000000000000001, 2.1].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [2.1999999999999997, 4.0] and step=0.1, but the range is not divisible by `step`. It will be replaced with [2.1999999999999997, 3.9999999999999996].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 1.0] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 0.9500000000000001].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.7000000000000001, 1.9] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.7000000000000001, 1.85].
+  optuna_warn(
+[I 2026-06-02 07:07:27,710] Trial 68 finished with value: 24628.0 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.6, 'tp3_r_multiple': 2.3, 'tp4_r_multiple': 3.5999999999999996, 'tp5_r_multiple': 5.199999999999999, 'tp1_close_pct': 0.2, 'tp2_close_pct': 0.25, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.15000000000000002, 'sl_after_tp2_r': 0.35000000000000003, 'sl_after_tp3_r': 1.4000000000000001, 'sl_after_tp4_r': 1.5000000000000002}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [2.1999999999999997, 3.9999999999999996] and step=0.1, but the range is not divisible by `step`. It will be replaced with [2.1999999999999997, 3.9].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.35000000000000003, 0.9500000000000001] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.35000000000000003, 0.9500000000000001].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.7000000000000001, 1.85] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.7000000000000001, 1.8].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.4, 1.4000000000000001] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.4, 1.4].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.7000000000000001, 2.1] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.7000000000000001, 2.0500000000000003].
+  optuna_warn(
+[I 2026-06-02 07:08:08,519] Trial 69 finished with value: 39009.0 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.0, 'tp3_r_multiple': 1.9, 'tp4_r_multiple': 3.1999999999999997, 'tp5_r_multiple': 4.3999999999999995, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.25, 'tp3_close_pct': 0.2, 'tp4_close_pct': 0.15000000000000002, 'sl_after_tp2_r': 0.35000000000000003, 'sl_after_tp3_r': 0.7000000000000001, 'sl_after_tp4_r': 0.9000000000000001}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.7000000000000001, 2.0500000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.7000000000000001, 2.0500000000000003].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.2000000000000002, 2.1] and step=0.05, but the range is not divisible by `step`. It will be replaced with [1.2000000000000002, 2.0500000000000003].
+  optuna_warn(
+[I 2026-06-02 07:10:37,561] Trial 70 finished with value: 63701.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.4000000000000001, 'tp3_r_multiple': 2.1, 'tp4_r_multiple': 3.2, 'tp5_r_multiple': 5.9, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.1, 'tp3_close_pct': 0.2, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.4, 'sl_after_tp3_r': 0.7000000000000001, 'sl_after_tp4_r': 0.9000000000000001}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.2000000000000002, 2.0500000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [1.2000000000000002, 2.0500000000000003].
+  optuna_warn(
+[I 2026-06-02 07:11:09,869] Trial 71 finished with value: 63660.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.4000000000000001, 'tp3_r_multiple': 2.1, 'tp4_r_multiple': 3.5, 'tp5_r_multiple': 5.5, 'tp1_close_pct': 0.25, 'tp2_close_pct': 0.1, 'tp3_close_pct': 0.1, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.4, 'sl_after_tp3_r': 1.2000000000000002, 'sl_after_tp4_r': 1.3000000000000003}. Best is trial 24 with value: 1943365.0.
+[I 2026-06-02 07:13:28,528] Trial 73 finished with value: 23041.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.4000000000000001, 'tp3_r_multiple': 2.1, 'tp4_r_multiple': 3.0, 'tp5_r_multiple': 5.9, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.1, 'tp3_close_pct': 0.05, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.4, 'sl_after_tp3_r': 1.2000000000000002, 'sl_after_tp4_r': 1.3000000000000003}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.45, 1.2000000000000002] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.45, 1.2].
+  optuna_warn(
+[I 2026-06-02 07:13:47,181] Trial 72 finished with value: -999960500.0 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.4000000000000001, 'tp3_r_multiple': 2.1, 'tp4_r_multiple': 3.0, 'tp5_r_multiple': 5.8, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.1, 'tp3_close_pct': 0.2, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.4, 'sl_after_tp3_r': 0.65, 'sl_after_tp4_r': 0.75}. Best is trial 24 with value: 1943365.0.
+[I 2026-06-02 07:15:50,409] Trial 75 finished with value: -999988800.0 and parameters: {'tp1_r_multiple': 0.8, 'tp2_r_multiple': 1.2, 'tp3_r_multiple': 1.9, 'tp4_r_multiple': 3.5, 'tp5_r_multiple': 5.9, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.1, 'tp3_close_pct': 0.05, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.55, 'sl_after_tp3_r': 1.0, 'sl_after_tp4_r': 1.1}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.1500000000000001, 2.0] and step=0.05, but the range is not divisible by `step`. It will be replaced with [1.1500000000000001, 1.9500000000000002].
+  optuna_warn(
+[I 2026-06-02 07:16:05,923] Trial 74 finished with value: 23420.999999999993 and parameters: {'tp1_r_multiple': 0.7000000000000001, 'tp2_r_multiple': 1.2000000000000002, 'tp3_r_multiple': 2.1, 'tp4_r_multiple': 3.5, 'tp5_r_multiple': 5.9, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.1, 'tp3_close_pct': 0.05, 'tp4_close_pct': 0.25, 'sl_after_tp2_r': 0.45, 'sl_after_tp3_r': 0.7, 'sl_after_tp4_r': 0.85}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [1.1500000000000001, 1.9500000000000002] and step=0.05, but the range is not divisible by `step`. It will be replaced with [1.1500000000000001, 1.9500000000000002].
+  optuna_warn(
+[I 2026-06-02 07:18:11,704] Trial 76 finished with value: -999981500.0 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.3, 'tp3_r_multiple': 2.0, 'tp4_r_multiple': 3.4, 'tp5_r_multiple': 6.0, 'tp1_close_pct': 0.15000000000000002, 'tp2_close_pct': 0.1, 'tp3_close_pct': 0.25, 'tp4_close_pct': 0.3, 'sl_after_tp2_r': 0.45, 'sl_after_tp3_r': 1.1500000000000001, 'sl_after_tp4_r': 1.2500000000000002}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.6000000000000001, 2.2] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.6000000000000001, 2.15].
+  optuna_warn(
+[I 2026-06-02 07:19:05,909] Trial 77 finished with value: -999803600.0 and parameters: {'tp1_r_multiple': 1.0, 'tp2_r_multiple': 1.4, 'tp3_r_multiple': 2.2, 'tp4_r_multiple': 3.4, 'tp5_r_multiple': 6.0, 'tp1_close_pct': 0.15000000000000002, 'tp2_close_pct': 0.1, 'tp3_close_pct': 0.25, 'tp4_close_pct': 0.3, 'sl_after_tp2_r': 0.7, 'sl_after_tp3_r': 1.2, 'sl_after_tp4_r': 1.25}. Best is trial 24 with value: 1943365.0.
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.6000000000000001, 2.15] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.6000000000000001, 2.1].
+  optuna_warn(
+[I 2026-06-02 07:21:18,294] Trial 78 finished with value: -999949000.0 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.5, 'tp3_r_multiple': 2.2, 'tp4_r_multiple': 3.1, 'tp5_r_multiple': 5.5, 'tp1_close_pct': 0.30000000000000004, 'tp2_close_pct': 0.15000000000000002, 'tp3_close_pct': 0.1, 'tp4_close_pct': 0.1, 'sl_after_tp2_r': 0.45, 'sl_after_tp3_r': 0.6000000000000001, 'sl_after_tp4_r': 0.7000000000000001}. Best is trial 24 with value: 1943365.0.
+[I 2026-06-02 07:30:46,498] Trial 79 finished with value: 998446.0 and parameters: {'tp1_r_multiple': 0.6000000000000001, 'tp2_r_multiple': 1.5, 'tp3_r_multiple': 2.2, 'tp4_r_multiple': 3.1, 'tp5_r_multiple': 5.5, 'tp1_close_pct': 0.25, 'tp2_close_pct': 0.15000000000000002, 'tp3_close_pct': 0.1, 'tp4_close_pct': 0.2, 'sl_after_tp2_r': 0.45, 'sl_after_tp3_r': 1.45, 'sl_after_tp4_r': 2.2}. Best is trial 24 with value: 1943365.0.
+
+61 trials | 31 SURVIVED (0-breach)
+           net   TDD%   DDD%    funded scal         score
+OK   1,943,365   7.98   3.83 1,250,000   19     1,943,365
+OK   1,834,096   9.16   3.74 1,250,000   19     1,821,028
+OK   1,564,764    8.5   3.78 1,000,000   18     1,564,764
+OK     998,446   8.15   4.65   700,000   16       998,446
+OK      64,721   7.43    3.7   100,000    4        64,721
+OK      63,701    8.3   3.77   100,000    4        63,701
+OK      63,660   7.94   3.72   100,000    4        63,660
+OK      40,004   7.66   3.66    80,000    3        40,004
+OK      39,837   7.88   3.66    80,000    3        39,837
+OK      39,817   7.67   3.66    80,000    3        39,817
+
+stage tp: 121.4 min, best survived=True
+locked -> /tmp/cont_opt_state.json:
+  safety={'CFG_TDD_CAUTION_PCT': '5.5', 'CFG_RISK_CAUTIOUS': '0.45', 'CFG_TDD_WARNING_PCT': '7.5', 'CFG_RISK_CONSERVATIVE': '0.25', 'CFG_TDD_EMERGENCY_PCT': '8.5', 'CFG_RISK_ULTRASAFE': '0.25', 'TDD_WALL_SAFETY': '4.5', 'VOL_SIZE_ENABLE': '1', 'VOL_SIZE_MULT_LOW': '1.7000000000000002', 'VOL_SIZE_MULT_HIGH': '0.6000000000000001'}
+  tp={'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.7000000000000002, 'tp3_r_multiple': 2.4000000000000004, 'tp4_r_multiple': 3.4000000000000004, 'tp5_r_multiple': 4.7, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.35, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.1, 'tp5_close_pct': 0.3, 'sl_after_tp2_r': 0.7, 'sl_after_tp3_r': 1.6, 'sl_after_tp4_r': 2.0}
+>>> STAGE tp COMPLETE Tue Jun  2 07:30:50 UTC 2026
+>>> STAGE volrefine target=24 Tue Jun  2 07:30:50 UTC 2026
+>>> [volrefine] attempt 1 Tue Jun  2 07:30:51 UTC 2026
+[I 2026-06-02 07:30:51,811] A new study created in RDB with name: cont_volrefine
+stage volrefine: 0 done, running 24 more to reach 24
+[I 2026-06-02 07:33:42,011] Trial 0 finished with value: 21043.000000000015 and parameters: {'VOL_SIZE_MULT_LOW': 1.3, 'VOL_SIZE_MULT_HIGH': 0.9000000000000001}. Best is trial 0 with value: 21043.000000000015.
+[I 2026-06-02 07:35:57,974] Trial 1 finished with value: -999910800.0 and parameters: {'VOL_SIZE_MULT_LOW': 2.0, 'VOL_SIZE_MULT_HIGH': 0.30000000000000004}. Best is trial 0 with value: 21043.000000000015.
+=== PIPELINE START Tue Jun  2 10:28:39 UTC 2026 (JOBS=2) ===
+>>> STAGE safety target=60 Tue Jun  2 10:28:39 UTC 2026
+>>> STAGE safety COMPLETE Tue Jun  2 10:28:40 UTC 2026
+>>> STAGE tp target=80 Tue Jun  2 10:28:40 UTC 2026
+>>> STAGE tp COMPLETE Tue Jun  2 10:28:40 UTC 2026
+>>> STAGE volrefine target=24 Tue Jun  2 10:28:40 UTC 2026
+>>> [volrefine] attempt 1 Tue Jun  2 10:28:41 UTC 2026
+[I 2026-06-02 10:28:42,115] Using an existing study with name 'cont_volrefine' instead of creating a new one.
+stage volrefine: 2 done, running 22 more to reach 24
+[I 2026-06-02 10:30:58,272] Trial 4 finished with value: -999988800.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.3, 'VOL_SIZE_MULT_HIGH': 0.4}. Best is trial 0 with value: 21043.000000000015.
+[I 2026-06-02 10:31:21,064] Trial 5 finished with value: -3752.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.1, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 0 with value: 21043.000000000015.
+[I 2026-06-02 10:32:22,334] Trial 6 finished with value: -999963700.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.2, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 0 with value: 21043.000000000015.
+[I 2026-06-02 10:34:34,192] Trial 8 finished with value: -999969500.0 and parameters: {'VOL_SIZE_MULT_LOW': 2.0, 'VOL_SIZE_MULT_HIGH': 1.0}. Best is trial 0 with value: 21043.000000000015.
+[I 2026-06-02 10:36:43,400] Trial 9 finished with value: -999972200.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.3, 'VOL_SIZE_MULT_HIGH': 0.7}. Best is trial 0 with value: 21043.000000000015.
+[I 2026-06-02 10:46:00,499] Trial 7 finished with value: 1856783.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.3, 'VOL_SIZE_MULT_HIGH': 0.6000000000000001}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 10:49:12,854] Trial 10 finished with value: 550933.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.1, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 10:50:03,901] Trial 11 finished with value: -999907700.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.9, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 10:50:47,012] Trial 12 finished with value: 23979.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.6, 'VOL_SIZE_MULT_HIGH': 0.5}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 10:55:56,113] Trial 13 finished with value: -999809700.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.6, 'VOL_SIZE_MULT_HIGH': 0.7}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 11:04:15,450] Trial 14 finished with value: 458303.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.0, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 11:05:48,404] Trial 16 finished with value: 9950.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.5, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 11:07:54,184] Trial 17 finished with value: -999944100.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.0, 'VOL_SIZE_MULT_HIGH': 0.8}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 11:09:07,393] Trial 15 finished with value: 458303.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.0, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 11:09:23,357] Trial 18 finished with value: -999988800.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.4, 'VOL_SIZE_MULT_HIGH': 0.30000000000000004}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 11:12:55,314] Trial 19 finished with value: -999918900.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.4, 'VOL_SIZE_MULT_HIGH': 0.7}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 11:14:23,516] Trial 20 finished with value: 155423.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.2, 'VOL_SIZE_MULT_HIGH': 0.7}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 11:14:55,890] Trial 21 finished with value: 9578.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.2, 'VOL_SIZE_MULT_HIGH': 0.6000000000000001}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 11:16:17,948] Trial 23 finished with value: -999992500.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.8, 'VOL_SIZE_MULT_HIGH': 1.0}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 11:18:08,662] Trial 24 finished with value: -999971400.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.1, 'VOL_SIZE_MULT_HIGH': 0.30000000000000004}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 11:18:35,181] Trial 22 finished with value: -999918500.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.7000000000000002, 'VOL_SIZE_MULT_HIGH': 1.0}. Best is trial 7 with value: 1856783.0.
+[I 2026-06-02 11:31:33,874] Trial 25 finished with value: 458303.0 and parameters: {'VOL_SIZE_MULT_LOW': 1.0, 'VOL_SIZE_MULT_HIGH': 0.2}. Best is trial 7 with value: 1856783.0.
+
+24 trials | 11 SURVIVED (0-breach)
+           net   TDD%   DDD%    funded scal         score
+OK   1,856,783   7.89   3.53 1,250,000   19     1,856,783
+OK     550,933   7.82   3.97   400,000   12       550,933
+OK     458,303   7.26   3.79   350,000   11       458,303
+OK     458,303   7.26   3.79   350,000   11       458,303
+OK     458,303   7.26   3.79   350,000   11       458,303
+OK     165,866   9.09   3.71   175,000    7       155,423
+OK      23,979   7.82   3.59    70,000    2        23,979
+OK      62,815   9.68   3.82   100,000    4        21,043
+OK       9,950   7.38   3.21    60,000    1         9,950
+OK       9,578    8.2   3.57    60,000    1         9,578
+
+stage volrefine: 62.9 min, best survived=True
+locked -> /tmp/cont_opt_state.json:
+  safety={'CFG_TDD_CAUTION_PCT': '5.5', 'CFG_RISK_CAUTIOUS': '0.45', 'CFG_TDD_WARNING_PCT': '7.5', 'CFG_RISK_CONSERVATIVE': '0.25', 'CFG_TDD_EMERGENCY_PCT': '8.5', 'CFG_RISK_ULTRASAFE': '0.25', 'TDD_WALL_SAFETY': '4.5', 'VOL_SIZE_ENABLE': '1', 'VOL_SIZE_MULT_LOW': '1.3', 'VOL_SIZE_MULT_HIGH': '0.6000000000000001'}
+  tp={'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.7000000000000002, 'tp3_r_multiple': 2.4000000000000004, 'tp4_r_multiple': 3.4000000000000004, 'tp5_r_multiple': 4.7, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.35, 'tp3_close_pct': 0.15000000000000002, 'tp4_close_pct': 0.1, 'tp5_close_pct': 0.3, 'sl_after_tp2_r': 0.7, 'sl_after_tp3_r': 1.6, 'sl_after_tp4_r': 2.0}
+>>> STAGE volrefine COMPLETE Tue Jun  2 11:31:37 UTC 2026
+########## VALIDATE ##########
+==============================================================================
+VALIDATION — robustness of the locked winner
+==============================================================================
+
+[A] Continuous 2015-2024 (the optimized path):
+    net $1,856,783 | SURVIVED | TDD 7.89% DDD 3.53% | funded $1,250,000 | 19 scalings
+
+[B] Shifted-start continuous (overfit check):
+    2016-01-01->2024-12-31: net $160,703 | BREACH 2017-07-18 10:15:00+00:00 | TDD 9.99%
+    2017-01-01->2024-12-31: net $22,087 | BREACH 2017-11-13 08:15:00+00:00 | TDD 10.0%
+
+[C] Cold-start each year (regime robustness):
+    2015: net $34,145  TDD 7.89%  DDD 3.53%  OK
+    2016: net $138,565  TDD 6.66%  DDD 3.44%  OK
+    2017: net $22,087  TDD 10.0%  DDD 3.27%  FAIL
+    2018: net $105,461  TDD 7.76%  DDD 3.63%  OK
+    2019: net $182,483  TDD 4.66%  DDD 3.58%  OK
+    2020: net $112,730  TDD 4.67%  DDD 3.5%  OK
+    2021: net $72,389  TDD 4.22%  DDD 3.55%  OK
+    2022: net $43,510  TDD 2.6%  DDD 5.52%  FAIL
+    2023: net $128,522  TDD 7.6%  DDD 3.8%  OK
+    2024: net $216,914  TDD 4.5%  DDD 4.0%  OK
+
+  Cold-start breaches: [2017, 2022]
+=== PIPELINE DONE Tue Jun  2 12:02:01 UTC 2026 ===
