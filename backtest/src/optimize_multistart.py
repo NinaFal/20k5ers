@@ -33,8 +33,12 @@ spec = importlib.util.spec_from_file_location("oc", str(HERE / "optimize_continu
 oc = importlib.util.module_from_spec(spec); spec.loader.exec_module(oc)
 
 END = "2024-12-31"
-# Worst-first for early exit: 2016 (daily killer) & 2017 (total killer) first.
-STARTS = ["2016-01-01", "2017-01-01", "2015-01-01", "2018-01-01", "2019-01-01"]
+# 7 start dates spanning every regime, so the config must "start everywhere".
+# Worst/cheapest-first for early exit: the confirmed killers (2016 daily, 2017
+# total) and the stress years (2022 daily-shock, 2020 COVID crash) up front, so
+# a fragile trial dies on a short run instead of a 10-year one.
+STARTS = ["2016-01-01", "2017-01-01", "2022-01-01", "2020-01-01",
+          "2015-01-01", "2018-01-01", "2019-01-01"]
 WALL_MARGIN = float(os.getenv("WALL_MARGIN_START", "8.5"))
 MARGIN_K = float(os.getenv("MARGIN_K", "30000"))
 
@@ -135,7 +139,8 @@ def main():
     print(f"{'':2}{'min_net':>12}{'worst_tdd':>10}  starts: 2015/2016/2017/2018")
     for t in sorted(robust, key=lambda t: t.user_attrs.get("min_net", 0), reverse=True)[:10]:
         a = t.user_attrs; p = t.params
-        ns = "/".join(f"{a.get('net_'+y, 0)/1000:.0f}k" for y in ["2015", "2016", "2017", "2018", "2019"])
+        ns = "/".join(f"{a.get('net_'+y, 0)/1000:.0f}k" for y in
+                      ["2015", "2016", "2017", "2018", "2019", "2020", "2022"])
         print(f"  ${a['min_net']:>11,.0f}{a['worst_tdd']:>10}  {ns} | "
               f"vlo={p['vlo']} vhi={p['vhi']} cum_risk={p['cum_risk']} cap={p['cap']} "
               f"tp5={p['tp5_close_pct']}", flush=True)
