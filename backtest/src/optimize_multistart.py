@@ -68,6 +68,9 @@ def build(trial):
         raise optuna.TrialPruned()
     cum = trial.suggest_categorical("cum_risk", [4.0, 4.5, 5.0, 5.5, 6.0, 7.0, 100.0])
     cap = trial.suggest_categorical("cap", [0, 2, 3, 4])
+    # Daily close-all threshold (the "-3.2% close everything" circuit breaker).
+    # Lower = more buffer below the 5% daily wall vs a gap; costs some profit.
+    halt = trial.suggest_categorical("daily_halt", [2.0, 2.5, 3.0, 3.2])
     # tp5 ride fraction: shift weight between TP4 and TP5 (close more earlier or
     # let more ride). Keeps the ladder shape, tunes how much is exposed late.
     t5 = trial.suggest_float("tp5_close_pct", 0.15, 0.40, step=0.05)
@@ -79,7 +82,8 @@ def build(trial):
         "CFG_TDD_EMERGENCY_PCT": "8.5", "CFG_RISK_ULTRASAFE": "0.25",
         "TDD_WALL_SAFETY": "4.5", "VOL_SIZE_ENABLE": "1",
         "VOL_SIZE_MULT_LOW": str(vlo), "VOL_SIZE_MULT_HIGH": str(vhi),
-        "CORR_GROUP_CAP": str(cap), "CFG_MAX_CUM_RISK": str(cum)}
+        "CORR_GROUP_CAP": str(cap), "CFG_MAX_CUM_RISK": str(cum),
+        "CFG_DAILY_HALT_PCT": str(halt)}
     return env, tp
 
 
@@ -119,12 +123,12 @@ def main():
     study = optuna.create_study(direction="maximize", study_name=args.study,
                                 storage=args.storage, load_if_exists=True)
     if not study.trials:                       # warm-start around the $1.9M config
-        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "cum_risk": 5.0, "cap": 0, "tp5_close_pct": 0.30})
-        study.enqueue_trial({"vlo": 1.6, "vhi": 0.5, "cum_risk": 5.0, "cap": 0, "tp5_close_pct": 0.30})
-        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "cum_risk": 4.0, "cap": 2, "tp5_close_pct": 0.25})
-        study.enqueue_trial({"vlo": 1.5, "vhi": 0.4, "cum_risk": 6.0, "cap": 2, "tp5_close_pct": 0.30})
-        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "cum_risk": 100.0, "cap": 3, "tp5_close_pct": 0.30})
-        study.enqueue_trial({"vlo": 1.6, "vhi": 0.5, "cum_risk": 6.0, "cap": 0, "tp5_close_pct": 0.20})
+        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "cum_risk": 5.0, "cap": 0, "daily_halt": 2.5, "tp5_close_pct": 0.30})
+        study.enqueue_trial({"vlo": 1.6, "vhi": 0.5, "cum_risk": 5.0, "cap": 0, "daily_halt": 2.5, "tp5_close_pct": 0.30})
+        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "cum_risk": 6.0, "cap": 2, "daily_halt": 2.0, "tp5_close_pct": 0.25})
+        study.enqueue_trial({"vlo": 1.5, "vhi": 0.4, "cum_risk": 6.0, "cap": 2, "daily_halt": 3.0, "tp5_close_pct": 0.30})
+        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "cum_risk": 7.0, "cap": 3, "daily_halt": 2.0, "tp5_close_pct": 0.30})
+        study.enqueue_trial({"vlo": 1.6, "vhi": 0.5, "cum_risk": 6.0, "cap": 0, "daily_halt": 2.5, "tp5_close_pct": 0.20})
 
     finished = sum(1 for t in study.trials if t.state in
                    (optuna.trial.TrialState.COMPLETE, optuna.trial.TrialState.PRUNED))
@@ -143,7 +147,7 @@ def main():
                       ["2015", "2016", "2017", "2018", "2019", "2020", "2022"])
         print(f"  ${a['min_net']:>11,.0f}{a['worst_tdd']:>10}  {ns} | "
               f"vlo={p['vlo']} vhi={p['vhi']} cum_risk={p['cum_risk']} cap={p['cap']} "
-              f"tp5={p['tp5_close_pct']}", flush=True)
+              f"daily_halt={p['daily_halt']} tp5={p['tp5_close_pct']}", flush=True)
     if robust:
         best = max(robust, key=lambda t: t.user_attrs.get("min_net", 0))
         Path("/tmp/multistart_best.json").write_text(json.dumps(

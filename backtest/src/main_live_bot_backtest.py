@@ -645,7 +645,12 @@ class LiveTradingBot:
                     # Get all DDD thresholds from config
                     warning_pct = getattr(FIVEERS_CONFIG, "daily_loss_warning_pct", 2.0)
                     reduce_pct = getattr(FIVEERS_CONFIG, "daily_loss_reduce_pct", 2.5)
-                    base_halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.2)
+                    # Daily close-all threshold. Lowering it leaves more buffer below
+                    # the 5% daily wall, so a violent single-bar/gap move is less
+                    # likely to leap past the trigger straight through the wall.
+                    # Env-tunable (CFG_DAILY_HALT_PCT); default 3.2 = live config.
+                    base_halt_pct = float(os.getenv("CFG_DAILY_HALT_PCT",
+                                          str(getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.2))))
                     halt_pct = base_halt_pct
 
                     # === ALSO CHECK TDD (Total DrawDown) ===
