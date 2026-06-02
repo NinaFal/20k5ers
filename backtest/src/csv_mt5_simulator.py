@@ -13,6 +13,7 @@ Usage in main_live_bot_backtest.py:
 The simulator steps through M15 bars to simulate real-time price movement.
 """
 
+import os
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -241,8 +242,13 @@ class CSVMT5Simulator:
         self._total_commission: float = 0.0
         self._total_swap: float = 0.0
 
-        # 5ers scaling model
-        self._max_balance: float = 4_000_000.0  # $4M hard cap
+        # 5ers scaling model. The funded level scales at each +10% milestone up
+        # to this cap; once capped, the level (and thus the 10% TDD floor) FREEZES
+        # and profit above +10% is withdrawn instead of ratcheting higher. Env
+        # FIVEERS_MAX_SCALE lets us stop scaling at a chosen level (e.g. 400k, the
+        # 100%-profit-split tier) so the floor stops chasing equity upward — the
+        # ratchet is what pins the account 10% from the wall at high levels.
+        self._max_balance: float = float(os.getenv("FIVEERS_MAX_SCALE", "4000000"))  # scaling cap
         self._total_withdrawn: float = 0.0  # total trader profit withdrawn
         self._funded_level: float = initial_balance  # current funded level
         self._scaling_log: list = []  # log of scaling events
