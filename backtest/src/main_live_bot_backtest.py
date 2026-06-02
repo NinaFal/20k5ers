@@ -3205,6 +3205,18 @@ class LiveTradingBot:
         # regimes / down in turbulent ones, where the edge is respectively
         # positive / negative. Applied after the drawdown ladder so both stack.
         _vm = self._vol_size_multiplier(symbol)
+        # REGIME GATE: the calm-vol signal (low ATR) is NOT the same as "edge is
+        # working". In calm-but-choppy regimes (e.g. mid-2017) the edge inverts
+        # while ATR stays low, so a static size-up amplifies losses AND fights the
+        # drawdown ladder, bleeding the account to the wall. Gate the SIZE-UP
+        # (>1.0) off once the account is drawing down past VOL_REGIME_DD_OFF — at
+        # that point we're clearly not in a favorable regime, so don't amplify.
+        # (Turbulent size-DOWN, <1.0, is always allowed.) Default off (100).
+        _dd_off = float(os.getenv("VOL_REGIME_DD_OFF", "100"))
+        if _vm > 1.0 and (total_dd_pct >= _dd_off or daily_loss_pct >= _dd_off):
+            _gated = float(os.getenv("VOL_REGIME_DD_MULT", "1.0"))
+            log.info(f"[{symbol}] Vol regime-gate: TDD {total_dd_pct:.1f}%/DDD {daily_loss_pct:.1f}% >= {_dd_off}% -> size-up x{_vm:.2f} collapsed to x{_gated:.2f}")
+            _vm = _gated
         if _vm != 1.0:
             risk_pct = risk_pct * _vm
             log.info(f"[{symbol}] Vol-size x{_vm:.2f} -> risk {risk_pct:.3f}%")
