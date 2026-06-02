@@ -51,44 +51,29 @@ NEWTP = {"tp1_r_multiple": 0.9, "tp2_r_multiple": 1.7, "tp3_r_multiple": 2.4,
 
 
 def build(trial):
-    # ANCHORED on the $1.9M config (NEWTP ladder + its drawdown rungs). We do NOT
-    # re-tune the whole strategy; we tune the size/concurrency levers that decide
-    # whether the $1.9M config survives EVERY start while staying high-profit:
-    #   • vol size-up (a little lower size helps survive, costs some profit)
-    #   • cumulative open-risk cap (CFG_MAX_CUM_RISK) — the key lever: higher =
-    #     more concurrency/profit but more daily risk. We find the highest level
-    #     that's still robust; that value is also what live must be set to.
-    #   • correlation cap (clustered-exposure lever)
-    #   • how much rides to the last TP (tp5_close) — "daily close lower" idea:
-    #     closing more earlier vs letting more ride.
+    # CENTERED ON THE REGIME GATE (the breakthrough). The vol size-up is no longer
+    # a static risk — it's gated OFF once the account draws down past
+    # VOL_REGIME_DD_OFF, so it only amplifies while the regime is favorable. With
+    # the gate on, vol-1.7 gate@3 already gives $2.25M/$2.22M/$1.54M on 2015/17/19
+    # and only HAIRLINE total breaches on 2016/2020. We sweep the few levers that
+    # decide whether those last 0.01-0.03% misses close without wrecking profit:
+    #   • the gate threshold (sweet spot ~3 — earlier AND later were worse)
+    #   • the vol size-up level
+    #   • the daily close-all threshold (gap buffer for the 2022 cold-start)
     tp = dict(NEWTP)
-    vlo = trial.suggest_float("vlo", 1.3, 1.8, step=0.1)
-    vhi = trial.suggest_float("vhi", 0.3, 0.6, step=0.1)
-    if vlo < vhi:
-        raise optuna.TrialPruned()
-    cum = trial.suggest_categorical("cum_risk", [4.0, 4.5, 5.0, 5.5, 6.0, 7.0, 100.0])
-    cap = trial.suggest_categorical("cap", [0, 2, 3, 4])
-    # Daily close-all threshold (the "-3.2% close everything" circuit breaker).
-    # Lower = more buffer below the 5% daily wall vs a gap; costs some profit.
-    halt = trial.suggest_categorical("daily_halt", [2.0, 2.5, 3.0, 3.2])
-    # tp5 ride fraction: shift weight between TP4 and TP5 (close more earlier or
-    # let more ride). Keeps the ladder shape, tunes how much is exposed late.
-    t5 = trial.suggest_float("tp5_close_pct", 0.15, 0.40, step=0.05)
-    tp["tp5_close_pct"] = t5
-    tp["tp4_close_pct"] = round(0.40 - t5 if t5 <= 0.30 else 0.10, 4)  # rebalance vs TP4
-    env = {  # the $1.9M config's drawdown rungs (fixed)
+    vlo = trial.suggest_categorical("vlo", [1.5, 1.6, 1.7])
+    vhi = trial.suggest_categorical("vhi", [0.4, 0.5, 0.6])
+    gate = trial.suggest_categorical("gate", [2.5, 3.0, 3.5])
+    halt = trial.suggest_categorical("daily_halt", [2.5, 3.0, 3.2])
+    env = {  # the $1.9M config's drawdown rungs (fixed), regime gate ON
         "CFG_TDD_CAUTION_PCT": "5.5", "CFG_RISK_CAUTIOUS": "0.45",
         "CFG_TDD_WARNING_PCT": "7.5", "CFG_RISK_CONSERVATIVE": "0.25",
         "CFG_TDD_EMERGENCY_PCT": "8.5", "CFG_RISK_ULTRASAFE": "0.25",
         "TDD_WALL_SAFETY": "4.5", "VOL_SIZE_ENABLE": "1",
         "VOL_SIZE_MULT_LOW": str(vlo), "VOL_SIZE_MULT_HIGH": str(vhi),
-        "CORR_GROUP_CAP": str(cap), "CFG_MAX_CUM_RISK": str(cum),
-        "CFG_DAILY_HALT_PCT": str(halt),
-        # Faithful daily close-all: close at the trigger (like live's 5s thread),
-        # not the bar's worst wick. Verified to recover ~$1.6M of profit the
-        # pessimistic worst-case-close was destroying, while leaving genuine
-        # total-bleed (2017) and true gaps (2022) correctly breaching.
-        "DDD_CLOSE_AT_TRIGGER": "1"}
+        "VOL_REGIME_DD_OFF": str(gate), "VOL_REGIME_DD_MULT": "1.0",
+        "CORR_GROUP_CAP": "0", "CFG_MAX_CUM_RISK": "100",
+        "CFG_DAILY_HALT_PCT": str(halt), "DDD_CLOSE_AT_TRIGGER": "1"}
     return env, tp
 
 
@@ -127,13 +112,13 @@ def main():
 
     study = optuna.create_study(direction="maximize", study_name=args.study,
                                 storage=args.storage, load_if_exists=True)
-    if not study.trials:                       # warm-start around the $1.9M config
-        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "cum_risk": 5.0, "cap": 0, "daily_halt": 2.5, "tp5_close_pct": 0.30})
-        study.enqueue_trial({"vlo": 1.6, "vhi": 0.5, "cum_risk": 5.0, "cap": 0, "daily_halt": 2.5, "tp5_close_pct": 0.30})
-        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "cum_risk": 6.0, "cap": 2, "daily_halt": 2.0, "tp5_close_pct": 0.25})
-        study.enqueue_trial({"vlo": 1.5, "vhi": 0.4, "cum_risk": 6.0, "cap": 2, "daily_halt": 3.0, "tp5_close_pct": 0.30})
-        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "cum_risk": 7.0, "cap": 3, "daily_halt": 2.0, "tp5_close_pct": 0.30})
-        study.enqueue_trial({"vlo": 1.6, "vhi": 0.5, "cum_risk": 6.0, "cap": 0, "daily_halt": 2.5, "tp5_close_pct": 0.20})
+    if not study.trials:                       # warm-start around the regime-gate winner
+        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "gate": 3.0, "daily_halt": 3.2})
+        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "gate": 3.0, "daily_halt": 2.5})
+        study.enqueue_trial({"vlo": 1.7, "vhi": 0.6, "gate": 3.5, "daily_halt": 3.0})
+        study.enqueue_trial({"vlo": 1.6, "vhi": 0.5, "gate": 3.0, "daily_halt": 3.0})
+        study.enqueue_trial({"vlo": 1.6, "vhi": 0.5, "gate": 2.5, "daily_halt": 2.5})
+        study.enqueue_trial({"vlo": 1.5, "vhi": 0.4, "gate": 3.0, "daily_halt": 2.5})
 
     finished = sum(1 for t in study.trials if t.state in
                    (optuna.trial.TrialState.COMPLETE, optuna.trial.TrialState.PRUNED))
@@ -151,8 +136,7 @@ def main():
         ns = "/".join(f"{a.get('net_'+y, 0)/1000:.0f}k" for y in
                       ["2015", "2016", "2017", "2018", "2019", "2020", "2022"])
         print(f"  ${a['min_net']:>11,.0f}{a['worst_tdd']:>10}  {ns} | "
-              f"vlo={p['vlo']} vhi={p['vhi']} cum_risk={p['cum_risk']} cap={p['cap']} "
-              f"daily_halt={p['daily_halt']} tp5={p['tp5_close_pct']}", flush=True)
+              f"vlo={p['vlo']} vhi={p['vhi']} gate={p['gate']} daily_halt={p['daily_halt']}", flush=True)
     if robust:
         best = max(robust, key=lambda t: t.user_attrs.get("min_net", 0))
         Path("/tmp/multistart_best.json").write_text(json.dumps(
