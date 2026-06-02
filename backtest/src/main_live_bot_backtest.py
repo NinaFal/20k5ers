@@ -5734,8 +5734,24 @@ class LiveTradingBot:
                     if ddd_now >= halt_pct:
                         log.warning(f"🚨 DDD HALT mid-bar at {current_time}: {ddd_now:.2f}% >= {halt_pct:.2f}% after SL on {pos.symbol}")
                         commission_before = getattr(self.mt5, '_total_commission', 0.0)
-                        # Close remaining open positions at worst-case price
-                        close_comm = self.mt5.close_all_at_worst_case()
+                        # How are the REMAINING positions closed when the daily halt
+                        # fires? Two models:
+                        #  • worst-case (default): close at the bar's adverse extreme
+                        #    (low/high). Pessimistic — assumes the protective close
+                        #    executes at the deepest wick, so a continuous intra-bar
+                        #    slide books the full drop. On M15 this OVERSTATES daily
+                        #    breaches vs live, whose 5s thread closes at the trigger.
+                        #  • trigger (DDD_CLOSE_AT_TRIGGER=1): close at the current
+                        #    mark (≈ the price when DDD crossed the halt), mirroring
+                        #    live's prompt close. True SL GAPS are still real because
+                        #    the SL fills themselves already gapped at hit['price'].
+                        if os.getenv("DDD_CLOSE_AT_TRIGGER", "0").strip().lower() in ("1", "true", "yes", "on"):
+                            for _t in list(self.mt5._positions.keys()):
+                                self.mt5.close_position(_t)
+                            close_comm = getattr(self.mt5, '_total_commission', 0.0) - commission_before
+                        else:
+                            # Close remaining open positions at worst-case price
+                            close_comm = self.mt5.close_all_at_worst_case()
                         for order in self.mt5.get_my_pending_orders():
                             self.mt5.cancel_pending_order(order.ticket)
                         acct2 = self.mt5.get_account_info()

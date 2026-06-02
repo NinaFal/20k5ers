@@ -83,7 +83,12 @@ def build(trial):
         "TDD_WALL_SAFETY": "4.5", "VOL_SIZE_ENABLE": "1",
         "VOL_SIZE_MULT_LOW": str(vlo), "VOL_SIZE_MULT_HIGH": str(vhi),
         "CORR_GROUP_CAP": str(cap), "CFG_MAX_CUM_RISK": str(cum),
-        "CFG_DAILY_HALT_PCT": str(halt)}
+        "CFG_DAILY_HALT_PCT": str(halt),
+        # Faithful daily close-all: close at the trigger (like live's 5s thread),
+        # not the bar's worst wick. Verified to recover ~$1.6M of profit the
+        # pessimistic worst-case-close was destroying, while leaving genuine
+        # total-bleed (2017) and true gaps (2022) correctly breaching.
+        "DDD_CLOSE_AT_TRIGGER": "1"}
     return env, tp
 
 
