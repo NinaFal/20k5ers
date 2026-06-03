@@ -241,3 +241,4 @@ backtest/src/logs/
 backtest/src/ftmo_analysis_output/
 closed_today.json
 logs/
+.work/
