@@ -518,6 +518,23 @@ class Fiveers60KConfig:
 # Global configuration instance
 FIVEERS_CONFIG = Fiveers60KConfig()
 
+# ── Optuna / backtest env overrides (no-ops unless the env vars are set) ──
+# Lets a sweep tune the drawdown-recovery behaviour without code edits.
+# All default to the existing values, so production/live is unchanged.
+import os as _os
+def _envf(name, cur):
+    v = _os.getenv(name)
+    if v in (None, ""):
+        return cur
+    try:
+        return float(v)
+    except ValueError:
+        return cur
+FIVEERS_CONFIG.total_dd_warning_pct      = _envf("CFG_TDD_WARNING_PCT",   FIVEERS_CONFIG.total_dd_warning_pct)
+FIVEERS_CONFIG.total_dd_emergency_pct    = _envf("CFG_TDD_EMERGENCY_PCT", FIVEERS_CONFIG.total_dd_emergency_pct)
+FIVEERS_CONFIG.max_risk_conservative_pct = _envf("CFG_RISK_CONSERVATIVE", FIVEERS_CONFIG.max_risk_conservative_pct)
+FIVEERS_CONFIG.ultra_safe_risk_pct       = _envf("CFG_RISK_ULTRASAFE",    FIVEERS_CONFIG.ultra_safe_risk_pct)
+
 # Backwards compatibility aliases
 FTMO_CONFIG = FIVEERS_CONFIG
 FTMO200KConfig = Fiveers60KConfig

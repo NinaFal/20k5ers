@@ -10,9 +10,19 @@ faithful to the Blueprint confluence-based approach.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, List, Dict, Tuple, Any
+
+# Structural-stop buffer beyond the swing point, in ATR units (env-tunable for
+# optimization; default 0.4 preserves prior behaviour). The structural stop
+# usually dominates the ATR stop, so this is the real stop-distance knob.
+def _struct_sl_buffer() -> float:
+    try:
+        return float(os.getenv("CFG_STRUCT_SL_BUFFER", "0.4"))
+    except ValueError:
+        return 0.4
 
 from indicators import calculate_adx_with_slope, check_di_crossover
 
@@ -2359,7 +2369,7 @@ def compute_trade_levels(
 
                 base_sl = lo - atr * 0.5
                 if structure_sl is not None:
-                    sl = min(base_sl, structure_sl - atr * 0.4)
+                    sl = min(base_sl, structure_sl - atr * _struct_sl_buffer())
                 else:
                     sl = base_sl
 
@@ -2370,8 +2380,8 @@ def compute_trade_levels(
                     tp1 = entry + risk * params.tp1_r_multiple
                     tp2 = entry + risk * params.tp2_r_multiple
                     tp3 = entry + risk * params.tp3_r_multiple
-                    tp4 = entry + risk * (params.tp3_r_multiple + 1.0)  # TP3 + 1R
-                    tp5 = entry + risk * (params.tp3_r_multiple + 2.0)  # TP3 + 2R
+                    tp4 = entry + risk * getattr(params, 'tp4_r_multiple', params.tp3_r_multiple + 1.0)  # TP4 from params (matches live)
+                    tp5 = entry + risk * getattr(params, 'tp5_r_multiple', params.tp3_r_multiple + 2.0)  # TP5 from params (matches live)
 
                     note = f"R/R: Entry near {entry:.5f}, SL at {sl:.5f}"
                     return note, True, entry, sl, tp1, tp2, tp3, tp4, tp5
@@ -2385,7 +2395,7 @@ def compute_trade_levels(
 
                 base_sl = hi + atr * 0.5
                 if structure_sl is not None:
-                    sl = max(base_sl, structure_sl + atr * 0.4)
+                    sl = max(base_sl, structure_sl + atr * _struct_sl_buffer())
                 else:
                     sl = base_sl
 
@@ -2396,18 +2406,19 @@ def compute_trade_levels(
                     tp1 = entry - risk * params.tp1_r_multiple
                     tp2 = entry - risk * params.tp2_r_multiple
                     tp3 = entry - risk * params.tp3_r_multiple
-                    tp4 = entry - risk * (params.tp3_r_multiple + 1.0)  # TP3 + 1R
-                    tp5 = entry - risk * (params.tp3_r_multiple + 2.0)  # TP3 + 2R
+                    tp4 = entry - risk * getattr(params, 'tp4_r_multiple', params.tp3_r_multiple + 1.0)  # TP4 from params (matches live)
+                    tp5 = entry - risk * getattr(params, 'tp5_r_multiple', params.tp3_r_multiple + 2.0)  # TP5 from params (matches live)
                     
                     note = f"R/R: Entry near {entry:.5f}, SL at {sl:.5f}"
                     return note, True, entry, sl, tp1, tp2, tp3, tp4, tp5
     
     entry = current
     sl_mult = params.atr_sl_multiplier
-    
+    _struct_buf = _struct_sl_buffer()
+
     if direction == "bullish":
         if structure_sl is not None:
-            sl = min(entry - atr * sl_mult, structure_sl - atr * 0.4)
+            sl = min(entry - atr * sl_mult, structure_sl - atr * _struct_buf)
         else:
             sl = entry - atr * sl_mult
         risk = entry - sl
@@ -2415,11 +2426,11 @@ def compute_trade_levels(
         tp1 = entry + risk * params.tp1_r_multiple
         tp2 = entry + risk * params.tp2_r_multiple
         tp3 = entry + risk * params.tp3_r_multiple
-        tp4 = entry + risk * (params.tp3_r_multiple + 1.0)  # TP3 + 1R
-        tp5 = entry + risk * (params.tp3_r_multiple + 2.0)  # TP3 + 2R
+        tp4 = entry + risk * getattr(params, 'tp4_r_multiple', params.tp3_r_multiple + 1.0)  # TP4 from params (matches live)
+        tp5 = entry + risk * getattr(params, 'tp5_r_multiple', params.tp3_r_multiple + 2.0)  # TP5 from params (matches live)
     else:
         if structure_sl is not None:
-            sl = max(entry + atr * sl_mult, structure_sl + atr * 0.4)
+            sl = max(entry + atr * sl_mult, structure_sl + atr * _struct_buf)
         else:
             sl = entry + atr * sl_mult
         risk = sl - entry
@@ -2427,8 +2438,8 @@ def compute_trade_levels(
         tp1 = entry - risk * params.tp1_r_multiple
         tp2 = entry - risk * params.tp2_r_multiple
         tp3 = entry - risk * params.tp3_r_multiple
-        tp4 = entry - risk * (params.tp3_r_multiple + 1.0)  # TP3 + 1R
-        tp5 = entry - risk * (params.tp3_r_multiple + 2.0)  # TP3 + 2R
+        tp4 = entry - risk * getattr(params, 'tp4_r_multiple', params.tp3_r_multiple + 1.0)  # TP4 from params (matches live)
+        tp5 = entry - risk * getattr(params, 'tp5_r_multiple', params.tp3_r_multiple + 2.0)  # TP5 from params (matches live)
     
     note = f"R/R: ATR+structure levels"
     return note, True, entry, sl, tp1, tp2, tp3, tp4, tp5

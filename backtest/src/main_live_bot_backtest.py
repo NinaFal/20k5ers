@@ -494,7 +494,18 @@ def load_best_params_from_file(custom_params: dict = None):
     
     # Use the same merge logic as optimizer
     params_obj = load_strategy_params()
-    
+
+    # Env overlay for optimization (OPT_PARAMS='{"atr_sl_multiplier":1.8,...}').
+    # Merges into custom_params so a sweep can tune strategy params without files.
+    _env_params = os.getenv("OPT_PARAMS")
+    if _env_params:
+        try:
+            import json as _json
+            _ep = _json.loads(_env_params)
+            custom_params = {**(custom_params or {}), **_ep}
+        except Exception as _e:
+            log.warning(f"[OPT_PARAMS] ignored (bad JSON): {_e}")
+
     # If custom_params provided (from optimizer), overlay them
     if custom_params:
         log.info("[OPTIMIZER] Applying %d custom parameters", len(custom_params))
@@ -634,7 +645,12 @@ class LiveTradingBot:
                     # Get all DDD thresholds from config
                     warning_pct = getattr(FIVEERS_CONFIG, "daily_loss_warning_pct", 2.0)
                     reduce_pct = getattr(FIVEERS_CONFIG, "daily_loss_reduce_pct", 2.5)
-                    base_halt_pct = getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.2)
+                    # Daily close-all threshold. Lowering it leaves more buffer below
+                    # the 5% daily wall, so a violent single-bar/gap move is less
+                    # likely to leap past the trigger straight through the wall.
+                    # Env-tunable (CFG_DAILY_HALT_PCT); default 3.2 = live config.
+                    base_halt_pct = float(os.getenv("CFG_DAILY_HALT_PCT",
+                                          str(getattr(FIVEERS_CONFIG, "daily_loss_halt_pct", 3.2))))
                     halt_pct = base_halt_pct
 
                     # === ALSO CHECK TDD (Total DrawDown) ===
@@ -2617,6 +2633,12 @@ class LiveTradingBot:
         # BACKTEST: Load M15 data for all symbols (filtered by date range)
         from config import FOREX_PAIRS, METALS, OIL_ASSETS, INDICES, CRYPTO_ASSETS
         _excluded = {"XBR_USD", "XTI_USD"}  # Oil: extreme gaps
+        # Additional exclusions via env (comma-separated), e.g. structurally
+        # net-negative tickers identified as bad across BOTH IS and OOS halves.
+        _env_excl = os.getenv("EXCLUDE_SYMBOLS", "").replace(" ", "")
+        if _env_excl:
+            _excluded |= {s for s in _env_excl.split(",") if s}
+            log.info(f"EXCLUDE_SYMBOLS active: {sorted(_excluded - {'XBR_USD','XTI_USD'})}")
         all_symbols = [s for s in FOREX_PAIRS + METALS + OIL_ASSETS + INDICES + CRYPTO_ASSETS
                        if s not in _excluded]
         self.mt5.load_m15_data(all_symbols,
@@ -3045,7 +3067,28 @@ class LiveTradingBot:
         # Final fallback - always return a valid positive value
         log.debug(f"[{symbol}] Using base pip value: ${base_pip_value:.2f}")
         return base_pip_value
-    
+
+    def _total_open_risk_usd(self) -> float:
+        """Sum the worst-case loss (to stop-loss) of all OPEN positions, in USD.
+        Mirrors the live RiskManager._calculate_total_open_risk so the backtest
+        can enforce the SAME cumulative-open-risk cap the live bot enforces via
+        risk_manager.check_trade (MAX_CUMULATIVE_RISK_PCT). Uses static contract
+        specs (good enough for a risk cap; FX cross drift is second-order)."""
+        from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
+        total = 0.0
+        for pos in (self.mt5.get_my_positions() if self.mt5 else []):
+            try:
+                if not getattr(pos, "sl", 0) or pos.sl <= 0:
+                    continue
+                specs = get_fiveers_contract_specs(pos.symbol)
+                pip_size = specs.get("pip_size", 0.0001) or 0.0001
+                pip_val = specs.get("pip_value_per_lot", 10.0) or 10.0
+                stop_pips = abs(pos.price_open - pos.sl) / pip_size
+                total += stop_pips * pip_val * pos.volume
+            except Exception:
+                continue
+        return total
+
     def _calculate_lot_size_at_fill(
         self,
         symbol: str,
@@ -3107,9 +3150,16 @@ class LiveTradingBot:
             log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {FIVEERS_CONFIG.daily_loss_halt_pct}% (NO TRADE)")
             return 0.0
 
-        if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
-            log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}% (NO TRADE)")
-            return 0.0
+        # TDD emergency NO-TRADE halt. The graduated risk ladder below already
+        # throttles size hard in this zone (0.4% at 5-7%, 0.25% at >=7%), so this
+        # hard halt is redundant and creates a recovery trap: once TDD >= 7% the
+        # bot stops trading entirely and can never win its way back below 7%, so
+        # it bleeds to the 10% wall. Set TDD_EMERGENCY_HALT=0 to remove the halt
+        # and let the throttled ladder keep (small) trades flowing for recovery.
+        if os.getenv("TDD_EMERGENCY_HALT", "1").strip().lower() not in ("0", "false", "no", "off"):
+            if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
+                log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}% (NO TRADE)")
+                return 0.0
 
         # Get win/loss streaks
         win_streak = getattr(self.risk_manager.state, 'win_streak', 0) if hasattr(self.risk_manager, 'state') else 0
@@ -3131,15 +3181,70 @@ class LiveTradingBot:
         elif funded_level >= 300_000:
             base_risk = min(base_risk, 0.60)
 
-        # Apply safety reductions based on drawdown levels
+        # Apply safety reductions based on drawdown levels.
+        # Graduated recovery: TDD must drop to <3% before returning to full risk,
+        # preventing sudden jumps from 0.4% back to full after only a small recovery.
+        # NOTE: this ladder is kept EXACTLY in sync with main_live_bot.py (~4252).
         if daily_loss_pct >= FIVEERS_CONFIG.daily_loss_reduce_pct or total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
+            # TDD >= 7% (emergency) or DDD >= reduce threshold -> ultra-safe 0.25%
             risk_pct = min(base_risk, FIVEERS_CONFIG.ultra_safe_risk_pct)
         elif daily_loss_pct >= FIVEERS_CONFIG.daily_loss_warning_pct or total_dd_pct >= FIVEERS_CONFIG.total_dd_warning_pct:
+            # TDD 5-7% (warning) -> reduced 0.4%
             risk_pct = min(base_risk, FIVEERS_CONFIG.max_risk_conservative_pct)
+        elif total_dd_pct >= float(os.getenv("CFG_TDD_CAUTION_PCT", "3.0")):
+            # TDD caution band -> cautious recovery risk (default 0.6%)
+            # Env-tunable for optimization: CFG_TDD_CAUTION_PCT / CFG_RISK_CAUTIOUS
+            risk_pct = min(base_risk, float(os.getenv("CFG_RISK_CAUTIOUS", "0.60")))
         else:
+            # below caution band -> full risk
             risk_pct = base_risk
 
         log.info(f"[{symbol}] Risk: {risk_pct:.3f}% (base from params: {base_risk:.3f}%, funded: ${funded_level:,.0f}, DDD safety applied)")
+
+        # Volatility-scaled risk (env-gated, default no-op): size up in calm
+        # regimes / down in turbulent ones, where the edge is respectively
+        # positive / negative. Applied after the drawdown ladder so both stack.
+        _vm = self._vol_size_multiplier(symbol)
+        # REGIME GATE: the calm-vol signal (low ATR) is NOT the same as "edge is
+        # working". In calm-but-choppy regimes (e.g. mid-2017) the edge inverts
+        # while ATR stays low, so a static size-up amplifies losses AND fights the
+        # drawdown ladder, bleeding the account to the wall. Gate the SIZE-UP
+        # (>1.0) off once the account is drawing down past VOL_REGIME_DD_OFF — at
+        # that point we're clearly not in a favorable regime, so don't amplify.
+        # (Turbulent size-DOWN, <1.0, is always allowed.) Default off (100).
+        _dd_off = float(os.getenv("VOL_REGIME_DD_OFF", "100"))
+        if _vm > 1.0 and (total_dd_pct >= _dd_off or daily_loss_pct >= _dd_off):
+            _gated = float(os.getenv("VOL_REGIME_DD_MULT", "1.0"))
+            log.info(f"[{symbol}] Vol regime-gate: TDD {total_dd_pct:.1f}%/DDD {daily_loss_pct:.1f}% >= {_dd_off}% -> size-up x{_vm:.2f} collapsed to x{_gated:.2f}")
+            _vm = _gated
+        if _vm != 1.0:
+            risk_pct = risk_pct * _vm
+            log.info(f"[{symbol}] Vol-size x{_vm:.2f} -> risk {risk_pct:.3f}%")
+
+        # Emergency wall-guard: in the high-TDD zone, cap per-trade risk so even a
+        # FULL stop-loss can't push TDD through the 10% wall (room-to-wall / safety
+        # factor). This is the principled replacement for the binary 7% freeze:
+        # recovery trades keep flowing (no deadlock) but the account can never be
+        # traded INTO a breach. Active whenever in the emergency zone, regardless
+        # of TDD_EMERGENCY_HALT.
+        # Emergency wall-guard (room-cap): in the high-TDD zone, cap each recovery
+        # trade so even a FULL stop-loss can't push TDD through the 10% wall — risk
+        # no more than room-to-wall / safety factor. Recovery trades keep flowing
+        # (no deadlock), but a single trade can never be sized into a breach.
+        #
+        # NOTE: an earlier "flat-before-entry" block (no new entry while any
+        # position was open) was tried and DELETED — it backfired by trapping the
+        # account holding its existing losers in the 7-10% zone with no ability to
+        # take diversifying recovery trades, turning a survivable 9.4% draw into a
+        # 10% breach (verified on cold-start 2015). The room-cap is the backstop.
+        _emerg_pct = float(os.getenv("CFG_TDD_EMERGENCY_PCT", "7.0"))
+        if total_dd_pct >= _emerg_pct and starting_balance > 0 and current_balance > 0:
+            _room_usd = max(0.0, current_equity - starting_balance * 0.90)  # 10% wall
+            _safety = float(os.getenv("TDD_WALL_SAFETY", "3.0"))
+            _cap_pct = (_room_usd / _safety) / current_balance * 100
+            if _cap_pct < risk_pct:
+                log.info(f"[{symbol}] Wall-guard: TDD {total_dd_pct:.1f}%, room ${_room_usd:,.0f} -> risk {risk_pct:.3f}% capped to {_cap_pct:.3f}%")
+                risk_pct = _cap_pct
 
         if risk_pct <= 0:
             log.warning(f"[{symbol}] Risk percentage is 0 - trading halted (NO TRADE)")
@@ -3242,6 +3347,36 @@ class LiveTradingBot:
         if risk_ratio > 1.5:
             log.warning(f"[{symbol}] ⚠️ Risk slightly elevated: ${actual_risk_usd:.2f} vs intended ${intended_risk_usd:.2f} ({risk_ratio:.1f}x)")
 
+        # ═══════════════════════════════════════════════════════════════
+        # CUMULATIVE OPEN-RISK CAP (faithful to LIVE risk_manager.check_trade)
+        # ───────────────────────────────────────────────────────────────
+        # The live bot caps TOTAL simultaneous open risk at MAX_CUMULATIVE_RISK_PCT
+        # (=3%); the backtest had this check REMOVED ("to match simulator"), so it
+        # took on far more concurrent risk than live ever would — which is what
+        # produced the single-day 5-7% DAILY-DD breaches that live (capped at 3%)
+        # could not have. Re-enabling it here makes the backtest faithful to live.
+        # Env CFG_MAX_CUM_RISK (default 3.0 = live); set >=100 to disable.
+        _cum_cap = float(os.getenv("CFG_MAX_CUM_RISK", "3.0"))
+        if _cum_cap < 100.0 and current_balance > 0:
+            _existing = self._total_open_risk_usd()
+            _cap_usd = current_balance * _cum_cap / 100.0
+            _avail = _cap_usd - _existing
+            if _avail <= 0:
+                log.info(f"[{symbol}] Cum-risk cap: open risk ${_existing:,.0f} >= cap ${_cap_usd:,.0f} ({_cum_cap}%) — NO TRADE")
+                return 0.0
+            if actual_risk_usd > _avail:
+                _factor = (_avail / actual_risk_usd) * 0.95
+                _new_lot = lot_size * _factor
+                if symbol_info:
+                    _ls = symbol_info.get('lot_step', 0.01)
+                    if _ls > 0:
+                        _new_lot = round(_new_lot / _ls) * _ls
+                if _new_lot < min_lot:
+                    log.info(f"[{symbol}] Cum-risk cap: room ${_avail:,.0f} < min lot — NO TRADE")
+                    return 0.0
+                log.info(f"[{symbol}] Cum-risk cap: lot {lot_size}->{_new_lot} (open ${_existing:,.0f}, cap ${_cap_usd:,.0f})")
+                lot_size = _new_lot
+
         return lot_size
     
     def _calculate_atr(self, candles: List[Dict], period: int = 14) -> float:
@@ -3275,7 +3410,53 @@ class LiveTradingBot:
             return 0.0
         
         return sum(true_ranges[-period:]) / period
-    
+
+    def _vol_size_multiplier(self, symbol: str) -> float:
+        """Volatility-scaled risk multiplier (env-gated, default off).
+
+        Backtest diagnostics show risk-adjusted edge is strongly positive in
+        LOW-volatility regimes and negative in HIGH-volatility regimes. This
+        scales risk-per-trade by where the symbol's CURRENT 14d ATR sits in its
+        own recent ATR distribution (a causal, entry-time signal — no look-ahead):
+        higher size in calm regimes, lower in turbulent ones. The mapping is a
+        linear interp between VOL_SIZE_MULT_LOW (at the calm extreme) and
+        VOL_SIZE_MULT_HIGH (at the turbulent extreme); both default to 1.0 (no-op).
+        """
+        if os.getenv("VOL_SIZE_ENABLE", "0").strip().lower() not in ("1", "true", "yes", "on"):
+            return 1.0
+        m_low = float(os.getenv("VOL_SIZE_MULT_LOW", "1.0"))
+        m_high = float(os.getenv("VOL_SIZE_MULT_HIGH", "1.0"))
+        if m_low == 1.0 and m_high == 1.0:
+            return 1.0
+        # Memoize per (symbol, sim-day): the vol regime only changes daily, so we
+        # compute it once per symbol per day instead of on every fill (which was
+        # re-fetching 4 timeframes per call — the cause of a ~6x slowdown).
+        period, look = 14, int(os.getenv("VOL_SIZE_LOOKBACK", "120"))
+        ct = getattr(self.mt5, "_current_time", None)
+        day = ct.date() if ct is not None and hasattr(ct, "date") else None
+        cache = getattr(self, "_vol_mult_cache", None)
+        if cache is None:
+            cache = self._vol_mult_cache = {}
+        key = (symbol, day)
+        if key in cache:
+            return cache[key]
+        broker = self.symbol_map.get(symbol, symbol)
+        try:
+            candles = self.mt5.get_ohlcv(broker, "D1", look + period + 1)  # daily only
+        except Exception:
+            return 1.0
+        mult = 1.0
+        if candles and len(candles) >= period + 20:
+            atrs = [self._calculate_atr(candles[i - period:i + 1], period)
+                    for i in range(period, len(candles))]
+            atrs = [a for a in atrs if a > 0]
+            if len(atrs) >= 20:
+                cur = atrs[-1]
+                pct = sum(1 for a in atrs if a <= cur) / len(atrs)  # 0=calm, 1=turbulent
+                mult = max(0.1, min(3.0, m_low + (m_high - m_low) * pct))
+        cache[key] = mult
+        return mult
+
     def scan_symbol(self, symbol: str) -> Optional[Dict]:
         """
         Scan a single symbol for trade setup.
@@ -3759,10 +3940,11 @@ class LiveTradingBot:
                 log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {FIVEERS_CONFIG.daily_loss_halt_pct}%")
                 return False
             
-            if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
-                log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}%")
-                return False
-            
+            if os.getenv("TDD_EMERGENCY_HALT", "1").strip().lower() not in ("0", "false", "no", "off"):
+                if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
+                    log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}%")
+                    return False
+
             # STATIC POSITION LIMIT - Match simulator behavior
             # Simple hard cap at 100 positions (unlimited trades)
             max_trades = 100
@@ -3774,6 +3956,34 @@ class LiveTradingBot:
             if total_exposure >= max_trades:
                 log.info(f"[{symbol}] Max trades reached: {total_exposure}/{max_trades} (positions: {open_positions}, pending: {pending_count})")
                 return False
+
+            # ── CORRELATION CAP (env-gated; CORR_GROUP_CAP, 0 = off/default) ──
+            # The root driver of the 10% total-DD death is clustered exposure: one
+            # signal sweep fills many pairs in the same correlation group in the
+            # same direction, so a single adverse session digs a deep hole. Cap the
+            # number of concurrent open+pending positions per correlation group.
+            _corr_cap = 0
+            try:
+                _corr_cap = int(os.getenv("CORR_GROUP_CAP", "0"))
+            except ValueError:
+                _corr_cap = 0
+            if _corr_cap > 0:
+                try:
+                    import weekend_gap_manager as _wgm
+                    grp = _wgm.get_correlation_group(symbol)
+                    if grp and grp != 'UNCORRELATED':
+                        same = 0
+                        for p in (self.mt5.get_my_positions() if self.mt5 else []):
+                            if _wgm.get_correlation_group(p.symbol) == grp:
+                                same += 1
+                        for s in self.pending_setups.values():
+                            if s.status == "pending" and _wgm.get_correlation_group(s.symbol) == grp:
+                                same += 1
+                        if same >= _corr_cap:
+                            log.info(f"[{symbol}] Correlation cap: {grp} already has {same} (cap {_corr_cap}) — NO TRADE")
+                            return False
+                except Exception as _e:
+                    log.debug(f"[{symbol}] corr-cap skipped: {_e}")
 
             # Protection layers (rollover window + news blackout)
             blocked, reason = self._protection_block(symbol, direction)
@@ -4805,8 +5015,16 @@ class LiveTradingBot:
                 log.error("=" * 70)
                 return
             
-            # Block scan if TDD >= 7% (emergency zone)
-            if total_dd_pct >= 7.0:
+            # Block scan if TDD >= 7% (emergency zone) — gated by TDD_EMERGENCY_HALT.
+            # This mirrors the sizing-path halt (~3129): a HARD scan block here
+            # recreates the documented "recovery trap" — once TDD >= 7% the bot
+            # stops opening trades and can never win back below 7%, so it freezes
+            # (and in backtest, never trades again). When the halt is disabled the
+            # graduated ladder still throttles to ultra-safe 0.25% in this zone,
+            # letting small trades flow for recovery instead of deadlocking.
+            _tdd_halt_on = os.getenv("TDD_EMERGENCY_HALT", "1").strip().lower() \
+                not in ("0", "false", "no", "off")
+            if total_dd_pct >= 7.0 and _tdd_halt_on:
                 log.error("=" * 70)
                 log.error(f"🚫 SCAN BLOCKED: TDD {total_dd_pct:.2f}% >= 7%")
                 log.error("  No new orders will be placed - approaching 10% limit!")
@@ -5216,10 +5434,86 @@ class LiveTradingBot:
         equity_high = self.initial_balance
         last_scanned_date = None
         current_date = None
+
+        # TDD wall-press instrumentation: how often (and on how many distinct days)
+        # does total drawdown press into the danger bands near the 10% wall, and how
+        # many separate excursions cross 9.5%? Answers "is recovery skill or luck?".
+        _tdd_bands = (9.0, 9.5, 9.9)
+        tdd_bars = {b: 0 for b in _tdd_bands}
+        tdd_days = {b: set() for b in _tdd_bands}
+        tdd_excursions_95 = 0
+        _tdd_above_95 = False  # rising-edge tracker for distinct 9.5% excursions
+        _record_tdd_series = os.getenv("RECORD_TDD") == "1"
+        _tdd_series = []
+
+        def record_tdd(t, val):
+            nonlocal tdd_excursions_95, _tdd_above_95
+            d = getattr(t, "date", lambda: t)()
+            for b in _tdd_bands:
+                if val >= b:
+                    tdd_bars[b] += 1
+                    tdd_days[b].add(d)
+            if val >= 9.5 and not _tdd_above_95:
+                tdd_excursions_95 += 1
+            _tdd_above_95 = val >= 9.5
+            if _record_tdd_series:
+                _tdd_series.append((str(t), round(val, 3)))
         day_start_equity = self.initial_balance
         safety_events = []
         trading_halted_today = False
-        
+
+        # ── TERMINAL-ON-BREACH ───────────────────────────────────────────────
+        # 5ers reality: the FIRST 5% daily-drawdown breach permanently ends the
+        # account. The simulator previously logged the breach and traded on,
+        # which makes the 50k→$4M scaling path fiction. When enabled (default),
+        # the run stops at the first daily breach and records where it died.
+        # Set env TERMINAL_ON_BREACH=0 to restore the old "trade through" mode
+        # for A/B comparison.
+        terminal_on_breach = os.getenv("TERMINAL_ON_BREACH", "1").strip().lower() \
+            not in ("0", "false", "no", "off")
+        account_failed = False
+        fail_info = None
+
+        # Normalize the run start so we can report survival in days.
+        _t0 = timeline[0]
+        if hasattr(_t0, 'to_pydatetime'):
+            _t0 = _t0.to_pydatetime()
+        if getattr(_t0, 'tzinfo', None) is None:
+            _t0 = _t0.replace(tzinfo=timezone.utc)
+        run_start_dt = _t0
+
+        def _register_breach(when, dd_value, source, kind="daily"):
+            """Record a terminal account failure — either a 5% daily-drawdown
+            breach (kind='daily') or a 10% total-drawdown breach (kind='total').
+            Both permanently end a 5ers account; both must set account_failed so
+            survival flags and the optimizer's survivor scoring are correct."""
+            nonlocal account_failed, fail_info
+            if account_failed:
+                return
+            funded = getattr(self.mt5, '_funded_level', self.initial_balance)
+            try:
+                survived = (when - run_start_dt).days
+            except Exception:
+                survived = None
+            label = "10% TOTAL" if kind == "total" else "5% DAILY"
+            reason = (f'10% total drawdown breached ({dd_value:.2f}%) [{source}]'
+                      if kind == "total"
+                      else f'5% daily drawdown breached ({dd_value:.2f}%) [{source}]')
+            fail_info = {
+                'failed': True,
+                'breach_type': kind,
+                'reason': reason,
+                'time': str(when),
+                'funded_level_at_failure': round(funded, 2),
+                'ddd_pct_at_failure': round(dd_value, 2),
+                'survived_days': survived,
+            }
+            account_failed = True
+            log.error("=" * 70)
+            log.error(f"🛑 ACCOUNT FAILED — {label} BREACH at {when}")
+            log.error(f"   DD {dd_value:.2f}% | Funded ${funded:,.0f} | Survived {survived} days")
+            log.error("=" * 70)
+
         pbar = tqdm(timeline, desc="Backtesting", mininterval=1.0)
         
         for current_time in pbar:
@@ -5283,20 +5577,26 @@ class LiveTradingBot:
             weekday = current_time.weekday()
             hour = current_time.hour
 
-            # Friday 19:30+ UTC: Close/reduce positions for weekend
+            # Weekend handlers. These self-gate on day/time using SIMULATOR time
+            # (get_current_time) and own their once-per-week reset flags, so they
+            # must be called every cycle — exactly like the live bot
+            # (main_live_bot.py ~line 5052).
+            #
+            # BUGFIX: previously these were wrapped in outer `if weekday == 4 ...`
+            # guards. handle_friday_position_closing() only resets its
+            # friday_closing_done flag on a NON-Friday call, so with the outer
+            # guard the reset branch was never reached: the flag latched True after
+            # the very first Friday and the weekend reduction NEVER fired again
+            # (log showed it ran on exactly 1 Friday in 6 months). That let the
+            # full-size basket ride into the 2015-06-28 Greek-gap weekend and breach.
             minute = current_time.minute
-            if weekday == 4 and (hour > 19 or (hour == 19 and minute >= 30)):
-                self.handle_friday_position_closing()
-
-            # Sunday 22:00+: Gap detection (forex markets reopen)
-            if weekday == 6 and hour >= 22:
-                self.handle_sunday_gap_detection()
-
-            # Monday morning: Resume paused orders + gap check
+            self.handle_friday_position_closing()   # self-gates (sim time): Friday 19:30+ UTC
+            self.handle_sunday_gap_detection()      # self-gates (sim time): Sunday 22:00+ / Mon <02:00
+            self.handle_monday_order_resume(current_time)  # self-gates (sim time): Monday only
+            # handle_weekend_gap_positions() gates on get_server_time() (wall clock),
+            # which is meaningless under simulation — keep an explicit sim-time guard.
             if weekday == 0 and hour < 2:
                 self.handle_weekend_gap_positions()
-            if weekday == 0:
-                self.handle_monday_order_resume(current_time)
 
             # Skip Saturday entirely + Sunday before 22:00 (market closed)
             if weekday == 5:
@@ -5315,12 +5615,29 @@ class LiveTradingBot:
             equity = account.get("equity", self.initial_balance)
             balance = account.get("balance", self.initial_balance)
 
+            # CONSERVATIVE breach DETECTION (env-gated, default off). Bar-close
+            # equity can MISS an intra-bar wick that pierces the 10% TDD / 5% DDD
+            # wall and recovers by the close — a false negative that would be a
+            # dead account live. When TDD_WORST_CASE is on, mark every open
+            # position to its M15 bar's adverse extreme (low for longs, high for
+            # shorts, capped at SL) and use that worst-case equity for the wall
+            # checks below. It's an UPPER bound on the dip (assumes adverse
+            # simultaneity), so it's the safe side for a prop account — a config
+            # that survives this is robust regardless of bar resolution. Used for
+            # final validation; the sweep stays on close-mark to find candidates.
+            if os.getenv("TDD_WORST_CASE", "0").strip().lower() in ("1", "true", "yes", "on"):
+                try:
+                    equity = min(equity, balance + self.mt5.calculate_worst_case_floating_pnl())
+                except Exception:
+                    pass
+
             equity_low = min(equity_low, equity)
             equity_high = max(equity_high, equity)
 
             # TDD check (static from initial balance)
             tdd_pct = max(0, (self.initial_balance - equity) / self.initial_balance * 100)
             max_tdd = max(max_tdd, tdd_pct)
+            record_tdd(current_time, tdd_pct)
 
             if tdd_pct >= 10.0:
                 log.error(f"🚨 TDD STOP-OUT at {current_time}: {tdd_pct:.1f}%")
@@ -5330,6 +5647,7 @@ class LiveTradingBot:
                     'type': 'TDD_STOPOUT',
                     'tdd_pct': tdd_pct,
                 })
+                _register_breach(current_time, tdd_pct, 'bar', kind='total')
                 break
 
             # DDD check - graduated tiers matching live bot
@@ -5341,6 +5659,22 @@ class LiveTradingBot:
 
             ddd_pct = max(0, (day_start_equity - equity) / day_start_equity * 100) if day_start_equity > 0 else 0
             max_ddd = max(max_ddd, ddd_pct)
+
+            # === TERMINAL 5% DAILY BREACH (equity basis) ===
+            # Equity is mark-to-market (incl. floating PnL), exactly what 5ers
+            # measures DDD against. If a gap/spike puts us >=5% below day-start
+            # equity before the 3.2% halt could close out, the account is dead.
+            if ddd_pct >= 5.0 and not account_failed:
+                _register_breach(current_time, ddd_pct, 'bar')
+                safety_events.append({
+                    'time': str(current_time),
+                    'type': 'DDD_HALT',
+                    'ddd_pct': ddd_pct,
+                    'breach_5pct': True,
+                })
+                self._emergency_close_all()
+                if terminal_on_breach:
+                    break  # account terminated — stop the run
 
             # === TIER 3: DDD >= 3.5% → CLOSE ALL + HALT ===
             if ddd_pct >= halt_pct and not trading_halted_today:
@@ -5415,19 +5749,37 @@ class LiveTradingBot:
                     tdd_ref = self.challenge_manager.starting_balance if self.challenge_manager else self.initial_balance
                     tdd_now = max(0, (tdd_ref - eq_now) / tdd_ref * 100) if tdd_ref > 0 else 0
                     max_ddd = max(max_ddd, ddd_now)
+                    record_tdd(current_time, tdd_now)
 
                     if tdd_now >= 10.0:
                         log.error(f"🚨 TDD STOP-OUT mid-bar at {current_time}: {tdd_now:.2f}%")
                         self._emergency_close_all()
                         safety_events.append({'time': str(current_time), 'type': 'TDD_STOPOUT', 'tdd_pct': tdd_now})
+                        _register_breach(current_time, tdd_now, 'midbar', kind='total')
                         trading_halted_today = True
                         break
 
                     if ddd_now >= halt_pct:
                         log.warning(f"🚨 DDD HALT mid-bar at {current_time}: {ddd_now:.2f}% >= {halt_pct:.2f}% after SL on {pos.symbol}")
                         commission_before = getattr(self.mt5, '_total_commission', 0.0)
-                        # Close remaining open positions at worst-case price
-                        close_comm = self.mt5.close_all_at_worst_case()
+                        # How are the REMAINING positions closed when the daily halt
+                        # fires? Two models:
+                        #  • worst-case (default): close at the bar's adverse extreme
+                        #    (low/high). Pessimistic — assumes the protective close
+                        #    executes at the deepest wick, so a continuous intra-bar
+                        #    slide books the full drop. On M15 this OVERSTATES daily
+                        #    breaches vs live, whose 5s thread closes at the trigger.
+                        #  • trigger (DDD_CLOSE_AT_TRIGGER=1): close at the current
+                        #    mark (≈ the price when DDD crossed the halt), mirroring
+                        #    live's prompt close. True SL GAPS are still real because
+                        #    the SL fills themselves already gapped at hit['price'].
+                        if os.getenv("DDD_CLOSE_AT_TRIGGER", "0").strip().lower() in ("1", "true", "yes", "on"):
+                            for _t in list(self.mt5._positions.keys()):
+                                self.mt5.close_position(_t)
+                            close_comm = getattr(self.mt5, '_total_commission', 0.0) - commission_before
+                        else:
+                            # Close remaining open positions at worst-case price
+                            close_comm = self.mt5.close_all_at_worst_case()
                         for order in self.mt5.get_my_pending_orders():
                             self.mt5.cancel_pending_order(order.ticket)
                         acct2 = self.mt5.get_account_info()
@@ -5437,6 +5789,7 @@ class LiveTradingBot:
                         log.warning(f"  💸 Close commission: ${close_comm:.2f} | Actual DDD: {actual_ddd:.2f}%")
                         if actual_ddd >= 5.0:
                             log.error(f"  ⚠️ 5ERS BREACH: DDD {actual_ddd:.2f}% >= 5.0%!")
+                            _register_breach(current_time, actual_ddd, 'midbar')
                         trading_halted_today = True
                         self.ddd_halted = True
                         safety_events.append({
@@ -5448,6 +5801,10 @@ class LiveTradingBot:
                             'breach_5pct': actual_ddd >= 5.0,
                         })
                         break
+
+            # Terminal breach detected during mid-bar SL processing — stop the run.
+            if account_failed and terminal_on_breach:
+                break
 
             if not trading_halted_today:
                 for hit in tp_hits:
@@ -5631,6 +5988,10 @@ class LiveTradingBot:
             'win_rate': round(win_rate, 1),
             'max_tdd_pct': round(max_tdd, 2),
             'max_ddd_pct': round(max_ddd, 2),
+            # TDD wall-press counts: bars/distinct-days in each danger band + 9.5% excursions
+            'tdd_bars_ge_9_0': tdd_bars[9.0], 'tdd_bars_ge_9_5': tdd_bars[9.5], 'tdd_bars_ge_9_9': tdd_bars[9.9],
+            'tdd_days_ge_9_0': len(tdd_days[9.0]), 'tdd_days_ge_9_5': len(tdd_days[9.5]), 'tdd_days_ge_9_9': len(tdd_days[9.9]),
+            'tdd_excursions_ge_9_5': tdd_excursions_95,
             'safety_events': len(safety_events),
             'ddd_halts': sum(1 for e in safety_events if e.get('type') in ('DDD_HALT', 'DDD_HALT_MIDBAR')),
             'ddd_halts_midbar': sum(1 for e in safety_events if e.get('type') == 'DDD_HALT_MIDBAR'),
@@ -5643,6 +6004,10 @@ class LiveTradingBot:
             'fiveers_final_funded_level': round(final_funded_level, 2),
             'fiveers_scaling_events': len(scaling_log),
             'fiveers_scaling_log': scaling_log,
+            # Terminal-on-breach outcome (5ers reality: 1st 5% daily breach = dead)
+            'terminal_on_breach': terminal_on_breach,
+            'account_failed': account_failed,
+            'fail_info': fail_info,
         }
         
         # Print results
@@ -5675,6 +6040,15 @@ class LiveTradingBot:
         print(f"   DDD halts (>=3.5%): {results['ddd_halts']}")
         print(f"   TDD stop-outs (>=10%): {results['tdd_stopouts']}")
 
+        print(f"\n🏁 CHALLENGE OUTCOME (terminal_on_breach={terminal_on_breach}):")
+        if account_failed:
+            print(f"   🛑 ACCOUNT FAILED — {fail_info['reason']}")
+            print(f"      Died: {fail_info['time']}")
+            print(f"      Funded level at failure: ${fail_info['funded_level_at_failure']:,.0f}")
+            print(f"      Survived: {fail_info['survived_days']} days from start")
+        else:
+            print(f"   ✅ Survived the full period with no 5% daily breach.")
+
         print(f"\n🏦 5ers SCALING (with $4M cap):")
         print(f"   Final funded level: ${results['fiveers_final_funded_level']:,.0f}")
         print(f"   Scaling events:     {results['fiveers_scaling_events']}")
@@ -5695,7 +6069,10 @@ class LiveTradingBot:
             print(f"   {'-'*55}")
         
         print(f"\n{'='*70}")
-        
+
+        # Stash for the outer run_backtest to persist (output_dir lives there).
+        self._tdd_series = _tdd_series if _record_tdd_series else []
+
         return results
 
 
@@ -5987,7 +6364,12 @@ def main():
     closed_trades = bot.mt5.get_closed_trades()
     if closed_trades:
         pd.DataFrame(closed_trades).to_csv(output_dir / 'trades.csv', index=False)
-    
+
+    # Save TDD time-series if instrumentation was enabled (RECORD_TDD=1)
+    tdd_series = getattr(bot, '_tdd_series', [])
+    if tdd_series:
+        pd.DataFrame(tdd_series, columns=['time', 'tdd_pct']).to_csv(output_dir / 'tdd_series.csv', index=False)
+
     print(f"\n✅ Results saved to: {output_dir}")
 
 
