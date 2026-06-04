@@ -97,6 +97,12 @@ PARAMETER_DEFAULTS: Dict[str, Any] = {
     'entry_fib_level': 0.618,         # Fib retracement level for entry (0.5=shallow, 0.786=deep)
     'entry_limit_offset_atr': 0.0,    # Extra ATR offset for better entry (0=none, 0.3=aggressive)
 
+    # Stage 1c — volatility-adaptive entry depth + binding trend-quality gate
+    'entry_fib_level_volatile': 0.0,  # deep fib used when volatile; 0.0=inherit base (off)
+    'fib_vol_ratio_threshold': 1.15,  # ATR(14)/ATR(50) above which regime = "volatile"
+    'use_trend_quality_gate': False,  # skip setups with weak trend (ADX) when True
+    'adx_min_entry': 0.0,             # skip setups with ADX(14) below this (0=off)
+
     # ═══════════════════════════════════════════════════════════════════════════
     # FIBONACCI PARAMETERS
     # ═══════════════════════════════════════════════════════════════════════════

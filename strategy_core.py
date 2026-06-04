@@ -189,6 +189,20 @@ class StrategyParams:
     entry_fib_level: float = 0.618      # Fib retracement level for entry (0.5-0.786)
     entry_limit_offset_atr: float = 0.0 # Extra ATR offset toward better price (0-0.3)
 
+    # Volatility-adaptive entry depth (Stage 1c). When entry_fib_level_volatile
+    # differs from entry_fib_level, the entry fib switches by regime:
+    #   ATR(14)/ATR(50) >= fib_vol_ratio_threshold  -> volatile -> use _volatile fib
+    #   else                                          -> calm     -> use entry_fib_level
+    # Default _volatile == 0.0 sentinel -> inherit base => feature OFF.
+    entry_fib_level_volatile: float = 0.0   # 0.0 = inherit entry_fib_level (off)
+    fib_vol_ratio_threshold: float = 1.15   # ATR ratio above which "volatile"
+
+    # Binding trend-quality gate (Stage 1c). Retracement-continuation only pays
+    # when a real trend exists to resume; skip weak-trend setups (the calm-bleed
+    # failure mode). adx_min_entry <= 0 OR gate off => no skipping (default OFF).
+    use_trend_quality_gate: bool = False
+    adx_min_entry: float = 0.0              # skip setups with ADX(14) below this
+
     structure_sl_lookback: int = 35
     
     # DISABLED: All indicator filters temporarily disabled for baseline testing
@@ -2310,6 +2324,27 @@ def compute_confluence(
     return flags, notes, trade_levels
 
 
+def _regime_entry_fib(params, daily_candles: List[Dict], atr: float) -> float:
+    """
+    Volatility-adaptive entry fib level (Stage 1c).
+
+    Returns the shallow `entry_fib_level` in calm regimes and the deeper
+    `entry_fib_level_volatile` when ATR(14)/ATR(50) >= fib_vol_ratio_threshold.
+    Backward-compatible: if entry_fib_level_volatile is 0.0 (sentinel) or equal
+    to the base level, the base level is always returned (feature OFF).
+    """
+    fib_calm = getattr(params, 'entry_fib_level', 0.618)
+    fib_vol = getattr(params, 'entry_fib_level_volatile', 0.0)
+    if not fib_vol or fib_vol == fib_calm:
+        return fib_calm
+    atr_slow = _atr(daily_candles, 50)
+    if atr_slow <= 0:
+        return fib_calm
+    vol_ratio = atr / atr_slow
+    thr = getattr(params, 'fib_vol_ratio_threshold', 1.15)
+    return fib_vol if vol_ratio >= thr else fib_calm
+
+
 def compute_trade_levels(
     daily_candles: List[Dict],
     direction: str,
@@ -2318,28 +2353,40 @@ def compute_trade_levels(
 ) -> Tuple[str, bool, Optional[float], Optional[float], Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]:
     """
     Compute entry, SL, and TP levels using parameterized logic.
-    
+
     Args:
         daily_candles: Daily OHLCV data
         direction: Trade direction
         params: Strategy parameters
         h4_candles: 4H OHLCV data for tighter SL calculation
-    
+
     Returns:
         Tuple of (note, is_valid, entry, sl, tp1, tp2, tp3, tp4, tp5)
     """
     if params is None:
         params = StrategyParams()
-    
+
     if not daily_candles:
         return "R/R: no data.", False, None, None, None, None, None, None, None
-    
+
     current = daily_candles[-1]["close"]
     atr = _atr(daily_candles, 14)
-    
+
     if atr <= 0:
         return "R/R: ATR too small.", False, None, None, None, None, None, None, None
-    
+
+    # ── Binding trend-quality gate (Stage 1c, default OFF) ───────────────────
+    # Skip retracement-continuation setups when no real trend exists to resume
+    # (the calm-bleed failure mode). Hard skip => entry returned as None so both
+    # live and backtest reject the setup (callers check entry is None).
+    if getattr(params, 'use_trend_quality_gate', False):
+        adx_min = getattr(params, 'adx_min_entry', 0.0)
+        if adx_min > 0:
+            adx_val = calculate_adx(daily_candles, 14)
+            if adx_val < adx_min:
+                return (f"R/R: trend too weak (ADX {adx_val:.1f} < {adx_min:.1f})",
+                        False, None, None, None, None, None, None, None)
+
     leg = _find_last_swing_leg_for_fib(daily_candles, direction)
     
     sl_candles = h4_candles if h4_candles and len(h4_candles) >= 20 else daily_candles
@@ -2351,7 +2398,7 @@ def compute_trade_levels(
         span = hi - lo
         if span > 0:
             if direction == "bullish":
-                fib_level = getattr(params, 'entry_fib_level', 0.618)
+                fib_level = _regime_entry_fib(params, daily_candles, atr)
                 offset = getattr(params, 'entry_limit_offset_atr', 0.0)
                 gp_mid = hi - span * fib_level
                 # Apply ATR offset: bullish = enter lower (better price)
@@ -2377,7 +2424,7 @@ def compute_trade_levels(
                     note = f"R/R: Entry near {entry:.5f}, SL at {sl:.5f}"
                     return note, True, entry, sl, tp1, tp2, tp3, tp4, tp5
             else:
-                fib_level = getattr(params, 'entry_fib_level', 0.618)
+                fib_level = _regime_entry_fib(params, daily_candles, atr)
                 offset = getattr(params, 'entry_limit_offset_atr', 0.0)
                 gp_mid = lo + span * fib_level
                 # Apply ATR offset: bearish = enter higher (better price)
