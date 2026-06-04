@@ -242,3 +242,10 @@ backtest/src/ftmo_analysis_output/
 closed_today.json
 logs/
 .work/
+
+# DoE sweep working files (logs + scratch tmp; result CSVs/JSONs stay tracked)
+backtest/output/doe/tmp/
+backtest/output/doe/*_live.log
+backtest/output/doe/*_run.log
+backtest/output/doe/*_supervisor.log
+backtest/output/doe/*.db
