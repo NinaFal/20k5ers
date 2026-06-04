@@ -13,13 +13,14 @@ WHY THIS STAGE:
 
 LEVERS (4 dimensions):
   entry_fib_level            calm-regime fib entry level
-  entry_fib_level_volatile   deep fib in volatile regime (0.0 = disabled)
+  entry_fib_level_volatile   fib in volatile regime (0.0 = disabled)
   fib_vol_ratio_threshold    ATR(14)/ATR(50) ratio that triggers volatile mode
   adx_min_entry              skip trend-weak setups with ADX below this (0=off)
 
-  Only volatile > calm pairs are tested (volatile mode must enter deeper than
-  calm mode). When volatile=0.0 the threshold dimension is collapsed to one
-  representative value (threshold is irrelevant when the feature is off).
+  Both shallower (volatile < calm) and deeper (volatile > calm) pairs are swept.
+  Shallower-in-volatile: enter early before fast markets reverse past your level.
+  Deeper-in-volatile: wait for a bigger pullback that volatile markets often reach.
+  When volatile=0.0 the threshold dimension is collapsed to one value (irrelevant).
 
 SCORING:
   Primary: avg_win_rate across 5 windows.
@@ -67,7 +68,13 @@ PENALTY_PER_TRADE     = 2.0         # pct-pts deducted per missing trade below f
 
 # ── 4-D grid ─────────────────────────────────────────────────────────────────
 GRID_FIB_CALM = [0.45, 0.50, 0.55, 0.60, 0.65]
-GRID_FIB_VOL  = [0.0, 0.65, 0.70, 0.75, 0.78, 0.80]  # 0.0 = feature disabled
+# 0.0 = feature disabled (no vol-adaptation)
+# Shallower-than-calm values (0.35–0.45): enter early in volatile swings —
+#   fast-moving markets may reverse before reaching a deep pullback level
+# Deeper-than-calm values (0.65–0.80): wait for bigger pullback in volatile —
+#   volatile markets often overshoot; deeper entry = better R:R
+# Both hypotheses are valid; the data decides which wins.
+GRID_FIB_VOL  = [0.0, 0.35, 0.40, 0.45, 0.50, 0.65, 0.70, 0.75, 0.78, 0.80]
 GRID_VOL_THR  = [1.05, 1.15, 1.25, 1.35]
 GRID_ADX      = [0, 15, 20, 25]
 
@@ -100,15 +107,17 @@ def _build_cells() -> list:
     Build the list of (calm, volatile, threshold, adx) tuples to sweep.
 
     Rules:
-    - volatile > calm when volatile != 0.0  (deeper in volatile regime)
+    - volatile != calm when volatile != 0.0  (skip identical — redundant with single-fib)
     - when volatile == 0.0, only test one threshold value (feature is off, so
       threshold has no effect — avoid running 4× the same experiment)
+    Both shallower (volatile < calm) and deeper (volatile > calm) pairs are tested;
+    the data decides which direction helps win-rate.
     """
     cells = []
     for fib_c in GRID_FIB_CALM:
         for fib_v in GRID_FIB_VOL:
-            if fib_v != 0.0 and fib_v <= fib_c:
-                continue  # volatile must be strictly deeper than calm
+            if fib_v != 0.0 and fib_v == fib_c:
+                continue  # skip identical — same as no vol-adaptation
             thresholds = GRID_VOL_THR if fib_v != 0.0 else [GRID_VOL_THR[0]]
             for thr in thresholds:
                 for adx in GRID_ADX:
