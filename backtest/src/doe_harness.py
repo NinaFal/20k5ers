@@ -28,6 +28,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 HERE  = Path(__file__).resolve().parent
@@ -43,6 +44,16 @@ END           = "2024-12-31"
 FULL_START    = "2015-01-01"
 RUN_TIMEOUT_S = int(os.getenv("RUN_TIMEOUT_S", "2400"))  # 40 min max per run
 
+# ── MEMORY-SAFE CONCURRENCY (hard-won; see SESSION_HANDOFF §6) ────────────────
+# A FULL-PATH run (start → 2024) holds ~4.6GB RSS. A SHORT 3-year window holds
+# ~1.5GB. On a 16GB box that means:
+#   • full-path (Stage 2 / validation):  MAX 2 concurrent  (2×4.6 = 9.2GB)
+#   • short-window (Stage 1 screening):  4 concurrent OK   (4×1.5 = 6GB)
+# Exceeding these triggers the OOM killer, which silently corrupts results
+# (killed runs look like instant breaches). NEVER raise these without re-measuring.
+WORKERS_FULL  = int(os.getenv("DOE_WORKERS_FULL", "2"))
+WORKERS_SHORT = int(os.getenv("DOE_WORKERS_SHORT", "4"))
+
 # 5 regime-spanning train starts  (these drive sweep scoring)
 TRAIN_STARTS = [
     "2016-01-01",   # choppy + leads into 2017 bleed risk
@@ -50,6 +61,19 @@ TRAIN_STARTS = [
     "2020-01-01",   # COVID crash
     "2022-01-01",   # rate shock / daily-gap event
     "2019-07-01",   # mid-cycle baseline
+]
+
+# Stage 1 ENTRY-PRICING windows: 3-year multi-regime slices (start, end).
+# Short on purpose — entry pricing is judged on per-regime efficiency, NOT on
+# surviving the full ratcheting-floor compounding path (that is Stage 2's job,
+# and requires the safety levers we hold fixed here). Short runs are also
+# memory-light → 4 workers, ~4× faster, and never OOM.
+STAGE1_WINDOWS = [
+    ("2016-01-01", "2018-12-31"),   # choppy / 2017 calm-bleed
+    ("2017-01-01", "2019-12-31"),   # calm-bleed into recovery
+    ("2019-07-01", "2022-06-30"),   # mid-cycle → COVID → early shock
+    ("2020-01-01", "2022-12-31"),   # COVID crash + 2022 rate shock
+    ("2022-01-01", "2024-12-31"),   # rate-shock + recent normalisation
 ]
 
 # Worst-first subset used for cheap early-exit inside Optuna trials
@@ -103,29 +127,40 @@ BASE_TP = {
 # ── Core runner ───────────────────────────────────────────────────────────────
 
 def run_single(env_over: dict, tp_over: dict, start: str,
-               end: str = END, balance: str = "50000") -> dict | None:
+               end: str = END, balance: str = "50000",
+               retries: int = 2) -> dict | None:
     """
-    Run one backtest. Returns raw results dict or None on crash/timeout.
-    env_over  — env-var overrides (on top of BASE_ENV)
-    tp_over   — OPT_PARAMS overrides (merged into BASE_TP)
+    Run one backtest. Returns raw results dict, or None after all retries.
+
+    A None result means an INFRA failure (OOM kill / timeout / crash), NOT a
+    strategy breach — a real breach returns a dict with account_failed=True.
+    We retry None up to `retries` times with a short back-off, because the most
+    common cause here is transient memory pressure from sibling runs. Callers
+    MUST treat a final None as "incomplete / unknown", never as a breach.
     """
-    td = tempfile.mkdtemp(dir=str(DOE_DIR / "tmp"))
-    env = dict(os.environ)
-    env.update(BASE_ENV)
-    env.update(env_over)
-    env["OPT_PARAMS"] = json.dumps({**BASE_TP, **tp_over})
-    cmd = [sys.executable, str(BACKTEST),
-           "--start", start, "--end", end,
-           "--balance", balance, "--output", td, "--quiet"]
-    try:
-        p = subprocess.run(cmd, env=env, capture_output=True, text=True,
-                           cwd=str(REPO), timeout=RUN_TIMEOUT_S)
-    except subprocess.TimeoutExpired:
-        return None
-    rj = Path(td) / "results.json"
-    if p.returncode != 0 or not rj.exists():
-        return None
-    return json.loads(rj.read_text())
+    last_clean = None
+    for attempt in range(retries + 1):
+        td = tempfile.mkdtemp(dir=str(DOE_DIR / "tmp"))
+        env = dict(os.environ)
+        env.update(BASE_ENV)
+        env.update(env_over)
+        env["OPT_PARAMS"] = json.dumps({**BASE_TP, **tp_over})
+        cmd = [sys.executable, str(BACKTEST),
+               "--start", start, "--end", end,
+               "--balance", balance, "--output", td, "--quiet"]
+        try:
+            p = subprocess.run(cmd, env=env, capture_output=True, text=True,
+                               cwd=str(REPO), timeout=RUN_TIMEOUT_S)
+            rj = Path(td) / "results.json"
+            if p.returncode == 0 and rj.exists():
+                return json.loads(rj.read_text())
+        except subprocess.TimeoutExpired:
+            pass
+        # transient failure — back off (rising) and retry
+        if attempt < retries:
+            time.sleep(15 * (attempt + 1))
+    return last_clean
+
 
 
 def extract_attrs(r: dict | None) -> dict:
@@ -227,39 +262,49 @@ def print_run_table(label: str, runs: dict):
 
 # ── Top-N validation (train survivors → test starts + full 10yr) ──────────────
 
+def _val_task(args):
+    """Worker: run one (config-index, start) full-path backtest."""
+    ci, env, tp, start = args
+    return ci, start, run_single(env, tp, start)
+
+
 def validate_configs(configs: list, tag: str = "validation",
-                     max_workers: int = 2) -> list:
+                     max_workers: int = None) -> list:
     """
     configs: list of {"env": {...}, "tp": {...}, "label": "..."}
-    Runs each on TEST_STARTS + full 10yr. Returns enriched list with results.
-    Writes a report to DOE_DIR/<tag>_report.txt.
+    Runs each config on TEST_STARTS + full 10yr, then writes a report.
+
+    All runs are FULL-PATH (~4.6GB each) so concurrency is capped at
+    WORKERS_FULL (=2) to avoid the OOM killer. All (config, start) pairs are
+    flattened into one pool so the 2 workers stay saturated.
     """
     (DOE_DIR / "tmp").mkdir(exist_ok=True)
-    out = []
-    lines = [f"Validation report: {tag}\n{'='*78}\n"]
-    for cfg in configs:
-        label = cfg.get("label", "?")
-        env, tp = cfg["env"], cfg["tp"]
-        lines.append(f"\n{'─'*60}\n  Config: {label}\n{'─'*60}")
+    max_workers = max_workers or WORKERS_FULL
+    starts = TEST_STARTS + [FULL_START]
+
+    tasks = [(ci, cfg["env"], cfg["tp"], s)
+             for ci, cfg in enumerate(configs) for s in starts]
+    results = {ci: {} for ci in range(len(configs))}
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+        for ci, start, r in ex.map(_val_task, tasks):
+            results[ci][start] = r
+
+    out, lines = [], [f"Validation report: {tag}\n{'='*78}\n"]
+    for ci, cfg in enumerate(configs):
+        lines.append(f"\n{'─'*60}\n  Config: {cfg.get('label','?')}\n{'─'*60}")
+        runs = results[ci]
         all_runs = {}
-
-        # Test starts (out-of-sample)
         for s in TEST_STARTS:
-            r = run_single(env, tp, s)
-            all_runs[f"test:{s}"] = r
-            a = extract_attrs(r)
-            lines.append(_row(f"test:{s}", a))
-
-        # Full 10yr
-        r = run_single(env, tp, FULL_START)
-        all_runs[f"full:{FULL_START}"] = r
-        a = extract_attrs(r)
-        lines.append(_row(f"full:{FULL_START}", a))
-        lma = late_monthly_avg(r)
+            all_runs[f"test:{s}"] = runs.get(s)
+            lines.append(_row(f"test:{s}", extract_attrs(runs.get(s))))
+        full_r = runs.get(FULL_START)
+        all_runs[f"full:{FULL_START}"] = full_r
+        lines.append(_row(f"full:{FULL_START}", extract_attrs(full_r)))
+        lma = late_monthly_avg(full_r)
         lines.append(f"    late_monthly_avg={lma:,.0f}")
-
         cfg["validation"] = all_runs
-        cfg["full_result"] = r
+        cfg["full_result"] = full_r
         cfg["late_monthly_avg"] = lma
         out.append(cfg)
 

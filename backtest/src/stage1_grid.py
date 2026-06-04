@@ -15,11 +15,15 @@ WHY A GRID (not Optuna):
   With the search collapsed to 2 dimensions, an exhaustive grid is the correct
   tool: interpretable response surface, zero overfit risk, fully parallel.
 
-SCORING: maximin across the 5 TRAIN_STARTS (worst-start net P&L), hard breach
-floor. Early-exit: a cell that breaches on a worst-first start stops there.
+SCORING: maximin across 5 SHORT multi-regime windows (worst-window net P&L).
+Entry pricing is judged on per-regime efficiency, NOT full-path survival — the
+ratcheting-floor compounding breach is Stage 2's job (it needs the safety levers
+we hold fixed here). Short windows are also memory-light → 4 workers, no OOM.
 
 CRASH-PROOF: each grid cell appends one row to stage1_grid.csv on completion.
-Restart skips done cells. Parallel across cells (4 workers).
+A window that returns None (OOM/timeout) is retried inside run_single; if it
+still fails the whole cell is skipped (not written) so a restart re-runs it.
+Restart skips done cells. Parallel across cells (WORKERS_SHORT=4).
 
 Usage:
   uv run python -u backtest/src/stage1_grid.py --phase grid
@@ -41,7 +45,8 @@ dh = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(dh)
 DOE_DIR    = dh.DOE_DIR
 GRID_CSV   = DOE_DIR / "stage1_grid.csv"
 TOP5_JSON  = DOE_DIR / "stage1_grid_top5.json"
-WORKERS    = 4
+WORKERS    = dh.WORKERS_SHORT        # 4 — safe for short windows (~1.5GB each)
+WINDOWS    = dh.STAGE1_WINDOWS       # 5 short multi-regime (start, end) slices
 
 # ── The 2D grid (the only live levers) ───────────────────────────────────────
 GRID_FIB    = [0.500, 0.550, 0.600, 0.650, 0.700, 0.750, 0.800]
@@ -59,9 +64,9 @@ PINNED = {
 }
 
 CSV_HEADER = ["entry_fib_level", "entry_limit_offset_atr", "maximin",
-              "worst_start", "n_survived", "breached", "min_wr",
-              "max_tdd", "max_ddd",
-              "net_2016", "net_2017", "net_2020", "net_2022", "net_2019",
+              "worst_window", "n_survived", "breached", "min_wr",
+              "avg_net", "max_tdd", "max_ddd",
+              "net_w0", "net_w1", "net_w2", "net_w3", "net_w4",
               "elapsed_s"]
 
 
@@ -75,10 +80,18 @@ def _load_done() -> set:
     return done
 
 
+class IncompleteCell(Exception):
+    """Raised when a window run returns None even after retries (infra failure)."""
+
+
 def _run_cell(args: tuple) -> dict:
     """
-    Run one grid cell: all 5 train starts, worst-first, early-exit on breach.
-    Returns a result dict (one CSV row).
+    Run one grid cell across all 5 short windows.
+
+    A None run (OOM/timeout after retries) raises IncompleteCell → the cell is
+    NOT written, so a restart re-runs it. We do NOT early-exit on breach here:
+    these are short survivable windows, and we want the full per-window net
+    vector to rank entry pricing by worst-window (maximin) profit.
     """
     fib, offset = args
     t0 = time.time()
@@ -86,39 +99,43 @@ def _run_cell(args: tuple) -> dict:
     tp["entry_fib_level"] = fib
     tp["entry_limit_offset_atr"] = offset
 
-    nets, wrs, tdds, ddds = {}, [], [], []
+    nets, wrs, tdds, ddds = [], [], [], []
     breached = False
-    worst_start = ""
-    n_survived = 0
+    worst_window = ""
 
-    for start in dh.TRAIN_STARTS:
-        r = dh.run_single({}, tp, start)
+    for i, (start, end) in enumerate(WINDOWS):
+        r = dh.run_single({}, tp, start, end)
+        if r is None:
+            raise IncompleteCell(f"window {start}->{end} returned None")
         a = dh.extract_attrs(r)
-        nets[start[:4]] = a["net"]
+        nets.append(a["net"])
+        wrs.append(a["win_rate"]); tdds.append(a["max_tdd"]); ddds.append(a["max_ddd"])
         if a["failed"]:
             breached = True
-            worst_start = start
-            tdds.append(a["max_tdd"]); ddds.append(a["max_ddd"])
-            break
-        n_survived += 1
-        wrs.append(a["win_rate"]); tdds.append(a["max_tdd"]); ddds.append(a["max_ddd"])
+            if not worst_window:
+                worst_window = start
 
     elapsed = round(time.time() - t0)
-    if breached:
-        maximin = -1_000_000  # sentinel: breached cells sort to bottom
-    else:
-        maximin = min(nets.values())
+    n_survived = sum(1 for t in tdds if t < 9.99) if not breached else \
+                 len(WINDOWS) - sum(1 for a in [breached] if a)  # informational
+    n_survived = len(WINDOWS) - (1 if breached else 0)
+    # maximin = worst window net; breached cells get a hard penalty floor
+    maximin = (min(nets) if not breached
+               else -1_000_000 + int(min(nets)))
 
     return {
         "entry_fib_level": fib, "entry_limit_offset_atr": offset,
-        "maximin": maximin, "worst_start": worst_start,
+        "maximin": maximin, "worst_window": worst_window,
         "n_survived": n_survived, "breached": breached,
         "min_wr": round(min(wrs), 1) if wrs else 0,
+        "avg_net": round(sum(nets) / len(nets)) if nets else 0,
         "max_tdd": round(max(tdds), 2) if tdds else 0,
         "max_ddd": round(max(ddds), 2) if ddds else 0,
-        "net_2016": nets.get("2016", ""), "net_2017": nets.get("2017", ""),
-        "net_2020": nets.get("2020", ""), "net_2022": nets.get("2022", ""),
-        "net_2019": nets.get("2019", ""),
+        "net_w0": nets[0] if len(nets) > 0 else "",
+        "net_w1": nets[1] if len(nets) > 1 else "",
+        "net_w2": nets[2] if len(nets) > 2 else "",
+        "net_w3": nets[3] if len(nets) > 3 else "",
+        "net_w4": nets[4] if len(nets) > 4 else "",
         "elapsed_s": elapsed,
     }
 
@@ -127,7 +144,7 @@ def phase_grid():
     print(f"\n{'='*72}")
     print(f"  Stage 1b — 2D GRID: entry_fib_level × entry_limit_offset_atr")
     print(f"  {len(GRID_FIB)}×{len(GRID_OFFSET)} = {len(GRID_FIB)*len(GRID_OFFSET)} cells"
-          f"  |  maximin over {len(dh.TRAIN_STARTS)} starts  |  {WORKERS} workers")
+          f"  |  maximin over {len(WINDOWS)} short windows  |  {WORKERS} workers")
     print(f"{'='*72}\n")
     sys.stdout.flush()
 
@@ -146,16 +163,20 @@ def phase_grid():
         with concurrent.futures.ProcessPoolExecutor(max_workers=WORKERS) as ex:
             futures = {ex.submit(_run_cell, c): c for c in cells}
             for fut in concurrent.futures.as_completed(futures):
+                cell = futures[fut]
                 try:
                     row = fut.result()
                 except Exception as e:
-                    print(f"  ERROR: {e}"); continue
+                    # IncompleteCell or any transient worker error → don't write,
+                    # so the skip-if-done restart re-runs this cell next pass.
+                    print(f"  SKIP  fib={cell[0]} off={cell[1]} — {type(e).__name__}: {e}")
+                    sys.stdout.flush(); continue
                 writer.writerow(row); f.flush()
-                tag = (f"BREACH@{row['worst_start'][:7]}" if row["breached"]
+                tag = (f"BREACH@{row['worst_window'][:7]}" if row["breached"]
                        else f"maximin={row['maximin']:>9,}")
                 print(f"  fib={row['entry_fib_level']:.3f} off={row['entry_limit_offset_atr']:.2f}  "
-                      f"{tag:<22}  wr={row['min_wr']:>5}%  tdd={row['max_tdd']:>5}%  "
-                      f"surv={row['n_survived']}/5  {row['elapsed_s']}s")
+                      f"{tag:<22}  wr={row['min_wr']:>5}%  avg_net={row['avg_net']:>9,}  "
+                      f"tdd={row['max_tdd']:>5}%  {row['elapsed_s']}s")
                 sys.stdout.flush()
 
     print(f"\n  Grid complete → {GRID_CSV}")
@@ -173,13 +194,14 @@ def _print_grid_summary():
     survivors.sort(key=lambda r: int(r["maximin"]), reverse=True)
 
     print(f"\n{'─'*72}")
-    print(f"  GRID SUMMARY — {len(survivors)}/{len(rows)} cells survived all 5 starts")
+    print(f"  GRID SUMMARY — {len(survivors)}/{len(rows)} cells survived all 5 windows")
     print(f"{'─'*72}")
-    print(f"  Top-10 by maximin (worst-start net P&L):")
-    print(f"  {'fib':<7}{'offset':<8}{'maximin':>11}  {'minWR':>6}  {'maxTDD':>7}")
+    print(f"  Top-10 by maximin (worst-window net P&L):")
+    print(f"  {'fib':<7}{'offset':<8}{'maximin':>11}{'avg_net':>11}  {'minWR':>6}  {'maxTDD':>7}")
     for r in survivors[:10]:
         print(f"  {r['entry_fib_level']:<7}{r['entry_limit_offset_atr']:<8}"
-              f"{int(r['maximin']):>11,}  {r['min_wr']:>5}%  {r['max_tdd']:>6}%")
+              f"{int(r['maximin']):>11,}{int(r['avg_net']):>11,}  "
+              f"{r['min_wr']:>5}%  {r['max_tdd']:>6}%")
 
     # ASCII heatmap of maximin
     print(f"\n  Maximin heatmap (rows=fib, cols=offset; X=breach):")
