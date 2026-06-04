@@ -1855,64 +1855,51 @@ def _fib_context(
     price: float,
     fib_low: float = 0.382,
     fib_high: float = 0.886,
+    zone_type: str = 'golden_only',
 ) -> Tuple[str, bool]:
     """
-    Check if price is within a Fibonacci retracement zone using new Fibonacci module.
-    
-    Returns:
-        Tuple of (note, is_in_fib_zone)
+    Check if price is within a Fibonacci retracement zone.
+
+    zone_type controls the acceptance window:
+      'golden_only'      — 0.618-0.786  (tight golden pocket; highest quality)
+      'extended'         — 0.500-0.886  (golden pocket + extension)
+      'full_retracement' — fib_low-fib_high (fully parameterised by caller)
     """
     try:
         candles = daily_candles if daily_candles and len(daily_candles) >= 30 else weekly_candles
-        
         if not candles or len(candles) < 20:
             return "Fib: Insufficient data", False
-        
-        # Use new Fibonacci analysis if available
-        if analyze_fib_setup:
-            fib_analysis = analyze_fib_setup(candles, direction, price)
-            if fib_analysis.get("valid"):
-                in_zone = fib_analysis.get("in_golden_zone", False)
-                pattern_note = fib_analysis.get("pattern_notes", "")
-                return f"Fib: Golden Zone {in_zone}, Patterns: {pattern_note}", in_zone
-        
+
         leg = _find_last_swing_leg_for_fib(candles, direction)
-        
         if not leg:
             return "Fib: No clear swing leg found", False
-        
+
         lo, hi = leg
         span = hi - lo
-        
         if span <= 0:
             return "Fib: Invalid swing range", False
-        
+
+        if zone_type == 'golden_only':
+            low_fib, high_fib = 0.618, 0.786
+        elif zone_type == 'extended':
+            low_fib, high_fib = 0.500, 0.886
+        else:  # full_retracement — use caller-supplied bounds
+            low_fib, high_fib = fib_low, fib_high
+
         if direction == "bullish":
-            fib_382 = hi - span * 0.382
-            fib_500 = hi - span * 0.5
-            fib_618 = hi - span * 0.618
-            fib_786 = hi - span * 0.786
-            
-            if fib_786 <= price <= fib_382:
-                level = round((hi - price) / span, 3)
-                return f"Fib: Price at {level:.1%} retracement (Golden Pocket zone)", True
-            elif fib_618 <= price <= fib_500:
-                return "Fib: Price at 50-61.8% zone", True
-            else:
-                return "Fib: Price outside retracement zone", False
+            zone_lo = hi - span * high_fib
+            zone_hi = hi - span * low_fib
+            in_zone = zone_lo <= price <= zone_hi
+            level = round((hi - price) / span, 3) if in_zone else 0.0
         else:
-            fib_382 = lo + span * 0.382
-            fib_500 = lo + span * 0.5
-            fib_618 = lo + span * 0.618
-            fib_786 = lo + span * 0.786
-            
-            if fib_382 <= price <= fib_786:
-                level = round((price - lo) / span, 3)
-                return f"Fib: Price at {level:.1%} retracement (Golden Pocket zone)", True
-            elif fib_500 <= price <= fib_618:
-                return "Fib: Price at 50-61.8% zone", True
-            else:
-                return "Fib: Price outside retracement zone", False
+            zone_lo = lo + span * low_fib
+            zone_hi = lo + span * high_fib
+            in_zone = zone_lo <= price <= zone_hi
+            level = round((price - lo) / span, 3) if in_zone else 0.0
+
+        if in_zone:
+            return f"Fib: Price at {level:.1%} retracement ({zone_type} zone)", True
+        return f"Fib: Price outside {zone_type} zone [{low_fib:.3f}-{high_fib:.3f}]", False
     except Exception as e:
         return f"Fib: Error calculating ({type(e).__name__})", False
 
@@ -2190,7 +2177,11 @@ def compute_confluence(
         loc_note, loc_ok = "Location filter disabled", True
     
     if params.use_fib_filter:
-        fib_note, fib_ok = _fib_context(weekly_candles, daily_candles, direction, price)
+        fib_note, fib_ok = _fib_context(
+            weekly_candles, daily_candles, direction, price,
+            fib_low=getattr(params, 'fib_low', 0.382),
+            fib_high=getattr(params, 'fib_high', 0.886),
+            zone_type=getattr(params, 'fib_zone_type', 'golden_only'))
     else:
         fib_note, fib_ok = "Fib filter disabled", True
     
