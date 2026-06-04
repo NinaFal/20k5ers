@@ -1,0 +1,14 @@
+Validation report: stage1_grid_top5
+==============================================================================
+
+
+────────────────────────────────────────────────────────────
+  Config: grid_top1_fib0.5_off0.0
+────────────────────────────────────────────────────────────
+  test:2015-02-01 BREACH  net=    -5,015  tdd=10.02%  ddd= 2.91%  wr= 38.5%  trades= 574  funded=50,000.0
+  test:2018-01-01 OK      net=    74,501  tdd= 9.27%  ddd= 3.19%  wr= 46.8%  trades= 928  funded= 100,000
+  test:2021-01-01 OK      net=    25,110  tdd= 8.16%  ddd= 3.35%  wr= 41.2%  trades= 408  funded=  70,000
+  test:2023-01-01 OK      net=    40,013  tdd= 7.97%  ddd= 3.35%  wr= 49.4%  trades= 265  funded=  80,000
+  test:2023-07-01 OK      net=    15,796  tdd= 7.38%  ddd= 4.22%  wr= 48.2%  trades= 224  funded=  60,000
+  full:2015-01-01 OK      net=   389,790  tdd= 7.04%  ddd= 4.59%  wr= 47.4%  trades=1167  funded= 300,000
+    late_monthly_avg=5,206
