@@ -162,7 +162,7 @@ def _run_cell(args: tuple) -> dict:
 
     nets, wrs, trades_list, failed_list = [], [], [], []
 
-    for start, end in WINDOWS:
+    for wi, (start, end) in enumerate(WINDOWS):
         r = dh.run_single({}, tp, start, end)
         if r is None:
             raise IncompleteCell(f"window {start}->{end} returned None")
@@ -171,6 +171,12 @@ def _run_cell(args: tuple) -> dict:
         wrs.append(a["win_rate"])
         trades_list.append(a["trades"])
         failed_list.append(a["failed"])
+        # Per-window heartbeat so progress is visible every ~2-3 min, not only
+        # when a whole cell (5 windows) finishes.
+        bt = "BREACH" if a["failed"] else "ok"
+        print(f"    · c={fib_c:.2f} v={fib_v:.2f} thr={thr:.2f} adx={adx:>2}"
+              f"  w{wi+1}/5 [{bt}] wr={a['win_rate']:>5.1f}% tr={a['trades']:>3}"
+              f" net={a['net']:>8,}", flush=True)
 
     elapsed    = round(time.time() - t0)
     breached   = any(failed_list)
