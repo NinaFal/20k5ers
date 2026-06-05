@@ -6291,6 +6291,19 @@ def main():
 
     args = parser.parse_args()
 
+    # --quiet: silence per-bar INFO logging. The logger defaults to INFO and
+    # writes every signal evaluation to BOTH the console and a rotating log file.
+    # On Windows that console rendering (and the shared-file contention when the
+    # grid runs N workers) is the dominant cost — a 1-year window can take hours
+    # purely on logging I/O. Raising the level to WARNING keeps real warnings/
+    # errors but drops the per-bar spam, making runs 10-50x faster.
+    if args.quiet:
+        import logging as _logging
+        _qlog = _logging.getLogger("tradr")
+        _qlog.setLevel(_logging.WARNING)
+        for _h in _qlog.handlers:
+            _h.setLevel(_logging.WARNING)
+
     # Asset class overrides
     global TRADABLE_SYMBOLS
     if args.symbols:
