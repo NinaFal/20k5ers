@@ -219,6 +219,39 @@ def _run_cell(args: tuple) -> dict:
     }
 
 
+def _warm_caches():
+    """
+    Build the per-window M15 pickle caches SEQUENTIALLY before the parallel grid.
+
+    WHY: the engine caches parsed M15 data per (symbols, start, end) window. On a
+    cold start, 4 parallel workers all begin on the SAME window with no cache, so
+    they each load ~750MB from disk at once and race to write the same cache file
+    — which thrashes a VM's disk to a standstill. Running each unique window once
+    here (single process) builds all caches first; the parallel grid then reads
+    them in seconds with no disk contention.
+    """
+    # Baseline params — cache key depends only on (symbols, start, end), not on
+    # fib/adx levers, so any param set builds the right cache.
+    tp = dict(PINNED)
+    tp["entry_fib_level"] = 0.50
+    tp["entry_fib_level_volatile"] = 0.0
+    tp["adx_min_entry"] = 0.0
+    tp["use_trend_quality_gate"] = False
+
+    print(f"  Warming {len(WINDOWS)} window caches sequentially (one-time, avoids")
+    print(f"  disk thrash when 4 workers cold-start on the same window)...")
+    sys.stdout.flush()
+    for i, (start, end) in enumerate(WINDOWS):
+        t0 = time.time()
+        print(f"    [{i+1}/{len(WINDOWS)}] caching {start} → {end} ...", flush=True)
+        r = dh.run_single({}, tp, start, end)
+        dt = round(time.time() - t0)
+        status = "ok" if r is not None else "FAILED (will retry in grid)"
+        print(f"    [{i+1}/{len(WINDOWS)}] {start} → {end}  {status}  ({dt}s)", flush=True)
+    print(f"  Cache warm-up complete — parallel grid will now read from cache.\n")
+    sys.stdout.flush()
+
+
 def phase_grid():
     cells = _build_cells()
     done  = _load_done()
@@ -231,6 +264,9 @@ def phase_grid():
     print(f"  {WORKERS} workers  |  {len(WINDOWS)} windows per cell")
     print(f"{'='*78}\n")
     sys.stdout.flush()
+
+    if todo:
+        _warm_caches()
 
     write_header = not GRID_CSV.exists() or GRID_CSV.stat().st_size == 0
     with open(GRID_CSV, "a", newline="") as f:
