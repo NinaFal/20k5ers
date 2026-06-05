@@ -149,12 +149,14 @@ def run_single(env_over: dict, tp_over: dict, start: str,
                "--start", start, "--end", end,
                "--balance", balance, "--output", td, "--quiet"]
         try:
+            env["PYTHONUTF8"] = "1"          # force UTF-8 in the subprocess
             p = subprocess.run(cmd, env=env, capture_output=True, text=True,
+                               encoding="utf-8", errors="replace",
                                cwd=str(REPO), timeout=RUN_TIMEOUT_S)
             rj = Path(td) / "results.json"
             if p.returncode == 0 and rj.exists():
                 return json.loads(rj.read_text())
-        except subprocess.TimeoutExpired:
+        except (subprocess.TimeoutExpired, UnicodeDecodeError):
             pass
         # transient failure — back off (rising) and retry
         if attempt < retries:
