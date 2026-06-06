@@ -249,3 +249,7 @@ backtest/output/doe/*_live.log
 backtest/output/doe/*_run.log
 backtest/output/doe/*_supervisor.log
 backtest/output/doe/*.db
+
+
+# Claude Code local tooling / worktrees (do not commit)
+.claude/
