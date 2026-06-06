@@ -4,6 +4,70 @@ This document explains the 5%ers backtest engine, every change made in this
 session, the findings (and dead-ends), how to run things in THIS environment
 (important gotchas), and what's still open. Read it fully before continuing.
 
+> **➡️ FORWARD PLAN LIVES IN [`OPTIMIZATION_ROADMAP.md`](OPTIMIZATION_ROADMAP.md).**
+> That file is the plan of record for the staged optimization (entry → sizing/risk
+> → TP/runners → Pareto), the objective hierarchy, the validation gauntlet, and the
+> premortem guards. Read it alongside this handoff. This §0 is the current snapshot;
+> §1–§7 below are the engine reference + the earlier continuous-run findings.
+
+---
+
+## 0. LATEST SESSION — Entry-quality optimization (Stage 1) — IN PROGRESS
+
+**Goal of this push:** find the best fibonacci ENTRY (the first stage of the
+roadmap) that maximizes net profit with big runners and zero breach. See
+`OPTIMIZATION_ROADMAP.md` for the full staged plan and the why.
+
+**What's running:**
+- **Stage 1c grid** — 692-cell DoE sweep: `entry_fib_level` (calm 0.45–0.65) ×
+  `entry_fib_level_volatile` (0.0, 0.35–0.80) × `fib_vol_ratio_threshold`
+  (1.05–1.35) × `adx_min_entry` (0,15,20,25). Driver: `src/stage1_entry_quality.py
+  --phase grid`. Harness: `src/doe_harness.py` (5 windows × 3yr each, 4 workers,
+  scored on avg win-rate + no-breach). Results stream to `output/doe/stage1c_grid.csv`
+  (append + flush per cell → crash-safe / skip-if-done on restart).
+- **Overnight watchdog** — `src/grid_watchdog.sh`, launched via the harness's
+  `run_in_background` (NOT setsid — see §6). Every 20 min: relaunch grid if dead,
+  commit+push the CSV, stop at 692. Logs to `output/doe/grid_watchdog.log`.
+
+**Stage 1c findings so far (~287/692 cells):**
+- **ADX trend-quality gate consistently HURTS** — `adx=0` (gate off) is best at
+  every calm level. adx≥15 cells breach or underperform. The gate
+  (`use_trend_quality_gate` + `adx_min_entry`, hard-skip at strategy_core.py:2373)
+  starves trade frequency without lifting win-rate. → drop it; revisit ADX only as
+  a *regime controller* in Stage 2, never as a binary entry gate.
+- **`fib_vol_ratio_threshold=1.05` over-trades and breaches** — too low a threshold
+  flips into "volatile mode" too eagerly (370+ trades) → exposure → wall pierce.
+  Winner sits at the more selective **1.15**.
+- **Best survivor so far:** `c=0.45 v=0.40 thr=1.15 adx=0` (~48.9% avg WR, no breach).
+  Note it's at the calm-fib floor → **Stage 1d** (`src/stage1d_lower_calm_fibs.py`,
+  18 cells) extends to c=0.35/0.40 after 1c. Writes to the same CSV.
+
+**Pending tools built this session (on branch `worktree-agent-a0059c8061087a5b1`,
+pushed to origin — NOT yet applied to main; apply AFTER the grid completes):**
+- **MAE/MFE per-trade instrumentation** in `main_live_bot_backtest.py` (+160 lines,
+  pure additive / behavior-neutral side-dict). MFE = runner potential in R
+  (TP-ladder-independent); MAE = adverse excursion in R (drives TP1-survival).
+- **Passthrough** in `doe_harness.py` `extract_attrs` (new keys: `mfe_r_median`,
+  `mfe_r_p75`, `mae_r_median`, `tp1_hits`, `tp1_hit_rate`).
+- **`src/stage1c_entry_quality_report.py`** — reruns top-N finalists, prints a
+  multi-objective table (TP1-hit%, SL-out%, MFE/MAE in R, per-window net, maximin),
+  Pareto-ranked on (tp1_hit_rate, mfe_r_p75, maximin), breach = hard veto.
+- See `MFE_INSTRUMENTATION_NOTES.md` on that branch for line ranges + run command.
+
+**Immediate next steps when the grid finishes:**
+1. Cherry-pick ONLY the 3 MFE files from `worktree-agent-a0059c8061087a5b1` onto
+   the working branch (the branch is behind on the roadmap/CSV/stage1d — don't let
+   it revert those). A/B one window to confirm win_rate/net are bit-identical.
+2. Run Stage 1d (c=0.35/0.40), then `--phase validate` + the entry-quality report
+   on the top finalists → pick the entry winner on the multi-objective ranking.
+3. Lock that entry into `BASE_ENV`/`BASE_TP` and start **Stage 2** (sizing/risk —
+   per-symbol vol-class multipliers, base risk %, 4-rung TDD, regime-adaptive ADX).
+4. Promote **walk-forward/OOS** (`src/walk_forward.py`) to the selection gate and
+   **build the Monte-Carlo trade-order shuffle** test (path-dependent drawdown) —
+   the two gauntlet pieces flagged in the roadmap as missing/under-used.
+
+**Branch:** all work on `claude/awesome-maxwell-50dMF`.
+
 ---
 
 ## 1. What the backtest is
@@ -166,6 +230,13 @@ breaks choppy years. See `backtest/RECOMMENDED_CONFIG.md`.
   use `grep -v eval` / exact patterns to get true counts.
 
 ## 7. TODO / open questions for the next session
+
+> **The active program is the staged entry→sizing→TP→Pareto plan in
+> [`OPTIMIZATION_ROADMAP.md`](OPTIMIZATION_ROADMAP.md) — see §0 for live status.**
+> The items below are the still-open continuous-run problems from the earlier
+> session; several are now folded into Stage 2/3 of the roadmap (risk sizing, the
+> 4-rung TDD, CHF exclusion, withdrawal policy).
+
 1. **Resolve the daily-gap vs choppy-bleed tension** (finding #4) — the central
    unsolved problem. Maybe a *time-decaying* cum-risk cap, or vol-aware daily
    sizing, or a different daily protection that doesn't whipsaw choppy years.
