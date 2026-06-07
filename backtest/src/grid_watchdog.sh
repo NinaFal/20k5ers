@@ -40,7 +40,15 @@ while true; do
 
   if [ "$DONE" -ge 692 ]; then
     commit_push "$DONE"
-    echo "[$(ts)] GRID_COMPLETE done=692/692 best=$BEST — watchdog exiting"
+    echo "[$(ts)] GRID_COMPLETE done=692/692 best=$BEST — launching Stage 1d"
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
+      PYTHONUTF8=1 DOE_WORKERS_SHORT=4 RUN_TIMEOUT_S=2400 \
+      python -u backtest/src/stage1d_lower_calm_fibs.py \
+      >> backtest/output/doe/stage1d_run.log 2>&1
+    git add "$CSV" backtest/output/doe/stage1d_run.log >/dev/null 2>&1
+    git diff --cached --quiet >/dev/null 2>&1 || git commit -m "Stage 1d complete — 1c+1d unified results" >/dev/null 2>&1
+    for i in 1 2 4 8; do git push -u origin "$BRANCH" >/dev/null 2>&1 && break; sleep "$i"; done
+    echo "[$(ts)] STAGE1D_COMPLETE — all entry-quality cells done, watchdog exiting"
     break
   fi
 
