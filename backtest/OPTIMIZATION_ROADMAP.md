@@ -33,17 +33,33 @@ in-sample data alone.
 
 ## Stages (each locks its winner into the next)
 
-### Stage 1 — Entry quality (IN PROGRESS)
+### Stage 1 — Entry quality (IN PROGRESS — ~456/692 cells done as of 2026-06-08)
+
 - **1c grid (692 cells):** entry_fib_level (calm 0.45–0.65) × entry_fib_level_volatile
   (0.0, 0.35–0.80) × fib_vol_ratio_threshold (1.05–1.35) × adx_min_entry (0,15,20,25).
-  Scored on avg win-rate + no-breach across 5 windows. Output: `output/doe/stage1c_grid.csv`.
-- **1d extension (18 cells):** calm fibs 0.35, 0.40 (winner sat at the 0.45 edge).
-  `src/stage1d_lower_calm_fibs.py`.
-- **Entry-quality report (NEW):** rerun top-N finalists with MAE/MFE instrumentation;
+  Scored on avg win-rate + no-breach across 5 windows × 3yr each. Output:
+  `output/doe/stage1c_grid.csv`. Skip-if-done on restart. Watchdog auto-commits
+  every 20 min. **Best so far: `c=0.45 v=0.40 thr=1.15 adx=0` — score 48.92,
+  avg $57K net/3yr window on $50K account (~34% annual ROI).**
+- **1d extension (18 cells):** calm fibs 0.35, 0.40 — because the 1c winner
+  sits at the floor (0.45), shallower calm fibs may score even higher.
+  `src/stage1d_lower_calm_fibs.py`. Writes to the SAME `stage1c_grid.csv`.
+  Auto-chained by `grid_watchdog.sh` when 1c hits 692.
+- **Entry-quality report:** rerun top-N finalists with MAE/MFE instrumentation;
   rank by (TP1-hit%, MFE-p75, worst-window net), breach = hard veto.
-  `src/stage1c_entry_quality_report.py`.
-- **Findings so far:** ADX gate consistently HURTS (adx=0 best); thr=1.05 over-trades
-  and breaches; best survivor c=0.45 v=0.40 thr=1.15 adx=0 (~48.9% avg WR, no breach).
+  `src/stage1c_entry_quality_report.py`. MFE tools on worktree branch
+  `worktree-agent-a0059c8061087a5b1` — cherry-pick 3 files after grid completes.
+- **Key findings:**
+  - ADX gate consistently HURTS — adx=0 best everywhere; adx≥15 breaches or
+    underperforms. Revisit ADX ONLY as a regime controller in Stage 2.
+  - thr=1.05 over-trades and breaches (370+ trades/window → exposure → wall).
+    Winner zone: thr=1.15–1.35.
+  - Calm fib floor dominates: c=0.45 holds all top-5 slots → Stage 1d needed.
+  - Volatile fib v=0.40–0.75 all survive with c=0.45; MFE will rank them.
+  - Pass rate ≈ 11% (43/456 clean survivors).
+- **Net profit context:** Stage 1 with default TPs yields ~$17K/yr on $50K.
+  Stages 2+3 (risk sizing, TP ladder) are the profit multipliers. The
+  $20K+/month goal is reached via 5%ers account scaling + Stage 2–3 gains.
 
 ### Stage 2 — Sizing, risk & breach control (Optuna, ~1000 trials)
 - Per-symbol volatility-class multipliers (MAJOR / MID / HIGHVOL asset classes).
