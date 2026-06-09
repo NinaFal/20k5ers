@@ -12,24 +12,46 @@ session, the findings (and dead-ends), how to run things in THIS environment
 
 ---
 
-## 0. LATEST SESSION — Entry-quality optimization (Stage 1) — IN PROGRESS
+## 0. LATEST SESSION — Stage 1 COMPLETE → Stage 2 starting
 
-**Last updated:** 2026-06-08 ~08:00 UTC
+**Last updated:** 2026-06-09 ~17:00 UTC
 
-**Goal of this push:** find the best fibonacci ENTRY (the first stage of the
-roadmap) that maximizes net profit with big runners and zero breach. See
-`OPTIMIZATION_ROADMAP.md` for the full staged plan and the why.
+**Goal of this push:** find the best fibonacci ENTRY that maximizes net profit
+with big runners and zero breach. See `OPTIMIZATION_ROADMAP.md` for the full
+staged plan and the why.
 
-### Grid status
+### Stage 1 RESULT — entry quality DECIDED (two finalists carried into Stage 2)
+
+All 710 entry cells (692 Stage 1c + 18 Stage 1d) swept. MFE/MAE instrumentation
+applied (A/B-verified bit-identical) and the multi-objective report run on the
+top-16 survivors. **TP1-hit% turned out near-flat (76–81%) across all finalists**
+(TP1 is only 0.9R), so the real discriminators are **net profit, maximin, and
+MFE-p75 (runner potential)**. The MFE data confirmed the thesis: **deep-volatile
+entries (v=0.75–0.80) have the best runner potential (1.65–1.74R)**, while the
+50%-win-rate config (c=0.35 v=0.00) had the WEAKEST runners (1.49R) — high
+win-rate but hollow (small scratch-wins). Win-rate is a diagnostic, not the goal.
+
+**DECISION (user): carry BOTH finalists into Stage 2, decide post-sizing.**
+
+| Tag | Entry config | Avg net | Maximin | MFE-p75 | Why |
+|-----|-------------|---------|---------|---------|-----|
+| **A** | c=0.55 v=0.80 thr=1.05 adx=0 | $59.8K | $28.7K | **1.74R** | best runner potential + robust |
+| **B** | c=0.45 v=0.80 thr=1.15 adx=0 | **$70.0K** | $18.7K | 1.65R | best raw net (placeholder TPs) |
+
+Rationale for carrying both: A has the most MFE headroom for Stage 3 (TP ladder)
+to harvest + best robustness; B has the highest net now. Stage 3 re-optimizes TPs
+to capture MFE, so the higher-MFE entry may overtake B on net once TPs are tuned.
+Let post-sizing net/breach numbers settle it rather than guess.
+
+Report artifacts: `output/doe/stage1c_entry_quality_report.csv` (+ `_run.log`).
+
+### Stage 1 grid (DONE — for reference)
 
 | Item | Value |
 |------|-------|
-| Cells done | **~456 / 692** (Stage 1c) |
-| Survivors (no breach) | 43 |
-| Best score | 48.92 — `c=0.45 v=0.40 thr=1.15 adx=0` |
-| Avg net (best, per 3yr window) | $57,948 on a $50K account (~34% annual ROI) |
-| Estimated finish | ~16 h from 08:00 UTC |
-| Stage 1d (c=0.35/0.40, 18 cells) | auto-chains when 1c hits 692 |
+| Cells done | **710 / 710** (692 Stage 1c + 18 Stage 1d) ✅ |
+| All 16 report finalists | survived all 5 windows (zero breach) |
+| Win-rate champ | c=0.35 v=0.00 thr=1.05 — 50.2% avg WR (but MFE 1.49R, rejected) |
 
 **Top 5 survivors so far (all adx=0):**
 

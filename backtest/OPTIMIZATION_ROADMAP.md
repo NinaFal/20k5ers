@@ -33,7 +33,17 @@ in-sample data alone.
 
 ## Stages (each locks its winner into the next)
 
-### Stage 1 — Entry quality (IN PROGRESS — ~456/692 cells done as of 2026-06-08)
+### Stage 1 — Entry quality (✅ COMPLETE 2026-06-09)
+
+**Result:** 710 cells swept (692 1c + 18 1d), MFE/MAE report run on top-16
+survivors. TP1-hit% near-flat (76–81%) → real discriminators are net, maximin,
+MFE-p75. Deep-volatile entries (v=0.75–0.80) won on runner potential (1.65–1.74R);
+the 50%-WR config had the weakest runners (1.49R, rejected). **Two finalists
+carried into Stage 2:** A = c=0.55 v=0.80 thr=1.05 (MFE 1.74R, maximin $28.7K);
+B = c=0.45 v=0.80 thr=1.15 (net $70K, MFE 1.65R). Report:
+`output/doe/stage1c_entry_quality_report.csv`. Full detail in SESSION_HANDOFF §0.
+
+<details><summary>Original Stage 1 plan (for reference)</summary>
 
 - **1c grid (692 cells):** entry_fib_level (calm 0.45–0.65) × entry_fib_level_volatile
   (0.0, 0.35–0.80) × fib_vol_ratio_threshold (1.05–1.35) × adx_min_entry (0,15,20,25).
@@ -61,14 +71,29 @@ in-sample data alone.
   Stages 2+3 (risk sizing, TP ladder) are the profit multipliers. The
   $20K+/month goal is reached via 5%ers account scaling + Stage 2–3 gains.
 
-### Stage 2 — Sizing, risk & breach control (Optuna, ~1000 trials)
-- Per-symbol volatility-class multipliers (MAJOR / MID / HIGHVOL asset classes).
-- Base risk-per-trade % sweep.
-- 4-rung TDD system incl. a 4th "wall" rung (~9.2%) to prevent stalling near the
-  10% limit while still de-risking on the way down.
-- Progressive ADX/regime tightening (ADX as a regime CONTROLLER that adapts
-  sizing/behavior, NOT as a binary skip-gate — that already proved to hurt).
-- **This is the primary breach-avoidance machinery.**
+</details>
+
+### Stage 2 — Sizing, risk & breach control (Optuna) — IN PROGRESS
+Run for BOTH locked entries (A: c=0.55 v=0.80 thr=1.05; B: c=0.45 v=0.80 thr=1.15);
+decide the entry winner on post-sizing net + zero-breach. Driver:
+`src/stage2_sizing_risk.py` (resumable sqlite Optuna study per entry, keepalive-wrapped).
+
+**Levers WIRED today (Stage 2a — optimize these now):**
+- Base risk-per-trade % (`risk_per_trade_pct` via OPT_PARAMS; engine line ~3171).
+- Vol-scaled sizing mults `VOL_SIZE_MULT_LOW` / `_HIGH`.
+- Regime gate `VOL_REGIME_DD_OFF` (size-up only while healthy — the proven win).
+- Cumulative open-risk cap `CFG_MAX_CUM_RISK`; daily halt `CFG_DAILY_HALT_PCT`.
+- 3-rung TDD: `CFG_TDD_CAUTION/WARNING/EMERGENCY_PCT` + matching `CFG_RISK_*`.
+
+**Levers NOT wired yet (Stage 2b — require engine work first):**
+- Per-symbol volatility-class multipliers (MAJOR / MID / HIGHVOL) — no lever exists.
+- 4th "wall" TDD rung (~9.2%) — only 3 rungs wired today.
+- ADX as a regime CONTROLLER (adaptive sizing, NOT a binary skip-gate — the gate
+  already proved to hurt in Stage 1).
+
+- **This is the primary breach-avoidance machinery.** Objective: maximin net
+  across multi-year starts, hard breach veto, DD-margin penalty (keep worst-case
+  TDD well under 10%). Reuses the proven `optimize_multistart.py` scoring.
 
 ### Stage 3 — TP ladder & runners (Optuna)
 - Optimize TP1–TPn levels, close %, trailing activation/multiplier ON the locked
