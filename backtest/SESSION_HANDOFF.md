@@ -12,123 +12,74 @@ session, the findings (and dead-ends), how to run things in THIS environment
 
 ---
 
-## 0. LATEST SESSION — Stage 1 COMPLETE → Stage 2 starting
+## 0. LATEST SESSION — Stage 2 RUNNING
 
-**Last updated:** 2026-06-09 ~17:00 UTC
+**Last updated:** 2026-06-09 ~21:00 UTC
 
-**Goal of this push:** find the best fibonacci ENTRY that maximizes net profit
-with big runners and zero breach. See `OPTIMIZATION_ROADMAP.md` for the full
-staged plan and the why.
+### Stage 1 COMPLETE ✅
 
-### Stage 1 RESULT — entry quality DECIDED (two finalists carried into Stage 2)
+All 710 cells (692 Stage 1c + 18 Stage 1d) swept. MFE/MAE report run on top-16
+survivors. Stage 1d (c=0.35, 0.40) did NOT beat Stage 1c winners in runner
+potential — deep-volatile entries won.
 
-All 710 entry cells (692 Stage 1c + 18 Stage 1d) swept. MFE/MAE instrumentation
-applied (A/B-verified bit-identical) and the multi-objective report run on the
-top-16 survivors. **TP1-hit% turned out near-flat (76–81%) across all finalists**
-(TP1 is only 0.9R), so the real discriminators are **net profit, maximin, and
-MFE-p75 (runner potential)**. The MFE data confirmed the thesis: **deep-volatile
-entries (v=0.75–0.80) have the best runner potential (1.65–1.74R)**, while the
-50%-win-rate config (c=0.35 v=0.00) had the WEAKEST runners (1.49R) — high
-win-rate but hollow (small scratch-wins). Win-rate is a diagnostic, not the goal.
-
-**DECISION (user): carry BOTH finalists into Stage 2, decide post-sizing.**
+**Two finalists carried into Stage 2:**
 
 | Tag | Entry config | Avg net | Maximin | MFE-p75 | Why |
 |-----|-------------|---------|---------|---------|-----|
 | **A** | c=0.55 v=0.80 thr=1.05 adx=0 | $59.8K | $28.7K | **1.74R** | best runner potential + robust |
-| **B** | c=0.45 v=0.80 thr=1.15 adx=0 | **$70.0K** | $18.7K | 1.65R | best raw net (placeholder TPs) |
+| **B** | c=0.45 v=0.80 thr=1.15 adx=0 | **$70.0K** | $18.7K | 1.65R | best raw net |
 
-Rationale for carrying both: A has the most MFE headroom for Stage 3 (TP ladder)
-to harvest + best robustness; B has the highest net now. Stage 3 re-optimizes TPs
-to capture MFE, so the higher-MFE entry may overtake B on net once TPs are tuned.
-Let post-sizing net/breach numbers settle it rather than guess.
+Report: `output/doe/stage1c_entry_quality_report.csv` (16 finalists, all survived)
 
-Report artifacts: `output/doe/stage1c_entry_quality_report.csv` (+ `_run.log`).
+**Key finding:** TP1-hit% near-flat 76–81% (TP1=0.9R, trivial bar). Real
+discriminators: MFE-p75 (runner potential) and maximin. Win-rate = diagnostic.
 
-### Stage 1 grid (DONE — for reference)
+### Stage 2 RUNNING (regime-coherent risk)
 
-| Item | Value |
-|------|-------|
-| Cells done | **710 / 710** (692 Stage 1c + 18 Stage 1d) ✅ |
-| All 16 report finalists | survived all 5 windows (zero breach) |
-| Win-rate champ | c=0.35 v=0.00 thr=1.05 — 50.2% avg WR (but MFE 1.49R, rejected) |
+**Design:** `_regime_risk_multiplier()` added to engine — uses ATR(14)/ATR(50)
+same signal as entry fib switch. RISK_CALM_MULT/RISK_VOLATILE_MULT env vars scale
+the 1.1% BASE_RISK independently per regime. VOL_SIZE (ATR percentile) retired
+(different signal, two competing vol signals = incoherent).
 
-**Top 5 survivors so far (all adx=0):**
-
-| Rank | Calm | Vol | Thr | Score | Avg net/3yr |
-|------|------|-----|-----|-------|-------------|
-| 1 | 0.45 | 0.40 | 1.15 | 48.92 | $57,948 |
-| 2 | 0.45 | 0.65 | 1.35 | 47.78 | $49,804 |
-| 3 | 0.45 | 0.75 | 1.35 | 47.70 | $51,746 |
-| 4 | 0.45 | 0.50 | 1.15 | 47.58 | $47,066 |
-| 5 | 0.45 | 0.70 | 1.35 | 46.70 | $49,951 |
-
-**Net profit context:** $57K avg net / 3yr window = ~$17K/year on $50K (34% ROI).
-This is Stage 1 with conservative default TPs. Stages 2 (risk sizing) and 3 (TP
-ladder) are the profit multipliers. 5%ers scaling ($50K→$100K→…→$400K) compounds
-this toward the $20K+/month target.
-
-### What's running (three-layer safety net)
-
+**What's running now:**
 ```
-keepalive.sh        (every 60 s — revives watchdog if dead)
-  └─ grid_watchdog.sh  (every 20 min — relaunch grid, commit+push CSV)
-       └─ stage1_entry_quality.py --phase grid
+keepalive_stage2.sh (run_in_background:true — NO & ever)
+  └─ stage2_sizing_risk.py --entry A --trials 100
+       (then B when A complete)
 ```
 
-All three must be launched WITHOUT `&` via the harness `run_in_background:true`
-on Bash — see §6 for why (Firecracker init reaps orphaned processes).
+Log: `output/doe/stage2_run.log`
+DBs: `output/doe/stage2_A.db`, `output/doe/stage2_B.db` (Optuna sqlite, resumable)
+Best JSON: `output/doe/stage2_A_best.json` (written at end of each entry)
 
-**How to relaunch if everything is dead:**
+**How to relaunch if Stage 2 dies:**
 ```bash
-# verify dead first:
-ps aux | grep -E "keepalive|watchdog|stage1_entry" | grep -v grep
-# relaunch — NO & at the end:
-# In Claude Code: Bash tool with run_in_background:true, command = below
-bash /home/user/20k5ers/backtest/src/keepalive.sh
+# In Claude Code: Bash tool with run_in_background:true, NO &:
+STAGE2_TRIALS=100 STAGE2_JOBS=1 bash /home/user/20k5ers/backtest/src/keepalive_stage2.sh
 ```
 
-Logs: `output/doe/grid_watchdog.log` (watchdog ticks every 20 min)
+**Stage 2 objective:** maximin(net_pnl across 5 windows) − MARGIN_K × max(0, worst_TDD − 8.0)²
+Any breach = hard veto: score = −1e9 + n_survived×1e6
 
-### Stage 1c findings so far (~456/692 cells)
+**Search space:**
+- `RISK_CALM_MULT` [0.50–1.50] × `RISK_VOLATILE_MULT` [0.40–1.80] (regime risk)
+- `VOL_REGIME_DD_OFF` [2.0–5.0] (gate size-up when drawing down)
+- TDD ladder: CAUTION/WARNING/EMERGENCY thresholds + risk values
+- `CFG_DAILY_HALT_PCT` [1.5–3.5], `CFG_MAX_CUM_RISK` [2.5–5.0]
+- 3 seed trials: {calm=1.0, vol=1.0} anchor + brackets
 
-- **ADX trend-quality gate consistently HURTS** — `adx=0` is best everywhere.
-  adx≥15 either breaches or underperforms. Starves trade frequency without
-  lifting win-rate. → ADX revisited ONLY as a regime CONTROLLER in Stage 2.
-- **`fib_vol_ratio_threshold=1.05` over-trades and breaches** — too eager to
-  flip volatile mode (370+ trades) → exposure → wall pierce. 1.15–1.35 is
-  the winner zone.
-- **Calm fib floor dominates** — c=0.45 (the 1c floor) holds all top-5 slots.
-  Stage 1d (c=0.35/0.40) is essential to see if shallower helps further.
-- **Volatile fib range is wide** — v=0.40–0.75 all survive with c=0.45.
-  MFE analysis (post-grid) will identify which generates the biggest runners.
-- **Pass rate ≈ 11%** — 43/456 survivors; ADX≥15 drives most failures.
+**After Stage 2:** pick winner (entry A or B) by post-sizing maximin + no-breach.
+Lock into Stage 3 (TP ladder Optuna).
 
-### Pending MFE tools (branch `worktree-agent-a0059c8061087a5b1`, not yet merged)
+### Engine changes since last handoff
 
-- `main_live_bot_backtest.py` +160 lines: `_mark_mfe_mae()`, per-bar excursion
-  tracking. New results keys: `mfe_r_median`, `mfe_r_p75`, `mae_r_median`,
-  `tp1_hits`, `tp1_hit_rate`. Pure additive / behavior-neutral.
-- `doe_harness.py` +13 lines: `extract_attrs` surfaces the new keys (0 defaults).
-- `src/stage1c_entry_quality_report.py` — multi-objective finalist report, Pareto
-  on (tp1_hit_rate, mfe_r_p75, maximin), breach = hard veto.
-- See `MFE_INSTRUMENTATION_NOTES.md` on that branch for line ranges + run command.
+- `_regime_risk_multiplier()` — new method after `_vol_size_multiplier()`.
+  ATR(14)/ATR(50) vs fib_vol_ratio_threshold → RISK_CALM_MULT or RISK_VOLATILE_MULT.
+  Memoized (symbol, day). Gated by VOL_REGIME_DD_OFF. Default off (RISK_REGIME_ENABLE=0).
+- MFE/MAE tracking: `_mark_mfe_mae()` (TRACK_MFE_MAE=1 gate), results in results dict.
+  Already merged from worktree branch.
 
-### Immediate next steps when the grid finishes
-
-1. **Cherry-pick ONLY the 3 MFE files** from `worktree-agent-a0059c8061087a5b1`
-   onto `claude/awesome-maxwell-50dMF`. A/B one window to confirm win_rate/net
-   are bit-identical.
-2. **Stage 1d auto-chains** (watchdog handles it). Confirm it completes.
-3. **Run entry-quality report** on top finalists → pick winner on multi-objective
-   ranking (TP1-hit%, MFE-p75, maximin).
-4. **Lock winner** into `BASE_ENV`/`BASE_TP` in `doe_harness.py`.
-5. **Start Stage 2** — sizing/risk: per-symbol vol-class multipliers, base risk %,
-   4-rung TDD, ADX as regime controller.
-6. **Promote walk-forward/OOS** (`src/walk_forward.py`) to the selection gate.
-7. **Build Monte-Carlo trade-order shuffle** test (path-dependent drawdown).
-
-**Branch:** all work on `claude/awesome-maxwell-50dMF`.
+**Branch:** `claude/awesome-maxwell-50dMF`
 
 ---
 
