@@ -154,18 +154,26 @@ def make_objective(entry_key: str):
     return objective
 
 
-# Seed trials: current known-good BASE_ENV defaults at a couple of risk levels.
+# Seed trials. risk_per_trade_pct=1.1 is the Stage 1 default (current_params.json) —
+# it reproduces the Stage 1 entry-quality nets EXACTLY (verified: c=0.55 v=0.80 on
+# 2016-2018 → net 93,713, identical to the grid/report). NOTE: net is strongly
+# NON-MONOTONIC in base risk (1.0→$37K, 1.1→$94K, 1.2→$22K on that window) due to
+# the 5%ers scaling-ladder path dependence — the current point is a FRAGILE SPIKE,
+# not a plateau. Stage 2's maximin-across-windows objective + a later
+# parameter-perturbation gate are what steer toward a ROBUST plateau instead.
+# Seeds bracket the known-good region; the BASE_ENV sizing/TDD values are the
+# proven defaults from the prior continuous-run session.
+_BASE_SEED = {
+    "VOL_SIZE_MULT_LOW": 1.7, "VOL_SIZE_MULT_HIGH": 0.6,
+    "VOL_REGIME_DD_OFF": 3.0, "CFG_MAX_CUM_RISK": 3.5, "CFG_DAILY_HALT_PCT": 2.5,
+    "CFG_TDD_CAUTION_PCT": 5.5, "CFG_RISK_CAUTIOUS": 0.45,
+    "CFG_TDD_WARNING_PCT": 7.5, "CFG_RISK_CONSERVATIVE": 0.25,
+    "CFG_TDD_EMERGENCY_PCT": 8.5, "CFG_RISK_ULTRASAFE": 0.25, "TDD_WALL_SAFETY": 4.5,
+}
 SEEDS = [
-    {"risk_per_trade_pct": 0.60, "VOL_SIZE_MULT_LOW": 1.7, "VOL_SIZE_MULT_HIGH": 0.6,
-     "VOL_REGIME_DD_OFF": 3.0, "CFG_MAX_CUM_RISK": 3.5, "CFG_DAILY_HALT_PCT": 2.5,
-     "CFG_TDD_CAUTION_PCT": 5.5, "CFG_RISK_CAUTIOUS": 0.45,
-     "CFG_TDD_WARNING_PCT": 7.5, "CFG_RISK_CONSERVATIVE": 0.25,
-     "CFG_TDD_EMERGENCY_PCT": 8.5, "CFG_RISK_ULTRASAFE": 0.25, "TDD_WALL_SAFETY": 4.5},
-    {"risk_per_trade_pct": 1.00, "VOL_SIZE_MULT_LOW": 1.7, "VOL_SIZE_MULT_HIGH": 0.6,
-     "VOL_REGIME_DD_OFF": 3.0, "CFG_MAX_CUM_RISK": 3.5, "CFG_DAILY_HALT_PCT": 2.5,
-     "CFG_TDD_CAUTION_PCT": 5.5, "CFG_RISK_CAUTIOUS": 0.45,
-     "CFG_TDD_WARNING_PCT": 7.5, "CFG_RISK_CONSERVATIVE": 0.25,
-     "CFG_TDD_EMERGENCY_PCT": 8.5, "CFG_RISK_ULTRASAFE": 0.25, "TDD_WALL_SAFETY": 4.5},
+    {**_BASE_SEED, "risk_per_trade_pct": 1.10},   # Stage 1 default (known-good)
+    {**_BASE_SEED, "risk_per_trade_pct": 0.90},   # bracket low
+    {**_BASE_SEED, "risk_per_trade_pct": 1.30},   # bracket high
 ]
 
 

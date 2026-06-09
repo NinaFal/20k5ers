@@ -19,7 +19,13 @@ commit_push() {
   fi
 }
 
-done_marker() { grep -c "stage2 $1] STAGE2_DONE_MARKER" "$LOG" 2>/dev/null || echo 0; }
+done_marker() {
+  # Emit a single integer count. grep -c prints "0" and exits 1 on no-match, so we
+  # must capture (not `|| echo 0`, which would double-print) and default if empty.
+  [ -f "$LOG" ] || { echo 0; return; }
+  local n; n=$(grep -c "stage2 $1] STAGE2_DONE_MARKER" "$LOG" 2>/dev/null)
+  echo "${n:-0}"
+}
 
 while true; do
   A_DONE=$(done_marker A); B_DONE=$(done_marker B)
@@ -32,13 +38,15 @@ while true; do
   # Pick which entry to run: A first, then B.
   if [ "${A_DONE:-0}" -lt 1 ]; then ENTRY=A; else ENTRY=B; fi
 
-  if ! pgrep -f "stage2_sizing_risk.py --entry $ENTRY" > /dev/null 2>&1; then
+  # Hard guard: never allow two entries concurrently (memory pressure corrupts
+  # results). If ANY stage2 optimizer is running, assume it's the right one.
+  if pgrep -f "stage2_sizing_risk.py" > /dev/null 2>&1; then
+    echo "[$(ts)] stage2 optimizer ALIVE (target entry $ENTRY)"
+  else
     echo "[$(ts)] stage2 $ENTRY not running — launching (target $TRIALS trials)"
     commit_push
     eval "$ENVP python -u backtest/src/stage2_sizing_risk.py --entry $ENTRY --trials $TRIALS --jobs $JOBS >> $LOG 2>&1 &"
     sleep 5
-  else
-    echo "[$(ts)] stage2 $ENTRY ALIVE"
   fi
   commit_push
   sleep 300
