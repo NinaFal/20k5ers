@@ -42,10 +42,62 @@ dh    = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(dh)
 
 DOE_DIR   = dh.DOE_DIR
 GRID_CSV  = DOE_DIR / "stage1c_grid.csv"   # same unified result set as Stage 1c/1d
+REPORT_CSV = DOE_DIR / "stage1c_entry_quality_report.csv"  # checkpoint (skip-if-done)
 WORKERS   = dh.WORKERS_SHORT
 WINDOWS   = dh.STAGE1_WINDOWS
 
 DEFAULT_TOP_N = 8
+
+# Result-dict fields persisted to the checkpoint CSV. 'nets' is a list →
+# pipe-joined on write, split on read. Order defines the CSV column order.
+_REPORT_FIELDS = [
+    "fib_c", "fib_v", "thr", "adx", "breached", "n_survived",
+    "avg_wr", "avg_trades", "total_trades", "tp1_hit_rate", "slout_rate",
+    "mfe_r_median", "mfe_r_p75", "mae_r_median", "avg_net", "maximin",
+    "nets", "elapsed_s",
+]
+
+
+def _cell_id(fib_c, fib_v, thr, adx) -> str:
+    return f"{float(fib_c):.2f}_{float(fib_v):.2f}_{float(thr):.2f}_{float(adx):.0f}"
+
+
+def _load_done_report() -> dict:
+    """Return {cell_id: result_dict} already checkpointed in REPORT_CSV."""
+    done = {}
+    if not REPORT_CSV.exists():
+        return done
+    with open(REPORT_CSV) as f:
+        for row in csv.DictReader(f):
+            try:
+                r = dict(row)
+                for k in ("fib_c", "fib_v", "thr", "adx", "avg_wr", "avg_trades",
+                          "tp1_hit_rate", "slout_rate", "mfe_r_median", "mfe_r_p75",
+                          "mae_r_median", "avg_net", "maximin"):
+                    r[k] = float(r[k])
+                for k in ("n_survived", "total_trades", "elapsed_s"):
+                    r[k] = int(float(r[k]))
+                r["breached"] = str(r["breached"]).lower() == "true"
+                r["nets"] = [float(x) for x in r["nets"].split("|") if x != ""]
+                done[_cell_id(r["fib_c"], r["fib_v"], r["thr"], r["adx"])] = r
+            except (KeyError, ValueError):
+                continue
+    return done
+
+
+def _append_report(r: dict):
+    """Append one finalist result to the checkpoint CSV (flush per row)."""
+    new_file = not REPORT_CSV.exists()
+    with open(REPORT_CSV, "a", newline="") as f:
+        w = csv.writer(f)
+        if new_file:
+            w.writerow(_REPORT_FIELDS)
+        row = []
+        for k in _REPORT_FIELDS:
+            v = r.get(k)
+            row.append("|".join(str(x) for x in v) if k == "nets" else v)
+        w.writerow(row)
+        f.flush()
 
 # Pinned levers — MUST match the Stage 1c/1d sweep so the re-run reproduces the
 # exact same engine config (only the fib/threshold/adx cell varies per finalist).
@@ -212,6 +264,7 @@ def _print_report(results: list):
               f"  | TP1={best['tp1_hit_rate']:.1f}%  MFE_p75={best['mfe_r_p75']:.2f}R"
               f"  MAE_med={best['mae_r_median']:.2f}R  maximin={best['maximin']:,.0f}")
     print()
+    print("  ENTRY-QUALITY REPORT COMPLETE")
     sys.stdout.flush()
 
 
@@ -225,31 +278,40 @@ def main():
     if not finalists:
         return
 
-    cells = [_cell_from_row(r) for r in finalists]
+    all_cells = [_cell_from_row(r) for r in finalists]
+
+    # Skip-if-done: load any finalists already checkpointed, run only the rest.
+    done = _load_done_report()
+    todo = [c for c in all_cells if _cell_id(*c) not in done]
 
     print(f"\n{'='*108}")
     print(f"  Stage 1c — Entry-Quality Report")
-    print(f"  Re-running top {len(cells)} grid finalists (by score) across {len(WINDOWS)} windows")
+    print(f"  Top {len(all_cells)} grid finalists (by score) across {len(WINDOWS)} windows")
     print(f"  {WORKERS} workers  |  source: {GRID_CSV}")
+    print(f"  checkpoint: {REPORT_CSV}  ({len(done)} done, {len(todo)} to run)")
     print(f"{'='*108}\n")
-    for c, row in zip(cells, finalists):
-        print(f"    finalist: c={c[0]:.2f} v={c[1]:.2f} thr={c[2]:.2f} adx={c[3]:.0f}"
+    for c, row in zip(all_cells, finalists):
+        tag = "cached" if _cell_id(*c) in done else "to-run"
+        print(f"    finalist [{tag}]: c={c[0]:.2f} v={c[1]:.2f} thr={c[2]:.2f} adx={c[3]:.0f}"
               f"  (grid score={row.get('score')}, avg_wr={row.get('avg_wr')})")
     sys.stdout.flush()
 
-    results = []
-    with concurrent.futures.ProcessPoolExecutor(max_workers=WORKERS) as ex:
-        futures = {ex.submit(_run_finalist, c): c for c in cells}
-        for fut in concurrent.futures.as_completed(futures):
-            cell = futures[fut]
-            try:
-                results.append(fut.result())
-            except Exception as e:
-                print(f"  SKIP  c={cell[0]:.2f} v={cell[1]:.2f} thr={cell[2]:.2f}"
-                      f" adx={cell[3]:.0f}  — {type(e).__name__}: {e}")
-                sys.stdout.flush()
-                continue
+    if todo:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=WORKERS) as ex:
+            futures = {ex.submit(_run_finalist, c): c for c in todo}
+            for fut in concurrent.futures.as_completed(futures):
+                cell = futures[fut]
+                try:
+                    r = fut.result()
+                    _append_report(r)   # checkpoint immediately (crash-safe)
+                except Exception as e:
+                    print(f"  SKIP  c={cell[0]:.2f} v={cell[1]:.2f} thr={cell[2]:.2f}"
+                          f" adx={cell[3]:.0f}  — {type(e).__name__}: {e}")
+                    sys.stdout.flush()
+                    continue
 
+    # Re-read the full set (cached + freshly checkpointed) for the final report.
+    results = list(_load_done_report().values())
     _print_report(results)
 
 
