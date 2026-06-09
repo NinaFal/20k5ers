@@ -113,21 +113,29 @@ PINNED = {
 }
 
 
-def _read_finalists(top_n: int) -> list:
-    """Read the top-N grid cells by `score` from stage1c_grid.csv."""
+def _read_finalists(top_n: int, survivors_only: bool = True) -> list:
+    """Read the top-N grid cells by `score` from stage1c_grid.csv.
+
+    By default only NON-BREACHED cells are considered: breach is a hard veto, so
+    a breached cell can never be the entry winner and re-running it only wastes
+    compute. Without the filter, high-score breached cells crowd out genuine
+    survivors from the top-N.
+    """
     if not GRID_CSV.exists():
         print(f"  ERROR: {GRID_CSV} not found — run the Stage 1c/1d grid first.")
         return []
     rows = []
     with open(GRID_CSV) as f:
         for row in csv.DictReader(f):
+            if survivors_only and str(row.get("breached")).strip().lower() != "false":
+                continue
             try:
                 row["_score"] = float(row.get("score") or -1e18)
             except (TypeError, ValueError):
                 row["_score"] = -1e18
             rows.append(row)
     if not rows:
-        print(f"  WARNING: {GRID_CSV} has no data rows yet (grid still running?).")
+        print(f"  WARNING: {GRID_CSV} has no usable rows yet (grid still running?).")
         return []
     rows.sort(key=lambda r: r["_score"], reverse=True)
     return rows[:top_n]
