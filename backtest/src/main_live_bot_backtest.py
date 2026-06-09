@@ -3221,6 +3221,16 @@ class LiveTradingBot:
             risk_pct = risk_pct * _vm
             log.info(f"[{symbol}] Vol-size x{_vm:.2f} -> risk {risk_pct:.3f}%")
 
+        # Regime-coherent risk (same ATR(14)/ATR(50) signal as entry fib, env-gated)
+        _rm = self._regime_risk_multiplier(symbol)
+        if _rm > 1.0 and (total_dd_pct >= _dd_off or daily_loss_pct >= _dd_off):
+            _gated_r = float(os.getenv("VOL_REGIME_DD_MULT", "1.0"))
+            log.info(f"[{symbol}] Regime-risk gate: TDD {total_dd_pct:.1f}%/DDD {daily_loss_pct:.1f}% >= {_dd_off}% -> x{_rm:.2f} collapsed to x{_gated_r:.2f}")
+            _rm = _gated_r
+        if _rm != 1.0:
+            risk_pct = risk_pct * _rm
+            log.info(f"[{symbol}] Regime-risk x{_rm:.2f} -> risk {risk_pct:.3f}%")
+
         # Emergency wall-guard: in the high-TDD zone, cap per-trade risk so even a
         # FULL stop-loss can't push TDD through the 10% wall (room-to-wall / safety
         # factor). This is the principled replacement for the binary 7% freeze:
@@ -3457,10 +3467,47 @@ class LiveTradingBot:
         cache[key] = mult
         return mult
 
+    def _regime_risk_multiplier(self, symbol: str) -> float:
+        """Regime-coherent risk multiplier (env-gated, default no-op).
+
+        Uses the SAME ATR(14)/ATR(50) ratio and fib_vol_ratio_threshold as the
+        entry fib regime switch — so the same bar that triggers volatile entry
+        also triggers volatile sizing.  When RISK_REGIME_ENABLE=0 (default)
+        this is a strict no-op so Stage 1 results are bit-identical.
+        """
+        if os.getenv("RISK_REGIME_ENABLE", "0").strip().lower() not in ("1", "true", "yes", "on"):
+            return 1.0
+        m_calm = float(os.getenv("RISK_CALM_MULT", "1.0"))
+        m_vol  = float(os.getenv("RISK_VOLATILE_MULT", "1.0"))
+        if m_calm == 1.0 and m_vol == 1.0:
+            return 1.0
+        ct  = getattr(self.mt5, "_current_time", None)
+        day = ct.date() if ct is not None and hasattr(ct, "date") else None
+        cache = getattr(self, "_regime_risk_cache", None)
+        if cache is None:
+            cache = self._regime_risk_cache = {}
+        key = (symbol, day)
+        if key in cache:
+            return cache[key]
+        broker = self.symbol_map.get(symbol, symbol)
+        try:
+            candles = self.mt5.get_ohlcv(broker, "D1", 52 + 1)
+        except Exception:
+            return 1.0
+        mult = 1.0
+        if candles and len(candles) >= 52:
+            atr14 = self._calculate_atr(candles[-15:], 14)
+            atr50 = self._calculate_atr(candles[-51:], 50)
+            if atr50 > 0:
+                thr  = float(getattr(self.params, "fib_vol_ratio_threshold", 1.15))
+                mult = m_vol if (atr14 / atr50) >= thr else m_calm
+        cache[key] = mult
+        return mult
+
     def scan_symbol(self, symbol: str) -> Optional[Dict]:
         """
         Scan a single symbol for trade setup.
-        
+
         SYMBOL FORMAT:
         - Input symbol: OANDA format (e.g., EUR_USD, XAU_USD, SPX500_USD)
         - Broker symbol: FTMO MT5 format (e.g., EURUSD, XAUUSD, US500.cash)

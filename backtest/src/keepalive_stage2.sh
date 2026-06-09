@@ -3,12 +3,16 @@
 # then entry B. Optuna sqlite (stage2_A.db / stage2_B.db) makes each resumable,
 # so a relaunch just continues. Commits+pushes the DBs every cycle. Exits once
 # BOTH entries print STAGE2_DONE_MARKER in the log.
+#
+# CRITICAL: Never use & to background the optimizer — in the Firecracker container
+# PID 1 reaps any orphan immediately. Run the optimizer in the FOREGROUND and let
+# this keepalive wait for it. This script itself is launched via run_in_background:true
+# on the Bash tool so the harness process (not bash &) is the parent.
 cd /home/user/20k5ers || exit 1
 BRANCH="claude/awesome-maxwell-50dMF"
 TRIALS="${STAGE2_TRIALS:-100}"
-JOBS="${STAGE2_JOBS:-2}"
+JOBS="${STAGE2_JOBS:-1}"
 LOG="backtest/output/doe/stage2_run.log"
-ENVP="OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 PYTHONUTF8=1 RUN_TIMEOUT_S=2400"
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
 
 commit_push() {
@@ -20,34 +24,47 @@ commit_push() {
 }
 
 done_marker() {
-  # Emit a single integer count. grep -c prints "0" and exits 1 on no-match, so we
-  # must capture (not `|| echo 0`, which would double-print) and default if empty.
   [ -f "$LOG" ] || { echo 0; return; }
   local n; n=$(grep -c "stage2 $1] STAGE2_DONE_MARKER" "$LOG" 2>/dev/null)
   echo "${n:-0}"
 }
 
+run_entry() {
+  local entry="$1"
+  echo "[$(ts)] launching stage2 $entry (target $TRIALS trials, jobs=$JOBS)" | tee -a "$LOG"
+  OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  NUMEXPR_NUM_THREADS=1 PYTHONUTF8=1 RUN_TIMEOUT_S=2400 \
+  python -u backtest/src/stage2_sizing_risk.py \
+    --entry "$entry" --trials "$TRIALS" --jobs "$JOBS" >> "$LOG" 2>&1
+  echo "[$(ts)] stage2 $entry process exited" | tee -a "$LOG"
+  commit_push
+}
+
+echo "[$(ts)] keepalive_stage2 starting (TRIALS=$TRIALS JOBS=$JOBS)" | tee -a "$LOG"
+
 while true; do
   A_DONE=$(done_marker A); B_DONE=$(done_marker B)
+
   if [ "${A_DONE:-0}" -ge 1 ] && [ "${B_DONE:-0}" -ge 1 ]; then
     commit_push
-    echo "[$(ts)] STAGE2_ALL_COMPLETE — both entries done, keepalive exiting"
+    echo "[$(ts)] STAGE2_ALL_COMPLETE — both entries done, keepalive exiting" | tee -a "$LOG"
     break
   fi
 
-  # Pick which entry to run: A first, then B.
-  if [ "${A_DONE:-0}" -lt 1 ]; then ENTRY=A; else ENTRY=B; fi
-
-  # Hard guard: never allow two entries concurrently (memory pressure corrupts
-  # results). If ANY stage2 optimizer is running, assume it's the right one.
+  # Hard concurrency guard: never allow two stage2 processes at once
   if pgrep -f "stage2_sizing_risk.py" > /dev/null 2>&1; then
-    echo "[$(ts)] stage2 optimizer ALIVE (target entry $ENTRY)"
-  else
-    echo "[$(ts)] stage2 $ENTRY not running — launching (target $TRIALS trials)"
-    commit_push
-    eval "$ENVP python -u backtest/src/stage2_sizing_risk.py --entry $ENTRY --trials $TRIALS --jobs $JOBS >> $LOG 2>&1 &"
-    sleep 5
+    echo "[$(ts)] stage2 optimizer already running — waiting 60s" | tee -a "$LOG"
+    sleep 60
+    continue
   fi
+
+  # Pick entry: A first, then B
+  if [ "${A_DONE:-0}" -lt 1 ]; then
+    run_entry A
+  else
+    run_entry B
+  fi
+
   commit_push
-  sleep 300
+  sleep 10
 done

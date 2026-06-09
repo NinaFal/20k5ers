@@ -2,22 +2,37 @@
 """
 Stage 2 — Sizing, risk & breach control (Optuna).
 
-Optimizes the WIRED sizing/risk levers (Stage 2a) on top of a LOCKED Stage 1
-entry, across the same five 3-year windows used for entry selection (fast,
-directly comparable; the 10-year continuous run is a later validation GATE, not
-the optimization loop). Run separately for each carried entry:
+Redesigned for REGIME-COHERENT RISK (2026-06-09):
+  Stage 1 proved ADX hurts as a skip-gate but ATR(14)/ATR(50) is a strong
+  regime classifier (used for entry fib depth). The same signal now drives risk:
+    calm regime  (ratio < thr) → RISK_CALM_MULT × BASE_RISK
+    volatile     (ratio >= thr) → RISK_VOLATILE_MULT × BASE_RISK
+  This replaces VOL_SIZE (ATR percentile), which was incoherent with entry.
 
-    A = c=0.55 v=0.80 thr=1.05   (best runner potential / robustness)
-    B = c=0.45 v=0.80 thr=1.15   (best raw net)
+SEARCH SPACE:
+  Regime-coherent risk:
+    RISK_CALM_MULT    [0.50, 1.50]   — base × mult in calm (shallow entry)
+    RISK_VOLATILE_MULT[0.40, 1.80]   — base × mult in volatile (deep entry)
+  Drawdown-gate for size-up:
+    VOL_REGIME_DD_OFF [2.0, 5.0]     — collapse size-up once TDD/DDD >= this %
+  TDD drawdown ladder (4 rungs):
+    CFG_TDD_CAUTION_PCT / CFG_RISK_CAUTIOUS
+    CFG_TDD_WARNING_PCT / CFG_RISK_CONSERVATIVE
+    CFG_TDD_EMERGENCY_PCT / CFG_RISK_ULTRASAFE
+    TDD_WALL_SAFETY (room-cap factor)
+  Circuit-breakers:
+    CFG_DAILY_HALT_PCT [1.5, 3.5]
+    CFG_MAX_CUM_RISK   [2.5, 5.0]
 
-Objective (priority order from OPTIMIZATION_ROADMAP.md):
-  1. Never breach          → any window breach = hard veto (deep-negative score,
-                              graded by how many windows survived first).
-  2. Maximize net profit   → maximin (worst-window net) is the headline number.
-  3. Keep DD off the wall  → quadratic penalty once worst-window TDD passes a
-                              margin, so we prefer configs that aren't wall-hugging.
+BASE_RISK = 1.1% (fixed Stage 1 anchor — reproduces Stage 1 bit-for-bit when
+  both mults = 1.0).
 
-Resumable: Optuna sqlite study (load_if_exists). Wrap with keepalive_stage2.sh.
+OBJECTIVE (priority order):
+  1. Never breach → any window breach = hard veto (-1e9 + n_survived×1e6)
+  2. Maximize maximin net (worst-window net PnL)
+  3. Penalise wall-hugging (worst-window TDD > WALL_MARGIN)
+
+Resumable: Optuna sqlite (load_if_exists). Wrap with keepalive_stage2.sh.
 
 Usage:
     python -u backtest/src/stage2_sizing_risk.py --entry A --trials 120
@@ -35,7 +50,6 @@ dh    = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(dh)
 
 DOE_DIR = dh.DOE_DIR
 
-# ── Locked Stage 1 entry-quality params (must match the Stage 1c/1d sweep) ──────
 PINNED_ENTRY = {
     "trend_min_confluence":   6,
     "range_min_confluence":   3,
@@ -47,7 +61,6 @@ PINNED_ENTRY = {
     "entry_limit_offset_atr": 0.0,
 }
 
-# The two carried finalists (Stage 1 decision). adx gate OFF for both.
 ENTRIES = {
     "A": {"entry_fib_level": 0.55, "entry_fib_level_volatile": 0.80,
           "fib_vol_ratio_threshold": 1.05,
@@ -57,8 +70,10 @@ ENTRIES = {
           "use_trend_quality_gate": False, "adx_min_entry": 0.0},
 }
 
-# Windows worst-first (gap year 2022 + choppy 2016 first) so breachy trials veto
-# early before spending compute on the easier windows.
+# Fixed Stage 1 anchor: with mults=1.0 reproduces Stage 1 results bit-for-bit.
+BASE_RISK_PCT = 1.1
+
+# Windows worst-first so breachy trials veto early.
 WINDOWS = [
     ("2022-01-01", "2024-12-31"),
     ("2016-01-01", "2018-12-31"),
@@ -67,43 +82,38 @@ WINDOWS = [
     ("2019-07-01", "2022-06-30"),
 ]
 
-WALL_MARGIN = float(os.getenv("WALL_MARGIN", "8.0"))   # penalize worst-window TDD past here
+WALL_MARGIN = float(os.getenv("WALL_MARGIN", "8.0"))
 MARGIN_K    = float(os.getenv("MARGIN_K", "20000"))
 
 
 def _suggest(trial) -> dict:
-    """Suggest the wired Stage 2a sizing/risk levers. Returns (env_over, risk_pct)."""
-    # Base risk per trade (the primary net multiplier; engine caps it in DD bands).
-    risk_pct = trial.suggest_float("risk_per_trade_pct", 0.40, 1.50, step=0.05)
+    """Suggest regime-coherent risk + TDD ladder levers."""
+    # Regime-coherent risk multipliers (replaces VOL_SIZE)
+    calm_mult = trial.suggest_float("RISK_CALM_MULT",    0.50, 1.50, step=0.05)
+    vol_mult  = trial.suggest_float("RISK_VOLATILE_MULT", 0.40, 1.80, step=0.05)
 
-    # Vol-scaled sizing: size UP in calm, DOWN in turbulent. Thesis: low >= high.
-    v_low  = trial.suggest_float("VOL_SIZE_MULT_LOW", 1.0, 2.0, step=0.1)
-    v_high = trial.suggest_float("VOL_SIZE_MULT_HIGH", 0.2, 1.0, step=0.1)
-    if v_low < v_high:
-        raise optuna.TrialPruned()
-
-    # Regime gate: collapse the size-up once TDD/DDD reaches this % (size up only
-    # while healthy — the proven breakthrough from the prior session).
+    # Drawdown gate: collapse size-up once TDD/DDD reaches this %
     regime_off = trial.suggest_float("VOL_REGIME_DD_OFF", 2.0, 5.0, step=0.5)
 
-    # Cumulative open-risk cap + daily halt circuit-breaker.
+    # Cumulative open-risk cap + daily halt
     cum_risk   = trial.suggest_float("CFG_MAX_CUM_RISK", 2.5, 5.0, step=0.5)
-    daily_halt = trial.suggest_float("CFG_DAILY_HALT_PCT", 2.0, 3.5, step=0.25)
+    daily_halt = trial.suggest_float("CFG_DAILY_HALT_PCT", 1.5, 3.5, step=0.25)
 
-    # 3-rung drawdown ladder: thresholds strictly increasing; risk strictly
-    # decreasing as we draw down.
-    caut_t = trial.suggest_float("CFG_TDD_CAUTION_PCT", 3.0, 6.0, step=0.5)
-    warn_t = trial.suggest_float("CFG_TDD_WARNING_PCT", caut_t + 0.5, 8.0, step=0.5)
+    # 4-rung TDD ladder: thresholds strictly increasing, risks decreasing
+    caut_t = trial.suggest_float("CFG_TDD_CAUTION_PCT",   3.0, 6.0, step=0.5)
+    warn_t = trial.suggest_float("CFG_TDD_WARNING_PCT",   caut_t + 0.5, 8.0, step=0.5)
     emer_t = trial.suggest_float("CFG_TDD_EMERGENCY_PCT", warn_t + 0.5, 9.0, step=0.5)
-    r_caut  = trial.suggest_float("CFG_RISK_CAUTIOUS", 0.20, 0.80, step=0.05)
+    r_caut  = trial.suggest_float("CFG_RISK_CAUTIOUS",     0.20, 0.80, step=0.05)
     r_cons  = trial.suggest_float("CFG_RISK_CONSERVATIVE", 0.15, min(r_caut, 0.60), step=0.05)
-    r_ultra = trial.suggest_float("CFG_RISK_ULTRASAFE", 0.10, min(r_cons, 0.40), step=0.05)
-    wall_safety = trial.suggest_float("TDD_WALL_SAFETY", 2.0, 5.0, step=0.5)
+    r_ultra = trial.suggest_float("CFG_RISK_ULTRASAFE",    0.10, min(r_cons, 0.40), step=0.05)
+    wall_safety = trial.suggest_float("TDD_WALL_SAFETY",   2.0, 5.0, step=0.5)
 
     env_over = {
-        "VOL_SIZE_ENABLE":       "1",
-        "VOL_SIZE_MULT_LOW":     f"{v_low}",
-        "VOL_SIZE_MULT_HIGH":    f"{v_high}",
+        # Regime-coherent risk ON; ATR-percentile vol-size OFF (different signal)
+        "RISK_REGIME_ENABLE":    "1",
+        "VOL_SIZE_ENABLE":       "0",
+        "RISK_CALM_MULT":        f"{calm_mult}",
+        "RISK_VOLATILE_MULT":    f"{vol_mult}",
         "VOL_REGIME_DD_OFF":     f"{regime_off}",
         "VOL_REGIME_DD_MULT":    "1.0",
         "CFG_MAX_CUM_RISK":      f"{cum_risk}",
@@ -116,27 +126,26 @@ def _suggest(trial) -> dict:
         "CFG_RISK_ULTRASAFE":    f"{r_ultra}",
         "TDD_WALL_SAFETY":       f"{wall_safety}",
     }
-    return env_over, risk_pct
+    return env_over
 
 
 def make_objective(entry_key: str):
     entry = ENTRIES[entry_key]
 
     def objective(trial):
-        env_over, risk_pct = _suggest(trial)
-        tp_over = {**PINNED_ENTRY, **entry, "risk_per_trade_pct": risk_pct}
+        env_over = _suggest(trial)
+        tp_over = {**PINNED_ENTRY, **entry, "risk_per_trade_pct": BASE_RISK_PCT}
 
         nets, worst_tdd = [], 0.0
         for i, (start, end) in enumerate(WINDOWS):
             r = dh.run_single(env_over, tp_over, start, end)
             if r is None:
                 trial.set_user_attr("infra_fail_window", i)
-                return -3e9                      # infra failure, not a breach
+                return -3e9
             a = dh.extract_attrs(r)
             if a["failed"]:
                 trial.set_user_attr("fail_window", i)
                 trial.set_user_attr("n_survived", len(nets))
-                # graded so "survives 4 windows then breaches" > "breaches window 1"
                 return -1e9 + len(nets) * 1e6
             nets.append(a["net"])
             worst_tdd = max(worst_tdd, a.get("max_tdd", 0.0) or 0.0)
@@ -148,32 +157,23 @@ def make_objective(entry_key: str):
         trial.set_user_attr("maximin", maximin)
         trial.set_user_attr("avg_net", round(avg_net))
         trial.set_user_attr("worst_tdd", round(worst_tdd, 2))
-        trial.set_user_attr("risk_pct", risk_pct)
         return maximin - pen
 
     return objective
 
 
-# Seed trials. risk_per_trade_pct=1.1 is the Stage 1 default (current_params.json) —
-# it reproduces the Stage 1 entry-quality nets EXACTLY (verified: c=0.55 v=0.80 on
-# 2016-2018 → net 93,713, identical to the grid/report). NOTE: net is strongly
-# NON-MONOTONIC in base risk (1.0→$37K, 1.1→$94K, 1.2→$22K on that window) due to
-# the 5%ers scaling-ladder path dependence — the current point is a FRAGILE SPIKE,
-# not a plateau. Stage 2's maximin-across-windows objective + a later
-# parameter-perturbation gate are what steer toward a ROBUST plateau instead.
-# Seeds bracket the known-good region; the BASE_ENV sizing/TDD values are the
-# proven defaults from the prior continuous-run session.
+# Seed with Stage 1 anchor + bracket variants.
+# Stage 1 reproduced with calm=1.0, vol=1.0 (mults = identity).
 _BASE_SEED = {
-    "VOL_SIZE_MULT_LOW": 1.7, "VOL_SIZE_MULT_HIGH": 0.6,
     "VOL_REGIME_DD_OFF": 3.0, "CFG_MAX_CUM_RISK": 3.5, "CFG_DAILY_HALT_PCT": 2.5,
     "CFG_TDD_CAUTION_PCT": 5.5, "CFG_RISK_CAUTIOUS": 0.45,
     "CFG_TDD_WARNING_PCT": 7.5, "CFG_RISK_CONSERVATIVE": 0.25,
     "CFG_TDD_EMERGENCY_PCT": 8.5, "CFG_RISK_ULTRASAFE": 0.25, "TDD_WALL_SAFETY": 4.5,
 }
 SEEDS = [
-    {**_BASE_SEED, "risk_per_trade_pct": 1.10},   # Stage 1 default (known-good)
-    {**_BASE_SEED, "risk_per_trade_pct": 0.90},   # bracket low
-    {**_BASE_SEED, "risk_per_trade_pct": 1.30},   # bracket high
+    {**_BASE_SEED, "RISK_CALM_MULT": 1.00, "RISK_VOLATILE_MULT": 1.00},  # Stage 1 anchor
+    {**_BASE_SEED, "RISK_CALM_MULT": 0.80, "RISK_VOLATILE_MULT": 1.20},  # size up volatile
+    {**_BASE_SEED, "RISK_CALM_MULT": 1.20, "RISK_VOLATILE_MULT": 0.80},  # size up calm
 ]
 
 
@@ -181,7 +181,7 @@ def main():
     ap = argparse.ArgumentParser(description="Stage 2 sizing/risk Optuna optimizer.")
     ap.add_argument("--entry", choices=list(ENTRIES), required=True)
     ap.add_argument("--trials", type=int, default=120)
-    ap.add_argument("--jobs", type=int, default=2)
+    ap.add_argument("--jobs", type=int, default=1)
     args = ap.parse_args()
 
     study_name = f"stage2_{args.entry}"
@@ -199,20 +199,20 @@ def main():
                               optuna.trial.TrialState.PRUNED))
     remaining = max(0, args.trials - done)
     print(f"[stage2 {args.entry}] entry={ENTRIES[args.entry]}", flush=True)
+    print(f"[stage2 {args.entry}] BASE_RISK={BASE_RISK_PCT}%  RISK_REGIME_ENABLE=1  VOL_SIZE retired", flush=True)
     print(f"[stage2 {args.entry}] {done} trials done, running {remaining} more "
           f"(target {args.trials}), jobs={args.jobs}", flush=True)
 
     if remaining > 0:
         study.optimize(make_objective(args.entry), n_trials=remaining, n_jobs=args.jobs)
 
-    # Report best.
     survivors = [t for t in study.trials
                  if t.state == optuna.trial.TrialState.COMPLETE and t.value > -1e8]
     print(f"\n[stage2 {args.entry}] STAGE2 COMPLETE — {len(survivors)} surviving trials")
     if survivors:
         best = study.best_trial
         print(f"  BEST maximin={best.value:,.0f}  avg_net={best.user_attrs.get('avg_net'):,}"
-              f"  worst_tdd={best.user_attrs.get('worst_tdd')}%  risk={best.user_attrs.get('risk_pct')}%")
+              f"  worst_tdd={best.user_attrs.get('worst_tdd')}%")
         print(f"  params: {best.params}")
     print(f"[stage2 {args.entry}] STAGE2_DONE_MARKER", flush=True)
 
