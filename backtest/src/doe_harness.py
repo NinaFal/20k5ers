@@ -171,7 +171,10 @@ def extract_attrs(r: dict | None) -> dict:
         return {"failed": True, "net": 0, "max_tdd": 0, "max_ddd": 0,
                 "win_rate": 0, "trades": 0, "survived_days": 0,
                 "final_funded": 0, "scalings": 0, "withdrawn": 0,
-                "breach_type": "timeout"}
+                "breach_type": "timeout",
+                # MFE/MAE entry-quality instrumentation (safe defaults)
+                "mfe_r_median": 0, "mfe_r_p75": 0, "mae_r_median": 0,
+                "tp1_hits": 0, "tp1_hit_rate": 0}
     fi = r.get("fail_info") or {}
     return {
         "failed":        bool(r.get("account_failed")),
@@ -185,6 +188,14 @@ def extract_attrs(r: dict | None) -> dict:
         "scalings":      int(r.get("fiveers_scaling_events") or 0),
         "withdrawn":     round(float(r.get("fiveers_total_withdrawn") or 0)),
         "breach_type":   fi.get("breach_type") or "",
+        # ── MFE/MAE entry-quality instrumentation ────────────────────────────
+        # Surfaced with 0 defaults so callers on an engine that didn't emit them
+        # (older results.json) still get well-formed scalars instead of KeyError.
+        "mfe_r_median":  float(r.get("mfe_r_median") or 0),
+        "mfe_r_p75":     float(r.get("mfe_r_p75") or 0),
+        "mae_r_median":  float(r.get("mae_r_median") or 0),
+        "tp1_hits":      int(r.get("tp1_hits") or 0),
+        "tp1_hit_rate":  float(r.get("tp1_hit_rate") or 0),
     }
 
 
