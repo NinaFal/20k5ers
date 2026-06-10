@@ -22,3 +22,6 @@
 [stage2 A] trial  15  BREACH  survived=1/5  calm=0.70 vol=1.20
 [stage2 A] trial  16  BREACH  survived=1/5  calm=0.70 vol=1.05
 [stage2 A] trial  17  OK  obj=      15,757  maximin=    15,957  avg_net=  43,763  tdd=8.1%  calm=1.10 vol=0.40
+[stage2 A] trial  18  BREACH  survived=0/5  calm=1.50 vol=1.25
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.3].
+  optuna_warn(
