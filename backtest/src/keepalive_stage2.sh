@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Keepalive for Stage 2 (sizing/risk Optuna). Runs entry A to its trial target,
-# then entry B. Optuna sqlite (stage2_A.db / stage2_B.db) makes each resumable,
-# so a relaunch just continues. Commits+pushes the DBs every cycle. Exits once
-# BOTH entries print STAGE2_DONE_MARKER in the log.
+# then entry B. Optuna sqlite (stage2_A.db / stage2_B.db) makes each resumable.
+# Commits+pushes the DBs every BATCH trials so a container restart loses at most
+# BATCH trials.
 #
 # CRITICAL: Never use & to background the optimizer — in the Firecracker container
 # PID 1 reaps any orphan immediately. Run the optimizer in the FOREGROUND and let
@@ -12,6 +12,7 @@ cd /home/user/20k5ers || exit 1
 BRANCH="claude/awesome-maxwell-50dMF"
 TRIALS="${STAGE2_TRIALS:-100}"
 JOBS="${STAGE2_JOBS:-1}"
+BATCH="${STAGE2_BATCH:-5}"
 LOG="backtest/output/doe/stage2_run.log"
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
 
@@ -29,18 +30,49 @@ done_marker() {
   echo "${n:-0}"
 }
 
-run_entry() {
-  local entry="$1"
-  echo "[$(ts)] launching stage2 $entry (target $TRIALS trials, jobs=$JOBS)" | tee -a "$LOG"
-  OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  NUMEXPR_NUM_THREADS=1 PYTHONUTF8=1 RUN_TIMEOUT_S=2400 \
-  python -u backtest/src/stage2_sizing_risk.py \
-    --entry "$entry" --trials "$TRIALS" --jobs "$JOBS" >> "$LOG" 2>&1
-  echo "[$(ts)] stage2 $entry process exited" | tee -a "$LOG"
-  commit_push
+# Count completed+pruned trials in the Optuna sqlite DB (state=1 COMPLETE, state=2 PRUNED)
+count_done() {
+  local db="backtest/output/doe/stage2_${1}.db"
+  [ -f "$db" ] || { echo 0; return; }
+  python3 -c "
+import sqlite3
+try:
+    c = sqlite3.connect('$db').cursor()
+    c.execute('SELECT COUNT(*) FROM trials WHERE state IN (1,2)')
+    print(c.fetchone()[0])
+except Exception:
+    print(0)
+" 2>/dev/null || echo 0
 }
 
-echo "[$(ts)] keepalive_stage2 starting (TRIALS=$TRIALS JOBS=$JOBS)" | tee -a "$LOG"
+run_entry() {
+  local entry="$1"
+  echo "[$(ts)] run_entry $entry starting (TRIALS=$TRIALS BATCH=$BATCH)" | tee -a "$LOG"
+  while true; do
+    local n_done; n_done=$(count_done "$entry")
+    if [ "${n_done:-0}" -ge "$TRIALS" ] || [ "$(done_marker "$entry")" -ge 1 ]; then
+      echo "[$(ts)] run_entry $entry already at $n_done/$TRIALS — done" | tee -a "$LOG"
+      break
+    fi
+    local next_target=$(( n_done + BATCH ))
+    [ "$next_target" -gt "$TRIALS" ] && next_target=$TRIALS
+
+    echo "[$(ts)] launching stage2 $entry (done=$n_done, batch_target=$next_target, jobs=$JOBS)" | tee -a "$LOG"
+    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+    NUMEXPR_NUM_THREADS=1 PYTHONUTF8=1 RUN_TIMEOUT_S=2400 \
+    python -u backtest/src/stage2_sizing_risk.py \
+      --entry "$entry" --trials "$next_target" --jobs "$JOBS" >> "$LOG" 2>&1
+    echo "[$(ts)] stage2 $entry process exited (batch_target=$next_target)" | tee -a "$LOG"
+    commit_push
+
+    if [ "$(done_marker "$entry")" -ge 1 ]; then
+      echo "[$(ts)] run_entry $entry DONE_MARKER found — exiting" | tee -a "$LOG"
+      break
+    fi
+  done
+}
+
+echo "[$(ts)] keepalive_stage2 starting (TRIALS=$TRIALS BATCH=$BATCH JOBS=$JOBS)" | tee -a "$LOG"
 
 while true; do
   A_DONE=$(done_marker A); B_DONE=$(done_marker B)
