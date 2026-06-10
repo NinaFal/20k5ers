@@ -51,3 +51,4 @@
 [stage2 A] 26 done, 74 remaining (target 100), jobs=4
 [stage2 A] trial  36  BREACH  survived=1/5  calm=1.35 vol=0.90
 [stage2 A] trial  34  BREACH  survived=2/5  calm=1.35 vol=0.80
+[stage2 A] trial  35  BREACH  survived=1/5  calm=1.30 vol=0.85
