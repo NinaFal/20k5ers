@@ -107,3 +107,4 @@
 [stage2 A] trial  81  OK  obj=      14,355  maximin=    14,355  avg_net=  57,661  tdd=7.22%  calm=1.25 vol=1.00
 [stage2 A] trial  84  BREACH  survived=3/5  calm=0.95 vol=0.95
 [stage2 A] trial  88  BREACH  survived=0/5  calm=1.15 vol=0.65
+[stage2 A] trial  85  BREACH  survived=4/5  calm=1.05 vol=1.15
