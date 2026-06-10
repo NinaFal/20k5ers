@@ -1,0 +1,10 @@
+[stage2 A] cleaned 3 zombie RUNNING trial(s) → FAIL
+[stage2 A] trial   2  BREACH  survived=4/5  calm=1.20 vol=0.80
+[stage2 A] trial   3  BREACH  survived=4/5  calm=0.85 vol=1.75
+[stage2 A] trial   4  OK  obj=      27,164  maximin=    27,164  avg_net=  72,892  tdd=6.36%  calm=0.80 vol=1.20
+[stage2 A] Replayed 3 existing trials to CSV
+[stage2 A] entry={'entry_fib_level': 0.55, 'entry_fib_level_volatile': 0.8, 'fib_vol_ratio_threshold': 1.05, 'use_trend_quality_gate': False, 'adx_min_entry': 0.0}
+[stage2 A] BASE_RISK=1.1%  RISK_REGIME_ENABLE=1  VOL_SIZE retired
+[stage2 A] 3 done, 97 remaining (target 100), jobs=1
+[stage2 A] trial   6  BREACH  survived=4/5  calm=0.85 vol=1.75
+[stage2 A] trial   7  BREACH  survived=1/5  calm=1.35 vol=0.70
