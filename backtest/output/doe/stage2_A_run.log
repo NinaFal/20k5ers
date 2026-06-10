@@ -121,3 +121,5 @@
 [stage2 A] trial  95  BREACH  survived=1/5  calm=1.35 vol=1.10
 [stage2 A] trial 101  BREACH  survived=0/5  calm=0.70 vol=1.25
 [stage2 A] trial  99  BREACH  survived=1/5  calm=1.35 vol=1.25
+[stage2 A] trial 100  BREACH  survived=1/5  calm=1.35 vol=1.25
+[stage2 A] trial  98  BREACH  survived=3/5  calm=1.35 vol=0.50
