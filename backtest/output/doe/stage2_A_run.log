@@ -45,3 +45,7 @@
 [stage2 A] trial  29  BREACH  survived=1/5  calm=1.30 vol=0.55
 [stage2 A] trial  24  OK  obj=      49,069  maximin=    49,069  avg_net=  98,866  tdd=7.81%  calm=1.15 vol=0.55
 [stage2 A] trial  27  BREACH  survived=3/5  calm=0.80 vol=0.55
+[stage2 A] cleaned 4 zombie RUNNING trial(s) → FAIL
+[stage2 A] entry={'entry_fib_level': 0.55, 'entry_fib_level_volatile': 0.8, 'fib_vol_ratio_threshold': 1.05, 'use_trend_quality_gate': False, 'adx_min_entry': 0.0}
+[stage2 A] BASE_RISK=1.1%  RISK_REGIME_ENABLE=1  VOL_SIZE retired
+[stage2 A] 26 done, 74 remaining (target 100), jobs=4
