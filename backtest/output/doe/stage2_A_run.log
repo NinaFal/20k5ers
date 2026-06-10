@@ -128,3 +128,9 @@
 [stage2 A] trial 103  OK  obj=      14,324  maximin=    14,324  avg_net=  54,657  tdd=6.93%  calm=1.25 vol=0.50
 [stage2 A] trial 105  OK  obj=      15,698  maximin=    29,146  avg_net=  60,909  tdd=8.82%  calm=1.25 vol=1.00
 [stage2 A] trial 107  OK  obj=     -33,682  maximin=    28,976  avg_net=  60,885  tdd=9.77%  calm=1.25 vol=1.00
+[stage2 A] trial 106  OK  obj=     -47,177  maximin=    14,775  avg_net=  43,410  tdd=9.76%  calm=1.20 vol=0.80
+
+[stage2 A] STAGE2 COMPLETE — 100 done, 46 surviving
+  BEST obj=49,069  maximin=49,069  avg_net=98,866  worst_tdd=7.81%
+  params: {'RISK_CALM_MULT': 1.15, 'RISK_VOLATILE_MULT': 0.55, 'VOL_REGIME_DD_OFF': 2.5, 'CFG_MAX_CUM_RISK': 4.0, 'CFG_DAILY_HALT_PCT': 2.0, 'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 5.5, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.35000000000000003, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.15000000000000002, 'TDD_WALL_SAFETY': 5.0}
+[stage2 A] STAGE2_DONE_MARKER
