@@ -253,6 +253,31 @@ SEEDS = [
 ]
 
 
+def _replay_csv(study, entry_key: str, csv_path: Path):
+    """Write any already-complete trials that are missing from the CSV (resume safe)."""
+    existing = set()
+    if csv_path.exists():
+        with open(csv_path, newline="") as f:
+            for row in csv.DictReader(f):
+                try:
+                    existing.add(int(row["trial"]))
+                except (KeyError, ValueError):
+                    pass
+    callback = make_csv_callback(entry_key, csv_path)
+    replayed = 0
+    for t in sorted(
+        (t for t in study.trials
+         if t.state in (optuna.trial.TrialState.COMPLETE, optuna.trial.TrialState.PRUNED)
+         and t.number not in existing),
+        key=lambda x: x.number,
+    ):
+        callback(study, t)
+        replayed += 1
+    if replayed:
+        print(f"[stage2 {entry_key}] Replayed {replayed} existing trials to CSV",
+              flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser(description="Stage 2 sizing/risk Optuna optimizer.")
     ap.add_argument("--entry", choices=list(ENTRIES), required=True)
@@ -281,6 +306,9 @@ def main():
         for s in SEEDS:
             study.enqueue_trial(s)
         print(f"[stage2 {args.entry}] Enqueued {len(SEEDS)} seed trials", flush=True)
+
+    # Replay existing complete trials to CSV (handles resume after restart)
+    _replay_csv(study, args.entry, csv_path)
 
     done = sum(1 for t in study.trials
                if t.state in (optuna.trial.TrialState.COMPLETE,
