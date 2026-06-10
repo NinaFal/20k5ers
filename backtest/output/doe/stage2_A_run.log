@@ -49,3 +49,5 @@
 [stage2 A] entry={'entry_fib_level': 0.55, 'entry_fib_level_volatile': 0.8, 'fib_vol_ratio_threshold': 1.05, 'use_trend_quality_gate': False, 'adx_min_entry': 0.0}
 [stage2 A] BASE_RISK=1.1%  RISK_REGIME_ENABLE=1  VOL_SIZE retired
 [stage2 A] 26 done, 74 remaining (target 100), jobs=4
+[stage2 A] trial  36  BREACH  survived=1/5  calm=1.35 vol=0.90
+[stage2 A] trial  34  BREACH  survived=2/5  calm=1.35 vol=0.80
