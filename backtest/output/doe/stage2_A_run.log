@@ -14,3 +14,4 @@
 /usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.1, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.1, 0.3].
   optuna_warn(
 [stage2 A] trial   9  OK  obj=      18,251  maximin=    18,251  avg_net=  22,804  tdd=6.98%  calm=0.80 vol=0.50
+[stage2 A] trial  10  OK  obj=      -3,380  maximin=    25,420  avg_net=  71,548  tdd=9.2%  calm=1.05 vol=0.65
