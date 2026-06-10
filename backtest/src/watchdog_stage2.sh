@@ -35,12 +35,13 @@ LAUNCH_B="OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
 
 count_csv() {
-  local f="$1"; [ -f "$f" ] && awk 'NR>1{c++}END{print c+0}' "$f" || echo 0
+  local f="$1"
+  local n; n=$([ -f "$f" ] && awk 'NR>1{c++}END{print c+0}' "$f" 2>/dev/null); echo "${n:-0}"
 }
 
 done_marker() {
   local f="$1"; [ -f "$f" ] || { echo 0; return; }
-  grep -c "STAGE2_DONE_MARKER" "$f" 2>/dev/null || echo 0
+  local n; n=$(grep -c "STAGE2_DONE_MARKER" "$f" 2>/dev/null); echo "${n:-0}"
 }
 
 commit_push() {
