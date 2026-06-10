@@ -67,3 +67,4 @@
 [stage2 A] trial  44  OK  obj=     -26,600  maximin=    23,328  avg_net=  52,487  tdd=9.58%  calm=0.95 vol=1.65
 /usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.3].
   optuna_warn(
+[stage2 A] trial  46  OK  obj=       1,851  maximin=     1,851  avg_net=  63,648  tdd=7.49%  calm=0.85 vol=1.70
