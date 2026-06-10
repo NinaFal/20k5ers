@@ -15,3 +15,4 @@
   optuna_warn(
 [stage2 A] trial   9  OK  obj=      18,251  maximin=    18,251  avg_net=  22,804  tdd=6.98%  calm=0.80 vol=0.50
 [stage2 A] trial  10  OK  obj=      -3,380  maximin=    25,420  avg_net=  71,548  tdd=9.2%  calm=1.05 vol=0.65
+[stage2 A] trial  11  BREACH  survived=2/5  calm=0.90 vol=0.75
