@@ -93,3 +93,4 @@
 [stage2 A] trial  67  BREACH  survived=1/5  calm=1.00 vol=0.45
 [stage2 A] trial  73  BREACH  survived=0/5  calm=1.25 vol=1.50
 [stage2 A] trial  69  BREACH  survived=3/5  calm=0.65 vol=1.30
+[stage2 A] trial  74  BREACH  survived=1/5  calm=0.90 vol=1.35
