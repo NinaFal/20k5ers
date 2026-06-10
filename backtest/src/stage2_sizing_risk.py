@@ -32,17 +32,23 @@ OBJECTIVE (priority order):
   2. Maximize maximin net (worst-window net PnL)
   3. Penalise wall-hugging (worst-window TDD > WALL_MARGIN)
 
-Resumable: Optuna sqlite (load_if_exists). Wrap with keepalive_stage2.sh.
+CRASH-PROOF: each trial appends one row to stage2_{entry}.csv on completion.
+  Zombie RUNNING trials from killed processes are cleaned to FAIL at startup.
+  Wrap with watchdog_stage2.sh (setsid nohup pattern, like grid_watchdog.sh).
 
 Usage:
-    python -u backtest/src/stage2_sizing_risk.py --entry A --trials 120
+    python -u backtest/src/stage2_sizing_risk.py --entry A --trials 100
 """
 import argparse
+import csv
 import importlib.util
 import os
+import sqlite3
+import sys
 from pathlib import Path
 
 import optuna
+optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 HERE  = Path(__file__).resolve().parent
 _spec = importlib.util.spec_from_file_location("doe_harness", str(HERE / "doe_harness.py"))
@@ -85,21 +91,45 @@ WINDOWS = [
 WALL_MARGIN = float(os.getenv("WALL_MARGIN", "8.0"))
 MARGIN_K    = float(os.getenv("MARGIN_K", "20000"))
 
+PARAM_COLS = [
+    "RISK_CALM_MULT", "RISK_VOLATILE_MULT", "VOL_REGIME_DD_OFF",
+    "CFG_MAX_CUM_RISK", "CFG_DAILY_HALT_PCT",
+    "CFG_TDD_CAUTION_PCT", "CFG_RISK_CAUTIOUS",
+    "CFG_TDD_WARNING_PCT", "CFG_RISK_CONSERVATIVE",
+    "CFG_TDD_EMERGENCY_PCT", "CFG_RISK_ULTRASAFE", "TDD_WALL_SAFETY",
+]
+CSV_HEADER = (
+    ["trial", "breached", "objective", "maximin", "avg_net", "worst_tdd",
+     "n_survived", "fail_window"]
+    + PARAM_COLS
+    + [f"net_w{i}" for i in range(len(WINDOWS))]
+)
+
+
+def _cleanup_zombie_trials(db_path: str, entry_key: str):
+    """Mark any RUNNING trials left by a killed process as FAIL."""
+    if not Path(db_path).exists():
+        return
+    try:
+        with sqlite3.connect(db_path) as conn:
+            n = conn.execute(
+                "UPDATE trials SET state='FAIL' WHERE state='RUNNING'"
+            ).rowcount
+            conn.commit()
+        if n:
+            print(f"[stage2 {entry_key}] cleaned {n} zombie RUNNING trial(s) → FAIL",
+                  flush=True)
+    except Exception as e:
+        print(f"[stage2 {entry_key}] zombie cleanup warning: {e}", flush=True)
+
 
 def _suggest(trial) -> dict:
     """Suggest regime-coherent risk + TDD ladder levers."""
-    # Regime-coherent risk multipliers (replaces VOL_SIZE)
     calm_mult = trial.suggest_float("RISK_CALM_MULT",    0.50, 1.50, step=0.05)
     vol_mult  = trial.suggest_float("RISK_VOLATILE_MULT", 0.40, 1.80, step=0.05)
-
-    # Drawdown gate: collapse size-up once TDD/DDD reaches this %
     regime_off = trial.suggest_float("VOL_REGIME_DD_OFF", 2.0, 5.0, step=0.5)
-
-    # Cumulative open-risk cap + daily halt
     cum_risk   = trial.suggest_float("CFG_MAX_CUM_RISK", 2.5, 5.0, step=0.5)
     daily_halt = trial.suggest_float("CFG_DAILY_HALT_PCT", 1.5, 3.5, step=0.25)
-
-    # 4-rung TDD ladder: thresholds strictly increasing, risks decreasing
     caut_t = trial.suggest_float("CFG_TDD_CAUTION_PCT",   3.0, 6.0, step=0.5)
     warn_t = trial.suggest_float("CFG_TDD_WARNING_PCT",   caut_t + 0.5, 8.0, step=0.5)
     emer_t = trial.suggest_float("CFG_TDD_EMERGENCY_PCT", warn_t + 0.5, 9.0, step=0.5)
@@ -107,9 +137,7 @@ def _suggest(trial) -> dict:
     r_cons  = trial.suggest_float("CFG_RISK_CONSERVATIVE", 0.15, min(r_caut, 0.60), step=0.05)
     r_ultra = trial.suggest_float("CFG_RISK_ULTRASAFE",    0.10, min(r_cons, 0.40), step=0.05)
     wall_safety = trial.suggest_float("TDD_WALL_SAFETY",   2.0, 5.0, step=0.5)
-
-    env_over = {
-        # Regime-coherent risk ON; ATR-percentile vol-size OFF (different signal)
+    return {
         "RISK_REGIME_ENABLE":    "1",
         "VOL_SIZE_ENABLE":       "0",
         "RISK_CALM_MULT":        f"{calm_mult}",
@@ -126,7 +154,6 @@ def _suggest(trial) -> dict:
         "CFG_RISK_ULTRASAFE":    f"{r_ultra}",
         "TDD_WALL_SAFETY":       f"{wall_safety}",
     }
-    return env_over
 
 
 def make_objective(entry_key: str):
@@ -141,6 +168,7 @@ def make_objective(entry_key: str):
             r = dh.run_single(env_over, tp_over, start, end)
             if r is None:
                 trial.set_user_attr("infra_fail_window", i)
+                trial.set_user_attr("n_survived", len(nets))
                 return -3e9
             a = dh.extract_attrs(r)
             if a["failed"]:
@@ -154,6 +182,7 @@ def make_objective(entry_key: str):
         maximin = min(nets)
         avg_net = sum(nets) / len(nets)
         pen = MARGIN_K * max(0.0, worst_tdd - WALL_MARGIN) ** 2
+        trial.set_user_attr("n_survived", len(WINDOWS))
         trial.set_user_attr("maximin", maximin)
         trial.set_user_attr("avg_net", round(avg_net))
         trial.set_user_attr("worst_tdd", round(worst_tdd, 2))
@@ -162,8 +191,55 @@ def make_objective(entry_key: str):
     return objective
 
 
+def make_csv_callback(entry_key: str, csv_path: Path):
+    """Append one row to stage2_{entry}.csv after each trial — crash-proof like grid."""
+    def callback(study, trial):
+        if trial.state not in (optuna.trial.TrialState.COMPLETE,
+                               optuna.trial.TrialState.PRUNED):
+            return
+        v = trial.value or 0.0
+        breached = v < -1e8
+        n_surv = trial.user_attrs.get("n_survived", len(WINDOWS) if not breached else 0)
+        row = {
+            "trial":       trial.number,
+            "breached":    breached,
+            "objective":   round(v, 2),
+            "maximin":     trial.user_attrs.get("maximin", ""),
+            "avg_net":     trial.user_attrs.get("avg_net", ""),
+            "worst_tdd":   trial.user_attrs.get("worst_tdd", ""),
+            "n_survived":  n_surv,
+            "fail_window": trial.user_attrs.get("fail_window",
+                           trial.user_attrs.get("infra_fail_window", "")),
+            **{k: trial.params.get(k, "") for k in PARAM_COLS},
+            **{f"net_w{i}": trial.user_attrs.get(f"net_w{i}", "")
+               for i in range(len(WINDOWS))},
+        }
+        write_hdr = not csv_path.exists() or csv_path.stat().st_size == 0
+        with open(csv_path, "a", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=CSV_HEADER)
+            if write_hdr:
+                writer.writeheader()
+            writer.writerow(row)
+            f.flush()
+
+        # Progress line (like grid stdout)
+        calm = trial.params.get("RISK_CALM_MULT", "?")
+        vol  = trial.params.get("RISK_VOLATILE_MULT", "?")
+        if not breached:
+            print(f"[stage2 {entry_key}] trial {trial.number:3d}  OK"
+                  f"  obj={v:>12,.0f}  maximin={trial.user_attrs.get('maximin','?'):>10,.0f}"
+                  f"  avg_net={trial.user_attrs.get('avg_net','?'):>8,}"
+                  f"  tdd={trial.user_attrs.get('worst_tdd','?')}%"
+                  f"  calm={calm:.2f} vol={vol:.2f}", flush=True)
+        else:
+            print(f"[stage2 {entry_key}] trial {trial.number:3d}  BREACH"
+                  f"  survived={n_surv}/5"
+                  f"  calm={calm:.2f} vol={vol:.2f}", flush=True)
+
+    return callback
+
+
 # Seed with Stage 1 anchor + bracket variants.
-# Stage 1 reproduced with calm=1.0, vol=1.0 (mults = identity).
 _BASE_SEED = {
     "VOL_REGIME_DD_OFF": 3.0, "CFG_MAX_CUM_RISK": 3.5, "CFG_DAILY_HALT_PCT": 2.5,
     "CFG_TDD_CAUTION_PCT": 5.5, "CFG_RISK_CAUTIOUS": 0.45,
@@ -180,40 +256,64 @@ SEEDS = [
 def main():
     ap = argparse.ArgumentParser(description="Stage 2 sizing/risk Optuna optimizer.")
     ap.add_argument("--entry", choices=list(ENTRIES), required=True)
-    ap.add_argument("--trials", type=int, default=120)
+    ap.add_argument("--trials", type=int, default=100)
     ap.add_argument("--jobs", type=int, default=1)
     args = ap.parse_args()
 
-    study_name = f"stage2_{args.entry}"
-    storage = f"sqlite:///{DOE_DIR}/stage2_{args.entry}.db"
-    study = optuna.create_study(direction="maximize", study_name=study_name,
-                                storage=storage, load_if_exists=True,
-                                sampler=optuna.samplers.TPESampler(seed=42))
+    db_path  = str(DOE_DIR / f"stage2_{args.entry}.db")
+    csv_path = DOE_DIR / f"stage2_{args.entry}.csv"
 
-    if not study.trials:
+    # Zombie cleanup: mark any RUNNING trial from a killed process as FAIL
+    _cleanup_zombie_trials(db_path, args.entry)
+
+    storage    = f"sqlite:///{db_path}"
+    study_name = f"stage2_{args.entry}"
+    study = optuna.create_study(
+        direction="maximize", study_name=study_name,
+        storage=storage, load_if_exists=True,
+        sampler=optuna.samplers.TPESampler(seed=42),
+    )
+
+    # Enqueue seeds only if no non-FAIL trials exist yet
+    non_fail = [t for t in study.trials
+                if t.state not in (optuna.trial.TrialState.FAIL,)]
+    if not non_fail:
         for s in SEEDS:
             study.enqueue_trial(s)
+        print(f"[stage2 {args.entry}] Enqueued {len(SEEDS)} seed trials", flush=True)
 
     done = sum(1 for t in study.trials
                if t.state in (optuna.trial.TrialState.COMPLETE,
                               optuna.trial.TrialState.PRUNED))
     remaining = max(0, args.trials - done)
     print(f"[stage2 {args.entry}] entry={ENTRIES[args.entry]}", flush=True)
-    print(f"[stage2 {args.entry}] BASE_RISK={BASE_RISK_PCT}%  RISK_REGIME_ENABLE=1  VOL_SIZE retired", flush=True)
-    print(f"[stage2 {args.entry}] {done} trials done, running {remaining} more "
-          f"(target {args.trials}), jobs={args.jobs}", flush=True)
+    print(f"[stage2 {args.entry}] BASE_RISK={BASE_RISK_PCT}%  RISK_REGIME_ENABLE=1"
+          f"  VOL_SIZE retired", flush=True)
+    print(f"[stage2 {args.entry}] {done} done, {remaining} remaining"
+          f" (target {args.trials}), jobs={args.jobs}", flush=True)
+    sys.stdout.flush()
 
     if remaining > 0:
-        study.optimize(make_objective(args.entry), n_trials=remaining, n_jobs=args.jobs)
+        study.optimize(
+            make_objective(args.entry),
+            n_trials=remaining,
+            n_jobs=args.jobs,
+            callbacks=[make_csv_callback(args.entry, csv_path)],
+        )
 
+    done_final = sum(1 for t in study.trials
+                     if t.state in (optuna.trial.TrialState.COMPLETE,
+                                    optuna.trial.TrialState.PRUNED))
     survivors = [t for t in study.trials
                  if t.state == optuna.trial.TrialState.COMPLETE and t.value > -1e8]
-    print(f"\n[stage2 {args.entry}] STAGE2 COMPLETE — {len(survivors)} surviving trials")
+    print(f"\n[stage2 {args.entry}] STAGE2 COMPLETE — {done_final} done,"
+          f" {len(survivors)} surviving", flush=True)
     if survivors:
         best = study.best_trial
-        print(f"  BEST maximin={best.value:,.0f}  avg_net={best.user_attrs.get('avg_net'):,}"
-              f"  worst_tdd={best.user_attrs.get('worst_tdd')}%")
-        print(f"  params: {best.params}")
+        print(f"  BEST obj={best.value:,.0f}  maximin={best.user_attrs.get('maximin'):,.0f}"
+              f"  avg_net={best.user_attrs.get('avg_net'):,}"
+              f"  worst_tdd={best.user_attrs.get('worst_tdd')}%", flush=True)
+        print(f"  params: {best.params}", flush=True)
     print(f"[stage2 {args.entry}] STAGE2_DONE_MARKER", flush=True)
 
 
