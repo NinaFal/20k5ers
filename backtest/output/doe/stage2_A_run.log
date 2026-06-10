@@ -28,3 +28,11 @@
 [stage2 A] trial  19  OK  obj=     -61,046  maximin=     2,322  avg_net=  41,272  tdd=9.78%  calm=0.75 vol=0.95
 [stage2 A] trial  20  BREACH  survived=4/5  calm=0.60 vol=1.40
 [stage2 A] trial  21  BREACH  survived=4/5  calm=1.00 vol=0.90
+[stage2 A] cleaned 1 zombie RUNNING trial(s) → FAIL
+[stage2 A] entry={'entry_fib_level': 0.55, 'entry_fib_level_volatile': 0.8, 'fib_vol_ratio_threshold': 1.05, 'use_trend_quality_gate': False, 'adx_min_entry': 0.0}
+[stage2 A] BASE_RISK=1.1%  RISK_REGIME_ENABLE=1  VOL_SIZE retired
+[stage2 A] 19 done, 81 remaining (target 100), jobs=4
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.3].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.35000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.35].
+  optuna_warn(
