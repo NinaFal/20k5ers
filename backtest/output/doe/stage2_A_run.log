@@ -78,3 +78,4 @@
 [stage2 A] trial  53  OK  obj=       7,772  maximin=    14,500  avg_net=  33,575  tdd=8.58%  calm=1.10 vol=0.40
 [stage2 A] trial  54  OK  obj=      14,300  maximin=    14,500  avg_net=  33,451  tdd=8.1%  calm=1.10 vol=0.40
 [stage2 A] trial  57  BREACH  survived=0/5  calm=1.10 vol=0.60
+[stage2 A] trial  55  OK  obj=     -32,318  maximin=    14,500  avg_net=  42,270  tdd=9.53%  calm=1.10 vol=0.40
