@@ -38,3 +38,4 @@
   optuna_warn(
 [stage2 A] trial  23  BREACH  survived=0/5  calm=1.15 vol=1.35
 [stage2 A] trial  26  BREACH  survived=1/5  calm=1.20 vol=0.55
+[stage2 A] trial  28  BREACH  survived=0/5  calm=1.10 vol=0.40
