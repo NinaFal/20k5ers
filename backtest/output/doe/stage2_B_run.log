@@ -56,3 +56,6 @@
 [stage2 B] trial  44  OK  obj=     -20,268  maximin=     3,932  avg_net=  27,609  tdd=9.1%  calm=0.50 vol=1.70
 [stage2 B] trial  45  OK  obj=      17,215  maximin=    17,215  avg_net=  37,837  tdd=6.98%  calm=0.50 vol=1.65
 [stage2 B] trial  46  OK  obj=       2,907  maximin=     2,907  avg_net=  26,835  tdd=5.64%  calm=0.50 vol=1.65
+[stage2 B] trial  48  OK  obj=       2,425  maximin=     2,425  avg_net=  25,812  tdd=7.74%  calm=0.50 vol=1.80
+[stage2 B] trial  50  OK  obj=       6,526  maximin=     9,264  avg_net=  43,043  tdd=8.37%  calm=1.15 vol=1.20
+[stage2 B] trial  49  OK  obj=     -61,829  maximin=     1,539  avg_net=  32,677  tdd=9.78%  calm=0.65 vol=1.80
