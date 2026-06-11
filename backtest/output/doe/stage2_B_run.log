@@ -1,0 +1,7 @@
+[stage2 B] Enqueued 3 seed trials
+[stage2 B] entry={'entry_fib_level': 0.45, 'entry_fib_level_volatile': 0.8, 'fib_vol_ratio_threshold': 1.15, 'use_trend_quality_gate': False, 'adx_min_entry': 0.0}
+[stage2 B] BASE_RISK=1.1%  RISK_REGIME_ENABLE=1  VOL_SIZE retired
+[stage2 B] 0 done, 100 remaining (target 100), jobs=4
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.3].
+  optuna_warn(
+[stage2 B] trial   2  BREACH  survived=0/5  calm=1.20 vol=0.80
