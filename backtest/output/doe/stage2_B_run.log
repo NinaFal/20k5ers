@@ -109,3 +109,5 @@
 [stage2 B] trial  93  OK  obj=      31,802  maximin=    31,802  avg_net=  43,189  tdd=7.54%  calm=0.65 vol=1.45
 [stage2 B] trial  95  OK  obj=      27,294  maximin=    28,094  avg_net=  45,663  tdd=8.2%  calm=0.50 vol=1.50
 [stage2 B] trial  96  OK  obj=     -27,684  maximin=    28,094  avg_net=  44,314  tdd=9.67%  calm=0.50 vol=1.50
+[stage2 B] trial  97  OK  obj=       9,857  maximin=     9,857  avg_net=  65,330  tdd=7.92%  calm=0.60 vol=1.75
+[stage2 B] trial  98  OK  obj=      30,731  maximin=    30,731  avg_net=  42,233  tdd=6.49%  calm=0.60 vol=1.50
