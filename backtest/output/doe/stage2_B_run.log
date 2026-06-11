@@ -53,3 +53,4 @@
 [stage2 B] trial  42  OK  obj=      30,343  maximin=    30,343  avg_net=  38,894  tdd=2.95%  calm=0.50 vol=1.60
 [stage2 B] trial  43  OK  obj=       3,875  maximin=     3,875  avg_net=  43,822  tdd=4.86%  calm=0.50 vol=1.60
 [stage2 B] trial  47  BREACH  survived=1/5  calm=0.65 vol=1.70
+[stage2 B] trial  44  OK  obj=     -20,268  maximin=     3,932  avg_net=  27,609  tdd=9.1%  calm=0.50 vol=1.70
