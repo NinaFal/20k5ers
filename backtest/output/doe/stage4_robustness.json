@@ -105,6 +105,13 @@
       "maximin_net": 12368,
       "avg_net": 96025,
       "worst_tdd": 6.98
+    },
+    {
+      "label": "sl_after_tp2_r-0.1",
+      "breached": true,
+      "maximin_net": 18379,
+      "avg_net": 48067,
+      "worst_tdd": 10.04
     }
   ]
 }
