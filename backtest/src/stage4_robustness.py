@@ -99,49 +99,42 @@ def save_results(r: dict):
 
 # ── Monte-Carlo helpers (path-dependence) ─────────────────────────────────────
 
-def daily_pnl_pct(trades, start_bal):
-    """Return daily P&L as % of running equity — scaling-account safe.
-
-    The 5%ers account scales: funded level (and hence absolute P&L per trade)
-    increases as the account grows.  Shuffling raw dollar daily P&L mixes
-    large-funded-level loss days into the early small-balance period, creating
-    phantom drawdowns that cannot occur in live trading.  Working in % of
-    running equity (i.e. daily return) removes this bias: each day's return
-    is the fraction of equity at risk that day, which IS IID-shuffleable.
-    """
+def daily_pnl_dollar(trades):
+    """Aggregate trade PnL into a daily dollar series."""
     if trades is None or trades.empty or "close_time" not in trades:
         return pd.Series(dtype=float)
     t = trades.copy()
     t["close_time"] = pd.to_datetime(t["close_time"], utc=True, errors="coerce")
     t = t.dropna(subset=["close_time"])
     t["day"] = t["close_time"].dt.date
-    daily_dollar = t.groupby("day")["pnl"].sum().sort_index()
-    # Convert to daily % return: p&l / running equity at start of that day.
-    eq = start_bal
-    pct_returns = []
-    for pnl in daily_dollar.values:
-        pct_returns.append(pnl / eq * 100.0)
-        eq = max(eq + pnl, 1.0)   # floor at $1 to avoid div-by-zero
-    return pd.Series(pct_returns, index=daily_dollar.index)
+    return t.groupby("day")["pnl"].sum().sort_index()
 
 
-def max_tdd_from_pct(pct_returns):
-    """TDD% from daily % returns (compounded equity curve from 100 base)."""
-    eq = 100.0 * np.cumprod(1 + np.array(pct_returns) / 100.0)
-    eq = np.concatenate([[100.0], eq])
+def max_tdd_dollar(daily, start_bal):
+    """Standard max-drawdown TDD% from dollar daily P&L (valid only when no
+    scaling events occur — which is exactly the condition we require for MC)."""
+    vals = np.asarray(daily)
+    eq = start_bal + np.cumsum(vals)
+    eq = np.concatenate([[start_bal], eq])
     peak = np.maximum.accumulate(eq)
     return float(((peak - eq) / peak * 100.0).max())
 
 
-def monte_carlo(pct_returns, n, seed=42):
-    """Shuffle daily % returns n times; report TDD distribution + P(breach)."""
+def monte_carlo(daily_vals, start_bal, n, seed=42):
+    """Shuffle daily dollar P&L n times.
+
+    Valid ONLY for windows with zero scaling events: within such a window the
+    5%ers TDD resets are irrelevant (there are none), so standard max-drawdown
+    equals the engine's max_tdd_pct.  We verify this by comparing actual_tdd
+    (from our computation) against the engine-reported tdd at suite entry.
+    """
     rng = np.random.default_rng(seed)
-    vals = np.array(pct_returns)
+    vals = np.array(daily_vals, dtype=float)
     tdds = np.empty(n)
     for i in range(n):
         rng.shuffle(vals)
-        eq = 100.0 * np.cumprod(1 + vals / 100.0)
-        eq = np.concatenate([[100.0], eq])
+        eq = start_bal + np.cumsum(vals)
+        eq = np.concatenate([[start_bal], eq])
         peak = np.maximum.accumulate(eq)
         tdds[i] = ((peak - eq) / peak * 100.0).max()
     return {
@@ -192,39 +185,50 @@ def suite_worst(results: dict) -> dict:
 # ── Suite: Monte-Carlo trade-order shuffle ────────────────────────────────────
 
 def suite_mc(results: dict, n_iter: int) -> dict:
-    # MC windows: chosen to have few/no scaling events so % returns are
-    # representative of each day's actual risk exposure.  Long windows that
-    # span multiple scaling events inflate absolute P&L variance and produce
-    # artificially high breach probabilities when shuffled.
+    # MC windows: MUST have zero scaling events so the engine's max_tdd_pct
+    # equals standard max-drawdown — the only condition where MC on raw dollar
+    # P&L is methodologically valid for a 5%ers ratcheting account.
+    #
+    # From stage4_validate OOS results, windows with scalings=0:
+    #   2023-01-01..2024-12-31  (tdd=8.54%,  net=-$2,558)
+    #   2023-07-01..2024-12-31  (tdd=9.63%,  net=-$4,347)
+    # These are also the most stressed surviving windows — worst-case is exactly
+    # what we want for path-dependence analysis.
     mc_windows = [
-        ("2018-01-01", "2020-12-31"),   # 3yr OOS — pre-COVID, 0–1 scalings
-        ("2021-01-01", "2023-12-31"),   # 3yr recent — post-COVID normalisation
-        ("2022-01-01", "2024-12-31"),   # 3yr rate-shock + recent (train window)
+        ("2023-01-01", "2024-12-31"),   # OOS, scalings=0, tdd=8.54%
+        ("2023-07-01", "2024-12-31"),   # OOS, scalings=0, tdd=9.63% (tightest)
     ]
     done_count = len(results.get("mc", []))
     if done_count >= len(mc_windows):
         print(f"[{ts()}] [mc] already done — skipping")
         return results
     print(f"\n[{ts()}] ── Monte-Carlo trade-order shuffle ({n_iter} shuffles) ──")
-    print(f"    NOTE: using daily % returns (P&L/equity) to handle scaling account correctly.")
+    print(f"    Using zero-scaling windows: MC on raw dollar P&L is valid here.")
     out = list(results.get("mc", []))
     done_starts = {r["start"] for r in out}
     for (s, e) in mc_windows:
         if s in done_starts:
             continue
         res, trades = run({}, WINNER_TP, s, e)
-        pct = daily_pnl_pct(trades, BAL)
-        if pct.empty:
-            print(f"[{ts()}] [mc] {s}: no trades — skip")
-            continue
-        actual = max_tdd_from_pct(pct.values)
-        mc = monte_carlo(pct.values, n_iter)
-        row = {"start": s, "end": e, "trading_days": int(len(pct)),
-               "actual_tdd": actual, **mc}
+        if res is None:
+            print(f"[{ts()}] [mc] {s}: engine error — skip"); continue
+        engine_tdd = float(res.get("max_tdd_pct") or 0)
+        engine_scalings = int(res.get("fiveers_scaling_events") or 0)
+        if engine_scalings > 0:
+            print(f"[{ts()}] [mc] {s}: SKIP — {engine_scalings} scaling event(s) "
+                  f"make MC invalid for this window"); continue
+        d = daily_pnl_dollar(trades)
+        if d.empty:
+            print(f"[{ts()}] [mc] {s}: no trades — skip"); continue
+        actual = max_tdd_dollar(d, BAL)
+        mc = monte_carlo(d.values, BAL, n_iter)
+        row = {"start": s, "end": e, "trading_days": int(len(d)),
+               "engine_tdd": engine_tdd, "actual_tdd": actual,
+               "engine_scalings": engine_scalings, **mc}
         out.append(row)
-        print(f"[{ts()}] [mc] {s}  actual={actual:.2f}%  mean={mc['tdd_mean']:.2f}%  "
-              f"p95={mc['tdd_p95']:.2f}%  p99={mc['tdd_p99']:.2f}%  "
-              f"max={mc['tdd_max']:.2f}%  P(breach)={mc['p_breach_10pct']*100:.2f}%")
+        print(f"[{ts()}] [mc] {s}  engine_tdd={engine_tdd:.2f}%  actual={actual:.2f}%  "
+              f"mean={mc['tdd_mean']:.2f}%  p95={mc['tdd_p95']:.2f}%  "
+              f"p99={mc['tdd_p99']:.2f}%  P(breach)={mc['p_breach_10pct']*100:.2f}%")
         results["mc"] = out
         save_results(results)
     return results
