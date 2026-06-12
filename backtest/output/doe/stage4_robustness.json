@@ -1,0 +1,14 @@
+{
+  "worst": [
+    {
+      "start": "2022-01-01",
+      "end": "2024-12-31",
+      "base_failed": false,
+      "base_tdd": 4.31,
+      "worst_failed": false,
+      "worst_tdd": 6.18,
+      "worst_ddd": 3.6,
+      "worst_net": 170018
+    }
+  ]
+}
