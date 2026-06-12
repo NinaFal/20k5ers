@@ -16,7 +16,7 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-TRIALS="${STAGE3_TRIALS:-100}"
+TRIALS="${STAGE3_TRIALS:-50}"
 JOBS="${STAGE3_JOBS:-4}"
 
 LOG="backtest/output/doe/stage3_run.log"
