@@ -1,0 +1,45 @@
+==============================================================================
+Stage 4 Validation Report — Locked Stage 1+2+3 Config
+Generated: 2026-06-12 12:13:34
+==============================================================================
+
+── OOS Gauntlet ──────────────────────────────────────────
+Pass rate: 4/6 (67%)  (5 OOS + 1 full 10-yr)
+  2015-02-01 [OOS]             BREACH   net=    -5,022  tdd=10.04%  ddd= 2.88%  scalings=0
+  2018-01-01 [OOS]             ok       net=   169,812  tdd= 7.76%  ddd= 3.18%  scalings=7
+  2021-01-01 [OOS]             ok       net=    77,019  tdd= 7.04%  ddd= 3.53%  scalings=4
+  2023-01-01 [OOS]             ok       net=    -2,558  tdd= 8.54%  ddd= 3.27%  scalings=0
+  2023-07-01 [OOS]             ok       net=    -4,347  tdd= 9.63%  ddd= 3.12%  scalings=0
+  2015-01-01 [FULL]            BREACH   net=    21,997  tdd=10.01%  ddd= 2.88%  scalings=2
+  OOS net P&L range: $-4,347 .. $169,812  avg=$59,982
+
+── Train Window Re-check ─────────────────────────────────
+Pass rate: 4/5 (80%)
+  2022-01-01..2024-12-31       ok       net=    66,147  tdd= 7.01%  ddd= 3.21%  scalings=4
+  2016-01-01..2018-12-31       BREACH   net=    26,960  tdd= 3.83%  ddd= 5.35%  scalings=2
+  2020-01-01..2022-12-31       ok       net=    51,911  tdd= 7.98%  ddd= 3.76%  scalings=3
+  2017-01-01..2019-12-31       ok       net=    73,249  tdd= 4.04%  ddd= 3.01%  scalings=4
+  2019-07-01..2022-06-30       ok       net=   108,155  tdd= 2.24%  ddd= 3.17%  scalings=5
+  Worst net (maximin): $51,911  avg=$74,866
+
+── Gap / Slippage Stress ─────────────────────────────────
+Window                     slip(pips)  outcome  maxDDD%          net
+  2022-01-01                      0.5        ok     3.21        66,147
+  2022-01-01                      1.0        ok     3.50       117,059
+  2022-01-01                      2.0        ok     3.98        67,403
+  2022-01-01                      5.0        ok     3.72       151,737
+  2022-01-01                     10.0    BREACH     3.09        37,038
+  2016-01-01                      0.5    BREACH     5.35        26,960
+  2016-01-01                      1.0        ok     3.13        42,785
+  2016-01-01                      2.0        ok     2.90        47,636
+  2016-01-01                      5.0        ok     3.04        39,274
+  2016-01-01                     10.0        ok     2.69        25,454
+  First breach: 2016-01-01 at 0.5 pips
+
+── Walk-Forward Survival ─────────────────────────────────
+Pass rate: 27/29 (93%)  (730d horizon, step=3mo)
+  Survived   27  net: $-4,008 .. $107,605  avg=$35,704
+  Breached    2  starts: 2015-04-01, 2016-01-01
+
+==============================================================================
+STAGE4_VALIDATION_DONE_MARKER
