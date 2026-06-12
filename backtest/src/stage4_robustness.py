@@ -42,6 +42,8 @@ REPO = HERE.parent.parent
 BACKTEST = HERE / "main_live_bot_backtest.py"
 sys.path.insert(0, str(HERE))
 
+import doe_harness as dh
+
 from stage4_validate import (
     WINNER_ENV, WINNER_TP, WINNER_LADDER,
     TRAIN_WINDOWS, FULL_START, FULL_END,
@@ -63,6 +65,7 @@ os.environ.setdefault("RUN_TIMEOUT_S", "9999")
 def run(env_over: dict, params: dict, start: str, end: str):
     td = tempfile.mkdtemp(dir=str(DOE_DIR / "tmp"))
     env = dict(os.environ)
+    env.update(dh.BASE_ENV)   # TERMINAL_ON_BREACH=1, SLIPPAGE_PIPS=0.5, GAP_FILLS=1, etc.
     env.update(WINNER_ENV)
     env.update(env_over)
     env["OPT_PARAMS"] = json.dumps(params)
