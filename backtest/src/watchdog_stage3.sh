@@ -17,14 +17,14 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 TRIALS="${STAGE3_TRIALS:-100}"
-JOBS="${STAGE3_JOBS:-1}"
+JOBS="${STAGE3_JOBS:-4}"
 
 LOG="backtest/output/doe/stage3_run.log"
 CSV="backtest/output/doe/stage3.csv"
 DB="backtest/output/doe/stage3.db"
 
 LAUNCH="OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  NUMEXPR_NUM_THREADS=1 PYTHONUTF8=1 RUN_TIMEOUT_S=7200 \
+  NUMEXPR_NUM_THREADS=1 PYTHONUTF8=1 \
   python -u backtest/src/stage3_tp_ladder.py --trials $TRIALS --jobs $JOBS \
   >> $LOG 2>&1"
 
