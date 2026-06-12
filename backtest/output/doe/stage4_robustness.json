@@ -49,6 +49,16 @@
       "worst_tdd": 6.21,
       "worst_ddd": 2.94,
       "worst_net": 28878
+    },
+    {
+      "start": "2015-01-01",
+      "end": "2024-12-31",
+      "base_failed": true,
+      "base_tdd": 3.9,
+      "worst_failed": false,
+      "worst_tdd": 0.88,
+      "worst_ddd": 3.05,
+      "worst_net": 16989
     }
   ]
 }
