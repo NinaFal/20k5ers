@@ -90,5 +90,14 @@
       "tdd_p99": 15.637272201613811,
       "tdd_max": 17.015416298347674
     }
+  ],
+  "perturb": [
+    {
+      "label": "risk=1.0",
+      "breached": false,
+      "maximin_net": 26824,
+      "avg_net": 76740,
+      "worst_tdd": 7.88
+    }
   ]
 }
