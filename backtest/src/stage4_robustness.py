@@ -99,31 +99,49 @@ def save_results(r: dict):
 
 # ── Monte-Carlo helpers (path-dependence) ─────────────────────────────────────
 
-def daily_pnl(trades):
+def daily_pnl_pct(trades, start_bal):
+    """Return daily P&L as % of running equity — scaling-account safe.
+
+    The 5%ers account scales: funded level (and hence absolute P&L per trade)
+    increases as the account grows.  Shuffling raw dollar daily P&L mixes
+    large-funded-level loss days into the early small-balance period, creating
+    phantom drawdowns that cannot occur in live trading.  Working in % of
+    running equity (i.e. daily return) removes this bias: each day's return
+    is the fraction of equity at risk that day, which IS IID-shuffleable.
+    """
     if trades is None or trades.empty or "close_time" not in trades:
         return pd.Series(dtype=float)
     t = trades.copy()
     t["close_time"] = pd.to_datetime(t["close_time"], utc=True, errors="coerce")
     t = t.dropna(subset=["close_time"])
     t["day"] = t["close_time"].dt.date
-    return t.groupby("day")["pnl"].sum().sort_index()
+    daily_dollar = t.groupby("day")["pnl"].sum().sort_index()
+    # Convert to daily % return: p&l / running equity at start of that day.
+    eq = start_bal
+    pct_returns = []
+    for pnl in daily_dollar.values:
+        pct_returns.append(pnl / eq * 100.0)
+        eq = max(eq + pnl, 1.0)   # floor at $1 to avoid div-by-zero
+    return pd.Series(pct_returns, index=daily_dollar.index)
 
 
-def max_tdd_pct(daily, start_bal):
-    eq = start_bal + np.cumsum(daily.values)
-    eq = np.concatenate([[start_bal], eq])
+def max_tdd_from_pct(pct_returns):
+    """TDD% from daily % returns (compounded equity curve from 100 base)."""
+    eq = 100.0 * np.cumprod(1 + np.array(pct_returns) / 100.0)
+    eq = np.concatenate([[100.0], eq])
     peak = np.maximum.accumulate(eq)
     return float(((peak - eq) / peak * 100.0).max())
 
 
-def monte_carlo(daily, start_bal, n, seed=42):
+def monte_carlo(pct_returns, n, seed=42):
+    """Shuffle daily % returns n times; report TDD distribution + P(breach)."""
     rng = np.random.default_rng(seed)
-    vals = daily.values.copy()
+    vals = np.array(pct_returns)
     tdds = np.empty(n)
     for i in range(n):
         rng.shuffle(vals)
-        eq = start_bal + np.cumsum(vals)
-        eq = np.concatenate([[start_bal], eq])
+        eq = 100.0 * np.cumprod(1 + vals / 100.0)
+        eq = np.concatenate([[100.0], eq])
         peak = np.maximum.accumulate(eq)
         tdds[i] = ((peak - eq) / peak * 100.0).max()
     return {
@@ -139,14 +157,16 @@ def monte_carlo(daily, start_bal, n, seed=42):
 # ── Suite: worst-case intrabar TDD ────────────────────────────────────────────
 
 def suite_worst(results: dict) -> dict:
-    if "worst" in results:
+    windows = list(TRAIN_WINDOWS) + [(FULL_START, FULL_END)]
+    if len(results.get("worst", [])) >= len(windows):
         print(f"[{ts()}] [worst] already done — skipping")
         return results
     print(f"\n[{ts()}] ── Worst-case intrabar TDD (TDD_WORST_CASE=1) ──────────")
-    # The 5 training windows + the full 10-year run — the windows that matter.
-    windows = list(TRAIN_WINDOWS) + [(FULL_START, FULL_END)]
-    out = []
+    done_starts = {r["start"] for r in results.get("worst", [])}
+    out = list(results.get("worst", []))
     for (s, e) in windows:
+        if s in done_starts:
+            continue
         # baseline (bar-close) and worst-case (intrabar) for direct comparison
         rb, _ = run({}, WINNER_TP, s, e)
         rw, _ = run({"TDD_WORST_CASE": "1"}, WINNER_TP, s, e)
@@ -172,26 +192,34 @@ def suite_worst(results: dict) -> dict:
 # ── Suite: Monte-Carlo trade-order shuffle ────────────────────────────────────
 
 def suite_mc(results: dict, n_iter: int) -> dict:
-    if "mc" in results:
+    # MC windows: chosen to have few/no scaling events so % returns are
+    # representative of each day's actual risk exposure.  Long windows that
+    # span multiple scaling events inflate absolute P&L variance and produce
+    # artificially high breach probabilities when shuffled.
+    mc_windows = [
+        ("2018-01-01", "2020-12-31"),   # 3yr OOS — pre-COVID, 0–1 scalings
+        ("2021-01-01", "2023-12-31"),   # 3yr recent — post-COVID normalisation
+        ("2022-01-01", "2024-12-31"),   # 3yr rate-shock + recent (train window)
+    ]
+    done_count = len(results.get("mc", []))
+    if done_count >= len(mc_windows):
         print(f"[{ts()}] [mc] already done — skipping")
         return results
     print(f"\n[{ts()}] ── Monte-Carlo trade-order shuffle ({n_iter} shuffles) ──")
-    # Long OOS windows give the richest daily-PnL distribution to shuffle.
-    mc_windows = [
-        ("2018-01-01", "2024-12-31"),   # 7yr OOS
-        ("2021-01-01", "2024-12-31"),   # recent regime
-        (FULL_START,   FULL_END),       # full 10yr
-    ]
-    out = []
+    print(f"    NOTE: using daily % returns (P&L/equity) to handle scaling account correctly.")
+    out = list(results.get("mc", []))
+    done_starts = {r["start"] for r in out}
     for (s, e) in mc_windows:
+        if s in done_starts:
+            continue
         res, trades = run({}, WINNER_TP, s, e)
-        d = daily_pnl(trades)
-        if d.empty:
+        pct = daily_pnl_pct(trades, BAL)
+        if pct.empty:
             print(f"[{ts()}] [mc] {s}: no trades — skip")
             continue
-        actual = max_tdd_pct(d, BAL)
-        mc = monte_carlo(d, BAL, n_iter)
-        row = {"start": s, "end": e, "trading_days": int(len(d)),
+        actual = max_tdd_from_pct(pct.values)
+        mc = monte_carlo(pct.values, n_iter)
+        row = {"start": s, "end": e, "trading_days": int(len(pct)),
                "actual_tdd": actual, **mc}
         out.append(row)
         print(f"[{ts()}] [mc] {s}  actual={actual:.2f}%  mean={mc['tdd_mean']:.2f}%  "
@@ -237,13 +265,17 @@ def _perturbations():
 
 
 def suite_perturb(results: dict) -> dict:
-    if "perturb" in results:
+    perts = list(_perturbations())
+    if len(results.get("perturb", [])) >= len(perts):
         print(f"[{ts()}] [perturb] already done — skipping")
         return results
     print(f"\n[{ts()}] ── Parameter-perturbation robustness ──────────────────")
     perts = list(_perturbations())
-    out = []
+    done_labels = {r["label"] for r in results.get("perturb", [])}
+    out = list(results.get("perturb", []))
     for (label, env_over, params) in perts:
+        if label in done_labels:
+            continue
         # Score each perturbation on the 5 training windows: worst-window net
         # (maximin) and whether ANY window breaches.
         nets, breached, worst_tdd = [], False, 0.0
