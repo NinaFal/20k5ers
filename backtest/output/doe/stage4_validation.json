@@ -412,6 +412,27 @@
       "tp1_hits": 470,
       "tp1_hit_rate": 77.0,
       "slippage_pips": 5.0
+    },
+    {
+      "start": "2016-01-01",
+      "end": "2018-12-31",
+      "failed": false,
+      "net": 25454,
+      "max_tdd": 8.17,
+      "max_ddd": 2.69,
+      "win_rate": 49.4,
+      "trades": 387,
+      "survived_days": 0,
+      "final_funded": 70000,
+      "scalings": 2,
+      "withdrawn": 8890,
+      "breach_type": "",
+      "mfe_r_median": 0.887,
+      "mfe_r_p75": 1.715,
+      "mae_r_median": 0.57,
+      "tp1_hits": 312,
+      "tp1_hit_rate": 80.6,
+      "slippage_pips": 10.0
     }
   ]
 }
