@@ -1,0 +1,24 @@
+{
+  "oos": [
+    {
+      "start": "2015-02-01",
+      "end": "2024-12-31",
+      "failed": false,
+      "net": 725,
+      "max_tdd": 6.15,
+      "max_ddd": 2.89,
+      "win_rate": 46.7,
+      "trades": 137,
+      "survived_days": 0,
+      "final_funded": 50000.0,
+      "scalings": 0,
+      "withdrawn": 0,
+      "breach_type": "",
+      "mfe_r_median": 0.699,
+      "mfe_r_p75": 1.456,
+      "mae_r_median": 0.527,
+      "tp1_hits": 77,
+      "tp1_hit_rate": 56.2
+    }
+  ]
+}
