@@ -655,6 +655,26 @@
       "mae_r_median": 0.641,
       "tp1_hits": 326,
       "tp1_hit_rate": 76.0
+    },
+    {
+      "start": "2017-10-01",
+      "end": "2019-10-01",
+      "failed": false,
+      "net": 20185,
+      "max_tdd": 0.73,
+      "max_ddd": 2.44,
+      "win_rate": 49.8,
+      "trades": 281,
+      "survived_days": 0,
+      "final_funded": 60000,
+      "scalings": 1,
+      "withdrawn": 6087,
+      "breach_type": "",
+      "mfe_r_median": 0.846,
+      "mfe_r_p75": 1.61,
+      "mae_r_median": 0.619,
+      "tp1_hits": 217,
+      "tp1_hit_rate": 77.2
     }
   ]
 }
