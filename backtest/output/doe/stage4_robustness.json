@@ -19,6 +19,36 @@
       "worst_tdd": 6.46,
       "worst_ddd": 3.14,
       "worst_net": 41360
+    },
+    {
+      "start": "2020-01-01",
+      "end": "2022-12-31",
+      "base_failed": false,
+      "base_tdd": 6.17,
+      "worst_failed": false,
+      "worst_tdd": 6.21,
+      "worst_ddd": 3.63,
+      "worst_net": 51975
+    },
+    {
+      "start": "2017-01-01",
+      "end": "2019-12-31",
+      "base_failed": false,
+      "base_tdd": 8.55,
+      "worst_failed": false,
+      "worst_tdd": 0.63,
+      "worst_ddd": 3.46,
+      "worst_net": 50167
+    },
+    {
+      "start": "2019-07-01",
+      "end": "2022-06-30",
+      "base_failed": false,
+      "base_tdd": 3.97,
+      "worst_failed": false,
+      "worst_tdd": 6.21,
+      "worst_ddd": 2.94,
+      "worst_net": 28878
     }
   ]
 }
