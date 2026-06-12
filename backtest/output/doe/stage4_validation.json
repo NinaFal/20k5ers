@@ -695,6 +695,46 @@
       "mae_r_median": 0.618,
       "tp1_hits": 329,
       "tp1_hit_rate": 74.4
+    },
+    {
+      "start": "2018-04-01",
+      "end": "2020-03-31",
+      "failed": false,
+      "net": 45562,
+      "max_tdd": 5.96,
+      "max_ddd": 3.65,
+      "win_rate": 49.9,
+      "trades": 373,
+      "survived_days": 0,
+      "final_funded": 80000,
+      "scalings": 3,
+      "withdrawn": 14916,
+      "breach_type": "",
+      "mfe_r_median": 0.806,
+      "mfe_r_p75": 1.622,
+      "mae_r_median": 0.631,
+      "tp1_hits": 291,
+      "tp1_hit_rate": 78.0
+    },
+    {
+      "start": "2018-07-01",
+      "end": "2020-06-30",
+      "failed": false,
+      "net": 9468,
+      "max_tdd": 8.8,
+      "max_ddd": 2.15,
+      "win_rate": 48.1,
+      "trades": 293,
+      "survived_days": 0,
+      "final_funded": 60000,
+      "scalings": 1,
+      "withdrawn": 4004,
+      "breach_type": "",
+      "mfe_r_median": 0.918,
+      "mfe_r_p75": 1.916,
+      "mae_r_median": 0.618,
+      "tp1_hits": 238,
+      "tp1_hit_rate": 81.2
     }
   ]
 }
