@@ -1,0 +1,27 @@
+[
+  {
+    "start": "2015-01-01",
+    "end": "2024-12-31",
+    "months": 120.0,
+    "failed": true,
+    "breach_type": "",
+    "survived_days": null,
+    "net_pnl": 21997,
+    "max_tdd": 10.01,
+    "max_ddd": 2.88,
+    "scalings": 2,
+    "final_funded": 70000,
+    "withdrawn": 9006,
+    "withdrawn_per_month": 75,
+    "trajectory": [
+      [
+        "2016-02-17",
+        60000
+      ],
+      [
+        "2016-08-29",
+        70000
+      ]
+    ]
+  }
+]
