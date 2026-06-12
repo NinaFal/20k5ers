@@ -222,5 +222,28 @@
       "tp1_hits": 386,
       "tp1_hit_rate": 73.4
     }
+  ],
+  "gap": [
+    {
+      "start": "2022-01-01",
+      "end": "2024-12-31",
+      "failed": false,
+      "net": 66147,
+      "max_tdd": 7.01,
+      "max_ddd": 3.21,
+      "win_rate": 55.2,
+      "trades": 453,
+      "survived_days": 0,
+      "final_funded": 100000,
+      "scalings": 4,
+      "withdrawn": 22185,
+      "breach_type": "",
+      "mfe_r_median": 0.874,
+      "mfe_r_p75": 1.613,
+      "mae_r_median": 0.528,
+      "tp1_hits": 339,
+      "tp1_hit_rate": 74.8,
+      "slippage_pips": 0.5
+    }
   ]
 }
