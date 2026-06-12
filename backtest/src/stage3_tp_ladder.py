@@ -229,6 +229,12 @@ def make_csv_callback(csv_path: Path):
         if trial.state not in (optuna.trial.TrialState.COMPLETE,
                                optuna.trial.TrialState.PRUNED):
             return
+        # Skip PRUNED — constraint violation (close% sum > 0.92), not useful in CSV
+        if trial.state == optuna.trial.TrialState.PRUNED:
+            tp1 = trial.params.get("tp1_r_multiple", "?")
+            print(f"[stage3] trial {trial.number:3d}  PRUNED (close%>0.92)"
+                  f"  tp1={tp1}", flush=True)
+            return
         v        = trial.value or 0.0
         breached = v < -1e8
         n_surv   = trial.user_attrs.get("n_survived",
@@ -266,10 +272,14 @@ def make_csv_callback(csv_path: Path):
         tp3 = trial.params.get("tp3_r_multiple", "?")
         tp5 = trial.params.get("tp5_r_multiple", "?")
         if not breached:
+            mm  = trial.user_attrs.get("maximin")
+            avg = trial.user_attrs.get("avg_net")
+            mm_s  = f"{mm:>10,.0f}"  if mm  is not None else "         ?"
+            avg_s = f"{avg:>8,}"     if avg is not None else "       ?"
             print(f"[stage3] trial {trial.number:3d}  OK"
                   f"  obj={v:>12,.0f}"
-                  f"  maximin={trial.user_attrs.get('maximin','?'):>10,.0f}"
-                  f"  avg_net={trial.user_attrs.get('avg_net','?'):>8,}"
+                  f"  maximin={mm_s}"
+                  f"  avg_net={avg_s}"
                   f"  tdd={trial.user_attrs.get('worst_tdd','?')}%"
                   f"  tp={tp1}/{tp3}/{tp5}R", flush=True)
         else:
