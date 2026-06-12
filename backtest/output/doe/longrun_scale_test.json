@@ -23,5 +23,30 @@
         70000
       ]
     ]
+  },
+  {
+    "start": "2016-01-01",
+    "end": "2024-12-31",
+    "months": 108.0,
+    "failed": true,
+    "breach_type": "",
+    "survived_days": null,
+    "net_pnl": 26960,
+    "max_tdd": 3.83,
+    "max_ddd": 5.35,
+    "scalings": 2,
+    "final_funded": 70000,
+    "withdrawn": 9650,
+    "withdrawn_per_month": 89,
+    "trajectory": [
+      [
+        "2016-07-06",
+        60000
+      ],
+      [
+        "2017-06-07",
+        70000
+      ]
+    ]
   }
 ]
