@@ -17,8 +17,8 @@ if grep -q "STAGE4_PARETO_DONE_MARKER" "$LOG" 2>/dev/null; then
   exit 0
 fi
 
-# Check if watchdog is already running
-if ps -eo args --no-headers 2>/dev/null | grep -q "watchdog_stage4_pareto.sh"; then
+# Check if watchdog is already running (pgrep avoids false match on grep itself)
+if pgrep -f "watchdog_stage4_pareto.sh" > /dev/null 2>&1; then
   echo "[session-start] Stage 4 Pareto watchdog already running"
   exit 0
 fi
