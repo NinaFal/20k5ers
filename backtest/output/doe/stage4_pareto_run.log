@@ -1,0 +1,70 @@
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 0 done, running 200 more (target 200), workers=2
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 0 done, running 200 more (target 200), workers=4
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 0 done, running 200 more (target 200), workers=4
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 8 done, running 192 more (target 200), workers=4
+[trial  37] done=  9/200  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=0
+[trial  38] done= 10/200  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=0
+[trial  42] done= 11/200  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=0
+[trial  40] done= 12/200  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=0
+[trial  44] done= 13/200  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=0
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 13 done, running 187 more (target 200), workers=4
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 13 done, running 187 more (target 200), workers=4
+/usr/local/lib/python3.11/dist-packages/optuna/trial/_trial.py:664: UserWarning: Fixed parameter tp5_r with value 4.7 is out of range for distribution FloatDistribution(high=7.0, log=False, low=4.0, step=0.3).
+  optuna_warn(
+[score] BREACH 2017-01-01->2019-12-31 breach_type=None tdd=10.02 params={'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.7, 'tp3_r_multiple': 2.4, 'tp4_r_multiple': 3.4, 'tp5_r_multiple': 4.7, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.3, 'tp3_close_pct': 0.15, 'tp4_close_pct': 0.15, 'tp5_close_pct': 0.3, 'sl_after_tp2_r': 0.7, 'sl_after_tp3_r': 1.6, 'sl_after_tp4_r': 2.0, 'risk_per_trade_pct': 1.1}
+[trial  54] done= 14/200  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=0
+/usr/local/lib/python3.11/dist-packages/optuna/trial/_trial.py:664: UserWarning: Fixed parameter tp5_r with value 4.5 is out of range for distribution FloatDistribution(high=7.0, log=False, low=4.0, step=0.3).
+  optuna_warn(
+[score] BREACH 2017-01-01->2019-12-31 breach_type=None tdd=10.02 params={'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.7, 'tp3_r_multiple': 2.4, 'tp4_r_multiple': 3.4, 'tp5_r_multiple': 4.7, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.3, 'tp3_close_pct': 0.15, 'tp4_close_pct': 0.15, 'tp5_close_pct': 0.3, 'sl_after_tp2_r': 0.7, 'sl_after_tp3_r': 1.6, 'sl_after_tp4_r': 2.0, 'risk_per_trade_pct': 1.1}
+[score] BREACH 2017-01-01->2019-12-31 breach_type=None tdd=10.02 params={'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.7, 'tp3_r_multiple': 2.4, 'tp4_r_multiple': 3.4, 'tp5_r_multiple': 4.7, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.3, 'tp3_close_pct': 0.15, 'tp4_close_pct': 0.15, 'tp5_close_pct': 0.3, 'sl_after_tp2_r': 0.7, 'sl_after_tp3_r': 1.6, 'sl_after_tp4_r': 2.0, 'risk_per_trade_pct': 1.1}
+[score] BREACH 2017-01-01->2019-12-31 breach_type=None tdd=10.01 params={'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.7, 'tp3_r_multiple': 2.4, 'tp4_r_multiple': 3.4, 'tp5_r_multiple': 4.7, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.35, 'tp3_close_pct': 0.15, 'tp4_close_pct': 0.1, 'tp5_close_pct': 0.3, 'sl_after_tp2_r': 0.7, 'sl_after_tp3_r': 1.6, 'sl_after_tp4_r': 2.0, 'risk_per_trade_pct': 1.1}
+[trial  53] done= 15/200  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=0
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 15 done, running 185 more (target 200), workers=4
+/usr/local/lib/python3.11/dist-packages/optuna/trial/_trial.py:664: UserWarning: Fixed parameter tp5_r with value 4.7 is out of range for distribution FloatDistribution(high=7.0, log=False, low=4.0, step=0.3).
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/trial/_trial.py:664: UserWarning: Fixed parameter tp5_r with value 5.0 is out of range for distribution FloatDistribution(high=7.0, log=False, low=4.0, step=0.3).
+  optuna_warn(
+[score] BREACH 2017-01-01->2019-12-31 breach_type=None tdd=10.01 params={'tp1_r_multiple': 0.9, 'tp2_r_multiple': 1.7, 'tp3_r_multiple': 2.6, 'tp4_r_multiple': 3.6, 'tp5_r_multiple': 5.0, 'tp1_close_pct': 0.1, 'tp2_close_pct': 0.35, 'tp3_close_pct': 0.15, 'tp4_close_pct': 0.1, 'tp5_close_pct': 0.3, 'sl_after_tp2_r': 0.7, 'sl_after_tp3_r': 1.6, 'sl_after_tp4_r': 2.0, 'risk_per_trade_pct': 1.1}
+[trial  56] done= 16/200  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=0
+[score] BREACH 2016-01-01->2018-12-31 breach_type=None tdd=10.0 params={'tp1_r_multiple': 0.7, 'tp2_r_multiple': 1.6, 'tp3_r_multiple': 2.5, 'tp4_r_multiple': 3.4, 'tp5_r_multiple': 5.8, 'tp1_close_pct': 0.15, 'tp2_close_pct': 0.2, 'tp3_close_pct': 0.15, 'tp4_close_pct': 0.05, 'tp5_close_pct': 0.45, 'sl_after_tp2_r': 0.6, 'sl_after_tp3_r': 1.4, 'sl_after_tp4_r': 1.9, 'risk_per_trade_pct': 1.1}
+[trial  60] done= 17/200  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=0
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 17 done, running 183 more (target 200), workers=4
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 17 done, running 183 more (target 200), workers=4
+[trial  66] done= 18/200  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=0
+[trial  68] done= 19/200  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=0
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 19 done, running 181 more (target 200), workers=4
+[trial  74] done= 20/200  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=0
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 20 done, running 180 more (target 200), workers=4
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 20 done, running 180 more (target 200), workers=4
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 20 done, running 80 more (target 100), workers=4
+[BREACH] 2022-01-01->2024-12-31 tdd=10.02% risk=0.9
+[trial  89] done= 21/100  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=0
+[trial  91] done= 22/100  obj=    18,468  maximin=   18,468  perturb_ok=10/10  plateaus=1
+[trial  88] done= 23/100  obj=    34,064  maximin=   34,064  perturb_ok=10/10  plateaus=2
+[trial  90] done= 24/100  obj=     1,367  maximin=    1,367  perturb_ok=10/10  plateaus=3
