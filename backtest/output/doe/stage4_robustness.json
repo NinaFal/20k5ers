@@ -140,6 +140,13 @@
       "maximin_net": 17779,
       "avg_net": 52754,
       "worst_tdd": 6.87
+    },
+    {
+      "label": "sl_after_tp4_r+0.1",
+      "breached": true,
+      "maximin_net": 18348,
+      "avg_net": 59823,
+      "worst_tdd": 8.96
     }
   ]
 }
