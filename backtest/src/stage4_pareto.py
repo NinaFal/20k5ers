@@ -116,13 +116,13 @@ def suggest_params(trial: optuna.Trial) -> dict:
         "tp5_close_pct": c5,
         "sl_after_tp2_r": sl2, "sl_after_tp3_r": sl3,
         "sl_after_tp4_r": sl4,
-        "risk_per_trade_pct": 1.0,
+        "risk_per_trade_pct": 0.9,
     }
 
 
 def _perturbations(base: dict):
     """Yield (label, params) for each ±1-step perturbation of fragile levers."""
-    for r in (0.9, 1.1):
+    for r in (0.8, 1.0):
         p = dict(base); p["risk_per_trade_pct"] = r
         yield f"risk={r}", p
     for key, delta in [
@@ -154,6 +154,7 @@ def score_trial(params: dict) -> tuple[float, dict]:
         if r is None:
             return float("-inf"), {"error": "infra"}
         if r.get("account_failed"):
+            print(f"[BREACH] {s}->{e} tdd={r.get('max_tdd_pct',0):.2f}% risk={params.get('risk_per_trade_pct',0):.1f}", flush=True)
             breached = True
             break
         nets.append(float(r.get("net_pnl") or 0))
