@@ -5540,6 +5540,7 @@ class LiveTradingBot:
         equity_high = self.initial_balance
         last_scanned_date = None
         current_date = None
+        _in_news_blackout = False  # tracks previous-bar blackout state for resume detection
 
         # ── MFE/MAE ENTRY-QUALITY INSTRUMENTATION (additive, read-only) ────────
         # Per-position Maximum Favorable / Adverse Excursion, captured by marking
@@ -5959,11 +5960,13 @@ class LiveTradingBot:
                         del self.pending_setups[symbol]
             
             # ═══════════════════════════════════════════════════════════════
-            # LAYER 2: Cancel affected-currency pending orders during news
+            # LAYER 2: Cancel affected-currency pending orders during news;
+            # immediately re-place them on the bar the blackout ends.
             # Only cancel pairs linked to the news event (ECB→EUR, NFP/FOMC→USD)
             # Rollover is handled by Layer 5 (dynamic halt at 2.5%) — no cancel needed
             # ═══════════════════════════════════════════════════════════════
-            if self._is_news_blackout(current_time):
+            _now_in_blackout = self._is_news_blackout(current_time)
+            if _now_in_blackout:
                 affected = self._news_affected_currencies(current_time)
                 if affected:
                     cancelled = []
@@ -5978,6 +5981,12 @@ class LiveTradingBot:
                             setup.order_ticket = None
                     if cancelled:
                         log.info(f"⛔ news-blackout ({','.join(affected)}): cancelled {len(cancelled)} pending orders")
+            elif _in_news_blackout:
+                # Blackout just ended — immediately re-place paused orders, same as
+                # the live bot does rather than waiting until next day's new-day event.
+                log.info(f"✅ news-blackout ended at {current_time}: re-placing paused orders")
+                self._resume_ddd_paused_orders()
+            _in_news_blackout = _now_in_blackout
 
             # ═══════════════════════════════════════════════════════════════
             # CHECK PENDING ORDER FILLS
