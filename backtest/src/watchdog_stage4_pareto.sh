@@ -12,7 +12,7 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-TRIALS="${PARETO_TRIALS:-200}"
+TRIALS="${PARETO_TRIALS:-100}"
 WORKERS="${VAL_WORKERS:-4}"
 
 LOG="backtest/output/doe/stage4_pareto_run.log"
