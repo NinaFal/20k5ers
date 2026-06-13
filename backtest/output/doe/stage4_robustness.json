@@ -161,6 +161,13 @@
       "maximin_net": 22629,
       "avg_net": 46039,
       "worst_tdd": 9.9
+    },
+    {
+      "label": "tp1_close-0.05",
+      "breached": false,
+      "maximin_net": 30914,
+      "avg_net": 103510,
+      "worst_tdd": 7.12
     }
   ]
 }
