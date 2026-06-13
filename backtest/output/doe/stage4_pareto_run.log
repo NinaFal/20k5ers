@@ -81,3 +81,5 @@ Stage4 Pareto: 20 done, running 80 more (target 100), workers=4
 [trial 106] done= 33/100  obj=    34,100  maximin=   34,100  perturb_ok=10/10  plateaus=10
 [trial 107] done= 34/100  obj=    29,359  maximin=   29,359  perturb_ok=10/10  plateaus=11
 [trial 108] done= 35/100  obj=    35,145  maximin=   35,145  perturb_ok=10/10  plateaus=12
+[BREACH] 2017-01-01->2019-12-31 tdd=10.00% risk=0.9
+[trial 113] done= 36/100  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=12
