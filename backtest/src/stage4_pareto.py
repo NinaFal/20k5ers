@@ -58,9 +58,9 @@ CSV_PATH     = DOE_DIR / "stage4_pareto.csv"
 REPORT_PATH  = DOE_DIR / "stage4_pareto_report.txt"
 
 BREACH_PENALTY = 15_000   # per perturbation breach, subtracted from objective
-WORKERS        = int(os.getenv("VAL_WORKERS", "2"))
+WORKERS        = int(os.getenv("VAL_WORKERS", "4"))
 
-os.environ.setdefault("RUN_TIMEOUT_S", "9999")
+os.environ.setdefault("RUN_TIMEOUT_S", "999999")
 
 
 # ── Locked Stage 1 entry (unchanged) ──────────────────────────────────────────

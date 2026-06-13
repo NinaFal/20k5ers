@@ -7,20 +7,20 @@
 #
 # Env vars:
 #   PARETO_TRIALS   total Optuna trials (default 200)
-#   VAL_WORKERS     parallel workers   (default 2)
+#   VAL_WORKERS     parallel workers   (default 4)
 
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 TRIALS="${PARETO_TRIALS:-200}"
-WORKERS="${VAL_WORKERS:-2}"
+WORKERS="${VAL_WORKERS:-4}"
 
 LOG="backtest/output/doe/stage4_pareto_run.log"
 RPT="backtest/output/doe/stage4_pareto_report.txt"
 CSV="backtest/output/doe/stage4_pareto.csv"
 
 LAUNCH="OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  NUMEXPR_NUM_THREADS=1 PYTHONUTF8=1 RUN_TIMEOUT_S=9999 \
+  NUMEXPR_NUM_THREADS=1 PYTHONUTF8=1 RUN_TIMEOUT_S=999999 \
   VAL_WORKERS=$WORKERS \
   python -u backtest/src/stage4_pareto.py --trials $TRIALS \
   >> $LOG 2>&1"
@@ -36,8 +36,10 @@ commit_push() {
 }
 
 done_marker() {
-    local f="$1"; [ -f "$f" ] || { echo 0; return; }
-    grep -c "STAGE4_PARETO_DONE_MARKER" "$f" 2>/dev/null || echo 0
+    local f="$1" n
+    [ -f "$f" ] || { echo 0; return; }
+    n=$(grep -c "STAGE4_PARETO_DONE_MARKER" "$f" 2>/dev/null) || n=0
+    echo "$n"
 }
 
 is_running() {
