@@ -298,12 +298,27 @@ def main():
     print(f"Stage4 Pareto: {done} done, running {remaining} more "
           f"(target {args.trials}), workers={WORKERS}")
 
+    def _progress(study: optuna.Study, trial: optuna.trial.FrozenTrial):
+        if trial.state != optuna.trial.TrialState.COMPLETE:
+            return
+        done_n = len([t for t in study.trials
+                      if t.state == optuna.trial.TrialState.COMPLETE])
+        plateaus = sum(1 for t in study.trials
+                       if t.state == optuna.trial.TrialState.COMPLETE
+                       and t.user_attrs.get("n_perturb_breaches", 99) == 0)
+        ua = trial.user_attrs
+        print(f"[trial {trial.number:>3}] done={done_n:>3}/{args.trials}  "
+              f"obj={trial.value:>10,.0f}  maximin={ua.get('maximin',0):>9,.0f}  "
+              f"perturb_ok={10-int(ua.get('n_perturb_breaches',10)):>2}/10  "
+              f"plateaus={plateaus}", flush=True)
+
     if remaining > 0:
         study.optimize(
             objective,
             n_trials=remaining,
             n_jobs=WORKERS,
             show_progress_bar=False,
+            callbacks=[_progress],
             catch=(Exception,),
         )
 
