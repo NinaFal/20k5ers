@@ -143,8 +143,11 @@ def score_trial(params: dict) -> tuple[float, dict]:
     for (s, e) in TRAIN_WINDOWS:
         r = run_window(params, WINNER_ENV, s, e)
         if r is None:
+            print(f"[score] INFRA FAIL {s}->{e} params={params}", flush=True)
             return float("-inf"), {"error": "infra"}
         if r.get("account_failed"):
+            print(f"[score] BREACH {s}->{e} breach_type={r.get('breach_type')} "
+                  f"tdd={r.get('max_tdd_pct')} params={params}", flush=True)
             breached = True
             break
         nets.append(float(r.get("net_pnl") or 0))
