@@ -112,3 +112,4 @@ Stage4 Pareto: 49 done, running 51 more (target 100), workers=4
 [trial 144] done= 50/100  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=22
 [trial 146] done= 51/100  obj=    74,387  maximin=   74,387  perturb_ok=10/10  plateaus=23
 [trial 147] done= 52/100  obj=    30,028  maximin=   30,028  perturb_ok=10/10  plateaus=24
+[trial 145] done= 53/100  obj=    17,371  maximin=   17,371  perturb_ok=10/10  plateaus=25
