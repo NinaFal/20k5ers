@@ -100,3 +100,11 @@ Stage4 Pareto: 20 done, running 80 more (target 100), workers=4
 /usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
   optuna_warn(
 Stage4 Pareto: 48 done, running 52 more (target 100), workers=4
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 48 done, running 52 more (target 100), workers=4
+[BREACH] 2022-01-01->2024-12-31 tdd=10.49% risk=0.9
+[trial 139] done= 49/100  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=22
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 49 done, running 51 more (target 100), workers=4
