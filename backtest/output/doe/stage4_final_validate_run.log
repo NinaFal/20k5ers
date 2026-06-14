@@ -103,3 +103,56 @@
 [2026-06-14 13:30:30] [walk] DONE  2020-07-01  ok  net=30,316  tdd=7.60%
 [2026-06-14 13:30:30] [walk] START 2022-01-01 → 2024-01-01
 [2026-06-14 13:30:44] [walk] DONE  2021-01-01  ok  net=78,059  tdd=2.95%
+[2026-06-14 13:33:14] [walk] DONE  2021-10-01  ok  net=46,082  tdd=7.09%
+[2026-06-14 13:33:15] [walk] DONE  2021-07-01  ok  net=73,695  tdd=8.84%
+[2026-06-14 13:33:22] [walk] DONE  2022-01-01  ok  net=32,693  tdd=2.26%
+
+==============================================================================
+Stage 4 Validation Report — Locked Stage 1+2+3 Config
+Generated: 2026-06-14 13:33:22
+==============================================================================
+
+── OOS Gauntlet ──────────────────────────────────────────
+Pass rate: 5/6 (83%)  (5 OOS + 1 full 10-yr)
+  2015-02-01 [OOS]             ok       net=   541,770  tdd= 5.26%  ddd= 3.71%  scalings=12
+  2018-01-01 [OOS]             ok       net=   463,794  tdd= 7.49%  ddd= 3.65%  scalings=11
+  2021-01-01 [OOS]             ok       net=   222,620  tdd= 6.66%  ddd= 4.41%  scalings=8
+  2023-01-01 [OOS]             ok       net=    34,905  tdd= 5.37%  ddd= 2.99%  scalings=2
+  2023-07-01 [OOS]             ok       net=    27,352  tdd= 8.35%  ddd= 3.78%  scalings=2
+  2015-01-01 [FULL]            BREACH   net=    -3,136  tdd= 6.26%  ddd= 9.32%  scalings=0
+  OOS net P&L range: $27,352 .. $541,770  avg=$258,088
+
+── Train Window Re-check ─────────────────────────────────
+Pass rate: 5/5 (100%)
+  2022-01-01..2024-12-31       ok       net=    51,287  tdd= 6.59%  ddd= 3.24%  scalings=3
+  2016-01-01..2018-12-31       ok       net=    45,708  tdd= 0.00%  ddd= 2.83%  scalings=3
+  2020-01-01..2022-12-31       ok       net=   237,405  tdd= 2.14%  ddd= 3.12%  scalings=8
+  2017-01-01..2019-12-31       ok       net=    77,147  tdd= 9.03%  ddd= 2.94%  scalings=4
+  2019-07-01..2022-06-30       ok       net=   235,770  tdd= 6.53%  ddd= 3.47%  scalings=8
+  Worst net (maximin): $45,708  avg=$129,463
+
+── Gap / Slippage Stress ─────────────────────────────────
+Window                     slip(pips)  outcome  maxDDD%          net
+  2022-01-01                      0.5        ok     3.24        51,287
+  2022-01-01                      1.0        ok     3.26       217,924
+  2022-01-01                      2.0        ok     3.37       132,478
+  2022-01-01                      5.0        ok     3.29        94,073
+  2022-01-01                     10.0        ok     4.57        47,610
+  2016-01-01                      0.5        ok     2.83        45,708
+  2016-01-01                      1.0        ok     2.86        47,382
+  2016-01-01                      2.0        ok     2.53        44,197
+  2016-01-01                      5.0        ok     2.92        46,314
+  2016-01-01                     10.0        ok     3.56        41,343
+  No breach at any tested slippage level.
+
+── Walk-Forward Survival ─────────────────────────────────
+Pass rate: 25/29 (86%)  (730d horizon, step=3mo)
+  Survived   25  net: $277 .. $153,719  avg=$54,222
+  Breached    4  starts: 2015-01-01, 2015-04-01, 2017-04-01, 2021-04-01
+
+==============================================================================
+STAGE4_VALIDATION_DONE_MARKER
+
+[2026-06-14 13:33:22] Results: /home/user/20k5ers/backtest/output/doe/stage4_final_validation.json
+[2026-06-14 13:33:22] Report:  /home/user/20k5ers/backtest/output/doe/stage4_final_validation_report.txt
+[2026-06-14 13:33:22] STAGE4_VALIDATION_DONE_MARKER
