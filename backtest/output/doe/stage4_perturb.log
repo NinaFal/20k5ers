@@ -10,3 +10,4 @@ Validating top 5 configs × 3 risk levels × 5 windows = 75 backtests  (workers=
   trial=146 risk=1.0%  breaches=1/5  maximin=  45,190  worst_tdd=10.03%
   trial=170 risk=0.8%  breaches=0/5  maximin=  28,762  worst_tdd=8.32%
   trial=170 risk=0.9%  breaches=0/5  maximin=  72,472  worst_tdd=6.28%
+  trial=165 risk=0.8%  breaches=1/5  maximin=  24,703  worst_tdd=10.01%
