@@ -81,14 +81,16 @@ WINNER_ENTRY = {
     "adx_min_entry":           0.0,
 }
 
-# Locked Stage 3 TP ladder (trial 68)
+# Locked Stage 4 TP ladder (Pareto trial 170 — passes all 5 windows at risk 0.8/0.9/1.0%)
+# Perturbation robustness: 0/5 breaches at all 3 risk levels
+# At risk=1.0%: maximin=$73,857  worst_tdd=6.79%  avg_net=$133,958
 WINNER_LADDER = {
-    "tp1_r_multiple": 0.7,  "tp2_r_multiple": 1.6,  "tp3_r_multiple": 2.7,
-    "tp4_r_multiple": 3.4,  "tp5_r_multiple": 5.5,
-    "tp1_close_pct":  0.15, "tp2_close_pct":  0.20, "tp3_close_pct": 0.15,
-    "tp4_close_pct":  0.05, "tp5_close_pct":  0.45,
-    "sl_after_tp2_r": 0.60, "sl_after_tp3_r": 1.50, "sl_after_tp4_r": 1.90,
-    "risk_per_trade_pct": 1.1,
+    "tp1_r_multiple": 0.6,  "tp2_r_multiple": 1.6,  "tp3_r_multiple": 2.8,
+    "tp4_r_multiple": 3.4,  "tp5_r_multiple": 4.3,
+    "tp1_close_pct":  0.10, "tp2_close_pct":  0.30, "tp3_close_pct": 0.20,
+    "tp4_close_pct":  0.15, "tp5_close_pct":  0.25,
+    "sl_after_tp2_r": 0.70, "sl_after_tp3_r": 1.40, "sl_after_tp4_r": 2.00,
+    "risk_per_trade_pct": 1.0,
 }
 
 WINNER_TP = {**WINNER_ENTRY, **WINNER_LADDER}
@@ -130,8 +132,8 @@ WALK_LAST  = "2022-01-01"  # last start → end = 2024-01-01, inside data range
 
 # Output
 DOE_DIR     = REPO / "backtest" / "output" / "doe"
-RESULTS_PATH = DOE_DIR / "stage4_validation.json"
-REPORT_PATH  = DOE_DIR / "stage4_validation_report.txt"
+RESULTS_PATH = DOE_DIR / "stage4_final_validation.json"
+REPORT_PATH  = DOE_DIR / "stage4_final_validation_report.txt"
 
 WORKERS = int(os.getenv("VAL_WORKERS", "2"))
 
