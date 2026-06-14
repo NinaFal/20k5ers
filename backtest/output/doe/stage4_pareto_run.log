@@ -92,3 +92,11 @@ Stage4 Pareto: 20 done, running 80 more (target 100), workers=4
 [trial 119] done= 42/100  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=17
 [trial 117] done= 43/100  obj=    25,452  maximin=   25,452  perturb_ok=10/10  plateaus=18
 [trial 118] done= 44/100  obj=    47,308  maximin=   47,308  perturb_ok=10/10  plateaus=19
+[BREACH] 2019-07-01->2022-06-30 tdd=10.01% risk=0.9
+[trial 124] done= 45/100  obj=      -inf  maximin=        0  perturb_ok= 0/10  plateaus=19
+[trial 122] done= 46/100  obj=    19,933  maximin=   19,933  perturb_ok=10/10  plateaus=20
+[trial 127] done= 47/100  obj=    32,407  maximin=   32,407  perturb_ok=10/10  plateaus=21
+[trial 128] done= 48/100  obj=    41,287  maximin=   41,287  perturb_ok=10/10  plateaus=22
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+Stage4 Pareto: 48 done, running 52 more (target 100), workers=4
