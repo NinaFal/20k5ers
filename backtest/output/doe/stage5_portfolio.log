@@ -25,3 +25,4 @@ Portfolio validation: 3 configs × 38 windows  workers=4
   2016-10-01→2018-10-01  ok                              net=     4,365  worst_tdd=7.40%
   2016-07-01→2018-07-01  ok                              net=       461  worst_tdd=4.22%
   2017-01-01→2019-01-01  ok                              net=     7,891  worst_tdd=1.12%
+  2017-04-01→2019-04-01  ok                              net=     3,550  worst_tdd=3.69%
