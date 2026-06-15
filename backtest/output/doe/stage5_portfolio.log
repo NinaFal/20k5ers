@@ -5,3 +5,7 @@ Portfolio validation: 3 configs × 38 windows  workers=4
   2020-01-01→2022-12-31  ok                              net=   172,774  worst_tdd=0.70%
   2017-01-01→2019-12-31  ok                              net=    31,689  worst_tdd=1.12%
   2022-01-01→2024-12-31  ok                              net=   143,100  worst_tdd=0.00%
+  2019-07-01→2022-06-30  ok                              net=   174,023  worst_tdd=0.12%
+  → 5/5 pass
+
+── OOS Windows (4 windows) ──────────────────────────
