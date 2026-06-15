@@ -3,3 +3,4 @@ Portfolio validation: 3 configs × 38 windows  workers=4
 ── Train Windows (5 windows) ──────────────────────────
   2016-01-01→2018-12-31  ok                              net=    34,864  worst_tdd=0.00%
   2020-01-01→2022-12-31  ok                              net=   172,774  worst_tdd=0.70%
+  2017-01-01→2019-12-31  ok                              net=    31,689  worst_tdd=1.12%
