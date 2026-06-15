@@ -5,3 +5,4 @@
 [stage5] trial   2  OK  obj=      34,524  maximin=    34,524  tdd=6.41%  calm=1.0 vol=0.65
 [stage5] trial   0  OK  obj=      24,490  maximin=    45,708  tdd=9.03%  calm=1.15 vol=0.55
 [stage5] trial   1  OK  obj=      81,396  maximin=    81,396  tdd=6.66%  calm=1.3 vol=0.45
+[stage5] trial   5  BREACH  survived=2/5  calm=1.2000000000000002 vol=0.55
