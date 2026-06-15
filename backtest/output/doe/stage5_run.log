@@ -2,3 +2,5 @@
   optuna_warn(
 [stage5] Enqueued 4 seed trials
 [stage5] BASE_RISK=1.0%  ladder=trial170  0 done, 150 remaining (target 150), jobs=4
+[stage5] trial   2  OK  obj=      34,524  maximin=    34,524  tdd=6.41%  calm=1.0 vol=0.65
+[stage5] trial   0  OK  obj=      24,490  maximin=    45,708  tdd=9.03%  calm=1.15 vol=0.55
