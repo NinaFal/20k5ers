@@ -1,0 +1,4 @@
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+[stage5] Enqueued 4 seed trials
+[stage5] BASE_RISK=1.0%  ladder=trial170  0 done, 150 remaining (target 150), jobs=4

@@ -1,0 +1,3 @@
+[2026-06-15 02:29:33] watchdog_stage5 starting (TRIALS=150 WORKERS=4 pid=4267)
+[2026-06-15 02:29:33] DEAD — relaunching
+[2026-06-15 02:29:43] RELAUNCHED ok
