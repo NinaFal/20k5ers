@@ -44,3 +44,67 @@ Portfolio validation: 3 configs × 38 windows  workers=4
   2021-04-01→2023-04-01  ok                              net=    66,009  worst_tdd=5.14%
   2021-07-01→2023-07-01  ok                              net=    84,618  worst_tdd=5.44%
   2021-10-01→2023-10-01  ok                              net=    86,482  worst_tdd=6.78%
+  2022-01-01→2024-01-01  ok                              net=   108,319  worst_tdd=0.00%
+  → 28/29 pass
+
+==============================================================================
+Stage 5 — Portfolio Validation (trials 170 + 148 + 146 @ 0.33% each)
+Total risk per trade: 0.99%  |  Workers: 4
+==============================================================================
+
+── Train Windows ──
+Pass rate: 5/5
+  2016-01-01→2018-12-31                 ok        net=    34,864  worst_tdd=0.00%
+  2017-01-01→2019-12-31                 ok        net=    31,689  worst_tdd=1.12%
+  2019-07-01→2022-06-30                 ok        net=   174,023  worst_tdd=0.12%
+  2020-01-01→2022-12-31                 ok        net=   172,774  worst_tdd=0.70%
+  2022-01-01→2024-12-31                 ok        net=   143,100  worst_tdd=0.00%
+
+── OOS Windows ──
+Pass rate: 3/4
+  2015-02-01→2024-12-31                 BREACH    net=         0  worst_tdd=0.00%  [trial_170,trial_148,trial_146]
+  2018-01-01→2024-12-31                 ok        net=   407,765  worst_tdd=6.54%
+  2021-01-01→2024-12-31                 ok        net=   173,623  worst_tdd=0.67%
+  2023-01-01→2024-12-31                 ok        net=    79,732  worst_tdd=1.18%
+
+── Walk-Forward (2yr rolling) ──
+Pass rate: 28/29
+  2015-01-01→2016-12-31                 BREACH    net=    -6,519  worst_tdd=4.43%  [trial_170,trial_148,trial_146]
+  2015-04-01→2017-03-31                 ok        net=    20,543  worst_tdd=3.78%
+  2015-07-01→2017-06-30                 ok        net=     6,015  worst_tdd=3.17%
+  2015-10-01→2017-09-30                 ok        net=     4,790  worst_tdd=5.44%
+  2016-01-01→2017-12-31                 ok        net=    45,976  worst_tdd=0.00%
+  2016-04-01→2018-04-01                 ok        net=     5,133  worst_tdd=1.12%
+  2016-07-01→2018-07-01                 ok        net=       461  worst_tdd=4.22%
+  2016-10-01→2018-10-01                 ok        net=     4,365  worst_tdd=7.40%
+  2017-01-01→2019-01-01                 ok        net=     7,891  worst_tdd=1.12%
+  2017-04-01→2019-04-01                 ok        net=     3,550  worst_tdd=3.69%
+  2017-07-01→2019-07-01                 ok        net=    22,025  worst_tdd=0.28%
+  2017-10-01→2019-10-01                 ok        net=    49,330  worst_tdd=0.27%
+  2018-01-01→2020-01-01                 ok        net=     7,517  worst_tdd=6.54%
+  2018-04-01→2020-03-31                 ok        net=    69,653  worst_tdd=2.07%
+  2018-07-01→2020-06-30                 ok        net=    63,852  worst_tdd=4.38%
+  2018-10-01→2020-09-30                 ok        net=    73,844  worst_tdd=2.35%
+  2019-01-01→2020-12-31                 ok        net=    65,222  worst_tdd=1.60%
+  2019-04-01→2021-03-31                 ok        net=    65,909  worst_tdd=2.31%
+  2019-07-01→2021-06-30                 ok        net=   128,864  worst_tdd=0.03%
+  2019-10-01→2021-09-30                 ok        net=    67,547  worst_tdd=0.00%
+  2020-01-01→2021-12-31                 ok        net=   119,066  worst_tdd=0.70%
+  2020-04-01→2022-04-01                 ok        net=    71,302  worst_tdd=2.82%
+  2020-07-01→2022-07-01                 ok        net=    94,315  worst_tdd=2.43%
+  2020-10-01→2022-10-01                 ok        net=    96,760  worst_tdd=4.22%
+  2021-01-01→2023-01-01                 ok        net=    68,456  worst_tdd=0.67%
+  2021-04-01→2023-04-01                 ok        net=    66,009  worst_tdd=5.14%
+  2021-07-01→2023-07-01                 ok        net=    84,618  worst_tdd=5.44%
+  2021-10-01→2023-10-01                 ok        net=    86,482  worst_tdd=6.78%
+  2022-01-01→2024-01-01                 ok        net=   108,319  worst_tdd=0.00%
+
+── Summary ──
+  Walk-forward portfolio: 28/29 (97%)
+  vs single config (trial 170 @ 1.0%): 25/29 (86%)
+
+==============================================================================
+STAGE5_PORTFOLIO_DONE_MARKER
+
+Report: /home/user/20k5ers/backtest/output/doe/stage5_portfolio_report.txt
+STAGE5_PORTFOLIO_DONE_MARKER
