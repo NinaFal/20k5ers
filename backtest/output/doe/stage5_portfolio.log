@@ -12,3 +12,7 @@ Portfolio validation: 3 configs × 38 windows  workers=4
   2015-02-01→2024-12-31  BREACH(trial_170,trial_148,trial_146)  net=         0  worst_tdd=0.00%
   2023-01-01→2024-12-31  ok                              net=    79,732  worst_tdd=1.18%
   2021-01-01→2024-12-31  ok                              net=   173,623  worst_tdd=0.67%
+  2018-01-01→2024-12-31  ok                              net=   407,765  worst_tdd=6.54%
+  → 3/4 pass
+
+── Walk-Forward (29 windows) ──────────────────────────
