@@ -10,3 +10,4 @@ Portfolio validation: 3 configs × 38 windows  workers=4
 
 ── OOS Windows (4 windows) ──────────────────────────
   2015-02-01→2024-12-31  BREACH(trial_170,trial_148,trial_146)  net=         0  worst_tdd=0.00%
+  2023-01-01→2024-12-31  ok                              net=    79,732  worst_tdd=1.18%
