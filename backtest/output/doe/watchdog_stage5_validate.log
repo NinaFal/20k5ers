@@ -1,0 +1,4 @@
+[2026-06-16 21:07:51] watchdog_stage5_validate starting (WORKERS=4 pid=22960)
+[2026-06-16 21:07:51] DEAD — relaunching
+[2026-06-16 21:08:01] RELAUNCHED ok
+[2026-06-16 21:13:01] ALIVE
