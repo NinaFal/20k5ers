@@ -124,3 +124,4 @@ ValueError: Cannot tell a COMPLETE trial.
 [stage5] trial  78  OK  obj=      70,939  maximin=    70,939  tdd=5.33%  calm=0.9 vol=0.55
 [stage5] trial  81  BREACH  survived=4/5  calm=1.0 vol=0.5
 [stage5] trial  82  OK  obj=     -10,584  maximin=    35,624  tdd=9.52%  calm=1.3 vol=1.35
+[stage5] trial  83  OK  obj=      29,679  maximin=    29,679  tdd=5.88%  calm=1.15 vol=0.4
