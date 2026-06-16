@@ -85,3 +85,7 @@ ValueError: Cannot tell a COMPLETE trial.
 [stage5] trial  47  BREACH  survived=3/5  calm=0.9 vol=0.9500000000000001
 [stage5] trial  45  OK  obj=      30,529  maximin=    30,529  tdd=6.9%  calm=0.9 vol=0.9
 [stage5] trial  46  OK  obj=      11,520  maximin=    31,922  tdd=9.01%  calm=0.9 vol=1.0
+[stage5] cleaned 4 zombie RUNNING trial(s) → FAIL
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+[stage5] BASE_RISK=1.0%  ladder=trial170  48 done, 102 remaining (target 150), jobs=4
