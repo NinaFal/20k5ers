@@ -815,6 +815,26 @@
       "mae_r_median": 0.431,
       "tp1_hits": 516,
       "tp1_hit_rate": 78.7
+    },
+    {
+      "start": "2019-10-01",
+      "end": "2021-09-30",
+      "failed": false,
+      "net": 166448,
+      "max_tdd": 7.17,
+      "max_ddd": 4.61,
+      "win_rate": 56.2,
+      "trades": 717,
+      "survived_days": 0,
+      "final_funded": 175000,
+      "scalings": 7,
+      "withdrawn": 53132,
+      "breach_type": "",
+      "mfe_r_median": 0.686,
+      "mfe_r_p75": 1.272,
+      "mae_r_median": 0.398,
+      "tp1_hits": 535,
+      "tp1_hit_rate": 74.6
     }
   ]
 }
