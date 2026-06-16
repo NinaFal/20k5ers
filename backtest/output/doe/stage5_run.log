@@ -89,3 +89,5 @@ ValueError: Cannot tell a COMPLETE trial.
 /usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
   optuna_warn(
 [stage5] BASE_RISK=1.0%  ladder=trial170  48 done, 102 remaining (target 150), jobs=4
+[stage5] trial  55  OK  obj=      72,467  maximin=    72,467  tdd=7.92%  calm=1.05 vol=0.4
+[stage5] trial  53  OK  obj=      34,714  maximin=    34,714  tdd=7.29%  calm=1.2000000000000002 vol=0.65
