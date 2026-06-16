@@ -140,3 +140,4 @@ ValueError: Cannot tell a COMPLETE trial.
 [stage5] trial  98  BREACH  survived=1/5  calm=1.5 vol=1.0
 [stage5] trial  97  BREACH  survived=3/5  calm=1.5 vol=1.35
 [stage5] trial  96  BREACH  survived=4/5  calm=1.4500000000000002 vol=1.6
+[stage5] trial  99  BREACH  survived=3/5  calm=0.8 vol=0.8
