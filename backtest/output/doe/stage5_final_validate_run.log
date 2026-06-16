@@ -105,3 +105,56 @@
 [2026-06-16 22:07:44] [walk] DONE  2021-04-01  ok  net=30,847  tdd=8.67%
 [2026-06-16 22:08:06] [walk] DONE  2021-10-01  ok  net=112,560  tdd=6.52%
 [2026-06-16 22:08:10] [walk] DONE  2021-07-01  ok  net=179,847  tdd=8.92%
+[2026-06-16 22:09:35] [walk] DONE  2022-01-01  ok  net=342,487  tdd=6.72%
+
+==============================================================================
+Stage 5 Final Validation — Stage 1+2+3+4+5 Locked Config
+Risk regime: trial 157 (calm=1.30, vol=1.05, tdd_wall=6.72%)
+TP ladder:   trial 170 (risk=1.0%)
+Generated: 2026-06-16 22:09:35
+==============================================================================
+
+── OOS Gauntlet ──────────────────────────────────────────
+Pass rate: 2/6 (33%)  (5 OOS + 1 full 10-yr)
+  2015-02-01 [OOS]             BREACH   net=   146,256  tdd= 9.86%  ddd= 5.22%  scalings=6  withdrawn=40,268
+  2018-01-01 [OOS]             BREACH   net=   573,990  tdd= 5.29%  ddd=12.13%  scalings=13  withdrawn=225,002
+  2021-01-01 [OOS]             BREACH   net=    37,081  tdd=10.05%  ddd= 3.60%  scalings=3  withdrawn=15,128
+  2023-01-01 [OOS]             ok       net=    25,796  tdd= 6.86%  ddd= 4.85%  scalings=2  withdrawn=9,231
+  2023-07-01 [OOS]             ok       net=    72,293  tdd= 4.92%  ddd= 3.65%  scalings=4  withdrawn=21,852
+  2015-01-01 [FULL]            BREACH   net=    92,156  tdd=10.10%  ddd= 3.17%  scalings=5  withdrawn=29,781
+  OOS net P&L range: $25,796 .. $72,293  avg=$49,044
+
+── Train Window Re-check ─────────────────────────────────
+Pass rate: 5/5 (100%)
+  2022-01-01..2024-12-31       ok       net=   543,996  tdd= 6.72%  ddd= 4.04%  scalings=12  withdrawn=169,302
+  2016-01-01..2018-12-31       ok       net=   184,166  tdd= 5.01%  ddd= 4.22%  scalings=7  withdrawn=55,227
+  2020-01-01..2022-12-31       ok       net=   380,180  tdd= 5.37%  ddd= 4.75%  scalings=10  withdrawn=111,678
+  2017-01-01..2019-12-31       ok       net=   145,916  tdd= 6.00%  ddd= 3.31%  scalings=6  withdrawn=39,632
+  2019-07-01..2022-06-30       ok       net=   146,343  tdd= 6.17%  ddd= 3.47%  scalings=6  withdrawn=44,367
+  Worst net (maximin): $145,916  avg=$280,120
+
+── Gap / Slippage Stress ─────────────────────────────────
+Window                     slip(pips)  outcome  maxDDD%          net
+  2022-01-01                      0.5        ok     4.04       543,996
+  2022-01-01                      1.0        ok     3.53       560,789
+  2022-01-01                      2.0    BREACH     6.80       290,846
+  2022-01-01                      5.0        ok     4.03       349,051
+  2022-01-01                     10.0        ok     3.36        68,168
+  2016-01-01                      0.5        ok     4.22       184,166
+  2016-01-01                      1.0        ok     3.16       141,161
+  2016-01-01                      2.0        ok     3.25        63,907
+  2016-01-01                      5.0        ok     3.91        63,127
+  2016-01-01                     10.0        ok     3.25        23,503
+  First breach: 2022-01-01 at 2.0 pips
+
+── Walk-Forward Survival ─────────────────────────────────
+Pass rate: 28/29 (97%)  (730d horizon, step=3mo)
+  Survived   28  net: $-3,362 .. $342,487  avg=$86,319
+  Breached    1  starts: 2021-01-01
+
+==============================================================================
+STAGE5_VALIDATION_DONE_MARKER
+
+[2026-06-16 22:09:35] Results: /home/user/20k5ers/backtest/output/doe/stage5_final_validation.json
+[2026-06-16 22:09:35] Report:  /home/user/20k5ers/backtest/output/doe/stage5_final_validation_report.txt
+[2026-06-16 22:09:35] STAGE5_VALIDATION_DONE_MARKER
