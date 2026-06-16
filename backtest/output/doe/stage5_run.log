@@ -188,3 +188,4 @@ ValueError: Cannot tell a COMPLETE trial.
   optuna_warn(
 [stage5] trial 138  BREACH  survived=2/5  calm=1.3 vol=1.0
 [stage5] trial 137  OK  obj=      -1,910  maximin=    37,290  tdd=9.4%  calm=1.35 vol=0.6000000000000001
+[stage5] trial 139  OK  obj=     142,224  maximin=   142,224  tdd=7.55%  calm=1.4 vol=1.0
