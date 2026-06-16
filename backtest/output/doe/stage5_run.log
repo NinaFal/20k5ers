@@ -204,3 +204,4 @@ ValueError: Cannot tell a COMPLETE trial.
 [stage5] trial 152  OK  obj=      19,154  maximin=    19,154  tdd=6.96%  calm=1.25 vol=0.9
 [stage5] trial 153  OK  obj=     -15,908  maximin=    50,340  tdd=9.82%  calm=1.5 vol=0.5
 [stage5] trial 154  OK  obj=     104,330  maximin=   104,330  tdd=6.68%  calm=1.15 vol=1.25
+[stage5] trial 155  OK  obj=      12,785  maximin=    12,785  tdd=7.55%  calm=1.4 vol=1.05
