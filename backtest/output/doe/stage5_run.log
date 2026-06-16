@@ -158,3 +158,6 @@ ValueError: Cannot tell a COMPLETE trial.
 [stage5] trial 117  BREACH  survived=1/5  calm=1.4 vol=1.1
 [stage5] trial 114  OK  obj=      20,606  maximin=    26,438  tdd=8.54%  calm=1.15 vol=0.75
 [stage5] trial 115  OK  obj=     -33,669  maximin=    11,933  tdd=9.51%  calm=1.0 vol=0.4
+[stage5] trial 116  BREACH  survived=4/5  calm=0.95 vol=1.7000000000000002
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.35000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.35].
+  optuna_warn(
