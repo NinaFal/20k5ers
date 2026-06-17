@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-Stage 5 OOS Screener — run top-N Stage 5 trials through all 6 OOS windows
-and report which ones survive DDD/TDD constraints.
+Stage 5 OOS Screener — flat-pool design.
+
+Submits ALL (top-N trials × 6 OOS windows) = up to 120 tasks to one
+ThreadPoolExecutor so workers never idle between trials.
 
 Usage:
-    python -u backtest/src/stage5_oos_screen.py [--top 20] [--workers 4]
+    python -u backtest/src/stage5_oos_screen.py [--top 20] [--workers 6]
 
 Reads  : backtest/output/doe/stage5.csv
 Writes : backtest/output/doe/stage5_oos_screen.json
@@ -17,6 +19,7 @@ import importlib.util
 import json
 import os
 import sys
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
@@ -27,10 +30,10 @@ _spec = importlib.util.spec_from_file_location("doe_harness", str(HERE / "doe_ha
 dh = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(dh)
 
-DOE_DIR     = REPO / "backtest" / "output" / "doe"
-CSV_IN      = DOE_DIR / "stage5.csv"
-JSON_OUT    = DOE_DIR / "stage5_oos_screen.json"
-REPORT_OUT  = DOE_DIR / "stage5_oos_screen_report.txt"
+DOE_DIR    = REPO / "backtest" / "output" / "doe"
+CSV_IN     = DOE_DIR / "stage5.csv"
+JSON_OUT   = DOE_DIR / "stage5_oos_screen.json"
+REPORT_OUT = DOE_DIR / "stage5_oos_screen_report.txt"
 
 FULL_END   = "2024-12-31"
 FULL_START = "2015-01-01"
@@ -42,6 +45,7 @@ OOS_STARTS = [
     "2023-07-01",
 ]
 OOS_TASKS = [(s, FULL_END) for s in OOS_STARTS] + [(FULL_START, FULL_END)]
+N_WINDOWS  = len(OOS_TASKS)
 
 PARAM_COLS = [
     "RISK_CALM_MULT", "RISK_VOLATILE_MULT", "VOL_REGIME_DD_OFF",
@@ -55,7 +59,6 @@ FIXED_ENV = {
     "VOL_SIZE_ENABLE":    "0",
     "VOL_REGIME_DD_MULT": "1.0",
 }
-
 PINNED_ENTRY = {
     "trend_min_confluence":     6,
     "range_min_confluence":     3,
@@ -112,110 +115,67 @@ def env_from_row(row: dict) -> dict:
     return env
 
 
-def run_oos_window(env_over, start, end):
-    r = dh.run_single(env_over, TP_OVER, start, end)
-    a = dh.extract_attrs(r)
-    return {"start": start, "end": end, **a}
-
-
-def screen_trial(trial_row: dict, workers: int) -> dict:
-    trial_id = trial_row.get("trial", "?")
-    env_over  = env_from_row(trial_row)
-    calm = trial_row.get("RISK_CALM_MULT", "?")
-    vol  = trial_row.get("RISK_VOLATILE_MULT", "?")
-    obj  = trial_row.get("objective", "?")
-
-    print(f"[{ts()}] [trial {trial_id}] START  obj={float(obj):,.0f}  calm={calm} vol={vol}",
-          flush=True)
-
-    def _run(args):
-        s, e = args
-        r = run_oos_window(env_over, s, e)
-        label = "[FULL]" if s == FULL_START else "[OOS ]"
-        status = "BREACH" if r.get("failed") else "ok   "
-        print(f"[{ts()}] [trial {trial_id}] {label} {s}  {status}"
-              f"  net={r.get('net',0):>10,.0f}  tdd={r.get('max_tdd',0):.2f}%"
-              f"  ddd={r.get('max_ddd',0):.2f}%", flush=True)
-        return r
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
-        windows = list(ex.map(_run, OOS_TASKS))
-
+def trial_summary(trial_id: int, row: dict, windows: list[dict]) -> dict:
     oos_wins   = [w for w in windows if w["start"] != FULL_START]
     full_win   = next((w for w in windows if w["start"] == FULL_START), None)
     n_pass_oos = sum(1 for w in oos_wins if not w.get("failed"))
-    pass_full  = full_win and not full_win.get("failed")
-
-    all_pass = (n_pass_oos == len(oos_wins)) and pass_full
-    verdict  = "PASS" if all_pass else "FAIL"
-
-    max_ddd = max((w.get("max_ddd", 0) or 0) for w in windows)
-    max_tdd = max((w.get("max_tdd", 0) or 0) for w in windows)
-
-    print(f"[{ts()}] [trial {trial_id}] {verdict}  "
-          f"OOS {n_pass_oos}/{len(oos_wins)}  full={'PASS' if pass_full else 'FAIL'}"
-          f"  peak_ddd={max_ddd:.2f}%  peak_tdd={max_tdd:.2f}%", flush=True)
-
+    pass_full  = bool(full_win and not full_win.get("failed"))
+    all_pass   = (n_pass_oos == len(oos_wins)) and pass_full
+    max_ddd    = max((w.get("max_ddd", 0) or 0) for w in windows)
+    max_tdd    = max((w.get("max_tdd", 0) or 0) for w in windows)
     return {
-        "trial":    int(trial_id),
-        "obj":      float(obj),
-        "calm":     float(calm),
-        "vol":      float(vol),
-        "verdict":  verdict,
-        "oos_pass": n_pass_oos,
+        "trial":     trial_id,
+        "obj":       float(row.get("objective", 0)),
+        "calm":      float(row.get("RISK_CALM_MULT", 0)),
+        "vol":       float(row.get("RISK_VOLATILE_MULT", 0)),
+        "verdict":   "PASS" if all_pass else "FAIL",
+        "oos_pass":  n_pass_oos,
         "oos_total": len(oos_wins),
-        "full_pass": bool(pass_full),
-        "peak_ddd": round(max_ddd, 2),
-        "peak_tdd": round(max_tdd, 2),
-        "windows":  windows,
-        "env":      env_over,
+        "full_pass": pass_full,
+        "peak_ddd":  round(max_ddd, 2),
+        "peak_tdd":  round(max_tdd, 2),
+        "windows":   windows,
+        "env":       env_from_row(row),
     }
 
 
 def write_report(results: list[dict], top_n: int):
     lines = [
-        f"Stage 5 OOS Screen — top {top_n} trials",
-        f"Generated: {ts()}",
+        f"Stage 5 OOS Screen — top {top_n} trials  [{ts()}]",
         f"OOS windows: {len(OOS_STARTS)} starts + 1 full (2015-2024)",
         "",
-        f"{'Rank':<5} {'Trial':<7} {'Verdict':<8} {'OOS pass':<10} {'Full':<6}"
-        f"{'peakDDD%':>9} {'peakTDD%':>9} {'Obj':>12} {'calm':>6} {'vol':>6}",
-        "-" * 75,
+        f"{'Rank':<5}{'Trial':<7}{'Verdict':<9}{'OOS pass':<11}{'Full':<6}"
+        f"{'peakDDD%':>9}{'peakTDD%':>9}{'Obj':>13}{'calm':>7}{'vol':>6}",
+        "-" * 78,
     ]
     for i, r in enumerate(results, 1):
         full_s = "PASS" if r["full_pass"] else "FAIL"
         lines.append(
-            f"  {i:<4} {r['trial']:<7} {r['verdict']:<8} "
-            f"{r['oos_pass']}/{r['oos_total']}       {full_s:<6}"
+            f"  {i:<4}{r['trial']:<7}{r['verdict']:<9}"
+            f"{r['oos_pass']}/{r['oos_total']}        {full_s:<6}"
             f"{r['peak_ddd']:>8.2f}  {r['peak_tdd']:>8.2f}"
             f"  {r['obj']:>11,.0f}  {r['calm']:>5.2f}  {r['vol']:>5.2f}"
         )
-
     passing = [r for r in results if r["verdict"] == "PASS"]
-    lines += [
-        "",
-        f"Passing: {len(passing)}/{len(results)}",
-    ]
+    lines += ["", f"Passing: {len(passing)}/{len(results)}"]
     if passing:
-        lines.append("")
-        lines.append("── Best passing trial detail ──")
         best = passing[0]
-        lines.append(f"  Trial {best['trial']}  obj={best['obj']:,.0f}  calm={best['calm']}  vol={best['vol']}")
-        lines.append("  OOS windows:")
+        lines += [
+            "",
+            "── Best passing trial ──",
+            f"  Trial {best['trial']}  obj={best['obj']:,.0f}  calm={best['calm']}  vol={best['vol']}",
+            "  OOS windows:",
+        ]
         for w in best["windows"]:
-            label = "[FULL]" if w["start"] == FULL_START else "[OOS ]"
+            label  = "[FULL]" if w["start"] == FULL_START else "[OOS ]"
             status = "BREACH" if w.get("failed") else "ok"
             lines.append(f"    {label} {w['start']}  {status:<8}"
                          f"  net={w.get('net',0):>10,.0f}"
                          f"  tdd={w.get('max_tdd',0):>5.2f}%  ddd={w.get('max_ddd',0):>5.2f}%")
-        lines.append("")
-        lines.append("  WINNER_ENV:")
+        lines += ["", "  WINNER_ENV:"]
         for k, v in best["env"].items():
             lines.append(f"    {k} = {v}")
-
-    lines.append("")
-    lines.append("[stage5_oos_screen] STAGE5_OOS_SCREEN_DONE_MARKER")
-
+    lines += ["", "[stage5_oos_screen] STAGE5_OOS_SCREEN_DONE_MARKER"]
     text = "\n".join(lines) + "\n"
     REPORT_OUT.write_text(text)
     print(text, flush=True)
@@ -224,42 +184,86 @@ def write_report(results: list[dict], top_n: int):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--top",     type=int, default=20)
-    ap.add_argument("--workers", type=int, default=int(os.getenv("VAL_WORKERS", "4")))
+    ap.add_argument("--workers", type=int, default=int(os.getenv("VAL_WORKERS", "6")))
     args = ap.parse_args()
 
     DOE_DIR.mkdir(parents=True, exist_ok=True)
 
-    print(f"[{ts()}] Stage 5 OOS screen — top {args.top} trials, {args.workers} workers",
-          flush=True)
-
-    trials = load_top_trials(args.top)
-    print(f"[{ts()}] Loaded {len(trials)} trials from {CSV_IN}", flush=True)
-    if not trials:
-        print("No trials found — exiting", flush=True)
-        sys.exit(1)
-
-    results = []
+    # Load checkpoint
+    done_results: list[dict] = []
+    done_ids: set[int] = set()
     if JSON_OUT.exists():
         try:
-            existing = json.loads(JSON_OUT.read_text())
-            done_ids = {r["trial"] for r in existing}
-            results  = existing
-            print(f"[{ts()}] Resuming — {len(done_ids)} already done: {sorted(done_ids)}",
+            done_results = json.loads(JSON_OUT.read_text())
+            done_ids = {r["trial"] for r in done_results}
+            print(f"[{ts()}] Checkpoint: {len(done_ids)} trials already done: {sorted(done_ids)}",
                   flush=True)
         except Exception:
-            done_ids = set()
-    else:
-        done_ids = set()
+            pass
 
-    for row in trials:
+    trials = load_top_trials(args.top)
+    pending = [r for r in trials if int(r.get("trial", -1)) not in done_ids]
+    print(f"[{ts()}] Flat-pool OOS screen: {len(pending)} pending trials × {N_WINDOWS} windows"
+          f" = {len(pending)*N_WINDOWS} tasks  workers={args.workers}", flush=True)
+
+    if not pending:
+        print(f"[{ts()}] All trials already done.", flush=True)
+        results = sorted(done_results, key=lambda x: (x["verdict"] != "PASS", -x["obj"]))
+        write_report(results, args.top)
+        return
+
+    # Build flat task list: (trial_row, start, end)
+    tasks = [(row, s, e) for row in pending for (s, e) in OOS_TASKS]
+
+    # Accumulate window results per trial
+    trial_windows: dict[int, list] = defaultdict(list)
+    trial_rows:    dict[int, dict] = {}
+    for row in pending:
         tid = int(row.get("trial", -1))
-        if tid in done_ids:
-            print(f"[{ts()}] [trial {tid}] already done — skipping", flush=True)
-            continue
-        r = screen_trial(row, args.workers)
-        results.append(r)
-        done_ids.add(tid)
-        JSON_OUT.write_text(json.dumps(results, indent=2, default=str))
+        trial_rows[tid] = row
+
+    results = list(done_results)
+
+    def run_task(args_tuple):
+        row, start, end = args_tuple
+        tid     = int(row.get("trial", -1))
+        env_over = env_from_row(row)
+        r = dh.run_single(env_over, TP_OVER, start, end)
+        a = dh.extract_attrs(r)
+        win = {"start": start, "end": end, **a}
+        label  = "[FULL]" if start == FULL_START else "[OOS ]"
+        status = "BREACH" if a.get("failed") else "ok   "
+        print(f"[{ts()}] t{tid:3d} {label} {start}  {status}"
+              f"  net={a.get('net',0):>10,.0f}"
+              f"  tdd={a.get('max_tdd',0):.2f}%  ddd={a.get('max_ddd',0):.2f}%",
+              flush=True)
+        return tid, win
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as ex:
+        futs = {ex.submit(run_task, t): t for t in tasks}
+        for fut in concurrent.futures.as_completed(futs):
+            try:
+                tid, win = fut.result()
+            except Exception as exc:
+                row, start, end = futs[fut]
+                tid = int(row.get("trial", -1))
+                print(f"[{ts()}] t{tid:3d} ERROR {start}: {exc}", flush=True)
+                win = {"start": start, "end": end, "failed": True,
+                       "net": 0, "max_tdd": 0, "max_ddd": 0}
+
+            trial_windows[tid].append(win)
+
+            # Checkpoint when all windows for this trial are done
+            if len(trial_windows[tid]) == N_WINDOWS:
+                summary = trial_summary(tid, trial_rows[tid], trial_windows[tid])
+                results.append(summary)
+                verdict = summary["verdict"]
+                print(f"[{ts()}] t{tid:3d} {verdict}  "
+                      f"OOS {summary['oos_pass']}/{summary['oos_total']}"
+                      f"  full={'PASS' if summary['full_pass'] else 'FAIL'}"
+                      f"  peak_ddd={summary['peak_ddd']:.2f}%"
+                      f"  peak_tdd={summary['peak_tdd']:.2f}%", flush=True)
+                JSON_OUT.write_text(json.dumps(results, indent=2, default=str))
 
     results.sort(key=lambda x: (x["verdict"] != "PASS", -x["obj"]))
     JSON_OUT.write_text(json.dumps(results, indent=2, default=str))
