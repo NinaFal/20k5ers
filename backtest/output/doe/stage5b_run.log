@@ -1,0 +1,10 @@
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+[stage5b] Enqueued 4 seed trials
+[stage5b] DDD+TDD penalties  step=0.01 for vol/calm  0 done, 300 remaining (target 300), jobs=4
+/usr/local/lib/python3.11/dist-packages/optuna/trial/_trial.py:664: UserWarning: Fixed parameter RISK_VOLATILE_MULT with value 0.55 is out of range for distribution FloatDistribution(high=1.3, log=False, low=0.6, step=0.01).
+  optuna_warn(
+[stage5b] trial   2  OK  obj=      53,135  tdd=7.94%  ddd=3.99%  calm=1.3 vol=1.0
+[stage5b] trial   0  OK  obj=      47,510  tdd=6.99%  ddd=4.03%  calm=1.0 vol=0.75
+[stage5b] trial   1  OK  obj=      70,939  tdd=5.33%  ddd=3.98%  calm=0.9 vol=0.55
+[stage5b] trial   3  BREACH  survived=4/5  calm=1.1 vol=0.9
