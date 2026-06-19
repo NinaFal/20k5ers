@@ -78,3 +78,4 @@
 [stage5b] trial  65  OK  obj=      21,499  tdd=8.63%  ddd=3.6%  calm=0.97 vol=0.8
 [stage5b] trial  66  OK  obj=      77,303  tdd=6.38%  ddd=4.0%  calm=1.13 vol=0.88
 [stage5b] trial  70  BREACH  survived=1/5  calm=1.2 vol=0.87
+[stage5b] trial  67  OK  obj=     -12,336  tdd=9.69%  ddd=4.02%  calm=0.96 vol=1.2
