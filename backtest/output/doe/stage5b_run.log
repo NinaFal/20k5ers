@@ -65,3 +65,7 @@
   optuna_warn(
 [stage5b] DDD+TDD penalties  step=0.01 for vol/calm  50 done, 250 remaining (target 300), jobs=4
 [stage5b] trial  55  BREACH  survived=0/5  calm=1.04 vol=1.05
+[stage5b] cleaned 4 zombie RUNNING trial(s) → FAIL
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+[stage5b] DDD+TDD penalties  step=0.01 for vol/calm  51 done, 249 remaining (target 300), jobs=4
