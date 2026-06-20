@@ -107,3 +107,17 @@
 [stage5b] trial  93  BREACH  survived=2/5  calm=1.08 vol=0.6699999999999999
 [stage5b] trial  92  OK  obj=      46,599  tdd=6.56%  ddd=4.25%  calm=0.87 vol=0.6699999999999999
 [stage5b] trial  94  BREACH  survived=4/5  calm=0.86 vol=0.61
+[stage5b] trial  96  BREACH  survived=3/5  calm=0.75 vol=0.65
+[stage5b] trial  95  OK  obj=      46,988  tdd=7.15%  ddd=3.56%  calm=0.8799999999999999 vol=0.62
+[stage5b] trial  98  BREACH  survived=4/5  calm=0.9299999999999999 vol=0.71
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.35000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.35].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.1, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.1, 0.3].
+  optuna_warn(
+[stage5b] trial  97  OK  obj=      71,717  tdd=6.0%  ddd=4.48%  calm=0.8799999999999999 vol=0.6699999999999999
+[stage5b] trial 101  BREACH  survived=1/5  calm=0.7999999999999999 vol=0.6699999999999999
+[stage5b] trial  99  OK  obj=      28,386  tdd=4.3%  ddd=3.4%  calm=1.1 vol=0.65
+[stage5b] cleaned 4 zombie RUNNING trial(s) → FAIL
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+[stage5b] DDD+TDD penalties  step=0.01 for vol/calm  93 done, 207 remaining (target 300), jobs=4
