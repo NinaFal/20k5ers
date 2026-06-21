@@ -132,3 +132,9 @@ backtest/src/watchdog_stage5b_oos_screen.sh: line 46: [: 0
 0: integer expression expected
 [2026-06-21 08:40:00] DEAD — relaunching
 [2026-06-21 08:40:10] RELAUNCHED ok
+backtest/src/watchdog_stage5b_oos_screen.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-21 08:45:10] ALIVE
+backtest/src/watchdog_stage5b_oos_screen.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-21 08:50:10] ALIVE

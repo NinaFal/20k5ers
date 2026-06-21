@@ -233,3 +233,5 @@
 /usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
   optuna_warn(
 [stage5b] DDD+TDD penalties  step=0.01 for vol/calm  191 done, 109 remaining (target 300), jobs=4
+[stage5b] trial 213  BREACH  survived=0/5  calm=1.13 vol=0.95
+[stage5b] trial 211  BREACH  survived=1/5  calm=0.8899999999999999 vol=0.61
