@@ -80,3 +80,4 @@
 [2026-06-21 08:40:00] Flat-pool OOS screen: 9 pending trials × 6 windows = 54 tasks  workers=2
 [2026-06-21 08:52:27] t195 [OOS ] 2018-01-01  ok     net=   374,310  tdd=8.92%  ddd=3.50%
 [2026-06-21 08:53:01] t195 [OOS ] 2015-02-01  BREACH  net=   606,237  tdd=4.80%  ddd=8.05%
+[2026-06-21 08:56:15] t195 [OOS ] 2023-01-01  ok     net=    43,771  tdd=6.50%  ddd=3.23%

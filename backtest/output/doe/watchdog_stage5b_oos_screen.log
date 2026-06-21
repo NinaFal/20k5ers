@@ -138,3 +138,6 @@ backtest/src/watchdog_stage5b_oos_screen.sh: line 46: [: 0
 backtest/src/watchdog_stage5b_oos_screen.sh: line 46: [: 0
 0: integer expression expected
 [2026-06-21 08:50:10] ALIVE
+backtest/src/watchdog_stage5b_oos_screen.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-21 08:55:10] ALIVE
