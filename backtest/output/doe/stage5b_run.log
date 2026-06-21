@@ -221,3 +221,4 @@
 [stage5b] trial 198  OK  obj=      30,737  tdd=6.03%  ddd=3.3%  calm=0.8999999999999999 vol=0.72
 /usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.35000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.35].
   optuna_warn(
+[stage5b] trial 202  BREACH  survived=0/5  calm=1.1199999999999999 vol=0.72
