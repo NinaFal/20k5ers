@@ -208,3 +208,7 @@
   optuna_warn(
 [stage5b] trial 187  OK  obj=      10,513  tdd=8.67%  ddd=3.62%  calm=1.01 vol=0.73
 [stage5b] trial 186  BREACH  survived=4/5  calm=1.27 vol=1.1
+[stage5b] trial 189  BREACH  survived=4/5  calm=1.3900000000000001 vol=1.3
+[stage5b] trial 188  OK  obj=     -61,222  tdd=9.95%  ddd=3.39%  calm=1.14 vol=0.82
+[stage5b] trial 192  BREACH  survived=2/5  calm=0.95 vol=1.13
+[stage5b] trial 191  BREACH  survived=4/5  calm=0.9099999999999999 vol=0.73
