@@ -212,3 +212,6 @@
 [stage5b] trial 188  OK  obj=     -61,222  tdd=9.95%  ddd=3.39%  calm=1.14 vol=0.82
 [stage5b] trial 192  BREACH  survived=2/5  calm=0.95 vol=1.13
 [stage5b] trial 191  BREACH  survived=4/5  calm=0.9099999999999999 vol=0.73
+[stage5b] trial 190  OK  obj=      17,421  tdd=5.96%  ddd=3.36%  calm=0.7 vol=0.6599999999999999
+[stage5b] trial 193  OK  obj=      33,731  tdd=4.6%  ddd=3.31%  calm=0.7799999999999999 vol=0.62
+[stage5b] trial 194  OK  obj=      25,515  tdd=7.59%  ddd=3.59%  calm=0.8999999999999999 vol=0.72
