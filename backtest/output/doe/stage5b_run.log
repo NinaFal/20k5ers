@@ -342,3 +342,4 @@
 [stage5b] trial 308  OK  obj=      30,635  tdd=3.67%  ddd=3.39%  calm=0.8899999999999999 vol=0.61
 [stage5b] trial 306  OK  obj=     -19,977  tdd=9.78%  ddd=4.75%  calm=1.27 vol=0.75
 [stage5b] trial 311  OK  obj=      23,466  tdd=6.71%  ddd=4.96%  calm=1.25 vol=1.13
+[stage5b] trial 312  OK  obj=      29,013  tdd=7.69%  ddd=3.08%  calm=1.5 vol=0.76
