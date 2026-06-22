@@ -305,3 +305,5 @@
 [stage5b] trial 277  BREACH  survived=1/5  calm=1.0899999999999999 vol=0.65
 [stage5b] trial 276  BREACH  survived=2/5  calm=1.16 vol=0.73
 [stage5b] trial 273  OK  obj=     -46,559  tdd=9.93%  ddd=3.48%  calm=1.21 vol=1.0899999999999999
+[stage5b] trial 280  BREACH  survived=0/5  calm=0.9099999999999999 vol=0.79
+[stage5b] trial 275  OK  obj=     -26,580  tdd=9.36%  ddd=3.13%  calm=1.48 vol=0.95
