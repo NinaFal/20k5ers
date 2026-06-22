@@ -332,3 +332,6 @@
 [stage5b] trial 299  OK  obj=      22,661  tdd=8.58%  ddd=3.32%  calm=1.19 vol=0.82
 [stage5b] trial 303  BREACH  survived=1/5  calm=0.82 vol=1.18
 [stage5b] trial 300  OK  obj=     -36,681  tdd=9.63%  ddd=3.67%  calm=1.3399999999999999 vol=0.62
+[stage5b] trial 304  BREACH  survived=2/5  calm=1.17 vol=0.65
+[stage5b] trial 302  OK  obj=      27,909  tdd=7.59%  ddd=3.49%  calm=0.72 vol=0.82
+[stage5b] trial 301  OK  obj=      31,040  tdd=7.53%  ddd=3.85%  calm=0.83 vol=0.77
