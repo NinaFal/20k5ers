@@ -343,3 +343,16 @@
 [stage5b] trial 306  OK  obj=     -19,977  tdd=9.78%  ddd=4.75%  calm=1.27 vol=0.75
 [stage5b] trial 311  OK  obj=      23,466  tdd=6.71%  ddd=4.96%  calm=1.25 vol=1.13
 [stage5b] trial 312  OK  obj=      29,013  tdd=7.69%  ddd=3.08%  calm=1.5 vol=0.76
+[stage5b] trial 316  BREACH  survived=0/5  calm=1.17 vol=0.95
+[stage5b] trial 313  OK  obj=      51,525  tdd=8.1%  ddd=3.86%  calm=0.8999999999999999 vol=0.9099999999999999
+[stage5b] trial 314  OK  obj=      32,080  tdd=6.79%  ddd=3.51%  calm=0.97 vol=0.71
+[stage5b] trial 317  BREACH  survived=2/5  calm=1.33 vol=1.0
+[stage5b] trial 315  OK  obj=     -30,166  tdd=9.94%  ddd=3.43%  calm=1.3599999999999999 vol=0.94
+[stage5b] trial 319  BREACH  survived=2/5  calm=1.13 vol=1.17
+[stage5b] trial 318  BREACH  survived=3/5  calm=0.99 vol=0.9299999999999999
+[stage5b] trial 322  BREACH  survived=0/5  calm=1.01 vol=0.96
+[stage5b] trial 320  BREACH  survived=1/5  calm=0.7 vol=0.74
+[stage5b] cleaned 2 zombie RUNNING trial(s) → FAIL
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+[stage5b] DDD+TDD penalties  step=0.01 for vol/calm  298 done, 2 remaining (target 300), jobs=4
