@@ -30,3 +30,10 @@
 [stage5c] trial  18  BREACH  survived=5/6  calm=0.97 vol=0.65
 /usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.3].
   optuna_warn(
+[stage5c] trial  19  OK  obj=      48,150  tdd=8.01%  ddd=4.25%  calm=0.86 vol=0.77
+[stage5c] trial  21  BREACH  survived=2/6  calm=1.3900000000000001 vol=0.9199999999999999
+[stage5c] trial  20  BREACH  survived=5/6  calm=1.3199999999999998 vol=1.08
+[stage5c] trial  23  BREACH  survived=2/6  calm=1.3399999999999999 vol=1.06
+[stage5c] trial  22  BREACH  survived=5/6  calm=1.05 vol=0.84
+[stage5c] trial  26  BREACH  survived=1/6  calm=0.8799999999999999 vol=0.63
+[stage5c] trial  24  BREACH  survived=4/6  calm=1.0699999999999998 vol=1.08
