@@ -1,0 +1,5 @@
+[2026-06-23 20:54:11] watchdog_stage5c starting (TRIALS=300 WORKERS=4 pid=4478)
+[2026-06-23 20:54:11] DEAD — relaunching
+[2026-06-23 20:54:26] RELAUNCHED ok
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
