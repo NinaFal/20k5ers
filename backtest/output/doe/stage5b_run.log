@@ -357,3 +357,5 @@
   optuna_warn(
 [stage5b] DDD+TDD penalties  step=0.01 for vol/calm  298 done, 2 remaining (target 300), jobs=4
 [stage5b] trial 325  BREACH  survived=0/5  calm=0.84 vol=1.07
+[stage5b] STAGE5B_DONE_MARKER
+[stage5b] BEST trial=122  obj=104,394  vol=1.22  calm=1.19
