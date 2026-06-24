@@ -94,3 +94,14 @@
 [stage5c] trial  74  BREACH  survived=5/6  calm=1.37 vol=1.26
 [stage5c] trial  77  BREACH  survived=2/6  calm=1.35 vol=0.9299999999999999
 [stage5c] trial  79  BREACH  survived=1/6  calm=1.14 vol=1.27
+[stage5c] trial  80  BREACH  survived=3/6  calm=1.4 vol=1.28
+[stage5c] trial  78  OK  obj=      85,955  tdd=9.24%  ddd=4.47%  calm=1.41 vol=1.24
+[stage5c] trial  82  BREACH  survived=5/6  calm=0.8899999999999999 vol=0.62
+[stage5c] trial  81  OK  obj=      17,850  tdd=8.99%  ddd=4.78%  calm=1.24 vol=1.04
+[stage5c] trial  84  BREACH  survived=2/6  calm=1.25 vol=1.05
+[stage5c] trial  86  BREACH  survived=0/6  calm=1.3599999999999999 vol=1.1099999999999999
+[stage5c] trial  83  BREACH  survived=4/6  calm=1.14 vol=1.05
+[stage5c] trial  85  BREACH  survived=3/6  calm=1.21 vol=1.01
+[stage5c] trial  87  BREACH  survived=2/6  calm=1.44 vol=0.86
+[stage5c] trial  88  BREACH  survived=2/6  calm=1.48 vol=1.29
+[stage5c] trial  91  BREACH  survived=0/6  calm=1.35 vol=1.3
