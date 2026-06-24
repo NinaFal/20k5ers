@@ -130,3 +130,12 @@
 [stage5c] trial 111  BREACH  survived=4/6  calm=1.05 vol=0.73
 [stage5c] trial 110  BREACH  survived=5/6  calm=1.35 vol=0.99
 [stage5c] trial 112  BREACH  survived=5/6  calm=1.04 vol=0.6599999999999999
+[stage5c] trial 113  OK  obj=      47,649  tdd=5.6%  ddd=3.8%  calm=1.03 vol=1.02
+[stage5c] trial 115  OK  obj=      21,014  tdd=8.62%  ddd=3.9%  calm=0.8899999999999999 vol=0.61
+[stage5c] trial 114  OK  obj=      11,566  tdd=9.02%  ddd=3.95%  calm=0.9099999999999999 vol=0.61
+[stage5c] trial 119  BREACH  survived=0/6  calm=1.38 vol=0.78
+[stage5c] trial 116  BREACH  survived=5/6  calm=1.2999999999999998 vol=1.15
+[stage5c] trial 121  BREACH  survived=2/6  calm=1.0 vol=1.06
+[stage5c] trial 117  OK  obj=      31,763  tdd=7.69%  ddd=3.77%  calm=0.95 vol=1.01
+[stage5c] trial 118  BREACH  survived=5/6  calm=0.95 vol=1.1400000000000001
+[stage5c] trial 120  BREACH  survived=5/6  calm=0.99 vol=0.87
