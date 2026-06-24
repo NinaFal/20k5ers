@@ -52,3 +52,15 @@
 [stage5c] trial  41  BREACH  survived=0/6  calm=1.25 vol=1.3
 [stage5c] trial  38  OK  obj=      89,561  tdd=8.89%  ddd=4.19%  calm=1.23 vol=1.25
 [stage5c] trial  39  OK  obj=      46,933  tdd=6.93%  ddd=3.75%  calm=0.87 vol=0.71
+[stage5c] trial  40  BREACH  survived=5/6  calm=0.95 vol=0.6799999999999999
+[stage5c] trial  43  BREACH  survived=2/6  calm=1.21 vol=1.25
+[stage5c] trial  44  BREACH  survived=1/6  calm=0.9099999999999999 vol=1.27
+[stage5c] trial  42  BREACH  survived=3/6  calm=0.8799999999999999 vol=0.85
+[stage5c] trial  45  BREACH  survived=0/6  calm=1.21 vol=1.1400000000000001
+[stage5c] trial  48  BREACH  survived=1/6  calm=1.49 vol=1.23
+[stage5c] trial  49  BREACH  survived=0/6  calm=1.17 vol=1.25
+[stage5c] trial  47  BREACH  survived=2/6  calm=1.1199999999999999 vol=1.28
+[stage5c] cleaned 4 zombie RUNNING trial(s) → FAIL
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+[stage5c] DDD+TDD penalties  step=0.01 for vol/calm  49 done, 251 remaining (target 300), jobs=4
