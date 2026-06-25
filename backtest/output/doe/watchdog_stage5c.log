@@ -283,3 +283,26 @@ backtest/src/watchdog_stage5c.sh: line 46: [: 0
 backtest/src/watchdog_stage5c.sh: line 46: [: 0
 0: integer expression expected
 [2026-06-25 02:22:19] ALIVE — 188/300
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 02:27:19] ALIVE — 191/300
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 02:32:19] ALIVE — 191/300
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 02:37:19] ALIVE — 192/300
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 02:42:19] ALIVE — 192/300
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 02:47:19] ALIVE — 192/300
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 02:52:19] ALIVE — 195/300
+[2026-06-25 20:41:01] watchdog_stage5c starting (TRIALS=300 WORKERS=4 pid=2971)
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 20:41:01] DEAD — relaunching
+[2026-06-25 20:41:16] RELAUNCHED ok
