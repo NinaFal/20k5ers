@@ -390,3 +390,9 @@ backtest/src/watchdog_stage5c.sh: line 46: [: 0
 backtest/src/watchdog_stage5c.sh: line 46: [: 0
 0: integer expression expected
 [2026-06-25 23:01:18] ALIVE — 246/300
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 23:06:18] ALIVE — 243/300
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 23:11:18] ALIVE — 245/300
