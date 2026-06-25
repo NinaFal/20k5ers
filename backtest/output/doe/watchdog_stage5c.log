@@ -306,3 +306,21 @@ backtest/src/watchdog_stage5c.sh: line 46: [: 0
 0: integer expression expected
 [2026-06-25 20:41:01] DEAD — relaunching
 [2026-06-25 20:41:16] RELAUNCHED ok
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 20:46:16] ALIVE — 195/300
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 20:51:16] ALIVE — 205/300
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 20:56:16] ALIVE — 203/300
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 21:01:16] ALIVE — 206/300
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 21:06:16] ALIVE — 209/300
+backtest/src/watchdog_stage5c.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-25 21:11:16] ALIVE — 208/300
