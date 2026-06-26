@@ -531,3 +531,4 @@ backtest/src/watchdog_stage5c.sh: line 46: [: 0
 backtest/src/watchdog_stage5c.sh: line 46: [: 0
 0: integer expression expected
 [2026-06-26 02:56:20] ALIVE — 308/300
+[2026-06-26 03:01:20] STAGE5C_DONE — watchdog exiting
