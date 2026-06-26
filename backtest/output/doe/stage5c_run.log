@@ -338,3 +338,11 @@
 [stage5c] trial 309  BREACH  survived=0/6  calm=1.4 vol=0.6
 [stage5c] trial 307  BREACH  survived=2/6  calm=1.43 vol=0.88
 [stage5c] trial 310  BREACH  survived=1/6  calm=1.33 vol=0.63
+[stage5c] trial 306  BREACH  survived=4/6  calm=0.87 vol=0.97
+[stage5c] trial 308  OK  obj=       4,553  tdd=9.07%  ddd=4.52%  calm=0.97 vol=0.62
+[stage5c] trial 311  BREACH  survived=5/6  calm=1.1199999999999999 vol=0.63
+
+[stage5c] COMPLETE — 40 survivors
+  BEST obj=172,450  tdd=8.22%  ddd=3.99%  avg_net=358,440  calm=1.41  vol=0.94
+  env: {'RISK_CALM_MULT': 1.41, 'RISK_VOLATILE_MULT': 0.94, 'VOL_REGIME_DD_OFF': 3.0, 'CFG_MAX_CUM_RISK': 5.0, 'CFG_DAILY_HALT_PCT': 1.25, 'CFG_TDD_CAUTION_PCT': 3.5, 'CFG_TDD_WARNING_PCT': 4.5, 'CFG_TDD_EMERGENCY_PCT': 5.5, 'CFG_RISK_CAUTIOUS': 0.25, 'CFG_RISK_CONSERVATIVE': 0.15, 'CFG_RISK_ULTRASAFE': 0.1, 'TDD_WALL_SAFETY': 3.0}
+[stage5c] STAGE5C_DONE_MARKER
