@@ -1915,6 +1915,26 @@
       "mae_r_median": 0.476,
       "tp1_hits": 1134,
       "tp1_hit_rate": 77.4
+    },
+    {
+      "start": "2015-01-01",
+      "end": "2024-12-31",
+      "failed": true,
+      "net": 615053,
+      "max_tdd": 8.47,
+      "max_ddd": 7.39,
+      "win_rate": 55.6,
+      "trades": 2039,
+      "survived_days": 3031,
+      "final_funded": 400000,
+      "scalings": 13,
+      "withdrawn": 227368,
+      "breach_type": "daily",
+      "mfe_r_median": 0.793,
+      "mfe_r_p75": 1.518,
+      "mae_r_median": 0.515,
+      "tp1_hits": 1600,
+      "tp1_hit_rate": 78.5
     }
   ],
   "104": [
@@ -1957,6 +1977,26 @@
       "mae_r_median": 0.407,
       "tp1_hits": 473,
       "tp1_hit_rate": 79.1
+    },
+    {
+      "start": "2021-01-01",
+      "end": "2024-12-31",
+      "failed": false,
+      "net": 103936,
+      "max_tdd": 9.98,
+      "max_ddd": 3.52,
+      "win_rate": 56.4,
+      "trades": 1073,
+      "survived_days": 0,
+      "final_funded": 125000,
+      "scalings": 5,
+      "withdrawn": 29859,
+      "breach_type": "",
+      "mfe_r_median": 0.778,
+      "mfe_r_p75": 1.472,
+      "mae_r_median": 0.492,
+      "tp1_hits": 830,
+      "tp1_hit_rate": 77.4
     }
   ]
 }
