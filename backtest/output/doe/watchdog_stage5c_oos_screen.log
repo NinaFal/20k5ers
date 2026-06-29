@@ -72,3 +72,6 @@ backtest/src/watchdog_stage5c_oos_screen.sh: line 47: [: 0
 [2026-06-29 05:22:03] ALIVE
 [2026-06-29 05:27:03] ALIVE
 [2026-06-29 05:32:04] ALIVE
+[2026-06-29 05:37:04] ALIVE
+[2026-06-29 05:42:04] ALIVE
+[2026-06-29 05:47:04] STAGE5C_OOS_SCREEN_DONE — watchdog exiting
