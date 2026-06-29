@@ -32,14 +32,20 @@ REPORT_OUT = DOE_DIR / "stage5c_oos_screen_report.txt"
 
 FULL_END   = "2024-12-31"
 FULL_START = "2015-01-01"
+# 2015-02-01 dropped: it is a 10-year window starting one month after the FULL
+# 2015-01-01 window and tests the identical cold-start — pure duplicate work.
 OOS_STARTS = [
-    "2015-02-01",
     "2018-01-01",
     "2021-01-01",
     "2023-01-01",
     "2023-07-01",
 ]
-OOS_TASKS = [(s, FULL_END) for s in OOS_STARTS] + [(FULL_START, FULL_END)]
+# Shortest window first so cheap windows complete and checkpoint quickly; the
+# expensive full-history windows run last and alone, each saving immediately.
+OOS_TASKS = sorted(
+    [(s, FULL_END) for s in OOS_STARTS] + [(FULL_START, FULL_END)],
+    key=lambda se: se[0], reverse=True,
+)
 N_WINDOWS  = len(OOS_TASKS)
 
 PARAM_COLS = [

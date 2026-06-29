@@ -11,3 +11,5 @@
 [2026-06-29 01:33:23] Flat-pool OOS screen: 20 pending trials × 6 windows = 117 tasks remaining  workers=4
 [2026-06-29 01:54:49] Window checkpoint: 3 windows already done
 [2026-06-29 01:54:49] Flat-pool OOS screen: 20 pending trials × 6 windows = 117 tasks remaining  workers=4
+[2026-06-29 02:26:51] Window checkpoint: 3 windows already done
+[2026-06-29 02:26:51] Flat-pool OOS screen: 20 pending trials × 5 windows = 97 tasks remaining  workers=4
