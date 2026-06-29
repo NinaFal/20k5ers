@@ -33,7 +33,9 @@ commit_push() {
 
 done_marker() {
     [ -f "$LOG" ] || { echo 0; return; }
-    grep -c "STAGE5C_OOS_SCREEN_DONE_MARKER" "$LOG" 2>/dev/null || echo 0
+    local n
+    n=$(grep -c "STAGE5C_OOS_SCREEN_DONE_MARKER" "$LOG" 2>/dev/null) || n=0
+    echo "${n:-0}"
 }
 
 is_running() {

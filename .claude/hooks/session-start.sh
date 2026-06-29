@@ -1,5 +1,8 @@
 #!/bin/bash
-# SessionStart hook: pull latest state and relaunch Stage 4 Pareto watchdog if needed.
+# SessionStart hook: pull latest state and relaunch the active watchdog on every
+# container boot. Combined with the watchdog (relaunches Python if it dies) and
+# per-window checkpointing (no work lost mid-trial), this makes the backend
+# survive any process death OR full container restart with no manual action.
 set -euo pipefail
 
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
@@ -8,23 +11,20 @@ fi
 
 cd /home/user/20k5ers
 git pull origin claude/awesome-maxwell-50dMF --quiet 2>/dev/null || true
-
-LOG="backtest/output/doe/stage4_pareto_run.log"
-
-# Check if Pareto is already done
-if grep -q "STAGE4_PARETO_DONE_MARKER" "$LOG" 2>/dev/null; then
-  echo "[session-start] Stage 4 Pareto COMPLETE — no watchdog needed"
-  exit 0
-fi
-
-# Check if watchdog is already running (pgrep avoids false match on grep itself)
-if pgrep -f "watchdog_stage4_pareto.sh" > /dev/null 2>&1; then
-  echo "[session-start] Stage 4 Pareto watchdog already running"
-  exit 0
-fi
-
-# Relaunch watchdog
 mkdir -p backtest/output/doe
-setsid nohup bash backtest/src/watchdog_stage4_pareto.sh \
-  >> backtest/output/doe/watchdog_stage4_pareto.log 2>&1 &
-echo "[session-start] Stage 4 Pareto watchdog relaunched (pid=$!)"
+
+# ── Active job: Stage 5c OOS screen ──────────────────────────────────────────
+SCREEN_LOG="backtest/output/doe/stage5c_oos_screen_run.log"
+if grep -q "STAGE5C_OOS_SCREEN_DONE_MARKER" "$SCREEN_LOG" 2>/dev/null; then
+  echo "[session-start] Stage 5c OOS screen COMPLETE — nothing to relaunch"
+  exit 0
+fi
+
+if pgrep -f "watchdog_stage5c_oos_screen.sh" > /dev/null 2>&1; then
+  echo "[session-start] Stage 5c OOS screen watchdog already running"
+  exit 0
+fi
+
+SCREEN_TOP=20 VAL_WORKERS=4 setsid nohup bash backtest/src/watchdog_stage5c_oos_screen.sh \
+  >> backtest/output/doe/watchdog_stage5c_oos_screen.log 2>&1 < /dev/null &
+echo "[session-start] Stage 5c OOS screen watchdog relaunched (pid=$!)"
