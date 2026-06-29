@@ -9,3 +9,5 @@
 [2026-06-29 01:04:02] t170 [OOS ] 2021-01-01  ok     net=   207,621  tdd=7.54%  ddd=5.00%
 [2026-06-29 01:33:23] Window checkpoint: 3 windows already done
 [2026-06-29 01:33:23] Flat-pool OOS screen: 20 pending trials × 6 windows = 117 tasks remaining  workers=4
+[2026-06-29 01:54:49] Window checkpoint: 3 windows already done
+[2026-06-29 01:54:49] Flat-pool OOS screen: 20 pending trials × 6 windows = 117 tasks remaining  workers=4
