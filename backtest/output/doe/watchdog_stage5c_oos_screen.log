@@ -1,0 +1,24 @@
+[2026-06-26 06:52:44] watchdog_stage5c_oos_screen starting (TOP=20 WORKERS=4 pid=2992)
+[2026-06-26 06:52:45] DEAD — relaunching
+[2026-06-26 06:52:55] RELAUNCHED ok
+backtest/src/watchdog_stage5c_oos_screen.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-26 06:57:55] ALIVE
+backtest/src/watchdog_stage5c_oos_screen.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-29 00:55:48] watchdog_stage5c_oos_screen starting (TOP=20 WORKERS=4 pid=2613)
+backtest/src/watchdog_stage5c_oos_screen.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-29 00:55:48] DEAD — relaunching
+[2026-06-29 00:55:58] RELAUNCHED ok
+[2026-06-29 00:57:55] watchdog_stage5c_oos_screen starting (TOP=20 WORKERS=4 pid=4850)
+backtest/src/watchdog_stage5c_oos_screen.sh: line 47: [: 0
+0: integer expression expected
+[2026-06-29 00:57:55] DEAD — relaunching
+[2026-06-29 00:58:05] RELAUNCHED ok
+backtest/src/watchdog_stage5c_oos_screen.sh: line 47: [: 0
+0: integer expression expected
+[2026-06-29 01:03:05] ALIVE
+backtest/src/watchdog_stage5c_oos_screen.sh: line 47: [: 0
+0: integer expression expected
+[2026-06-29 01:08:05] ALIVE

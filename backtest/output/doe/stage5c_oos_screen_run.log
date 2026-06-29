@@ -1,0 +1,9 @@
+[2026-06-26 06:52:45] Flat-pool OOS screen: 20 pending trials × 6 windows = 120 tasks  workers=4
+[2026-06-26 06:58:14] t170 [OOS ] 2023-01-01  ok     net=    31,227  tdd=7.10%  ddd=3.01%
+[2026-06-26 07:01:25] t170 [OOS ] 2023-07-01  ok     net=    74,353  tdd=5.20%  ddd=3.72%
+[2026-06-26 07:01:58] t170 [OOS ] 2021-01-01  ok     net=   207,621  tdd=7.54%  ddd=5.00%
+[2026-06-29 00:55:49] Flat-pool OOS screen: 20 pending trials × 6 windows = 120 tasks  workers=4
+[2026-06-29 00:57:55] Flat-pool OOS screen: 20 pending trials × 6 windows = 120 tasks remaining  workers=4
+[2026-06-29 01:01:03] t170 [OOS ] 2023-01-01  ok     net=    31,227  tdd=7.10%  ddd=3.01%
+[2026-06-29 01:03:21] t170 [OOS ] 2023-07-01  ok     net=    74,353  tdd=5.20%  ddd=3.72%
+[2026-06-29 01:04:02] t170 [OOS ] 2021-01-01  ok     net=   207,621  tdd=7.54%  ddd=5.00%
