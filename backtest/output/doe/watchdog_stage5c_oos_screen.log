@@ -22,3 +22,8 @@ backtest/src/watchdog_stage5c_oos_screen.sh: line 47: [: 0
 backtest/src/watchdog_stage5c_oos_screen.sh: line 47: [: 0
 0: integer expression expected
 [2026-06-29 01:08:05] ALIVE
+[2026-06-29 01:33:22] watchdog_stage5c_oos_screen starting (TOP=20 WORKERS=4 pid=2969)
+backtest/src/watchdog_stage5c_oos_screen.sh: line 47: [: 0
+0: integer expression expected
+[2026-06-29 01:33:22] DEAD — relaunching
+[2026-06-29 01:33:32] RELAUNCHED ok
