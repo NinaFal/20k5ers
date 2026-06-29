@@ -12,6 +12,7 @@ TOP="${SCREEN_TOP:-20}"
 WORKERS="${VAL_WORKERS:-4}"
 LOG="backtest/output/doe/stage5c_oos_screen_run.log"
 JSON="backtest/output/doe/stage5c_oos_screen.json"
+WINDOWS="backtest/output/doe/stage5c_oos_screen_windows.json"
 REPORT="backtest/output/doe/stage5c_oos_screen_report.txt"
 
 LAUNCH="OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
@@ -23,7 +24,7 @@ LAUNCH="OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
 
 commit_push() {
-    git add -f "$LOG" "$JSON" "$REPORT" watchdog_stage5c_oos_screen.log 2>/dev/null || true
+    git add -f "$LOG" "$JSON" "$WINDOWS" "$REPORT" watchdog_stage5c_oos_screen.log 2>/dev/null || true
     if ! git diff --cached --quiet 2>/dev/null; then
         git commit -m "chore: stage5c oos screen checkpoint $(ts)" --quiet 2>/dev/null || true
         git push -u origin "$(git rev-parse --abbrev-ref HEAD)" --quiet 2>/dev/null || true

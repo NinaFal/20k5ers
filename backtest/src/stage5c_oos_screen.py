@@ -27,6 +27,7 @@ _spec.loader.exec_module(dh)
 DOE_DIR    = REPO / "backtest" / "output" / "doe"
 CSV_IN     = DOE_DIR / "stage5c.csv"
 JSON_OUT   = DOE_DIR / "stage5c_oos_screen.json"
+WINDOWS_OUT = DOE_DIR / "stage5c_oos_screen_windows.json"
 REPORT_OUT = DOE_DIR / "stage5c_oos_screen_report.txt"
 
 FULL_END   = "2024-12-31"
@@ -195,26 +196,64 @@ def main():
         except Exception:
             pass
 
+    # Per-window checkpoint — survives a container restart mid-trial.
+    # Keyed by "<tid>|<start>" so completed windows are never re-run.
+    trial_windows: dict[int, list] = defaultdict(list)
+    done_windows: set[str] = set()
+    if WINDOWS_OUT.exists():
+        try:
+            saved = json.loads(WINDOWS_OUT.read_text())
+            for tid_s, wins in saved.items():
+                tid = int(tid_s)
+                if tid in done_ids:
+                    continue
+                trial_windows[tid] = wins
+                for w in wins:
+                    done_windows.add(f"{tid}|{w['start']}")
+            if done_windows:
+                print(f"[{ts()}] Window checkpoint: {len(done_windows)} windows already done",
+                      flush=True)
+        except Exception:
+            pass
+
     trials = load_top_trials(args.top)
     pending = [r for r in trials if int(r.get("trial", -1)) not in done_ids]
-    print(f"[{ts()}] Flat-pool OOS screen: {len(pending)} pending trials × {N_WINDOWS} windows"
-          f" = {len(pending)*N_WINDOWS} tasks  workers={args.workers}", flush=True)
 
-    if not pending:
-        print(f"[{ts()}] All trials already done.", flush=True)
-        results = sorted(done_results, key=lambda x: (x["verdict"] != "PASS", -x["obj"]))
-        write_report(results, args.top)
-        return
-
-    tasks = [(row, s, e) for row in pending for (s, e) in OOS_TASKS]
-
-    trial_windows: dict[int, list] = defaultdict(list)
-    trial_rows:    dict[int, dict] = {}
+    trial_rows: dict[int, dict] = {}
     for row in pending:
         tid = int(row.get("trial", -1))
         trial_rows[tid] = row
 
+    # Only enqueue windows that have not already been computed.
+    tasks = [(row, s, e) for row in pending for (s, e) in OOS_TASKS
+             if f"{int(row.get('trial', -1))}|{s}" not in done_windows]
+    print(f"[{ts()}] Flat-pool OOS screen: {len(pending)} pending trials × {N_WINDOWS} windows"
+          f" = {len(tasks)} tasks remaining  workers={args.workers}", flush=True)
+
     results = list(done_results)
+
+    # A restart may have left some trials with all 6 windows already saved but
+    # no summary written — finalize those before launching the pool.
+    for tid, wins in list(trial_windows.items()):
+        if len(wins) == N_WINDOWS and not any(r["trial"] == tid for r in results):
+            results.append(trial_summary(tid, trial_rows[tid], wins))
+
+    if not tasks:
+        print(f"[{ts()}] All windows already done.", flush=True)
+        results.sort(key=lambda x: (x["verdict"] != "PASS", -x["obj"]))
+        JSON_OUT.write_text(json.dumps(results, indent=2, default=str))
+        write_report(results, args.top)
+        print("[stage5c_oos_screen] STAGE5C_OOS_SCREEN_DONE_MARKER", flush=True)
+        return
+
+    import threading
+    _lock = threading.Lock()
+
+    def save_windows():
+        with _lock:
+            WINDOWS_OUT.write_text(
+                json.dumps({str(k): v for k, v in trial_windows.items()},
+                           indent=2, default=str))
 
     def run_task(args_tuple):
         row, start, end = args_tuple
@@ -244,6 +283,7 @@ def main():
                        "net": 0, "max_tdd": 0, "max_ddd": 0}
 
             trial_windows[tid].append(win)
+            save_windows()  # checkpoint every window — survives mid-trial restart
 
             if len(trial_windows[tid]) == N_WINDOWS:
                 summary = trial_summary(tid, trial_rows[tid], trial_windows[tid])
