@@ -13,3 +13,27 @@
 [2026-06-29 01:54:49] Flat-pool OOS screen: 20 pending trials × 6 windows = 117 tasks remaining  workers=4
 [2026-06-29 02:26:51] Window checkpoint: 3 windows already done
 [2026-06-29 02:26:51] Flat-pool OOS screen: 20 pending trials × 5 windows = 97 tasks remaining  workers=4
+[2026-06-29 02:30:03] t 38 [OOS ] 2023-01-01  BREACH  net=    -5,007  tdd=10.01%  ddd=3.01%
+[2026-06-29 02:30:09] t 38 [OOS ] 2023-07-01  ok     net=   109,656  tdd=2.70%  ddd=3.49%
+[2026-06-29 02:33:57] t 38 [OOS ] 2018-01-01  ok     net=    23,875  tdd=9.06%  ddd=3.21%
+[2026-06-29 02:36:07] t170 [FULL] 2015-01-01  BREACH  net=   618,742  tdd=4.56%  ddd=13.51%
+[2026-06-29 02:37:07] t170 [OOS ] 2018-01-01  BREACH  net=   599,148  tdd=6.96%  ddd=8.57%
+[2026-06-29 02:37:07] t170 FAIL  OOS 3/4  full=FAIL  peak_ddd=13.51%  peak_tdd=7.54%
+[2026-06-29 02:37:56] t 38 [OOS ] 2021-01-01  BREACH  net=   609,839  tdd=8.69%  ddd=14.45%
+[2026-06-29 02:38:27] t 78 [OOS ] 2023-07-01  ok     net=    -1,885  tdd=7.17%  ddd=3.58%
+[2026-06-29 02:40:27] t 78 [OOS ] 2023-01-01  ok     net=   235,851  tdd=5.66%  ddd=3.68%
+[2026-06-29 02:41:04] t 78 [OOS ] 2018-01-01  BREACH  net=    23,884  tdd=10.01%  ddd=3.24%
+[2026-06-29 02:42:52] t280 [OOS ] 2023-07-01  BREACH  net=    40,236  tdd=3.90%  ddd=6.86%
+[2026-06-29 02:45:49] t 78 [OOS ] 2021-01-01  ok     net=   370,623  tdd=8.67%  ddd=4.03%
+[2026-06-29 02:46:14] t280 [OOS ] 2023-01-01  ok     net=    25,129  tdd=9.34%  ddd=4.38%
+[2026-06-29 02:47:00] t 38 [FULL] 2015-01-01  BREACH  net=   567,106  tdd=9.36%  ddd=11.79%
+[2026-06-29 02:47:00] t 38 FAIL  OOS 2/4  full=FAIL  peak_ddd=14.45%  peak_tdd=10.01%
+[2026-06-29 02:47:42] t280 [OOS ] 2021-01-01  BREACH  net=    36,332  tdd=10.24%  ddd=3.57%
+[2026-06-29 02:50:51] t 59 [OOS ] 2023-07-01  ok     net=    71,931  tdd=6.98%  ddd=4.27%
+[2026-06-29 02:52:29] t 78 [FULL] 2015-01-01  BREACH  net=   161,562  tdd=10.08%  ddd=4.60%
+[2026-06-29 02:52:29] t 78 FAIL  OOS 3/4  full=FAIL  peak_ddd=4.60%  peak_tdd=10.08%
+[2026-06-29 02:53:45] t280 [OOS ] 2018-01-01  ok     net=   220,017  tdd=9.03%  ddd=3.58%
+[2026-06-29 02:55:09] t 59 [OOS ] 2023-01-01  ok     net=   149,332  tdd=7.18%  ddd=3.71%
+[2026-06-29 02:57:10] t280 [FULL] 2015-01-01  BREACH  net=   607,750  tdd=5.65%  ddd=7.35%
+[2026-06-29 02:57:10] t280 FAIL  OOS 2/4  full=FAIL  peak_ddd=7.35%  peak_tdd=10.24%
+[2026-06-29 02:59:59] t131 [OOS ] 2023-07-01  ok     net=    33,349  tdd=5.78%  ddd=3.52%
