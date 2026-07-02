@@ -1,0 +1,180 @@
+{
+  "worst": [
+    {
+      "start": "2022-01-01",
+      "end": "2024-12-31",
+      "base_failed": false,
+      "base_tdd": 4.31,
+      "worst_failed": false,
+      "worst_tdd": 6.18,
+      "worst_ddd": 3.6,
+      "worst_net": 170018
+    },
+    {
+      "start": "2016-01-01",
+      "end": "2018-12-31",
+      "base_failed": false,
+      "base_tdd": 0.55,
+      "worst_failed": false,
+      "worst_tdd": 6.46,
+      "worst_ddd": 3.14,
+      "worst_net": 41360
+    },
+    {
+      "start": "2020-01-01",
+      "end": "2022-12-31",
+      "base_failed": false,
+      "base_tdd": 6.17,
+      "worst_failed": false,
+      "worst_tdd": 6.21,
+      "worst_ddd": 3.63,
+      "worst_net": 51975
+    },
+    {
+      "start": "2017-01-01",
+      "end": "2019-12-31",
+      "base_failed": false,
+      "base_tdd": 8.55,
+      "worst_failed": false,
+      "worst_tdd": 0.63,
+      "worst_ddd": 3.46,
+      "worst_net": 50167
+    },
+    {
+      "start": "2019-07-01",
+      "end": "2022-06-30",
+      "base_failed": false,
+      "base_tdd": 3.97,
+      "worst_failed": false,
+      "worst_tdd": 6.21,
+      "worst_ddd": 2.94,
+      "worst_net": 28878
+    },
+    {
+      "start": "2015-01-01",
+      "end": "2024-12-31",
+      "base_failed": true,
+      "base_tdd": 3.9,
+      "worst_failed": false,
+      "worst_tdd": 0.88,
+      "worst_ddd": 3.05,
+      "worst_net": 16989
+    }
+  ],
+  "mc": [
+    {
+      "start": "2023-01-01",
+      "end": "2024-12-31",
+      "trading_days": 267,
+      "engine_tdd": 8.54,
+      "actual_tdd": 13.094502839331442,
+      "engine_scalings": 0,
+      "p_breach_10pct": 0.5922,
+      "tdd_mean": 10.666562765896789,
+      "tdd_median": 10.58333460316807,
+      "tdd_p95": 14.206631500574671,
+      "tdd_p99": 15.555544204487472,
+      "tdd_max": 17.680874101637094
+    },
+    {
+      "start": "2023-07-01",
+      "end": "2024-12-31",
+      "trading_days": 174,
+      "engine_tdd": 9.63,
+      "actual_tdd": 14.67836672944293,
+      "engine_scalings": 0,
+      "p_breach_10pct": 0.7046,
+      "tdd_mean": 11.451010246103015,
+      "tdd_median": 11.305815100667955,
+      "tdd_p95": 14.605914165901504,
+      "tdd_p99": 15.637272201613811,
+      "tdd_max": 17.015416298347674
+    }
+  ],
+  "perturb": [
+    {
+      "label": "risk=1.0",
+      "breached": false,
+      "maximin_net": 26824,
+      "avg_net": 76740,
+      "worst_tdd": 7.88
+    },
+    {
+      "label": "risk=1.2",
+      "breached": false,
+      "maximin_net": 12368,
+      "avg_net": 96025,
+      "worst_tdd": 6.98
+    },
+    {
+      "label": "sl_after_tp2_r-0.1",
+      "breached": true,
+      "maximin_net": 18379,
+      "avg_net": 48067,
+      "worst_tdd": 10.04
+    },
+    {
+      "label": "sl_after_tp2_r+0.1",
+      "breached": false,
+      "maximin_net": 9830,
+      "avg_net": 70218,
+      "worst_tdd": 9.59
+    },
+    {
+      "label": "sl_after_tp3_r-0.1",
+      "breached": true,
+      "maximin_net": -5015,
+      "avg_net": 88242,
+      "worst_tdd": 10.03
+    },
+    {
+      "label": "sl_after_tp3_r+0.1",
+      "breached": true,
+      "maximin_net": 32780,
+      "avg_net": 54636,
+      "worst_tdd": 8.34
+    },
+    {
+      "label": "sl_after_tp4_r-0.1",
+      "breached": false,
+      "maximin_net": 17779,
+      "avg_net": 52754,
+      "worst_tdd": 6.87
+    },
+    {
+      "label": "sl_after_tp4_r+0.1",
+      "breached": true,
+      "maximin_net": 18348,
+      "avg_net": 59823,
+      "worst_tdd": 8.96
+    },
+    {
+      "label": "tp5_r-0.3",
+      "breached": true,
+      "maximin_net": 11863,
+      "avg_net": 27803,
+      "worst_tdd": 8.36
+    },
+    {
+      "label": "tp5_r+0.3",
+      "breached": true,
+      "maximin_net": 22629,
+      "avg_net": 46039,
+      "worst_tdd": 9.9
+    },
+    {
+      "label": "tp1_close-0.05",
+      "breached": false,
+      "maximin_net": 30914,
+      "avg_net": 103510,
+      "worst_tdd": 7.12
+    },
+    {
+      "label": "tp1_close+0.05",
+      "breached": true,
+      "maximin_net": 8039,
+      "avg_net": 43673,
+      "worst_tdd": 10.0
+    }
+  ]
+}

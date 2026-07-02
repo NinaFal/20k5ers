@@ -1,0 +1,348 @@
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+[stage5c] Loaded 20 seeds from stage5b.csv
+[stage5c] Enqueued 20 seed trials
+[stage5c] DDD+TDD penalties  step=0.01 for vol/calm  0 done, 300 remaining (target 300), jobs=4
+[stage5c] trial   1  BREACH  survived=5/6  calm=1.24 vol=1.21
+[stage5c] trial   2  BREACH  survived=5/6  calm=0.82 vol=0.7
+[stage5c] trial   0  BREACH  survived=5/6  calm=1.19 vol=1.22
+[stage5c] trial   3  OK  obj=      46,008  tdd=7.62%  ddd=4.5%  calm=1.25 vol=1.15
+[stage5c] trial   5  BREACH  survived=5/6  calm=1.03 vol=0.74
+/usr/local/lib/python3.11/dist-packages/optuna/trial/_trial.py:664: UserWarning: Fixed parameter RISK_VOLATILE_MULT with value 0.55 is out of range for distribution FloatDistribution(high=1.3, log=False, low=0.6, step=0.01).
+  optuna_warn(
+[stage5c] trial   4  BREACH  survived=5/6  calm=1.13 vol=0.88
+[stage5c] trial   6  BREACH  survived=5/6  calm=0.76 vol=0.79
+[stage5c] trial   7  BREACH  survived=5/6  calm=0.8799999999999999 vol=0.6699999999999999
+[stage5c] trial  10  BREACH  survived=5/6  calm=1.1 vol=1.12
+[stage5c] trial   9  BREACH  survived=5/6  calm=1.16 vol=0.6799999999999999
+[stage5c] trial  11  BREACH  survived=5/6  calm=1.18 vol=0.6699999999999999
+[stage5c] trial   8  OK  obj=      68,382  tdd=5.33%  ddd=3.98%  calm=0.9 vol=0.55
+[stage5c] trial  12  BREACH  survived=5/6  calm=1.1 vol=0.6699999999999999
+[stage5c] trial  13  BREACH  survived=5/6  calm=1.17 vol=0.94
+[stage5c] trial  15  BREACH  survived=5/6  calm=0.8999999999999999 vol=0.9099999999999999
+[stage5c] trial  14  OK  obj=      53,135  tdd=7.94%  ddd=3.99%  calm=1.3 vol=1.0
+[stage5c] trial  16  BREACH  survived=5/6  calm=0.77 vol=0.62
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.35000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.35].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.1, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.1, 0.3].
+  optuna_warn(
+[stage5c] trial  17  BREACH  survived=5/6  calm=0.82 vol=0.87
+[stage5c] trial  18  BREACH  survived=5/6  calm=0.97 vol=0.65
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.3].
+  optuna_warn(
+[stage5c] trial  19  OK  obj=      48,150  tdd=8.01%  ddd=4.25%  calm=0.86 vol=0.77
+[stage5c] trial  21  BREACH  survived=2/6  calm=1.3900000000000001 vol=0.9199999999999999
+[stage5c] trial  20  BREACH  survived=5/6  calm=1.3199999999999998 vol=1.08
+[stage5c] trial  23  BREACH  survived=2/6  calm=1.3399999999999999 vol=1.06
+[stage5c] trial  22  BREACH  survived=5/6  calm=1.05 vol=0.84
+[stage5c] trial  26  BREACH  survived=1/6  calm=0.8799999999999999 vol=0.63
+[stage5c] trial  24  BREACH  survived=4/6  calm=1.0699999999999998 vol=1.08
+[stage5c] trial  25  BREACH  survived=5/6  calm=0.87 vol=0.6
+[stage5c] trial  27  BREACH  survived=5/6  calm=0.9299999999999999 vol=0.62
+[stage5c] trial  29  BREACH  survived=4/6  calm=0.8899999999999999 vol=0.8999999999999999
+[stage5c] trial  28  BREACH  survived=5/6  calm=0.86 vol=0.6
+[stage5c] trial  31  BREACH  survived=2/6  calm=0.7799999999999999 vol=0.77
+[stage5c] trial  32  BREACH  survived=0/6  calm=1.2999999999999998 vol=1.13
+[stage5c] trial  34  BREACH  survived=0/6  calm=1.25 vol=1.0
+[stage5c] trial  30  BREACH  survived=5/6  calm=1.01 vol=0.6599999999999999
+[stage5c] trial  36  BREACH  survived=1/6  calm=1.45 vol=1.1400000000000001
+[stage5c] trial  35  BREACH  survived=2/6  calm=1.1 vol=1.22
+[stage5c] trial  33  OK  obj=       6,900  tdd=8.71%  ddd=3.76%  calm=0.9099999999999999 vol=0.75
+[stage5c] trial  37  BREACH  survived=5/6  calm=0.7899999999999999 vol=0.6799999999999999
+[stage5c] trial  41  BREACH  survived=0/6  calm=1.25 vol=1.3
+[stage5c] trial  38  OK  obj=      89,561  tdd=8.89%  ddd=4.19%  calm=1.23 vol=1.25
+[stage5c] trial  39  OK  obj=      46,933  tdd=6.93%  ddd=3.75%  calm=0.87 vol=0.71
+[stage5c] trial  40  BREACH  survived=5/6  calm=0.95 vol=0.6799999999999999
+[stage5c] trial  43  BREACH  survived=2/6  calm=1.21 vol=1.25
+[stage5c] trial  44  BREACH  survived=1/6  calm=0.9099999999999999 vol=1.27
+[stage5c] trial  42  BREACH  survived=3/6  calm=0.8799999999999999 vol=0.85
+[stage5c] trial  45  BREACH  survived=0/6  calm=1.21 vol=1.1400000000000001
+[stage5c] trial  48  BREACH  survived=1/6  calm=1.49 vol=1.23
+[stage5c] trial  49  BREACH  survived=0/6  calm=1.17 vol=1.25
+[stage5c] trial  47  BREACH  survived=2/6  calm=1.1199999999999999 vol=1.28
+[stage5c] cleaned 4 zombie RUNNING trial(s) → FAIL
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+[stage5c] DDD+TDD penalties  step=0.01 for vol/calm  49 done, 251 remaining (target 300), jobs=4
+[stage5c] trial  53  BREACH  survived=0/6  calm=0.99 vol=0.6599999999999999
+[stage5c] trial  54  BREACH  survived=1/6  calm=1.27 vol=1.21
+[stage5c] trial  57  BREACH  survived=2/6  calm=1.29 vol=0.82
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.3].
+  optuna_warn(
+[stage5c] trial  55  BREACH  survived=5/6  calm=1.2 vol=1.08
+[stage5c] trial  56  BREACH  survived=5/6  calm=1.02 vol=0.79
+[stage5c] trial  58  BREACH  survived=5/6  calm=0.73 vol=0.6799999999999999
+[stage5c] trial  61  BREACH  survived=1/6  calm=1.3900000000000001 vol=1.0899999999999999
+[stage5c] trial  60  BREACH  survived=3/6  calm=0.7 vol=0.73
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.35000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.35].
+  optuna_warn(
+[stage5c] trial  59  OK  obj=      81,725  tdd=8.81%  ddd=4.98%  calm=1.38 vol=1.28
+[stage5c] trial  62  BREACH  survived=5/6  calm=0.82 vol=0.84
+[stage5c] trial  63  BREACH  survived=5/6  calm=0.7999999999999999 vol=0.6699999999999999
+[stage5c] trial  65  BREACH  survived=3/6  calm=1.3599999999999999 vol=1.22
+[stage5c] trial  64  OK  obj=      31,536  tdd=6.8%  ddd=3.34%  calm=1.22 vol=0.86
+[stage5c] trial  68  BREACH  survived=1/6  calm=1.37 vol=1.12
+[stage5c] trial  67  BREACH  survived=3/6  calm=1.48 vol=1.25
+[stage5c] trial  69  BREACH  survived=2/6  calm=1.26 vol=1.1099999999999999
+[stage5c] trial  66  OK  obj=      63,439  tdd=8.39%  ddd=4.47%  calm=1.4 vol=1.27
+[stage5c] trial  70  BREACH  survived=2/6  calm=1.19 vol=1.1099999999999999
+[stage5c] trial  71  BREACH  survived=2/6  calm=1.42 vol=1.3
+[stage5c] trial  72  BREACH  survived=2/6  calm=1.04 vol=0.61
+[stage5c] trial  75  BREACH  survived=2/6  calm=1.44 vol=0.61
+[stage5c] trial  76  BREACH  survived=1/6  calm=1.23 vol=1.3
+[stage5c] trial  73  BREACH  survived=5/6  calm=1.46 vol=1.22
+[stage5c] trial  74  BREACH  survived=5/6  calm=1.37 vol=1.26
+[stage5c] trial  77  BREACH  survived=2/6  calm=1.35 vol=0.9299999999999999
+[stage5c] trial  79  BREACH  survived=1/6  calm=1.14 vol=1.27
+[stage5c] trial  80  BREACH  survived=3/6  calm=1.4 vol=1.28
+[stage5c] trial  78  OK  obj=      85,955  tdd=9.24%  ddd=4.47%  calm=1.41 vol=1.24
+[stage5c] trial  82  BREACH  survived=5/6  calm=0.8899999999999999 vol=0.62
+[stage5c] trial  81  OK  obj=      17,850  tdd=8.99%  ddd=4.78%  calm=1.24 vol=1.04
+[stage5c] trial  84  BREACH  survived=2/6  calm=1.25 vol=1.05
+[stage5c] trial  86  BREACH  survived=0/6  calm=1.3599999999999999 vol=1.1099999999999999
+[stage5c] trial  83  BREACH  survived=4/6  calm=1.14 vol=1.05
+[stage5c] trial  85  BREACH  survived=3/6  calm=1.21 vol=1.01
+[stage5c] trial  87  BREACH  survived=2/6  calm=1.44 vol=0.86
+[stage5c] trial  88  BREACH  survived=2/6  calm=1.48 vol=1.29
+[stage5c] trial  91  BREACH  survived=0/6  calm=1.35 vol=1.3
+[stage5c] trial  89  BREACH  survived=5/6  calm=1.18 vol=0.73
+[stage5c] trial  93  BREACH  survived=3/6  calm=1.2799999999999998 vol=1.12
+[stage5c] trial  92  BREACH  survived=5/6  calm=0.75 vol=0.7
+[stage5c] trial  90  BREACH  survived=5/6  calm=0.9099999999999999 vol=0.76
+[stage5c] trial  96  BREACH  survived=0/6  calm=1.27 vol=1.18
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.1, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.1, 0.3].
+  optuna_warn(
+[stage5c] trial  95  BREACH  survived=1/6  calm=0.7999999999999999 vol=0.62
+[stage5c] trial  94  BREACH  survived=5/6  calm=0.83 vol=0.64
+[stage5c] trial  98  BREACH  survived=2/6  calm=1.29 vol=0.83
+[stage5c] trial 100  BREACH  survived=1/6  calm=0.94 vol=0.6
+[stage5c] trial  97  BREACH  survived=5/6  calm=0.7799999999999999 vol=0.62
+[stage5c] trial  99  BREACH  survived=5/6  calm=1.2999999999999998 vol=0.8
+[stage5c] trial 101  BREACH  survived=5/6  calm=0.99 vol=0.7
+[stage5c] trial 102  BREACH  survived=5/6  calm=1.05 vol=0.73
+[stage5c] trial 103  BREACH  survived=5/6  calm=1.35 vol=1.06
+[stage5c] trial 105  BREACH  survived=2/6  calm=1.33 vol=1.12
+[stage5c] trial 106  BREACH  survived=2/6  calm=1.2999999999999998 vol=0.97
+[stage5c] trial 108  BREACH  survived=0/6  calm=1.3900000000000001 vol=1.0
+[stage5c] trial 104  OK  obj=      34,856  tdd=7.78%  ddd=4.26%  calm=0.95 vol=0.61
+[stage5c] trial 109  BREACH  survived=2/6  calm=1.49 vol=1.24
+[stage5c] trial 107  BREACH  survived=5/6  calm=1.2999999999999998 vol=1.23
+[stage5c] trial 111  BREACH  survived=4/6  calm=1.05 vol=0.73
+[stage5c] trial 110  BREACH  survived=5/6  calm=1.35 vol=0.99
+[stage5c] trial 112  BREACH  survived=5/6  calm=1.04 vol=0.6599999999999999
+[stage5c] trial 113  OK  obj=      47,649  tdd=5.6%  ddd=3.8%  calm=1.03 vol=1.02
+[stage5c] trial 115  OK  obj=      21,014  tdd=8.62%  ddd=3.9%  calm=0.8899999999999999 vol=0.61
+[stage5c] trial 114  OK  obj=      11,566  tdd=9.02%  ddd=3.95%  calm=0.9099999999999999 vol=0.61
+[stage5c] trial 119  BREACH  survived=0/6  calm=1.38 vol=0.78
+[stage5c] trial 116  BREACH  survived=5/6  calm=1.2999999999999998 vol=1.15
+[stage5c] trial 121  BREACH  survived=2/6  calm=1.0 vol=1.06
+[stage5c] trial 117  OK  obj=      31,763  tdd=7.69%  ddd=3.77%  calm=0.95 vol=1.01
+[stage5c] trial 118  BREACH  survived=5/6  calm=0.95 vol=1.1400000000000001
+[stage5c] trial 120  BREACH  survived=5/6  calm=0.99 vol=0.87
+[stage5c] cleaned 4 zombie RUNNING trial(s) → FAIL
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+[stage5c] DDD+TDD penalties  step=0.01 for vol/calm  118 done, 182 remaining (target 300), jobs=4
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.35000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.35].
+  optuna_warn(
+[stage5c] trial 128  BREACH  survived=2/6  calm=0.9099999999999999 vol=1.07
+[stage5c] trial 129  BREACH  survived=5/6  calm=0.85 vol=1.06
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.3].
+  optuna_warn(
+[stage5c] trial 127  BREACH  survived=5/6  calm=0.7999999999999999 vol=0.98
+[stage5c] trial 126  BREACH  survived=5/6  calm=1.08 vol=0.94
+[stage5c] trial 133  BREACH  survived=0/6  calm=1.14 vol=1.2
+[stage5c] trial 130  BREACH  survived=5/6  calm=1.05 vol=1.0
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.1, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.1, 0.3].
+  optuna_warn(
+[stage5c] trial 132  BREACH  survived=5/6  calm=0.96 vol=0.9099999999999999
+[stage5c] trial 134  BREACH  survived=5/6  calm=0.7 vol=1.02
+[stage5c] trial 131  OK  obj=      75,943  tdd=5.48%  ddd=4.07%  calm=0.86 vol=0.86
+[stage5c] trial 136  BREACH  survived=0/6  calm=1.05 vol=0.6599999999999999
+[stage5c] trial 135  BREACH  survived=5/6  calm=0.72 vol=0.84
+[stage5c] trial 139  BREACH  survived=5/6  calm=0.9199999999999999 vol=0.9299999999999999
+[stage5c] trial 137  BREACH  survived=5/6  calm=0.85 vol=1.13
+[stage5c] trial 138  BREACH  survived=5/6  calm=0.73 vol=0.83
+[stage5c] trial 140  BREACH  survived=5/6  calm=0.84 vol=0.76
+[stage5c] trial 141  BREACH  survived=2/6  calm=0.97 vol=1.1600000000000001
+[stage5c] trial 144  BREACH  survived=0/6  calm=1.04 vol=1.0
+[stage5c] trial 142  BREACH  survived=4/6  calm=0.84 vol=0.86
+[stage5c] trial 143  BREACH  survived=5/6  calm=0.85 vol=0.71
+[stage5c] trial 145  BREACH  survived=4/6  calm=0.7799999999999999 vol=0.84
+[stage5c] trial 147  BREACH  survived=2/6  calm=0.7799999999999999 vol=0.75
+[stage5c] trial 146  BREACH  survived=4/6  calm=1.08 vol=0.72
+[stage5c] trial 151  BREACH  survived=0/6  calm=1.24 vol=1.19
+[stage5c] trial 148  BREACH  survived=3/6  calm=1.3900000000000001 vol=1.15
+[stage5c] trial 149  BREACH  survived=5/6  calm=1.31 vol=1.28
+[stage5c] trial 150  BREACH  survived=5/6  calm=0.9299999999999999 vol=0.6799999999999999
+[stage5c] trial 153  BREACH  survived=3/6  calm=1.24 vol=1.24
+[stage5c] trial 152  BREACH  survived=5/6  calm=0.9299999999999999 vol=1.04
+[stage5c] trial 154  BREACH  survived=1/6  calm=0.72 vol=0.94
+[stage5c] trial 157  BREACH  survived=1/6  calm=0.9099999999999999 vol=0.6
+[stage5c] trial 155  BREACH  survived=5/6  calm=0.85 vol=0.83
+[stage5c] trial 156  BREACH  survived=5/6  calm=0.84 vol=0.61
+[stage5c] trial 158  BREACH  survived=5/6  calm=0.76 vol=0.6
+[stage5c] trial 161  BREACH  survived=2/6  calm=0.99 vol=0.63
+[stage5c] trial 159  BREACH  survived=5/6  calm=0.97 vol=0.6
+[stage5c] trial 163  BREACH  survived=1/6  calm=0.85 vol=0.87
+[stage5c] trial 160  BREACH  survived=5/6  calm=0.85 vol=0.61
+[stage5c] trial 162  BREACH  survived=5/6  calm=0.77 vol=0.61
+[stage5c] trial 167  BREACH  survived=0/6  calm=1.1099999999999999 vol=1.07
+[stage5c] trial 164  BREACH  survived=4/6  calm=1.26 vol=1.0899999999999999
+[stage5c] trial 165  BREACH  survived=5/6  calm=0.82 vol=0.62
+[stage5c] trial 166  OK  obj=      -2,134  tdd=8.82%  ddd=4.18%  calm=1.19 vol=0.88
+[stage5c] trial 168  BREACH  survived=5/6  calm=1.46 vol=1.06
+[stage5c] trial 169  BREACH  survived=5/6  calm=1.1099999999999999 vol=1.02
+[stage5c] trial 171  BREACH  survived=1/6  calm=0.72 vol=0.76
+[stage5c] trial 172  BREACH  survived=1/6  calm=1.35 vol=1.29
+[stage5c] trial 173  BREACH  survived=2/6  calm=1.03 vol=0.9199999999999999
+[stage5c] trial 175  BREACH  survived=0/6  calm=1.2 vol=0.97
+[stage5c] trial 170  OK  obj=     172,450  tdd=8.22%  ddd=3.99%  calm=1.41 vol=0.94
+[stage5c] trial 174  BREACH  survived=3/6  calm=1.45 vol=1.13
+[stage5c] trial 178  BREACH  survived=1/6  calm=0.9299999999999999 vol=0.6
+[stage5c] trial 176  BREACH  survived=5/6  calm=1.18 vol=0.86
+[stage5c] trial 177  BREACH  survived=5/6  calm=0.94 vol=0.76
+[stage5c] trial 179  BREACH  survived=5/6  calm=0.75 vol=1.3
+[stage5c] trial 182  BREACH  survived=0/6  calm=1.0899999999999999 vol=0.94
+[stage5c] trial 181  BREACH  survived=2/6  calm=1.3199999999999998 vol=0.95
+[stage5c] trial 180  OK  obj=     -56,558  tdd=9.98%  ddd=4.73%  calm=1.4 vol=0.82
+[stage5c] trial 185  BREACH  survived=0/6  calm=1.35 vol=0.8
+[stage5c] trial 183  BREACH  survived=5/6  calm=1.04 vol=0.65
+[stage5c] trial 184  BREACH  survived=5/6  calm=1.31 vol=1.13
+[stage5c] trial 189  BREACH  survived=0/6  calm=1.42 vol=1.03
+[stage5c] trial 186  BREACH  survived=5/6  calm=0.97 vol=0.7
+[stage5c] trial 188  BREACH  survived=2/6  calm=1.15 vol=1.25
+[stage5c] trial 187  OK  obj=      32,823  tdd=9.55%  ddd=3.8%  calm=1.41 vol=1.15
+[stage5c] trial 191  BREACH  survived=2/6  calm=1.0899999999999999 vol=0.6699999999999999
+[stage5c] trial 190  BREACH  survived=4/6  calm=0.86 vol=0.8999999999999999
+[stage5c] trial 193  BREACH  survived=3/6  calm=1.43 vol=1.3
+[stage5c] trial 192  BREACH  survived=5/6  calm=0.8799999999999999 vol=0.71
+[stage5c] trial 194  OK  obj=      -9,615  tdd=9.9%  ddd=4.13%  calm=1.5 vol=1.28
+[stage5c] trial 196  BREACH  survived=3/6  calm=1.3199999999999998 vol=1.06
+[stage5c] trial 195  BREACH  survived=5/6  calm=1.02 vol=0.77
+[stage5c] cleaned 4 zombie RUNNING trial(s) → FAIL
+/usr/local/lib/python3.11/dist-packages/optuna/_experimental.py:33: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  optuna_warn(
+[stage5c] DDD+TDD penalties  step=0.01 for vol/calm  189 done, 111 remaining (target 300), jobs=4
+[stage5c] trial 204  BREACH  survived=1/6  calm=1.17 vol=1.18
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.3].
+  optuna_warn(
+[stage5c] trial 202  BREACH  survived=1/6  calm=0.8999999999999999 vol=1.03
+[stage5c] trial 205  BREACH  survived=0/6  calm=1.4 vol=1.24
+[stage5c] trial 203  BREACH  survived=2/6  calm=1.0699999999999998 vol=1.26
+[stage5c] trial 206  BREACH  survived=3/6  calm=1.21 vol=0.98
+[stage5c] trial 201  OK  obj=      35,729  tdd=7.89%  ddd=3.99%  calm=1.37 vol=1.26
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.1, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.1, 0.3].
+  optuna_warn(
+[stage5c] trial 209  BREACH  survived=1/6  calm=1.1 vol=0.75
+[stage5c] trial 207  BREACH  survived=5/6  calm=0.9099999999999999 vol=0.65
+[stage5c] trial 208  BREACH  survived=5/6  calm=0.98 vol=0.75
+[stage5c] trial 213  BREACH  survived=1/6  calm=0.7999999999999999 vol=0.6
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.35000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.35].
+  optuna_warn(
+[stage5c] trial 211  BREACH  survived=5/6  calm=1.18 vol=1.0899999999999999
+[stage5c] trial 210  OK  obj=      24,535  tdd=8.51%  ddd=4.04%  calm=0.8999999999999999 vol=0.72
+[stage5c] trial 212  BREACH  survived=5/6  calm=1.46 vol=1.28
+[stage5c] trial 214  BREACH  survived=4/6  calm=1.45 vol=1.12
+[stage5c] trial 215  BREACH  survived=1/6  calm=1.43 vol=1.22
+[stage5c] trial 218  BREACH  survived=2/6  calm=0.95 vol=0.64
+[stage5c] trial 220  BREACH  survived=0/6  calm=1.49 vol=0.94
+[stage5c] trial 216  BREACH  survived=5/6  calm=1.0 vol=0.61
+[stage5c] trial 221  BREACH  survived=2/6  calm=0.84 vol=0.75
+[stage5c] trial 217  OK  obj=      45,030  tdd=8.15%  ddd=3.6%  calm=0.8799999999999999 vol=0.61
+[stage5c] trial 219  OK  obj=      22,293  tdd=8.35%  ddd=3.39%  calm=0.98 vol=0.76
+[stage5c] trial 223  BREACH  survived=2/6  calm=1.44 vol=1.06
+[stage5c] trial 222  OK  obj=      29,017  tdd=7.71%  ddd=3.94%  calm=0.8999999999999999 vol=0.75
+[stage5c] trial 224  BREACH  survived=5/6  calm=1.35 vol=0.9099999999999999
+[stage5c] trial 225  BREACH  survived=4/6  calm=1.18 vol=0.8999999999999999
+[stage5c] trial 226  BREACH  survived=2/6  calm=1.3599999999999999 vol=1.18
+[stage5c] trial 229  BREACH  survived=0/6  calm=0.7 vol=0.63
+[stage5c] trial 230  BREACH  survived=0/6  calm=0.9199999999999999 vol=0.8
+[stage5c] trial 228  BREACH  survived=1/6  calm=0.7799999999999999 vol=0.75
+[stage5c] trial 233  BREACH  survived=0/6  calm=1.37 vol=0.62
+[stage5c] trial 227  OK  obj=     -43,996  tdd=9.99%  ddd=3.27%  calm=0.8899999999999999 vol=0.85
+[stage5c] trial 231  BREACH  survived=5/6  calm=1.06 vol=0.74
+[stage5c] trial 232  BREACH  survived=5/6  calm=0.99 vol=0.72
+[stage5c] trial 234  BREACH  survived=5/6  calm=0.7799999999999999 vol=0.65
+[stage5c] trial 235  BREACH  survived=2/6  calm=1.06 vol=0.75
+[stage5c] trial 236  BREACH  survived=1/6  calm=1.05 vol=0.97
+[stage5c] trial 240  BREACH  survived=0/6  calm=1.33 vol=1.21
+[stage5c] trial 238  BREACH  survived=2/6  calm=1.2 vol=1.22
+[stage5c] trial 242  BREACH  survived=2/6  calm=0.99 vol=0.62
+[stage5c] trial 239  BREACH  survived=4/6  calm=0.9199999999999999 vol=0.79
+[stage5c] trial 237  OK  obj=      11,046  tdd=8.43%  ddd=3.41%  calm=1.0 vol=0.88
+[stage5c] trial 241  BREACH  survived=5/6  calm=1.03 vol=0.64
+[stage5c] trial 246  BREACH  survived=0/6  calm=1.04 vol=0.8899999999999999
+[stage5c] trial 243  BREACH  survived=4/6  calm=1.1199999999999999 vol=0.77
+[stage5c] trial 244  BREACH  survived=5/6  calm=0.9099999999999999 vol=0.69
+[stage5c] trial 245  BREACH  survived=5/6  calm=0.95 vol=0.8099999999999999
+[stage5c] trial 247  BREACH  survived=4/6  calm=1.17 vol=0.6799999999999999
+[stage5c] trial 248  BREACH  survived=5/6  calm=0.9199999999999999 vol=0.86
+[stage5c] trial 249  OK  obj=      46,217  tdd=7.62%  ddd=3.17%  calm=0.8999999999999999 vol=0.64
+[stage5c] trial 250  OK  obj=      16,738  tdd=9.21%  ddd=4.53%  calm=1.35 vol=0.8999999999999999
+[stage5c] trial 251  OK  obj=      46,217  tdd=7.68%  ddd=3.17%  calm=0.8999999999999999 vol=0.64
+[stage5c] trial 253  BREACH  survived=1/6  calm=0.86 vol=0.74
+[stage5c] trial 252  BREACH  survived=5/6  calm=0.8999999999999999 vol=0.8
+[stage5c] trial 255  BREACH  survived=2/6  calm=1.37 vol=0.9199999999999999
+[stage5c] trial 257  BREACH  survived=1/6  calm=0.7 vol=0.83
+[stage5c] trial 254  OK  obj=      18,870  tdd=9.01%  ddd=3.96%  calm=1.41 vol=1.21
+[stage5c] trial 256  BREACH  survived=5/6  calm=0.82 vol=0.61
+[stage5c] trial 259  BREACH  survived=2/6  calm=0.7799999999999999 vol=0.7
+[stage5c] trial 261  BREACH  survived=0/6  calm=0.9299999999999999 vol=0.61
+[stage5c] trial 258  OK  obj=      73,822  tdd=8.08%  ddd=4.18%  calm=1.4 vol=1.25
+[stage5c] trial 260  BREACH  survived=5/6  calm=1.38 vol=1.24
+[stage5c] trial 265  BREACH  survived=0/6  calm=1.23 vol=1.3
+[stage5c] trial 266  BREACH  survived=0/6  calm=0.7899999999999999 vol=0.69
+[stage5c] trial 262  BREACH  survived=4/6  calm=1.47 vol=0.8099999999999999
+[stage5c] trial 263  BREACH  survived=4/6  calm=1.37 vol=1.2
+[stage5c] trial 264  BREACH  survived=2/6  calm=1.01 vol=0.9099999999999999
+[stage5c] trial 267  BREACH  survived=5/6  calm=1.2 vol=1.1
+[stage5c] trial 268  BREACH  survived=5/6  calm=0.97 vol=0.61
+[stage5c] trial 270  BREACH  survived=5/6  calm=0.7 vol=0.6699999999999999
+[stage5c] trial 271  BREACH  survived=0/6  calm=1.4 vol=1.13
+[stage5c] trial 272  BREACH  survived=0/6  calm=1.04 vol=0.62
+[stage5c] trial 269  OK  obj=      21,220  tdd=8.51%  ddd=3.72%  calm=1.2999999999999998 vol=1.15
+[stage5c] trial 274  BREACH  survived=5/6  calm=1.25 vol=0.77
+[stage5c] trial 275  BREACH  survived=5/6  calm=1.48 vol=1.0
+[stage5c] trial 273  BREACH  survived=5/6  calm=0.99 vol=0.61
+[stage5c] trial 276  BREACH  survived=5/6  calm=1.3599999999999999 vol=1.27
+[stage5c] trial 279  BREACH  survived=2/6  calm=1.45 vol=1.08
+[stage5c] trial 278  BREACH  survived=4/6  calm=1.4 vol=1.23
+[stage5c] trial 277  OK  obj=     -55,602  tdd=9.98%  ddd=4.24%  calm=1.33 vol=1.12
+[stage5c] trial 280  OK  obj=      84,650  tdd=8.69%  ddd=4.16%  calm=1.45 vol=1.15
+[stage5c] trial 281  BREACH  survived=5/6  calm=1.05 vol=1.19
+[stage5c] trial 284  BREACH  survived=0/6  calm=1.47 vol=1.07
+[stage5c] trial 282  BREACH  survived=5/6  calm=1.14 vol=1.0899999999999999
+[stage5c] trial 283  BREACH  survived=5/6  calm=1.1199999999999999 vol=0.95
+[stage5c] trial 287  BREACH  survived=1/6  calm=1.48 vol=1.3
+[stage5c] trial 288  BREACH  survived=1/6  calm=1.37 vol=1.17
+[stage5c] trial 285  BREACH  survived=5/6  calm=0.71 vol=1.06
+[stage5c] trial 286  BREACH  survived=4/6  calm=1.49 vol=1.23
+[stage5c] trial 291  BREACH  survived=3/6  calm=1.14 vol=0.76
+[stage5c] trial 289  BREACH  survived=5/6  calm=0.8799999999999999 vol=0.78
+[stage5c] trial 290  BREACH  survived=5/6  calm=1.38 vol=1.3
+[stage5c] trial 292  BREACH  survived=5/6  calm=0.8899999999999999 vol=0.74
+[stage5c] trial 293  BREACH  survived=2/6  calm=1.3399999999999999 vol=0.6599999999999999
+[stage5c] trial 296  BREACH  survived=2/6  calm=1.48 vol=1.06
+[stage5c] trial 294  BREACH  survived=5/6  calm=0.83 vol=0.7
+[stage5c] trial 295  BREACH  survived=5/6  calm=1.3599999999999999 vol=1.27
+[stage5c] trial 297  BREACH  survived=4/6  calm=1.03 vol=1.08
+[stage5c] trial 300  BREACH  survived=1/6  calm=1.04 vol=0.8
+[stage5c] trial 298  BREACH  survived=3/6  calm=1.43 vol=1.27
+[stage5c] trial 299  BREACH  survived=5/6  calm=0.94 vol=1.24
+[stage5c] trial 302  BREACH  survived=2/6  calm=0.96 vol=1.02
+[stage5c] trial 305  BREACH  survived=1/6  calm=1.1099999999999999 vol=0.63
+[stage5c] trial 304  BREACH  survived=2/6  calm=1.25 vol=1.2
+[stage5c] trial 301  OK  obj=      51,673  tdd=8.09%  ddd=4.12%  calm=1.27 vol=0.6
+[stage5c] trial 303  BREACH  survived=5/6  calm=0.82 vol=0.98
+[stage5c] trial 309  BREACH  survived=0/6  calm=1.4 vol=0.6
+[stage5c] trial 307  BREACH  survived=2/6  calm=1.43 vol=0.88
+[stage5c] trial 310  BREACH  survived=1/6  calm=1.33 vol=0.63
+[stage5c] trial 306  BREACH  survived=4/6  calm=0.87 vol=0.97
+[stage5c] trial 308  OK  obj=       4,553  tdd=9.07%  ddd=4.52%  calm=0.97 vol=0.62
+[stage5c] trial 311  BREACH  survived=5/6  calm=1.1199999999999999 vol=0.63
+
+[stage5c] COMPLETE — 40 survivors
+  BEST obj=172,450  tdd=8.22%  ddd=3.99%  avg_net=358,440  calm=1.41  vol=0.94
+  env: {'RISK_CALM_MULT': 1.41, 'RISK_VOLATILE_MULT': 0.94, 'VOL_REGIME_DD_OFF': 3.0, 'CFG_MAX_CUM_RISK': 5.0, 'CFG_DAILY_HALT_PCT': 1.25, 'CFG_TDD_CAUTION_PCT': 3.5, 'CFG_TDD_WARNING_PCT': 4.5, 'CFG_TDD_EMERGENCY_PCT': 5.5, 'CFG_RISK_CAUTIOUS': 0.25, 'CFG_RISK_CONSERVATIVE': 0.15, 'CFG_RISK_ULTRASAFE': 0.1, 'TDD_WALL_SAFETY': 3.0}
+[stage5c] STAGE5C_DONE_MARKER

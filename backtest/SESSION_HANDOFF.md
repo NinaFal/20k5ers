@@ -4,6 +4,83 @@ This document explains the 5%ers backtest engine, every change made in this
 session, the findings (and dead-ends), how to run things in THIS environment
 (important gotchas), and what's still open. Read it fully before continuing.
 
+> **➡️ FORWARD PLAN LIVES IN [`OPTIMIZATION_ROADMAP.md`](OPTIMIZATION_ROADMAP.md).**
+> That file is the plan of record for the staged optimization (entry → sizing/risk
+> → TP/runners → Pareto), the objective hierarchy, the validation gauntlet, and the
+> premortem guards. Read it alongside this handoff. This §0 is the current snapshot;
+> §1–§7 below are the engine reference + the earlier continuous-run findings.
+
+---
+
+## 0. LATEST SESSION — Stage 2 RUNNING
+
+**Last updated:** 2026-06-09 ~21:00 UTC
+
+### Stage 1 COMPLETE ✅
+
+All 710 cells (692 Stage 1c + 18 Stage 1d) swept. MFE/MAE report run on top-16
+survivors. Stage 1d (c=0.35, 0.40) did NOT beat Stage 1c winners in runner
+potential — deep-volatile entries won.
+
+**Two finalists carried into Stage 2:**
+
+| Tag | Entry config | Avg net | Maximin | MFE-p75 | Why |
+|-----|-------------|---------|---------|---------|-----|
+| **A** | c=0.55 v=0.80 thr=1.05 adx=0 | $59.8K | $28.7K | **1.74R** | best runner potential + robust |
+| **B** | c=0.45 v=0.80 thr=1.15 adx=0 | **$70.0K** | $18.7K | 1.65R | best raw net |
+
+Report: `output/doe/stage1c_entry_quality_report.csv` (16 finalists, all survived)
+
+**Key finding:** TP1-hit% near-flat 76–81% (TP1=0.9R, trivial bar). Real
+discriminators: MFE-p75 (runner potential) and maximin. Win-rate = diagnostic.
+
+### Stage 2 RUNNING (regime-coherent risk)
+
+**Design:** `_regime_risk_multiplier()` added to engine — uses ATR(14)/ATR(50)
+same signal as entry fib switch. RISK_CALM_MULT/RISK_VOLATILE_MULT env vars scale
+the 1.1% BASE_RISK independently per regime. VOL_SIZE (ATR percentile) retired
+(different signal, two competing vol signals = incoherent).
+
+**What's running now:**
+```
+keepalive_stage2.sh (run_in_background:true — NO & ever)
+  └─ stage2_sizing_risk.py --entry A --trials 100
+       (then B when A complete)
+```
+
+Log: `output/doe/stage2_run.log`
+DBs: `output/doe/stage2_A.db`, `output/doe/stage2_B.db` (Optuna sqlite, resumable)
+Best JSON: `output/doe/stage2_A_best.json` (written at end of each entry)
+
+**How to relaunch if Stage 2 dies:**
+```bash
+# In Claude Code: Bash tool with run_in_background:true, NO &:
+STAGE2_TRIALS=100 STAGE2_JOBS=1 bash /home/user/20k5ers/backtest/src/keepalive_stage2.sh
+```
+
+**Stage 2 objective:** maximin(net_pnl across 5 windows) − MARGIN_K × max(0, worst_TDD − 8.0)²
+Any breach = hard veto: score = −1e9 + n_survived×1e6
+
+**Search space:**
+- `RISK_CALM_MULT` [0.50–1.50] × `RISK_VOLATILE_MULT` [0.40–1.80] (regime risk)
+- `VOL_REGIME_DD_OFF` [2.0–5.0] (gate size-up when drawing down)
+- TDD ladder: CAUTION/WARNING/EMERGENCY thresholds + risk values
+- `CFG_DAILY_HALT_PCT` [1.5–3.5], `CFG_MAX_CUM_RISK` [2.5–5.0]
+- 3 seed trials: {calm=1.0, vol=1.0} anchor + brackets
+
+**After Stage 2:** pick winner (entry A or B) by post-sizing maximin + no-breach.
+Lock into Stage 3 (TP ladder Optuna).
+
+### Engine changes since last handoff
+
+- `_regime_risk_multiplier()` — new method after `_vol_size_multiplier()`.
+  ATR(14)/ATR(50) vs fib_vol_ratio_threshold → RISK_CALM_MULT or RISK_VOLATILE_MULT.
+  Memoized (symbol, day). Gated by VOL_REGIME_DD_OFF. Default off (RISK_REGIME_ENABLE=0).
+- MFE/MAE tracking: `_mark_mfe_mae()` (TRACK_MFE_MAE=1 gate), results in results dict.
+  Already merged from worktree branch.
+
+**Branch:** `claude/awesome-maxwell-50dMF`
+
 ---
 
 ## 1. What the backtest is
@@ -150,9 +227,17 @@ breaks choppy years. See `backtest/RECOMMENDED_CONFIG.md`.
   written there vanish and processes "run" but produce nothing. **Use a stable
   dir in the repo** (this session used `.work/`, gitignored). Optuna sqlite DBs
   in /tmp DID persist across some recycles, but don't rely on it.
-- **`setsid`-detached background jobs are flaky here.** Use the **harness's own
-  `run_in_background: true`** on the Bash tool instead — that reliably spawned
-  backtests when setsid supervisors didn't.
+- **CRITICAL — Firecracker init reaps orphaned processes.** PID 1 is
+  `/process_api --firecracker-init`, a custom VM init that **kills any process
+  that becomes an orphan** (parent dies). `setsid`, `nohup`, `disown`, and
+  trailing `&` ALL cause processes to be re-parented to PID 1 and then killed
+  within seconds. **The only safe way to keep long-running background jobs alive
+  is to run them WITHOUT `&` via the harness's `run_in_background:true` on the
+  Bash tool.** This keeps the harness shell alive as the parent. For multi-layer
+  daemons (keepalive → watchdog → grid), run only the outermost (`keepalive.sh`)
+  this way; it in turn launches children with `&`, which is fine because the
+  keepalive parent is itself alive and attached.
+- **`setsid`-detached background jobs die immediately here.** Same reason as above.
 - **Container recycles frequently on idle** — every recycle kills all background
   processes. Jobs MUST be resumable (write results incrementally to a stable
   dir + skip-if-done). The container stays alive while actively computing.
@@ -166,6 +251,13 @@ breaks choppy years. See `backtest/RECOMMENDED_CONFIG.md`.
   use `grep -v eval` / exact patterns to get true counts.
 
 ## 7. TODO / open questions for the next session
+
+> **The active program is the staged entry→sizing→TP→Pareto plan in
+> [`OPTIMIZATION_ROADMAP.md`](OPTIMIZATION_ROADMAP.md) — see §0 for live status.**
+> The items below are the still-open continuous-run problems from the earlier
+> session; several are now folded into Stage 2/3 of the roadmap (risk sizing, the
+> 4-rung TDD, CHF exclusion, withdrawal policy).
+
 1. **Resolve the daily-gap vs choppy-bleed tension** (finding #4) — the central
    unsolved problem. Maybe a *time-decaying* cum-risk cap, or vol-aware daily
    sizing, or a different daily protection that doesn't whipsaw choppy years.

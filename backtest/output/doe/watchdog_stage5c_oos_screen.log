@@ -1,0 +1,77 @@
+[2026-06-26 06:52:44] watchdog_stage5c_oos_screen starting (TOP=20 WORKERS=4 pid=2992)
+[2026-06-26 06:52:45] DEAD — relaunching
+[2026-06-26 06:52:55] RELAUNCHED ok
+backtest/src/watchdog_stage5c_oos_screen.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-26 06:57:55] ALIVE
+backtest/src/watchdog_stage5c_oos_screen.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-29 00:55:48] watchdog_stage5c_oos_screen starting (TOP=20 WORKERS=4 pid=2613)
+backtest/src/watchdog_stage5c_oos_screen.sh: line 46: [: 0
+0: integer expression expected
+[2026-06-29 00:55:48] DEAD — relaunching
+[2026-06-29 00:55:58] RELAUNCHED ok
+[2026-06-29 00:57:55] watchdog_stage5c_oos_screen starting (TOP=20 WORKERS=4 pid=4850)
+backtest/src/watchdog_stage5c_oos_screen.sh: line 47: [: 0
+0: integer expression expected
+[2026-06-29 00:57:55] DEAD — relaunching
+[2026-06-29 00:58:05] RELAUNCHED ok
+backtest/src/watchdog_stage5c_oos_screen.sh: line 47: [: 0
+0: integer expression expected
+[2026-06-29 01:03:05] ALIVE
+backtest/src/watchdog_stage5c_oos_screen.sh: line 47: [: 0
+0: integer expression expected
+[2026-06-29 01:08:05] ALIVE
+[2026-06-29 01:33:22] watchdog_stage5c_oos_screen starting (TOP=20 WORKERS=4 pid=2969)
+backtest/src/watchdog_stage5c_oos_screen.sh: line 47: [: 0
+0: integer expression expected
+[2026-06-29 01:33:22] DEAD — relaunching
+[2026-06-29 01:33:32] RELAUNCHED ok
+[2026-06-29 01:54:48] watchdog_stage5c_oos_screen starting (TOP=20 WORKERS=4 pid=1760)
+backtest/src/watchdog_stage5c_oos_screen.sh: line 47: [: 0
+0: integer expression expected
+[2026-06-29 01:54:48] DEAD — relaunching
+[2026-06-29 01:54:59] RELAUNCHED ok
+[2026-06-29 02:26:51] watchdog_stage5c_oos_screen starting (TOP=20 WORKERS=4 pid=6917)
+[2026-06-29 02:26:51] DEAD — relaunching
+[2026-06-29 02:27:01] RELAUNCHED ok
+[2026-06-29 02:32:01] ALIVE
+[2026-06-29 02:37:02] ALIVE
+[2026-06-29 02:42:02] ALIVE
+[2026-06-29 02:47:02] ALIVE
+[2026-06-29 02:52:02] ALIVE
+[2026-06-29 02:57:02] ALIVE
+[2026-06-29 03:02:02] ALIVE
+[2026-06-29 03:07:02] ALIVE
+[2026-06-29 03:12:02] ALIVE
+[2026-06-29 03:17:02] ALIVE
+[2026-06-29 03:22:02] ALIVE
+[2026-06-29 03:27:02] ALIVE
+[2026-06-29 03:32:02] ALIVE
+[2026-06-29 03:37:02] ALIVE
+[2026-06-29 03:42:02] ALIVE
+[2026-06-29 03:47:02] ALIVE
+[2026-06-29 03:52:02] ALIVE
+[2026-06-29 03:57:02] ALIVE
+[2026-06-29 04:02:03] ALIVE
+[2026-06-29 04:07:03] ALIVE
+[2026-06-29 04:12:03] ALIVE
+[2026-06-29 04:17:03] ALIVE
+[2026-06-29 04:22:03] ALIVE
+[2026-06-29 04:27:03] ALIVE
+[2026-06-29 04:32:03] ALIVE
+[2026-06-29 04:37:03] ALIVE
+[2026-06-29 04:42:03] ALIVE
+[2026-06-29 04:47:03] ALIVE
+[2026-06-29 04:52:03] ALIVE
+[2026-06-29 04:57:03] ALIVE
+[2026-06-29 05:02:03] ALIVE
+[2026-06-29 05:07:03] ALIVE
+[2026-06-29 05:12:03] ALIVE
+[2026-06-29 05:17:03] ALIVE
+[2026-06-29 05:22:03] ALIVE
+[2026-06-29 05:27:03] ALIVE
+[2026-06-29 05:32:04] ALIVE
+[2026-06-29 05:37:04] ALIVE
+[2026-06-29 05:42:04] ALIVE
+[2026-06-29 05:47:04] STAGE5C_OOS_SCREEN_DONE — watchdog exiting

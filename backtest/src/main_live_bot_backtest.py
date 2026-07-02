@@ -3221,6 +3221,16 @@ class LiveTradingBot:
             risk_pct = risk_pct * _vm
             log.info(f"[{symbol}] Vol-size x{_vm:.2f} -> risk {risk_pct:.3f}%")
 
+        # Regime-coherent risk (same ATR(14)/ATR(50) signal as entry fib, env-gated)
+        _rm = self._regime_risk_multiplier(symbol)
+        if _rm > 1.0 and (total_dd_pct >= _dd_off or daily_loss_pct >= _dd_off):
+            _gated_r = float(os.getenv("VOL_REGIME_DD_MULT", "1.0"))
+            log.info(f"[{symbol}] Regime-risk gate: TDD {total_dd_pct:.1f}%/DDD {daily_loss_pct:.1f}% >= {_dd_off}% -> x{_rm:.2f} collapsed to x{_gated_r:.2f}")
+            _rm = _gated_r
+        if _rm != 1.0:
+            risk_pct = risk_pct * _rm
+            log.info(f"[{symbol}] Regime-risk x{_rm:.2f} -> risk {risk_pct:.3f}%")
+
         # Emergency wall-guard: in the high-TDD zone, cap per-trade risk so even a
         # FULL stop-loss can't push TDD through the 10% wall (room-to-wall / safety
         # factor). This is the principled replacement for the binary 7% freeze:
@@ -3457,10 +3467,47 @@ class LiveTradingBot:
         cache[key] = mult
         return mult
 
+    def _regime_risk_multiplier(self, symbol: str) -> float:
+        """Regime-coherent risk multiplier (env-gated, default no-op).
+
+        Uses the SAME ATR(14)/ATR(50) ratio and fib_vol_ratio_threshold as the
+        entry fib regime switch — so the same bar that triggers volatile entry
+        also triggers volatile sizing.  When RISK_REGIME_ENABLE=0 (default)
+        this is a strict no-op so Stage 1 results are bit-identical.
+        """
+        if os.getenv("RISK_REGIME_ENABLE", "0").strip().lower() not in ("1", "true", "yes", "on"):
+            return 1.0
+        m_calm = float(os.getenv("RISK_CALM_MULT", "1.0"))
+        m_vol  = float(os.getenv("RISK_VOLATILE_MULT", "1.0"))
+        if m_calm == 1.0 and m_vol == 1.0:
+            return 1.0
+        ct  = getattr(self.mt5, "_current_time", None)
+        day = ct.date() if ct is not None and hasattr(ct, "date") else None
+        cache = getattr(self, "_regime_risk_cache", None)
+        if cache is None:
+            cache = self._regime_risk_cache = {}
+        key = (symbol, day)
+        if key in cache:
+            return cache[key]
+        broker = self.symbol_map.get(symbol, symbol)
+        try:
+            candles = self.mt5.get_ohlcv(broker, "D1", 52 + 1)
+        except Exception:
+            return 1.0
+        mult = 1.0
+        if candles and len(candles) >= 52:
+            atr14 = self._calculate_atr(candles[-15:], 14)
+            atr50 = self._calculate_atr(candles[-51:], 50)
+            if atr50 > 0:
+                thr  = float(getattr(self.params, "fib_vol_ratio_threshold", 1.15))
+                mult = m_vol if (atr14 / atr50) >= thr else m_calm
+        cache[key] = mult
+        return mult
+
     def scan_symbol(self, symbol: str) -> Optional[Dict]:
         """
         Scan a single symbol for trade setup.
-        
+
         SYMBOL FORMAT:
         - Input symbol: OANDA format (e.g., EUR_USD, XAU_USD, SPX500_USD)
         - Broker symbol: FTMO MT5 format (e.g., EURUSD, XAUUSD, US500.cash)
@@ -5389,7 +5436,66 @@ class LiveTradingBot:
     # ═══════════════════════════════════════════════════════════════════════
     # BACKTEST MODE - run_backtest() replaces run() for historical simulation
     # ═══════════════════════════════════════════════════════════════════════
-    
+
+    def _mark_mfe_mae(self, current_time):
+        """
+        ADDITIVE INSTRUMENTATION ONLY — never alters control flow / PnL.
+
+        Marks each open position to the current M15 bar's high/low and records the
+        peak favorable (high for longs, low for shorts) and peak adverse extreme in
+        self._mfe_mae[ticket]. On first sighting of a ticket it locks the initial
+        entry→SL risk (pos.sl is still the ORIGINAL stop here because this runs at
+        the top of the bar, before partial-exit SL trailing). The stored extremes
+        are converted to R-multiples and joined to closed_trades at results time.
+
+        Defensive throughout: any missing bar / zero-risk position is simply skipped.
+        This method reads simulator state and writes only to self._mfe_mae; it must
+        return nothing the caller acts on.
+        """
+        try:
+            positions = self.mt5.get_my_positions()
+        except Exception:
+            return
+        for pos in positions:
+            try:
+                bar = self.mt5.get_m15_bar(pos.symbol, current_time)
+                if not bar:
+                    continue
+                hi = bar.get('high')
+                lo = bar.get('low')
+                if hi is None or lo is None:
+                    continue
+                rec = self._mfe_mae.get(pos.ticket)
+                if rec is None:
+                    entry = pos.price_open
+                    init_risk = abs(entry - pos.sl)  # pos.sl == original SL on first bar
+                    if init_risk <= 0:
+                        continue
+                    is_long = (pos.type == 0)
+                    rec = {
+                        'entry': entry,
+                        'init_risk': init_risk,
+                        'is_long': is_long,
+                        # seed extremes at entry so a trade that only ever moves one
+                        # way still yields a sane 0-floored opposite excursion
+                        'fav_price': entry,
+                        'adv_price': entry,
+                    }
+                    self._mfe_mae[pos.ticket] = rec
+                if rec['is_long']:
+                    if hi > rec['fav_price']:
+                        rec['fav_price'] = hi
+                    if lo < rec['adv_price']:
+                        rec['adv_price'] = lo
+                else:
+                    if lo < rec['fav_price']:
+                        rec['fav_price'] = lo
+                    if hi > rec['adv_price']:
+                        rec['adv_price'] = hi
+            except Exception:
+                # instrumentation must never break the run
+                continue
+
     def run_backtest(self) -> Dict:
         """
         Run backtest simulation on M15 historical data.
@@ -5434,6 +5540,18 @@ class LiveTradingBot:
         equity_high = self.initial_balance
         last_scanned_date = None
         current_date = None
+        _in_news_blackout = False  # tracks previous-bar blackout state for resume detection
+
+        # ── MFE/MAE ENTRY-QUALITY INSTRUMENTATION (additive, read-only) ────────
+        # Per-position Maximum Favorable / Adverse Excursion, captured by marking
+        # each open position to its M15 bar high/low every bar. PURELY OBSERVATIONAL:
+        # it never reads back into any decision, SL/TP, sizing, or PnL path — it only
+        # writes into this side dict, which is joined to closed_trades at the end to
+        # attach mfe_r / mae_r and compute aggregate entry-quality stats. Keyed by the
+        # simulator's integer position ticket. init_risk is locked on first sighting,
+        # BEFORE any SL trail (partial exits run later in the same bar), so R-multiples
+        # are always measured against the ORIGINAL entry→SL risk.
+        self._mfe_mae = {}
 
         # TDD wall-press instrumentation: how often (and on how many distinct days)
         # does total drawdown press into the danger bands near the 10% wall, and how
@@ -5525,7 +5643,12 @@ class LiveTradingBot:
             
             # Set simulator time
             self.mt5.set_current_time(current_time)
-            
+
+            # MFE/MAE: mark open positions to this bar's high/low BEFORE any SL/TP
+            # processing closes them (so the full bar excursion is captured even on
+            # the closing bar). Purely observational — writes only to self._mfe_mae.
+            self._mark_mfe_mae(current_time)
+
             today = current_time.date()
             
             # ═══════════════════════════════════════════════════════════════
@@ -5837,11 +5960,13 @@ class LiveTradingBot:
                         del self.pending_setups[symbol]
             
             # ═══════════════════════════════════════════════════════════════
-            # LAYER 2: Cancel affected-currency pending orders during news
+            # LAYER 2: Cancel affected-currency pending orders during news;
+            # immediately re-place them on the bar the blackout ends.
             # Only cancel pairs linked to the news event (ECB→EUR, NFP/FOMC→USD)
             # Rollover is handled by Layer 5 (dynamic halt at 2.5%) — no cancel needed
             # ═══════════════════════════════════════════════════════════════
-            if self._is_news_blackout(current_time):
+            _now_in_blackout = self._is_news_blackout(current_time)
+            if _now_in_blackout:
                 affected = self._news_affected_currencies(current_time)
                 if affected:
                     cancelled = []
@@ -5856,6 +5981,12 @@ class LiveTradingBot:
                             setup.order_ticket = None
                     if cancelled:
                         log.info(f"⛔ news-blackout ({','.join(affected)}): cancelled {len(cancelled)} pending orders")
+            elif _in_news_blackout:
+                # Blackout just ended — immediately re-place paused orders, same as
+                # the live bot does rather than waiting until next day's new-day event.
+                log.info(f"✅ news-blackout ended at {current_time}: re-placing paused orders")
+                self._resume_ddd_paused_orders()
+            _in_news_blackout = _now_in_blackout
 
             # ═══════════════════════════════════════════════════════════════
             # CHECK PENDING ORDER FILLS
@@ -5910,7 +6041,78 @@ class LiveTradingBot:
         # Separate full trades from partial closes for accurate counting
         full_trades = [t for t in closed_trades if not t.get('partial', False)]
         partial_closes = [t for t in closed_trades if t.get('partial', False)]
-        
+
+        # ── MFE/MAE ENTRY-QUALITY AGGREGATION (additive, read-only) ───────────
+        # Join the per-ticket excursion side-dict onto each FULL closed trade and
+        # express the favorable/adverse extremes in R-multiples of the ORIGINAL
+        # entry→SL risk. Also derive a TP1-hit count: any trade whose base ticket
+        # spawned at least one partial close reached TP1 (the first rung of the
+        # partial ladder where setup.tp1_hit is set). None of this feeds back into
+        # the run — it only annotates the result record for downstream analysis.
+        mfe_mae = getattr(self, '_mfe_mae', {}) or {}
+
+        def _base_ticket(tk):
+            # partial records use "<int>_partial_<ts>"; full records use the int
+            s = str(tk)
+            return s.split('_', 1)[0]
+
+        partialed_tickets = {_base_ticket(t.get('ticket')) for t in partial_closes}
+
+        mfe_r_list, mae_r_list = [], []
+        tp1_hits = 0
+        for t in full_trades:
+            base = _base_ticket(t.get('ticket'))
+            # TP1-hit: this trade produced at least one partial close
+            if base in partialed_tickets:
+                tp1_hits += 1
+            # try int-keyed lookup first (side-dict is keyed by int ticket)
+            rec = None
+            try:
+                rec = mfe_mae.get(int(base))
+            except (TypeError, ValueError):
+                rec = None
+            if not rec:
+                t['mfe_r'] = None
+                t['mae_r'] = None
+                continue
+            init_risk = rec['init_risk']
+            if rec['is_long']:
+                mfe = (rec['fav_price'] - rec['entry']) / init_risk
+                mae = (rec['entry'] - rec['adv_price']) / init_risk
+            else:
+                mfe = (rec['entry'] - rec['fav_price']) / init_risk
+                mae = (rec['adv_price'] - rec['entry']) / init_risk
+            mfe = max(0.0, mfe)   # excursions are magnitudes; floor at 0
+            mae = max(0.0, mae)
+            t['mfe_r'] = round(mfe, 3)
+            t['mae_r'] = round(mae, 3)
+            mfe_r_list.append(mfe)
+            mae_r_list.append(mae)
+
+        def _median(xs):
+            if not xs:
+                return 0.0
+            s = sorted(xs)
+            n = len(s)
+            mid = n // 2
+            return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2.0
+
+        def _percentile(xs, p):
+            if not xs:
+                return 0.0
+            s = sorted(xs)
+            if len(s) == 1:
+                return s[0]
+            idx = p / 100.0 * (len(s) - 1)
+            lo_i = int(idx)
+            hi_i = min(lo_i + 1, len(s) - 1)
+            frac = idx - lo_i
+            return s[lo_i] + (s[hi_i] - s[lo_i]) * frac
+
+        mfe_r_median = round(_median(mfe_r_list), 3)
+        mfe_r_p75    = round(_percentile(mfe_r_list, 75), 3)
+        mae_r_median = round(_median(mae_r_list), 3)
+
         total_trades = len(full_trades)  # Only count full trades as "trades"
         winners = sum(1 for t in full_trades if t.get('pnl', 0) > 0)
         win_rate = (winners / total_trades * 100) if total_trades > 0 else 0
@@ -5986,6 +6188,14 @@ class LiveTradingBot:
             'winners': winners,
             'losers': total_trades - winners,
             'win_rate': round(win_rate, 1),
+            # ── MFE/MAE entry-quality aggregates (additive instrumentation) ──
+            # All in R-multiples of the original entry→SL risk. tp1_hits counts
+            # full trades that reached TP1 (spawned ≥1 partial close).
+            'mfe_r_median': mfe_r_median,
+            'mfe_r_p75': mfe_r_p75,
+            'mae_r_median': mae_r_median,
+            'tp1_hits': tp1_hits,
+            'tp1_hit_rate': round(tp1_hits / total_trades * 100, 1) if total_trades > 0 else 0.0,
             'max_tdd_pct': round(max_tdd, 2),
             'max_ddd_pct': round(max_ddd, 2),
             # TDD wall-press counts: bars/distinct-days in each danger band + 9.5% excursions

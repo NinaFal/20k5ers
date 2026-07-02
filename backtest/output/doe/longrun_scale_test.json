@@ -1,0 +1,154 @@
+[
+  {
+    "start": "2015-01-01",
+    "end": "2024-12-31",
+    "months": 120.0,
+    "failed": true,
+    "breach_type": "",
+    "survived_days": null,
+    "net_pnl": 21997,
+    "max_tdd": 10.01,
+    "max_ddd": 2.88,
+    "scalings": 2,
+    "final_funded": 70000,
+    "withdrawn": 9006,
+    "withdrawn_per_month": 75,
+    "trajectory": [
+      [
+        "2016-02-17",
+        60000
+      ],
+      [
+        "2016-08-29",
+        70000
+      ]
+    ]
+  },
+  {
+    "start": "2016-01-01",
+    "end": "2024-12-31",
+    "months": 108.0,
+    "failed": true,
+    "breach_type": "",
+    "survived_days": null,
+    "net_pnl": 26960,
+    "max_tdd": 3.83,
+    "max_ddd": 5.35,
+    "scalings": 2,
+    "final_funded": 70000,
+    "withdrawn": 9650,
+    "withdrawn_per_month": 89,
+    "trajectory": [
+      [
+        "2016-07-06",
+        60000
+      ],
+      [
+        "2017-06-07",
+        70000
+      ]
+    ]
+  },
+  {
+    "start": "2017-01-01",
+    "end": "2024-12-31",
+    "months": 96.0,
+    "failed": false,
+    "breach_type": "",
+    "survived_days": null,
+    "net_pnl": 360052,
+    "max_tdd": 4.04,
+    "max_ddd": 3.01,
+    "scalings": 10,
+    "final_funded": 300000,
+    "withdrawn": 108792,
+    "withdrawn_per_month": 1133,
+    "trajectory": [
+      [
+        "2017-04-21",
+        60000
+      ],
+      [
+        "2017-10-25",
+        70000
+      ],
+      [
+        "2019-10-11",
+        80000
+      ],
+      [
+        "2020-02-24",
+        100000
+      ],
+      [
+        "2022-03-24",
+        125000
+      ],
+      [
+        "2022-06-23",
+        150000
+      ],
+      [
+        "2023-02-28",
+        175000
+      ],
+      [
+        "2023-04-03",
+        200000
+      ],
+      [
+        "2023-07-06",
+        250000
+      ],
+      [
+        "2023-11-27",
+        300000
+      ]
+    ]
+  },
+  {
+    "start": "2018-01-01",
+    "end": "2024-12-31",
+    "months": 84.0,
+    "failed": false,
+    "breach_type": "",
+    "survived_days": null,
+    "net_pnl": 169812,
+    "max_tdd": 7.76,
+    "max_ddd": 3.18,
+    "scalings": 7,
+    "final_funded": 175000,
+    "withdrawn": 54835,
+    "withdrawn_per_month": 653,
+    "trajectory": [
+      [
+        "2019-08-13",
+        60000
+      ],
+      [
+        "2019-12-11",
+        70000
+      ],
+      [
+        "2020-02-27",
+        80000
+      ],
+      [
+        "2021-04-05",
+        100000
+      ],
+      [
+        "2021-11-26",
+        125000
+      ],
+      [
+        "2022-09-22",
+        150000
+      ],
+      [
+        "2024-07-12",
+        175000
+      ]
+    ]
+  }
+]

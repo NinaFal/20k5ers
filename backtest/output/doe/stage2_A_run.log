@@ -1,0 +1,136 @@
+[stage2 A] cleaned 3 zombie RUNNING trial(s) → FAIL
+[stage2 A] trial   2  BREACH  survived=4/5  calm=1.20 vol=0.80
+[stage2 A] trial   3  BREACH  survived=4/5  calm=0.85 vol=1.75
+[stage2 A] trial   4  OK  obj=      27,164  maximin=    27,164  avg_net=  72,892  tdd=6.36%  calm=0.80 vol=1.20
+[stage2 A] Replayed 3 existing trials to CSV
+[stage2 A] entry={'entry_fib_level': 0.55, 'entry_fib_level_volatile': 0.8, 'fib_vol_ratio_threshold': 1.05, 'use_trend_quality_gate': False, 'adx_min_entry': 0.0}
+[stage2 A] BASE_RISK=1.1%  RISK_REGIME_ENABLE=1  VOL_SIZE retired
+[stage2 A] 3 done, 97 remaining (target 100), jobs=1
+[stage2 A] trial   6  BREACH  survived=4/5  calm=0.85 vol=1.75
+[stage2 A] trial   7  BREACH  survived=1/5  calm=1.35 vol=0.70
+[stage2 A] trial   8  OK  obj=      12,416  maximin=    26,866  avg_net=  43,711  tdd=8.85%  calm=0.95 vol=1.50
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.35000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.35].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.1, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.1, 0.3].
+  optuna_warn(
+[stage2 A] trial   9  OK  obj=      18,251  maximin=    18,251  avg_net=  22,804  tdd=6.98%  calm=0.80 vol=0.50
+[stage2 A] trial  10  OK  obj=      -3,380  maximin=    25,420  avg_net=  71,548  tdd=9.2%  calm=1.05 vol=0.65
+[stage2 A] trial  11  BREACH  survived=2/5  calm=0.90 vol=0.75
+[stage2 A] trial  12  OK  obj=      -2,994  maximin=    35,648  avg_net= 106,373  tdd=9.39%  calm=0.50 vol=1.55
+[stage2 A] trial  13  OK  obj=         573  maximin=     3,023  avg_net=  22,749  tdd=8.35%  calm=0.50 vol=1.10
+[stage2 A] trial  14  OK  obj=       1,042  maximin=     1,042  avg_net=  28,470  tdd=3.91%  calm=0.70 vol=0.45
+[stage2 A] trial  15  BREACH  survived=1/5  calm=0.70 vol=1.20
+[stage2 A] trial  16  BREACH  survived=1/5  calm=0.70 vol=1.05
+[stage2 A] trial  17  OK  obj=      15,757  maximin=    15,957  avg_net=  43,763  tdd=8.1%  calm=1.10 vol=0.40
+[stage2 A] trial  18  BREACH  survived=0/5  calm=1.50 vol=1.25
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.3].
+  optuna_warn(
+[stage2 A] trial  19  OK  obj=     -61,046  maximin=     2,322  avg_net=  41,272  tdd=9.78%  calm=0.75 vol=0.95
+[stage2 A] trial  20  BREACH  survived=4/5  calm=0.60 vol=1.40
+[stage2 A] trial  21  BREACH  survived=4/5  calm=1.00 vol=0.90
+[stage2 A] cleaned 1 zombie RUNNING trial(s) → FAIL
+[stage2 A] entry={'entry_fib_level': 0.55, 'entry_fib_level_volatile': 0.8, 'fib_vol_ratio_threshold': 1.05, 'use_trend_quality_gate': False, 'adx_min_entry': 0.0}
+[stage2 A] BASE_RISK=1.1%  RISK_REGIME_ENABLE=1  VOL_SIZE retired
+[stage2 A] 19 done, 81 remaining (target 100), jobs=4
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.3].
+  optuna_warn(
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.35000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.35].
+  optuna_warn(
+[stage2 A] trial  23  BREACH  survived=0/5  calm=1.15 vol=1.35
+[stage2 A] trial  26  BREACH  survived=1/5  calm=1.20 vol=0.55
+[stage2 A] trial  28  BREACH  survived=0/5  calm=1.10 vol=0.40
+[stage2 A] trial  25  OK  obj=      49,069  maximin=    49,069  avg_net= 107,836  tdd=6.67%  calm=1.15 vol=0.55
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.1, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.1, 0.3].
+  optuna_warn(
+[stage2 A] trial  29  BREACH  survived=1/5  calm=1.30 vol=0.55
+[stage2 A] trial  24  OK  obj=      49,069  maximin=    49,069  avg_net=  98,866  tdd=7.81%  calm=1.15 vol=0.55
+[stage2 A] trial  27  BREACH  survived=3/5  calm=0.80 vol=0.55
+[stage2 A] cleaned 4 zombie RUNNING trial(s) → FAIL
+[stage2 A] entry={'entry_fib_level': 0.55, 'entry_fib_level_volatile': 0.8, 'fib_vol_ratio_threshold': 1.05, 'use_trend_quality_gate': False, 'adx_min_entry': 0.0}
+[stage2 A] BASE_RISK=1.1%  RISK_REGIME_ENABLE=1  VOL_SIZE retired
+[stage2 A] 26 done, 74 remaining (target 100), jobs=4
+[stage2 A] trial  36  BREACH  survived=1/5  calm=1.35 vol=0.90
+[stage2 A] trial  34  BREACH  survived=2/5  calm=1.35 vol=0.80
+[stage2 A] trial  35  BREACH  survived=1/5  calm=1.30 vol=0.85
+[stage2 A] trial  38  BREACH  survived=1/5  calm=1.50 vol=0.65
+[stage2 A] trial  37  OK  obj=     -35,146  maximin=    -3,394  avg_net=  62,245  tdd=9.26%  calm=1.35 vol=0.85
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.35000000000000003] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.35].
+  optuna_warn(
+[stage2 A] trial  41  BREACH  survived=0/5  calm=1.20 vol=1.05
+[stage2 A] trial  42  BREACH  survived=1/5  calm=1.20 vol=0.50
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.1, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.1, 0.3].
+  optuna_warn(
+[stage2 A] trial  43  BREACH  survived=1/5  calm=0.95 vol=0.50
+[stage2 A] trial  40  BREACH  survived=4/5  calm=1.20 vol=0.65
+[stage2 A] trial  39  OK  obj=       9,672  maximin=    11,720  avg_net=  62,461  tdd=8.32%  calm=1.25 vol=0.65
+[stage2 A] trial  47  BREACH  survived=1/5  calm=0.85 vol=1.70
+[stage2 A] trial  44  OK  obj=     -26,600  maximin=    23,328  avg_net=  52,487  tdd=9.58%  calm=0.95 vol=1.65
+/usr/local/lib/python3.11/dist-packages/optuna/distributions.py:671: UserWarning: The distribution is specified by [0.15, 0.30000000000000004] and step=0.05, but the range is not divisible by `step`. It will be replaced with [0.15, 0.3].
+  optuna_warn(
+[stage2 A] trial  46  OK  obj=       1,851  maximin=     1,851  avg_net=  63,648  tdd=7.49%  calm=0.85 vol=1.70
+[stage2 A] trial  45  OK  obj=       3,164  maximin=     3,164  avg_net=  45,861  tdd=7.14%  calm=0.85 vol=0.70
+[stage2 A] trial  49  BREACH  survived=1/5  calm=1.05 vol=0.75
+[stage2 A] trial  51  BREACH  survived=2/5  calm=1.05 vol=0.70
+[stage2 A] trial  48  OK  obj=       5,809  maximin=    14,001  avg_net=  30,435  tdd=8.64%  calm=0.60 vol=0.75
+[stage2 A] trial  50  BREACH  survived=3/5  calm=0.60 vol=0.75
+[stage2 A] trial  52  OK  obj=       7,772  maximin=    14,500  avg_net=  33,575  tdd=8.58%  calm=1.10 vol=0.40
+[stage2 A] trial  56  BREACH  survived=0/5  calm=1.00 vol=0.45
+[stage2 A] trial  53  OK  obj=       7,772  maximin=    14,500  avg_net=  33,575  tdd=8.58%  calm=1.10 vol=0.40
+[stage2 A] trial  54  OK  obj=      14,300  maximin=    14,500  avg_net=  33,451  tdd=8.1%  calm=1.10 vol=0.40
+[stage2 A] trial  57  BREACH  survived=0/5  calm=1.10 vol=0.60
+[stage2 A] trial  55  OK  obj=     -32,318  maximin=    14,500  avg_net=  42,270  tdd=9.53%  calm=1.10 vol=0.40
+[stage2 A] trial  58  OK  obj=       2,639  maximin=     2,639  avg_net=  26,450  tdd=5.61%  calm=0.90 vol=0.60
+[stage2 A] trial  59  OK  obj=       3,699  maximin=     3,699  avg_net=  24,365  tdd=1.33%  calm=0.75 vol=0.60
+[stage2 A] trial  60  OK  obj=       1,316  maximin=     1,316  avg_net=  15,872  tdd=7.42%  calm=0.75 vol=0.50
+[stage2 A] trial  61  OK  obj=        -979  maximin=      -979  avg_net=  35,767  tdd=6.22%  calm=0.75 vol=1.20
+[stage2 A] trial  62  OK  obj=       1,143  maximin=     1,143  avg_net=  16,822  tdd=6.48%  calm=0.75 vol=0.50
+[stage2 A] trial  65  BREACH  survived=4/5  calm=1.15 vol=0.45
+[stage2 A] trial  63  OK  obj=     -72,681  maximin=    -4,231  avg_net=  24,284  tdd=9.85%  calm=1.15 vol=0.50
+[stage2 A] trial  64  OK  obj=       2,371  maximin=     2,371  avg_net=  35,393  tdd=7.79%  calm=1.00 vol=0.45
+[stage2 A] trial  68  BREACH  survived=0/5  calm=1.00 vol=1.40
+[stage2 A] trial  70  BREACH  survived=0/5  calm=1.45 vol=1.55
+[stage2 A] trial  66  BREACH  survived=1/5  calm=1.15 vol=0.45
+[stage2 A] trial  67  BREACH  survived=1/5  calm=1.00 vol=0.45
+[stage2 A] trial  73  BREACH  survived=0/5  calm=1.25 vol=1.50
+[stage2 A] trial  69  BREACH  survived=3/5  calm=0.65 vol=1.30
+[stage2 A] trial  74  BREACH  survived=1/5  calm=0.90 vol=1.35
+[stage2 A] trial  71  OK  obj=      14,398  maximin=    14,398  avg_net=  44,408  tdd=7.61%  calm=0.90 vol=0.55
+[stage2 A] trial  75  BREACH  survived=0/5  calm=0.90 vol=1.80
+[stage2 A] trial  76  BREACH  survived=1/5  calm=0.80 vol=1.20
+[stage2 A] trial  72  OK  obj=     -37,042  maximin=    24,208  avg_net= 106,890  tdd=9.75%  calm=0.90 vol=1.30
+[stage2 A] trial  77  OK  obj=      -3,614  maximin=    -3,614  avg_net=  58,662  tdd=7.55%  calm=0.80 vol=0.55
+[stage2 A] trial  78  OK  obj=      -3,614  maximin=    -3,614  avg_net=  58,662  tdd=7.55%  calm=0.80 vol=0.55
+[stage2 A] trial  80  BREACH  survived=2/5  calm=0.80 vol=0.55
+[stage2 A] trial  79  OK  obj=      -2,470  maximin=    -2,470  avg_net=  59,123  tdd=6.82%  calm=0.80 vol=0.55
+[stage2 A] trial  83  BREACH  survived=1/5  calm=1.25 vol=1.05
+[stage2 A] trial  82  BREACH  survived=4/5  calm=1.25 vol=1.00
+[stage2 A] trial  81  OK  obj=      14,355  maximin=    14,355  avg_net=  57,661  tdd=7.22%  calm=1.25 vol=1.00
+[stage2 A] trial  84  BREACH  survived=3/5  calm=0.95 vol=0.95
+[stage2 A] trial  88  BREACH  survived=0/5  calm=1.15 vol=0.65
+[stage2 A] trial  85  BREACH  survived=4/5  calm=1.05 vol=1.15
+[stage2 A] trial  86  OK  obj=      -9,927  maximin=    45,851  avg_net= 100,024  tdd=9.67%  calm=0.95 vol=1.50
+[stage2 A] trial  87  OK  obj=     -11,964  maximin=    -3,252  avg_net=  49,883  tdd=8.66%  calm=1.15 vol=0.60
+[stage2 A] trial  89  OK  obj=      19,667  maximin=    19,667  avg_net=  61,276  tdd=7.34%  calm=1.30 vol=1.15
+[stage2 A] trial  90  OK  obj=     -32,223  maximin=    22,227  avg_net=  44,480  tdd=9.65%  calm=1.30 vol=0.40
+[stage2 A] trial  91  OK  obj=     -45,558  maximin=    22,154  avg_net=  38,711  tdd=9.84%  calm=1.30 vol=0.40
+[stage2 A] trial  94  BREACH  survived=2/5  calm=1.20 vol=1.10
+[stage2 A] trial  92  OK  obj=     -15,758  maximin=    22,330  avg_net=  40,775  tdd=9.38%  calm=1.30 vol=0.40
+[stage2 A] trial  97  BREACH  survived=0/5  calm=1.40 vol=1.15
+[stage2 A] trial  93  OK  obj=      19,667  maximin=    19,667  avg_net=  61,276  tdd=7.34%  calm=1.30 vol=1.15
+[stage2 A] trial  96  BREACH  survived=1/5  calm=1.40 vol=1.15
+[stage2 A] trial  95  BREACH  survived=1/5  calm=1.35 vol=1.10
+[stage2 A] trial 101  BREACH  survived=0/5  calm=0.70 vol=1.25
+[stage2 A] trial  99  BREACH  survived=1/5  calm=1.35 vol=1.25
+[stage2 A] trial 100  BREACH  survived=1/5  calm=1.35 vol=1.25
+[stage2 A] trial  98  BREACH  survived=3/5  calm=1.35 vol=0.50
+[stage2 A] trial 102  OK  obj=      15,106  maximin=    15,106  avg_net=  54,959  tdd=7.74%  calm=1.25 vol=0.50
+[stage2 A] trial 104  BREACH  survived=2/5  calm=1.20 vol=0.50
+[stage2 A] trial 103  OK  obj=      14,324  maximin=    14,324  avg_net=  54,657  tdd=6.93%  calm=1.25 vol=0.50
+[stage2 A] trial 105  OK  obj=      15,698  maximin=    29,146  avg_net=  60,909  tdd=8.82%  calm=1.25 vol=1.00
+[stage2 A] trial 107  OK  obj=     -33,682  maximin=    28,976  avg_net=  60,885  tdd=9.77%  calm=1.25 vol=1.00
+[stage2 A] trial 106  OK  obj=     -47,177  maximin=    14,775  avg_net=  43,410  tdd=9.76%  calm=1.20 vol=0.80
+
+[stage2 A] STAGE2 COMPLETE — 100 done, 46 surviving
+  BEST obj=49,069  maximin=49,069  avg_net=98,866  worst_tdd=7.81%
+  params: {'RISK_CALM_MULT': 1.15, 'RISK_VOLATILE_MULT': 0.55, 'VOL_REGIME_DD_OFF': 2.5, 'CFG_MAX_CUM_RISK': 4.0, 'CFG_DAILY_HALT_PCT': 2.0, 'CFG_TDD_CAUTION_PCT': 4.0, 'CFG_TDD_WARNING_PCT': 5.5, 'CFG_TDD_EMERGENCY_PCT': 8.0, 'CFG_RISK_CAUTIOUS': 0.35000000000000003, 'CFG_RISK_CONSERVATIVE': 0.25, 'CFG_RISK_ULTRASAFE': 0.15000000000000002, 'TDD_WALL_SAFETY': 5.0}
+[stage2 A] STAGE2_DONE_MARKER

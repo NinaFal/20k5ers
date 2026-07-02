@@ -1,0 +1,39 @@
+==============================================================================
+Stage 4 Robustness Report — Locked Stage 1+2+3 Config
+Generated: 2026-06-13 10:45:44
+==============================================================================
+
+── Worst-Case Intrabar TDD (TDD_WORST_CASE=1) ────────────
+window                    base_tdd  worst_tdd       Δ  outcome
+  2022-01-01                  4.31       6.18   +1.87       ok
+  2016-01-01                  0.55       6.46   +5.91       ok
+  2020-01-01                  6.17       6.21   +0.04       ok
+  2017-01-01                  8.55       0.63   -7.92       ok
+  2019-07-01                  3.97       6.21   +2.24       ok
+  2015-01-01                   3.9       0.88   -3.02       ok
+  Intrabar-only NEW breaches (passed bar-close, failed wick): 0
+
+── Monte-Carlo Trade-Order Shuffle (path-dependence) ─────
+window                    actual    mean     p95     p99     max  P(breach)
+  2023-01-01              13.09%  10.67%  14.21%  15.56%  17.68%     59.22%
+  2023-07-01              14.68%  11.45%  14.61%  15.64%  17.02%     70.46%
+  Worst-window P(TDD breaches 10% wall): 70.46%
+
+── Parameter-Perturbation Robustness (plateau test) ──────
+perturbation              outcome  maximin_net  worst_tdd
+  risk=1.0                       ok       26,824      7.88%
+  risk=1.2                       ok       12,368      6.98%
+  sl_after_tp2_r-0.1         BREACH       18,379     10.04%
+  sl_after_tp2_r+0.1             ok        9,830      9.59%
+  sl_after_tp3_r-0.1         BREACH       -5,015     10.03%
+  sl_after_tp3_r+0.1         BREACH       32,780      8.34%
+  sl_after_tp4_r-0.1             ok       17,779      6.87%
+  sl_after_tp4_r+0.1         BREACH       18,348      8.96%
+  tp5_r-0.3                  BREACH       11,863      8.36%
+  tp5_r+0.3                  BREACH       22,629       9.9%
+  tp1_close-0.05                 ok       30,914      7.12%
+  tp1_close+0.05             BREACH        8,039      10.0%
+  Perturbations that breach: 7/12  (robust plateau ⇒ 0)
+
+==============================================================================
+STAGE4_ROBUSTNESS_DONE_MARKER

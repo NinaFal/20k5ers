@@ -257,6 +257,20 @@ def phase_grid():
     done  = _load_done()
     todo  = [c for c in cells if _cell_key(*c) not in done]
 
+    # Interleave round-robin across calm_fib levels so all 5 fib values get
+    # sampled early — avoids spending the first 6h entirely on calm=0.45 if
+    # the session is interrupted before other levels are reached.
+    from collections import defaultdict
+    _buckets = defaultdict(list)
+    for c in todo:
+        _buckets[c[0]].append(c)
+    _interleaved = []
+    while any(_buckets.values()):
+        for k in sorted(_buckets):
+            if _buckets[k]:
+                _interleaved.append(_buckets[k].pop(0))
+    todo = _interleaved
+
     print(f"\n{'='*78}")
     print(f"  Stage 1c — Entry Quality: vol-adaptive fib × ADX gate")
     print(f"  {len(cells)} cells total  |  {len(done)} cached  |  {len(todo)} to run")

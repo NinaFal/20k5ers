@@ -1,0 +1,51 @@
+==============================================================================
+Stage 4 — Perturbation Robustness Report
+Top 5 configs × 3 risk levels × 5 training windows
+==============================================================================
+
+── Trial #182  sweep_obj=75,262  sweep_wtdd=9.31%  tp3=2.9  tp5=5.2  c2=0.35
+    risk  breaches     maximin   worst_tdd  verdict
+  ------------------------------------------------------------
+    0.8%         1      48,173      10.01%  FAIL (1 breach)
+    0.9%         0      75,262       9.31%  PASS
+    1.0%         0      14,613       8.46%  PASS
+
+── Trial #146  sweep_obj=74,387  sweep_wtdd=5.88%  tp3=2.8  tp5=4.0  c2=0.25
+    risk  breaches     maximin   worst_tdd  verdict
+  ------------------------------------------------------------
+    0.8%         0      27,209       8.45%  PASS
+    0.9%         0      74,387       5.88%  PASS
+    1.0%         1      45,190      10.03%  FAIL (1 breach)
+
+── Trial #170  sweep_obj=72,472  sweep_wtdd=6.28%  tp3=2.8  tp5=4.3  c2=0.30000000000000004
+    risk  breaches     maximin   worst_tdd  verdict
+  ------------------------------------------------------------
+    0.8%         0      28,762       8.32%  PASS
+    0.9%         0      72,472       6.28%  PASS
+    1.0%         0      73,857       6.79%  PASS
+
+── Trial #165  sweep_obj=71,358  sweep_wtdd=6.90%  tp3=2.8  tp5=4.9  c2=0.30000000000000004
+    risk  breaches     maximin   worst_tdd  verdict
+  ------------------------------------------------------------
+    0.8%         1      24,703      10.01%  FAIL (1 breach)
+    0.9%         0      71,358       6.90%  PASS
+    1.0%         0      31,458       8.73%  PASS
+
+── Trial #148  sweep_obj=69,397  sweep_wtdd=7.83%  tp3=2.7  tp5=4.6  c2=0.25
+    risk  breaches     maximin   worst_tdd  verdict
+  ------------------------------------------------------------
+    0.8%         0      18,874       8.36%  PASS
+    0.9%         0      69,397       7.83%  PASS
+    1.0%         0      40,375       7.00%  PASS
+
+── Robustness Summary ────────────────────────────────────────
+   trial      0.8%      0.9%      1.0%   sweep_obj  recommendation
+  ------------------------------------------------------------------------
+     182      FAIL      PASS      PASS      75,262  OK    — safe at 0.9% only
+     146      PASS      PASS      FAIL      74,387  GOOD  — safe at 0.8% and 0.9%
+     170      PASS      PASS      PASS      72,472  IDEAL — safe at all 3 risk levels
+     165      FAIL      PASS      PASS      71,358  OK    — safe at 0.9% only
+     148      PASS      PASS      PASS      69,397  IDEAL — safe at all 3 risk levels
+
+==============================================================================
+STAGE4_PERTURB_DONE_MARKER
