@@ -5,6 +5,14 @@ with zero breaches** across out-of-sample, random starts, a 10-year run, and
 stress tests. Each stage locks its winner into the next. Nothing is selected on
 in-sample data alone.
 
+> **⚠️ CURRENT FRONT (2026-07): Stage 5c OOS screen = 0/20.** Root-caused to
+> **uncapped correlated exposure** — the pool stacks 15–19 same-group positions
+> that gap together on flash/news days (COVID, 2019 JPY, 2022 gilt). The
+> `CORR_GROUP_CAP` lever (OFF for the whole pool) flips the big daily-gap deaths
+> into full-window survivors (t170 & t113 both survive at cap=2, peak DDD 19%→~3.7%).
+> Full evidence + next step in **[`STAGE5C_BREACH_DIAGNOSIS.md`](STAGE5C_BREACH_DIAGNOSIS.md)**;
+> Stage 5d screen wired in `src/stage5d_corr_cap_screen.py`.
+
 ## North-star objective (priority order — NEVER reorder)
 
 1. **Never breach** — 5%ers hard walls: 5% daily DD (from day-start equity) /
