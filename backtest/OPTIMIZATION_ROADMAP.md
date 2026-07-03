@@ -5,13 +5,17 @@ with zero breaches** across out-of-sample, random starts, a 10-year run, and
 stress tests. Each stage locks its winner into the next. Nothing is selected on
 in-sample data alone.
 
-> **⚠️ CURRENT FRONT (2026-07): Stage 5c OOS screen = 0/20.** Root-caused to
-> **uncapped correlated exposure** — the pool stacks 15–19 same-group positions
-> that gap together on flash/news days (COVID, 2019 JPY, 2022 gilt). The
-> `CORR_GROUP_CAP` lever (OFF for the whole pool) flips the big daily-gap deaths
-> into full-window survivors (t170 & t113 both survive at cap=2, peak DDD 19%→~3.7%).
-> Full evidence + next step in **[`STAGE5C_BREACH_DIAGNOSIS.md`](STAGE5C_BREACH_DIAGNOSIS.md)**;
-> Stage 5d screen wired in `src/stage5d_corr_cap_screen.py`.
+> **✅ CURRENT FRONT (2026-07): Stage 5c was 0/20 → Stage 5d has 4 clean passes.**
+> Root cause of the 0/20 = **uncapped correlated exposure** (the pool stacks
+> 15–19 same-group positions that gap together on flash/news days: COVID, 2019
+> JPY, 2022 gilt). The `CORR_GROUP_CAP` lever was OFF for the whole pool. Sweeping
+> it at **cap=3** yields **4/6 configs that pass all 4 OOS windows AND the full
+> 2015-2024 continuous run, zero breach** ($232k–$534k net). **Locked winner:
+> trial 39 @ cap=3** (full-run TDD 6.27% / DDD 3.23%) —
+> [`output/doe/STAGE5D_WINNER.md`](output/doe/STAGE5D_WINNER.md).
+> Evidence: **[`STAGE5C_BREACH_DIAGNOSIS.md`](STAGE5C_BREACH_DIAGNOSIS.md)**.
+> Next: run the validation gauntlet on the winner, then the joint cap+risk
+> optimizer (`src/stage5d_corr_cap_optimize.py`) to buy back net at equal safety.
 
 ## North-star objective (priority order — NEVER reorder)
 

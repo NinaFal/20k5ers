@@ -1,8 +1,14 @@
-Stage 5d CORR-CAP OOS Screen  [2026-07-03 01:32:16]
+Stage 5d CORR-CAP OOS Screen  [2026-07-03 02:59:51]
 windows: 5 (4 OOS + full 2015-2024)
 
  trial  cap  verdict  OOSpass  full  peakDDD%  peakTDD%     fullNet
 -------------------------------------------------------------------
+    39    3     PASS   4/4     PASS      4.05      6.27     533,888
+   104    3     PASS   4/4     PASS      4.40      8.61     471,295
+    14    3     PASS   4/4     PASS      4.45      9.61     469,020
+   217    3     PASS   4/4     PASS      4.21      7.70     232,510
+   301    3     FAIL   3/4     FAIL      8.74      9.98     606,571
+    66    3     FAIL   3/4     PASS      5.98      9.62     221,324
     66    2     FAIL   3/4     FAIL     10.43     10.00     203,349
     14    2     FAIL   3/4     FAIL      5.49      8.17      37,037
    217    2     FAIL   3/4     FAIL      6.20      7.54      11,041
@@ -10,4 +16,4 @@ windows: 5 (4 OOS + full 2015-2024)
     39    2     FAIL   3/4     FAIL      3.33     10.01      -5,009
    301    2     FAIL   2/4     FAIL      5.15     10.02      -5,013
 
-Passing (trial,cap): 0/6
+Passing (trial,cap): 4/12

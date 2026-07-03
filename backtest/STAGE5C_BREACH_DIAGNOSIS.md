@@ -92,25 +92,43 @@ Classic finding #1 (cold-start ≠ continuous). Two fixes for Stage 5d:
 add `CORR_GROUP_CAP` to the search space **and** put the full continuous window
 in the selection set.
 
-## 5. Next step — Stage 5d (wired, ready to run)
+## 5. Stage 5d screen result — cap=3 wins, 4/6 pass ✅
 
-`backtest/src/stage5d_corr_cap_screen.py` sweeps `CORR_GROUP_CAP ∈ {2,3}` across
+`backtest/src/stage5d_corr_cap_screen.py` swept `CORR_GROUP_CAP ∈ {2,3}` across
 the trials that failed **only** the full window (`[14, 39, 66, 104, 217, 301]`)
-on the same 5 OOS-screen windows, and reports which `(trial, cap)` pairs pass
-all five. Resumable (per-window checkpoint), safe to relaunch.
+on the same 5 OOS-screen windows. Result (`stage5d_corr_cap_screen_report.txt`):
 
-```bash
-# from repo root, keep alive via the Bash tool run_in_background (NO trailing &):
-uv run python3 backtest/src/stage5d_corr_cap_screen.py --caps 2,3 --workers 2
-# report -> backtest/output/doe/stage5d_corr_cap_screen_report.txt
+```
+trial cap verdict OOSpass full peakDDD% peakTDD%   fullNet
+   39   3   PASS    4/4   PASS   4.05     6.27    533,888
+  104   3   PASS    4/4   PASS   4.40     8.61    471,295
+   14   3   PASS    4/4   PASS   4.45     9.61    469,020
+  217   3   PASS    4/4   PASS   4.21     7.70    232,510
+  ...   2   FAIL   (all six fail at cap=2)
+Passing (trial,cap): 4/12
 ```
 
-If a `(trial, cap=2)` pair passes the screen, that is the **first breach-free
-config over OOS + the full continuous run** — lock it and move to a Stage 5d
-*optimization* that co-optimizes the cap with looser risk mults to buy back net.
-If none passes at the existing (tight) risk settings, run that joint
-optimization directly: it is the profit-recovery step, with the cap holding the
-gap wall the pool has been failing on.
+- **cap=3 threads the needle**: 4/6 trials pass **all five windows** (4 OOS +
+  full 2015-2024 continuous) with **zero breach** — the first configs to do so.
+  They survive COVID, the 2019 JPY flash, and the 2022 gilt crisis (the events
+  that killed the whole cap-off pool), keeping $232k–$534k net over 10 years.
+- **cap=2 is 0/6** — too tight: it breaks a previously-passing OOS window on
+  every candidate (the cap changes the trade path, so it can't be bolted on a
+  config tuned for cap=0). The n=2 diagnostics in §3 that liked cap=2 for
+  t170/t113 did NOT generalize; the full 6-trial screen is the deciding evidence.
+
+**LOCKED WINNER: trial 39 @ cap=3** — widest margin (full-run TDD 6.27% / DDD
+3.23%), $534k net, plateau not spike. Config in
+[`output/doe/STAGE5D_WINNER.md`](output/doe/STAGE5D_WINNER.md).
+
+### Still open
+1. **Validation gauntlet** on the winner (ROADMAP): gap/slippage stress,
+   `TDD_WORST_CASE=1`, Monte-Carlo trade-order shuffle, parameter-perturbation
+   around cap=3. The screen proves OOS+continuous survival, not the full gauntlet.
+2. **Buy back net** with the joint optimizer `src/stage5d_corr_cap_optimize.py`
+   (cap in the search space + full window in the selection set, seeded from the
+   5c survivors). cap=3 here is a bolt-on; re-tuning risk for the capped regime
+   should lift net at equal safety.
 
 ## 6. Artifacts this session
 
