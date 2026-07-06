@@ -50,13 +50,15 @@ def main():
     ap.add_argument("trial", type=int)
     ap.add_argument("--exclude", default="")
     ap.add_argument("--corr-cap", type=int, default=0)
+    ap.add_argument("--max-scale", default="", help="override FIVEERS_MAX_SCALE")
     ap.add_argument("--start", default="2015-01-01")
     ap.add_argument("--end", default="2024-12-31")
     args = ap.parse_args()
 
     env_over = load_trial_env(args.trial)
     tag = f"t{args.trial}" + (f"_excl" if args.exclude else "") \
-        + (f"_cc{args.corr_cap}" if args.corr_cap else "")
+        + (f"_cc{args.corr_cap}" if args.corr_cap else "") \
+        + (f"_ms{args.max_scale}" if args.max_scale else "")
     outdir = DOE_DIR / f"diag_{tag}_{args.start}"
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -67,6 +69,8 @@ def main():
         env["EXCLUDE_SYMBOLS"] = args.exclude
     if args.corr_cap:
         env["CORR_GROUP_CAP"] = str(args.corr_cap)
+    if args.max_scale:
+        env["FIVEERS_MAX_SCALE"] = str(args.max_scale)
     env["OPT_PARAMS"] = json.dumps({**dh.BASE_TP, **scr.TP_OVER})
     env["PYTHONUTF8"] = "1"
 
