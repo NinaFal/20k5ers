@@ -60,3 +60,28 @@ The screen proves OOS + continuous survival. The full validation gauntlet
 Also: cap=3 is a *bolt-on* to a cap-off-tuned config. The joint
 (cap + risk) optimizer `src/stage5d_corr_cap_optimize.py` can likely buy back
 more net at equal safety by re-tuning risk for the capped regime — run it next.
+
+---
+
+## BACKUP SETTING — t39 @ cap=3, base risk 1.5%, scaling UNCAPPED (50k account)
+
+Higher-profit variant of the winner, kept as a backup (full 2015-2024 run, all
+walls respected):
+
+| config | net (10yr) | peak TDD | peak DDD | funded reached |
+|--------|-----------:|---------:|---------:|---------------:|
+| winner (risk 1.0%, cap 400k) | $533,888 | 6.27% | 3.23% | $400k |
+| **BACKUP (risk 1.5%, uncapped)** | **$743,277** | 9.12% | 3.64% | $500k |
+
+Same env as the locked winner EXCEPT:
+```
+risk_per_trade_pct = 1.5          # was 1.0 (in OPT_PARAMS)
+FIVEERS_MAX_SCALE  = 4000000      # scaling cap lifted (was 400000)
+CORR_GROUP_CAP     = 3            # unchanged
+```
+Reproduce: `uv run python3 backtest/src/diag_full_breach.py 39 --corr-cap 3 --max-scale 4000000`
+(risk override needs OPT_PARAMS risk_per_trade_pct=1.5, e.g. via diag_t39_risk_sweep.py).
+
+Caveat: TDD margin is thinner (9.12% vs 6.27%) and this is validated on the full
+continuous window only — re-run the 4 OOS windows before trusting it live.
+Above 1.5% base risk the run breaches at the 2015-01-15 CHF/SNB swan.
