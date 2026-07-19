@@ -42,10 +42,12 @@ os.environ.setdefault("RUN_TIMEOUT_S", "999999")
 ACCOUNT = 100_000
 CHF = "USD_CHF,EUR_CHF,GBP_CHF,AUD_CHF,NZD_CHF,CAD_CHF,CHF_JPY"
 HORIZON_DAYS = 150
-# Start dates the trial is scored on (black-swan-free years). Kept modest so a
-# trial is ~12 runs; widen later for the final validation of the winner.
-EVAL_STARTS = [f"{y}-{m:02d}-01" for y in (2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024)
-               for m in (1, 7)]
+# Start dates the trial is scored on. MUST include the toxic Apr/Oct windows
+# (2016-10, 2021-10, 2023-10, 2024-07/10) that produced the breaches — otherwise
+# the optimizer only sees easy Jan/Jul starts and can't learn to survive the
+# dangerous ones. 5 years x 4 quarters = 20 starts (mix of trending + choppy).
+EVAL_STARTS = [f"{y}-{m:02d}-01" for y in (2016, 2018, 2021, 2023, 2024)
+               for m in (1, 4, 7, 10)]
 
 PARAM_COLS = ["risk_per_trade_pct", "RISK_CALM_MULT", "RISK_VOLATILE_MULT",
               "VOL_REGIME_DD_OFF", "CFG_MAX_CUM_RISK", "CFG_DAILY_HALT_PCT",
