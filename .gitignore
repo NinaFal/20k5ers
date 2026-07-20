@@ -257,3 +257,4 @@ backtest/output/doe/challenge*.csv
 
 # Claude Code local tooling / worktrees (do not commit)
 .claude/
+backtest/output/doe/full_2step_eval.json
