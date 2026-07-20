@@ -252,7 +252,7 @@ backtest/output/doe/*.db
 # per-trial breach diagnostics — large trades.csv; numbers captured in STAGE5C_BREACH_DIAGNOSIS.md
 backtest/output/doe/diag_*/
 # live optimizer results CSV (churns every trial while running; final winner captured in a *_WINNER/*_FINDINGS doc)
-backtest/output/doe/challenge.csv
+backtest/output/doe/challenge*.csv
 
 
 # Claude Code local tooling / worktrees (do not commit)

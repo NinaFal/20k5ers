@@ -3479,7 +3479,12 @@ class LiveTradingBot:
             return 1.0
         m_calm = float(os.getenv("RISK_CALM_MULT", "1.0"))
         m_vol  = float(os.getenv("RISK_VOLATILE_MULT", "1.0"))
-        if m_calm == 1.0 and m_vol == 1.0:
+        # 3-way split (env-gated): add a middle "normal" band between calm and
+        # volatile, with its own multiplier and two thresholds. OFF by default so
+        # the 2-way behavior above stays bit-identical.
+        _three = os.getenv("RISK_REGIME_3WAY", "0").strip().lower() in ("1", "true", "yes", "on")
+        m_norm = float(os.getenv("RISK_NORMAL_MULT", "1.0")) if _three else 1.0
+        if m_calm == 1.0 and m_vol == 1.0 and m_norm == 1.0:
             return 1.0
         ct  = getattr(self.mt5, "_current_time", None)
         day = ct.date() if ct is not None and hasattr(ct, "date") else None
@@ -3499,8 +3504,21 @@ class LiveTradingBot:
             atr14 = self._calculate_atr(candles[-15:], 14)
             atr50 = self._calculate_atr(candles[-51:], 50)
             if atr50 > 0:
-                thr  = float(getattr(self.params, "fib_vol_ratio_threshold", 1.15))
-                mult = m_vol if (atr14 / atr50) >= thr else m_calm
+                ratio = atr14 / atr50
+                thr = float(getattr(self.params, "fib_vol_ratio_threshold", 1.15))
+                if _three:
+                    # calm  : ratio <  RISK_CALM_THR      -> m_calm
+                    # normal: RISK_CALM_THR <= ratio < RISK_VOL_THR -> m_norm
+                    # vol   : ratio >= RISK_VOL_THR        -> m_vol
+                    # Defaults straddle the entry fib threshold so the middle band
+                    # brackets it symmetrically. Ordering enforced (lo <= hi).
+                    lo = float(os.getenv("RISK_CALM_THR", str(round(thr - 0.10, 4))))
+                    hi = float(os.getenv("RISK_VOL_THR",  str(round(thr + 0.10, 4))))
+                    if hi < lo:
+                        lo, hi = hi, lo
+                    mult = m_calm if ratio < lo else (m_vol if ratio >= hi else m_norm)
+                else:
+                    mult = m_vol if ratio >= thr else m_calm
         cache[key] = mult
         return mult
 

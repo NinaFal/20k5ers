@@ -50,6 +50,7 @@ EVAL_STARTS = [f"{y}-{m:02d}-01" for y in (2016, 2018, 2021, 2023, 2024)
                for m in (1, 4, 7, 10)]
 
 PARAM_COLS = ["risk_per_trade_pct", "RISK_CALM_MULT", "RISK_VOLATILE_MULT",
+              "RISK_NORMAL_MULT", "RISK_CALM_THR", "RISK_VOL_THR",
               "VOL_REGIME_DD_OFF", "CFG_MAX_CUM_RISK", "CFG_DAILY_HALT_PCT",
               "CFG_TDD_CAUTION_PCT", "CFG_RISK_CAUTIOUS", "CFG_TDD_WARNING_PCT",
               "CFG_RISK_CONSERVATIVE", "CFG_TDD_EMERGENCY_PCT", "CFG_RISK_ULTRASAFE",
@@ -74,10 +75,18 @@ def _suggest(trial):
     wall    = trial.suggest_float("TDD_WALL_SAFETY",    2.0, 5.0, step=0.5)
     cap     = trial.suggest_categorical("CORR_GROUP_CAP", [2, 3, 4])
     inc_chf = trial.suggest_categorical("INCLUDE_CHF", [0, 1])
+    # 3-way regime split: middle "normal" band with its own mult + two thresholds
+    # on ATR14/ATR50. Ranges chosen so calm_thr <= vol_thr always (no crossing).
+    m_norm  = trial.suggest_float("RISK_NORMAL_MULT", 0.70, 1.50, step=0.01)
+    calm_thr = trial.suggest_float("RISK_CALM_THR",   0.95, 1.10, step=0.05)
+    vol_thr  = trial.suggest_float("RISK_VOL_THR",    1.10, 1.30, step=0.05)
     env = {
         "RISK_REGIME_ENABLE": "1", "VOL_SIZE_ENABLE": "0", "VOL_REGIME_DD_MULT": "1.0",
         "FIVEERS_MAX_SCALE": "4000000",
+        "RISK_REGIME_3WAY": "1",
         "RISK_CALM_MULT": f"{calm}", "RISK_VOLATILE_MULT": f"{vol}",
+        "RISK_NORMAL_MULT": f"{m_norm}", "RISK_CALM_THR": f"{calm_thr}",
+        "RISK_VOL_THR": f"{vol_thr}",
         "VOL_REGIME_DD_OFF": f"{regoff}", "CFG_MAX_CUM_RISK": f"{cumrisk}",
         "CFG_DAILY_HALT_PCT": f"{halt}", "CFG_TDD_CAUTION_PCT": f"{caut}",
         "CFG_RISK_CAUTIOUS": f"{rcaut}", "CFG_TDD_WARNING_PCT": f"{warn}",
@@ -177,19 +186,30 @@ def main():
     ap.add_argument("--jobs", type=int, default=2)
     args = ap.parse_args()
     (DOE_DIR / "tmp").mkdir(parents=True, exist_ok=True)
-    db = str(DOE_DIR / "challenge.db"); csv_path = DOE_DIR / "challenge.csv"
+    db = str(DOE_DIR / "challenge3.db"); csv_path = DOE_DIR / "challenge3.csv"
 
-    study = optuna.create_study(direction="maximize", study_name="challenge",
+    study = optuna.create_study(direction="maximize", study_name="challenge3",
                                 storage=f"sqlite:///{db}", load_if_exists=True,
                                 sampler=optuna.samplers.TPESampler(seed=42, multivariate=True))
-    # Seed the known t39 challenge point (risk 2.0, cap 3, CHF excluded).
+    # Seed from the best 2-way configs, with the 3-way levers at near-2-way
+    # defaults (normal mult 1.0, thresholds bracketing the fib threshold ~1.05) so
+    # trial 0 reproduces the proven 2-way winner and the search can only improve.
     if not [t for t in study.trials if t.state != optuna.trial.TrialState.FAIL]:
-        study.enqueue_trial({
-            "risk_per_trade_pct": 2.0, "RISK_CALM_MULT": 0.87, "RISK_VOLATILE_MULT": 0.71,
-            "VOL_REGIME_DD_OFF": 5.0, "CFG_MAX_CUM_RISK": 5.0, "CFG_DAILY_HALT_PCT": 1.75,
-            "CFG_TDD_CAUTION_PCT": 3.5, "CFG_RISK_CAUTIOUS": 0.65, "CFG_TDD_WARNING_PCT": 4.5,
-            "CFG_RISK_CONSERVATIVE": 0.6, "CFG_TDD_EMERGENCY_PCT": 8.0, "CFG_RISK_ULTRASAFE": 0.4,
-            "TDD_WALL_SAFETY": 4.0, "CORR_GROUP_CAP": 3, "INCLUDE_CHF": 0})
+        _defaults_3way = {"RISK_NORMAL_MULT": 1.0, "RISK_CALM_THR": 0.95, "RISK_VOL_THR": 1.15}
+        # trial 74 (highest pass 0.80) and trial 49 (fastest, median 22d)
+        for seed in (
+            {"risk_per_trade_pct": 2.9, "RISK_CALM_MULT": 1.27, "RISK_VOLATILE_MULT": 0.95,
+             "VOL_REGIME_DD_OFF": 5.0, "CFG_MAX_CUM_RISK": 5.0, "CFG_DAILY_HALT_PCT": 3.25,
+             "CFG_TDD_CAUTION_PCT": 3.5, "CFG_RISK_CAUTIOUS": 0.65, "CFG_TDD_WARNING_PCT": 4.5,
+             "CFG_RISK_CONSERVATIVE": 0.6, "CFG_TDD_EMERGENCY_PCT": 8.0, "CFG_RISK_ULTRASAFE": 0.4,
+             "TDD_WALL_SAFETY": 4.0, "CORR_GROUP_CAP": 4, "INCLUDE_CHF": 1},
+            {"risk_per_trade_pct": 2.8, "RISK_CALM_MULT": 1.45, "RISK_VOLATILE_MULT": 0.64,
+             "VOL_REGIME_DD_OFF": 5.0, "CFG_MAX_CUM_RISK": 5.0, "CFG_DAILY_HALT_PCT": 2.25,
+             "CFG_TDD_CAUTION_PCT": 3.5, "CFG_RISK_CAUTIOUS": 0.65, "CFG_TDD_WARNING_PCT": 4.5,
+             "CFG_RISK_CONSERVATIVE": 0.6, "CFG_TDD_EMERGENCY_PCT": 8.0, "CFG_RISK_ULTRASAFE": 0.4,
+             "TDD_WALL_SAFETY": 4.0, "CORR_GROUP_CAP": 3, "INCLUDE_CHF": 1},
+        ):
+            study.enqueue_trial({**seed, **_defaults_3way})
 
     done = sum(1 for t in study.trials
                if t.state in (optuna.trial.TrialState.COMPLETE, optuna.trial.TrialState.PRUNED))
