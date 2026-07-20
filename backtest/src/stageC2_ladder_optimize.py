@@ -18,7 +18,7 @@ config is tested, but still a real grind. Multi-session.
 Run (keepalive, no trailing &):
     uv run python3 backtest/src/stageC2_ladder_optimize.py [--trials 150] [--jobs 2]
 """
-import argparse, csv, importlib.util, json, os
+import argparse, concurrent.futures, csv, importlib.util, json, os
 from pathlib import Path
 
 import optuna
@@ -72,10 +72,16 @@ def objective(trial):
     tp_lever = _suggest(trial)
     tp = {**ENTRY, **tp_lever}
     rows = []
-    for start in cs.TRAIN_STARTS:
-        r = cs.full_two_step(SKELETON, tp, start)
-        r.pop("detail", None)
-        rows.append(r)
+    # Parallelize across the 16 starts (NOT across trials -- running multiple
+    # Optuna trials concurrently against the same sqlite storage hits a race
+    # in study.tell(); see stageC2 crash at trial 2 with n_jobs=2). Keep
+    # study.optimize single-threaded and get concurrency here instead.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
+        futs = [ex.submit(cs.full_two_step, SKELETON, tp, start) for start in cs.TRAIN_STARTS]
+        for fut in futs:
+            r = fut.result()
+            r.pop("detail", None)
+            rows.append(r)
     sc = cs.score_results(rows)
     trial.set_user_attr("p20", sc["p20"]); trial.set_user_attr("p40", sc["p40"])
     trial.set_user_attr("breach_rate", sc["breach_rate"])
@@ -109,7 +115,10 @@ def make_cb(csv_path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--trials", type=int, default=150)
-    ap.add_argument("--jobs", type=int, default=2)
+    # NOTE: keep --jobs at 1. Optuna's sqlite storage races under n_jobs>1
+    # ("Cannot tell a COMPLETE trial") -- concurrency instead happens INSIDE
+    # objective() across the 16 train starts (see objective()).
+    ap.add_argument("--jobs", type=int, default=1)
     args = ap.parse_args()
     (DOE_DIR / "tmp").mkdir(parents=True, exist_ok=True)
     db = str(DOE_DIR / "stageC2.db"); csv_path = DOE_DIR / "stageC2.csv"
