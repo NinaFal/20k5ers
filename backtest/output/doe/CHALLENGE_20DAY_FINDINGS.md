@@ -64,3 +64,41 @@ sl_after 0.5/1.2/1.8.
    safe risk, per CHALLENGE_FINDINGS.md), if 20 days isn't a hard firm rule.
 
 Reproduce: `LADDER_RISK=3.5 uv run python3 backtest/src/challenge_ladder_test.py`
+
+---
+
+## Option 2 tested and CLOSED — entry throughput can't be increased
+
+Hypothesis: loosen the challenge-phase entry gates (confluence / quality / ATR
+percentile) so more setups fire and +8% banks faster. **Result: it does nothing.**
+
+Throughput sweep (bank_fast, risk 3.5%, 16 starts), 4 entry-looseness levels:
+
+| entry gates (trend/range/quality) | avg trades (Step 1) | pass ≤20 |
+|-----------------------------------|:-------------------:|:--------:|
+| 6/3/3 (baseline) | 27.1 | 3/16 |
+| 5/3/2 | 27.1 | 3/16 |
+| 4/2/2 | 27.1 | 3/16 |
+| 3/2/1 | 27.1 | 3/16 |
+
+Identical trade counts. Direct engine probe on a fixed window confirms the gates
+are **non-binding in the operating range**:
+- `trend_min_confluence` 3 / 6 / 15 → all **46 trades**; only at **25** does it drop to 0.
+  The natural confluence scores sit ~15–24, so any threshold ≤15 admits every setup.
+- `atr_min_percentile` 41 / 0 → **46 / 46** (no change).
+
+So the strategy already takes **every setup it detects (~1 trade/day)**. The
+20-day ceiling is **not** a trade-frequency problem — it's the rate at which this
+selective strategy's setups *net +8% closed* (win-rate × R per unit time), which
+no entry-gate change affects. Raising throughput would require a different, lower-
+timeframe entry model — a new strategy, out of scope here.
+
+## Final recommendation
+
+**20 days for the full 2-step cannot be guaranteed with this strategy (~19%
+best-case).** Two honest paths:
+1. **Run it as best-case:** `bank_fast` ladder + ~3.5% risk during the challenge
+   (fastest passes 9–11 days), start when a trend is clearly underway, and be
+   prepared to re-take — it lands ≤20 days ~1 in 5 attempts.
+2. **Relax the deadline** to ~30–40 day median (reliable at safe 1.0–1.5% risk,
+   per CHALLENGE_FINDINGS.md), which the strategy hits comfortably without breaching.
