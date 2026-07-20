@@ -19,7 +19,8 @@ from statistics import median
 
 HERE = Path(__file__).resolve().parent
 DOE_DIR = HERE.parent / "output" / "doe"
-OUT = DOE_DIR / "challenge_ladder_test.json"
+RISK = float(os.getenv("LADDER_RISK", "2.5"))
+OUT = DOE_DIR / f"challenge_ladder_test_r{RISK}.json"
 _spec = importlib.util.spec_from_file_location("doe_harness", str(HERE / "doe_harness.py"))
 dh = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(dh)
 _s = importlib.util.spec_from_file_location("scr5c", str(HERE / "stage5c_oos_screen.py"))
@@ -30,7 +31,6 @@ os.environ.setdefault("RUN_TIMEOUT_S", "999999")
 
 ACCOUNT = 100_000
 STEP_HORIZON = 25
-RISK = float(os.getenv("LADDER_RISK", "2.5"))
 CLEAN_YEARS = [2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024]
 STARTS = [f"{y}-{m:02d}-01" for y in CLEAN_YEARS for m in (1, 7)]  # 16 starts (quick screen)
 
