@@ -59,29 +59,39 @@ PARAM_COLS = ["risk_per_trade_pct", "RISK_CALM_MULT", "RISK_VOLATILE_MULT",
               "VOL_REGIME_DD_OFF", "CFG_MAX_CUM_RISK", "CFG_DAILY_HALT_PCT",
               "CFG_TDD_CAUTION_PCT", "CFG_RISK_CAUTIOUS", "CFG_TDD_WARNING_PCT",
               "CFG_RISK_CONSERVATIVE", "CFG_TDD_EMERGENCY_PCT", "CFG_RISK_ULTRASAFE",
-              "TDD_WALL_SAFETY", "CORR_GROUP_CAP", "ladder"]
+              "TDD_WALL_SAFETY", "CORR_GROUP_CAP", "MAX_TOTAL_POSITIONS", "ladder"]
 CSV_HEADER = ["trial", "score", "p20", "p40", "breach_rate", "median_total"] + PARAM_COLS
 
 
 def _suggest(trial):
-    risk    = trial.suggest_float("risk_per_trade_pct", 1.5, 5.0, step=0.1)
+    # Risk range narrowed per the 3% wall probe (wall3pct_risk_probe.py):
+    # >=1.0% already showed 25-50% breach with a total-position cap; the search
+    # explores a bit above that (optimizer may find safety via a TIGHTER
+    # MAX_TOTAL_POSITIONS at higher risk) but the old 5.0% ceiling is gone.
+    risk    = trial.suggest_float("risk_per_trade_pct", 0.4, 3.0, step=0.1)
     calm    = trial.suggest_float("RISK_CALM_MULT",     0.70, 1.60, step=0.01)
     vol     = trial.suggest_float("RISK_VOLATILE_MULT", 0.50, 1.30, step=0.01)
     regoff  = trial.suggest_float("VOL_REGIME_DD_OFF",  2.0, 5.0, step=0.5)
-    cumrisk = trial.suggest_float("CFG_MAX_CUM_RISK",   2.5, 6.0, step=0.5)
-    halt    = trial.suggest_float("CFG_DAILY_HALT_PCT", 1.25, 3.5, step=0.25)
-    caut    = trial.suggest_float("CFG_TDD_CAUTION_PCT", 3.0, 6.0, step=0.5)
-    warn    = trial.suggest_float("CFG_TDD_WARNING_PCT", caut + 0.5, 8.0, step=0.5)
-    emer    = trial.suggest_float("CFG_TDD_EMERGENCY_PCT", warn + 0.5, 9.0, step=0.5)
+    cumrisk = trial.suggest_float("CFG_MAX_CUM_RISK",   1.5, 4.0, step=0.5)
+    # "Hard close all" proactive halt -- MUST sit below the 3% terminal wall or
+    # it never fires before the breach. Range 1.0-2.8 per user request (~1.5-3%).
+    halt    = trial.suggest_float("CFG_DAILY_HALT_PCT", 1.0, 2.8, step=0.1)
+    caut    = trial.suggest_float("CFG_TDD_CAUTION_PCT", 2.0, 4.0, step=0.25)
+    warn    = trial.suggest_float("CFG_TDD_WARNING_PCT", caut + 0.5, 5.5, step=0.25)
+    emer    = trial.suggest_float("CFG_TDD_EMERGENCY_PCT", warn + 0.5, 7.0, step=0.25)
     rcaut   = trial.suggest_float("CFG_RISK_CAUTIOUS",  0.20, 0.80, step=0.05)
     rcons   = trial.suggest_float("CFG_RISK_CONSERVATIVE", 0.15, min(rcaut, 0.60), step=0.05)
     rultra  = trial.suggest_float("CFG_RISK_ULTRASAFE", 0.10, min(rcons, 0.40), step=0.05)
     wall    = trial.suggest_float("TDD_WALL_SAFETY",    2.0, 5.0, step=0.5)
     cap     = trial.suggest_categorical("CORR_GROUP_CAP", [2, 3, 4])
+    # NEW -- total concurrent-position cap (see diag_wall3_anomaly.py): without
+    # this, breadth across DIFFERENT correlation groups can still breach the
+    # tight 3% wall even at low per-trade risk. CORR_GROUP_CAP alone isn't enough.
+    maxpos  = trial.suggest_categorical("MAX_TOTAL_POSITIONS", [3, 4, 5, 6, 8])
     ladder  = trial.suggest_categorical("ladder", list(LADDERS.keys()))
     env = {
         "RISK_REGIME_ENABLE": "1", "VOL_SIZE_ENABLE": "0", "VOL_REGIME_DD_MULT": "1.0",
-        "FIVEERS_MAX_SCALE": "4000000",
+        "FIVEERS_MAX_SCALE": "4000000", "MAX_TOTAL_POSITIONS": f"{maxpos}",
         "RISK_CALM_MULT": f"{calm}", "RISK_VOLATILE_MULT": f"{vol}",
         "VOL_REGIME_DD_OFF": f"{regoff}", "CFG_MAX_CUM_RISK": f"{cumrisk}",
         "CFG_DAILY_HALT_PCT": f"{halt}", "CFG_TDD_CAUTION_PCT": f"{caut}",
@@ -142,20 +152,27 @@ def main():
     ap.add_argument("--jobs", type=int, default=1)  # keep 1 -- see C2 postmortem
     args = ap.parse_args()
     (DOE_DIR / "tmp").mkdir(parents=True, exist_ok=True)
-    db = str(DOE_DIR / "stageC3.db"); csv_path = DOE_DIR / "stageC3.csv"
+    # NEW db/study name — the search space changed materially (3% wall,
+    # MAX_TOTAL_POSITIONS added, several ranges narrowed) so this is NOT
+    # resumable from the old stageC3.db (7 trials, all scored under the wrong
+    # 5% wall). That db is kept on disk for reference but not loaded here.
+    db = str(DOE_DIR / "stageC3_wall3.db"); csv_path = DOE_DIR / "stageC3_wall3.csv"
 
-    study = optuna.create_study(direction="maximize", study_name="stageC3",
+    study = optuna.create_study(direction="maximize", study_name="stageC3_wall3",
                                 storage=f"sqlite:///{db}", load_if_exists=True,
                                 sampler=optuna.samplers.TPESampler(seed=42, multivariate=True))
     if not [t for t in study.trials if t.state != optuna.trial.TrialState.FAIL]:
-        # Seed both C2 candidates at the C2 risk (3.5%) and the t49 regime mults.
+        # Seed near the wall3pct_risk_probe.py sweet spot: low-ish risk, a real
+        # total-position cap, and a halt comfortably under the 3% wall.
         for ladder in LADDERS:
-            study.enqueue_trial({
-                "risk_per_trade_pct": 3.5, "RISK_CALM_MULT": 1.45, "RISK_VOLATILE_MULT": 0.64,
-                "VOL_REGIME_DD_OFF": 5.0, "CFG_MAX_CUM_RISK": 5.0, "CFG_DAILY_HALT_PCT": 2.25,
-                "CFG_TDD_CAUTION_PCT": 3.5, "CFG_RISK_CAUTIOUS": 0.65, "CFG_TDD_WARNING_PCT": 4.5,
-                "CFG_RISK_CONSERVATIVE": 0.6, "CFG_TDD_EMERGENCY_PCT": 8.0, "CFG_RISK_ULTRASAFE": 0.4,
-                "TDD_WALL_SAFETY": 4.0, "CORR_GROUP_CAP": 3, "ladder": ladder})
+            for risk in (0.8, 1.2):
+                study.enqueue_trial({
+                    "risk_per_trade_pct": risk, "RISK_CALM_MULT": 1.45, "RISK_VOLATILE_MULT": 0.64,
+                    "VOL_REGIME_DD_OFF": 5.0, "CFG_MAX_CUM_RISK": 2.5, "CFG_DAILY_HALT_PCT": 1.75,
+                    "CFG_TDD_CAUTION_PCT": 2.0, "CFG_RISK_CAUTIOUS": 0.5, "CFG_TDD_WARNING_PCT": 3.0,
+                    "CFG_RISK_CONSERVATIVE": 0.3, "CFG_TDD_EMERGENCY_PCT": 5.5, "CFG_RISK_ULTRASAFE": 0.15,
+                    "TDD_WALL_SAFETY": 4.0, "CORR_GROUP_CAP": 2, "MAX_TOTAL_POSITIONS": 5,
+                    "ladder": ladder})
 
     done = sum(1 for t in study.trials
                if t.state in (optuna.trial.TrialState.COMPLETE, optuna.trial.TrialState.PRUNED))
