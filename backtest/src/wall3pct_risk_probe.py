@@ -22,7 +22,8 @@ SKELETON = {"RISK_REGIME_ENABLE": "1", "VOL_SIZE_ENABLE": "0", "VOL_REGIME_DD_MU
             "VOL_REGIME_DD_OFF": "5.0", "CFG_MAX_CUM_RISK": "5.0", "CFG_DAILY_HALT_PCT": "1.25",
             "CFG_TDD_CAUTION_PCT": "2.0", "CFG_RISK_CAUTIOUS": "0.5", "CFG_TDD_WARNING_PCT": "3.0",
             "CFG_RISK_CONSERVATIVE": "0.3", "CFG_TDD_EMERGENCY_PCT": "6.0", "CFG_RISK_ULTRASAFE": "0.15",
-            "TDD_WALL_SAFETY": "4.0", "CORR_GROUP_CAP": "2"}  # tighter cap+halt for the tighter wall
+            "TDD_WALL_SAFETY": "4.0", "CORR_GROUP_CAP": "2",
+            "MAX_TOTAL_POSITIONS": "5"}  # NEW — required for the 3% wall (see diag_wall3_anomaly.py)
 BANK_FAST = {
     "tp1_r_multiple": 0.5, "tp2_r_multiple": 1.0, "tp3_r_multiple": 1.5,
     "tp4_r_multiple": 2.0, "tp5_r_multiple": 3.0,
@@ -34,7 +35,7 @@ ENTRY.update({"entry_fib_level": 0.65, "entry_fib_level_volatile": 0.65,
               "fib_vol_ratio_threshold": 1.15})
 
 PROBE_STARTS = cs.TRAIN_STARTS[:8]
-RISKS = [0.4, 0.6, 0.8, 1.0, 1.25, 1.5]
+RISKS = [0.6, 1.0, 1.5, 2.0, 2.5, 3.0]
 
 
 def probe(risk):
