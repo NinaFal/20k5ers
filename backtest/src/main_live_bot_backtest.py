@@ -4022,6 +4022,24 @@ class LiveTradingBot:
                 log.info(f"[{symbol}] Max trades reached: {total_exposure}/{max_trades} (positions: {open_positions}, pending: {pending_count})")
                 return False
 
+            # ── TOTAL POSITION CAP (env-gated; MAX_TOTAL_POSITIONS, 0 = off) ──
+            # CORR_GROUP_CAP bounds exposure WITHIN one correlation group, but
+            # with 11 groups defined a portfolio can still hold many small
+            # positions across DIFFERENT groups simultaneously. On a broad
+            # risk-off/USD-strength day those all move together even though no
+            # single group is "overloaded" — under a tight daily wall (e.g. the
+            # 3% 5%ers Summer Edition) that breadth alone can breach the wall
+            # even at conservative per-trade risk. Cap TOTAL concurrent
+            # open+pending positions regardless of group.
+            _max_total_pos = 0
+            try:
+                _max_total_pos = int(os.getenv("MAX_TOTAL_POSITIONS", "0"))
+            except ValueError:
+                _max_total_pos = 0
+            if _max_total_pos > 0 and total_exposure >= _max_total_pos:
+                log.info(f"[{symbol}] Total position cap: {total_exposure}/{_max_total_pos} — NO TRADE")
+                return False
+
             # ── CORRELATION CAP (env-gated; CORR_GROUP_CAP, 0 = off/default) ──
             # The root driver of the 10% total-DD death is clustered exposure: one
             # signal sweep fills many pairs in the same correlation group in the
