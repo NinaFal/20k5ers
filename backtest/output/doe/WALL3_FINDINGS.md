@@ -35,38 +35,58 @@ safe. The tradeoff is stark: **safe = usually frozen; faster = 20-44% breach.**
    regimes with enough velocity to go faster also carry a meaningfully higher
    chance of a bad day breaching 3%.
 
-## Options going forward
+## UPDATE 2026-07-21 — relaxed target (20d ideal / 30d = pass), widened horizon
 
-1. **Accept a long timeline on THIS account.** Use the safest config
-   (c=0.45/v=0.80/thr=1.05, risk ~1.0%, MAX_TOTAL_POSITIONS~15) and expect the
-   challenge to take considerably longer than 20-40 days in most windows —
-   possibly much longer, since most TRAIN starts never reached target within
-   40 days at all. This is genuinely uncertain; we have not measured the
-   REAL median time at a 90+ day horizon.
-2. **Accept a moderate breach-risk tradeoff for speed** — e.g. risk 1.5%,
-   ~25-40% chance any given attempt breaches, but when it doesn't, ~40 days
-   to pass. Means budgeting for possibly multiple challenge attempts.
+User relaxed the target: ~20 days ideal, but passing both steps within a
+MONTH (30 days total) also counts as a good outcome. Re-ran with STEP_HORIZON
+widened 40→60 days per step (so genuinely slow-but-real completions are
+measured, not truncated into a false "fail") and a `p30` metric added.
+Follow-up grid: 16 configs (shallower calm fibs 0.35-0.50 × finer risk steps
+0.8/1.0/1.2/1.5%, holding v=0.80/thr=1.05 fixed — the safest combo from the
+first restart) × 16 TRAIN starts = 256 cells.
+
+**Result: `p30 = 0.00` for EVERY one of the 16 configs.** Not a single start,
+at any tested entry shape or risk level, completes both steps within 30 days.
+The best configs (c=0.35/0.45, risk 1.0%) are 0% breach with median completion
+**~52 days** when they do finish — but that's only 1 of 16 starts even within
+a full 60-day window; most remain frozen well past that.
+
+**This is now conclusive, not merely suggestive: the ~20-30 day target is not
+achievable with this strategy under the 3% wall**, at any combination of
+entry shape and risk tested across two full restart cycles (640 cells / ~1500
+backtests total for Phase 3). Real timescale for the safest configs is
+2-4+ months in typical conditions, with most windows not completing within
+even that.
+
+## Options going forward — high-frequency trading explicitly RULED OUT
+
+Per explicit instruction: **a higher-frequency entry model is NOT to be
+pursued** for this account. That removes the one lever that could
+structurally fix the root cause (trade velocity). Remaining options:
+
+1. **Accept the long timeline on THIS account.** Use the safest found config
+   (c=0.35-0.45 / v=0.80 / thr=1.05, risk ~1.0%, MAX_TOTAL_POSITIONS~15,
+   bank_fast-style ladder) and expect the challenge to take on the order of
+   months, not weeks, in most market conditions — with 0% breach in the
+   tested windows. This is the only genuinely safe option within scope.
+2. **Accept a moderate breach-risk tradeoff for whatever modest speed exists**
+   — e.g. risk 1.5%, ~25-40% chance any given attempt breaches. Means
+   budgeting for possibly multiple challenge attempts. Still doesn't reach
+   30 days reliably even accepting the breach risk.
 3. **Use a classic 5% daily wall account instead**, if available. The FIRST
-   C1→C2 pipeline (before the wall correction) found a genuinely strong
-   config for that wall: 37.5% pass ≤20 days, 0% breach, score 174.8 — saved
-   in STAGEC2_TRIAL4_BACKUP.md. This is a real, already-proven-fast option,
-   just not for the Summer Edition (3%) account.
-4. **A higher-frequency entry model.** The fundamental limiter is trade
-   velocity. A different (lower-timeframe or less selective) entry system
-   could bank $8k faster, but this is new strategy R&D, not a parameter tune
-   of the existing HTF system — a much larger undertaking.
+   C1→C2 pipeline (before the wall correction) found a genuinely strong,
+   FAST config for that wall: 37.5% pass ≤20 days, 0% breach, score 174.8 —
+   saved in STAGEC2_TRIAL4_BACKUP.md. This is the only path that actually
+   meets the original ~20-30 day goal, but requires a different account type.
 
-## What was NOT yet tried (possible next steps if continuing on this path)
+## Status: Phase 3 (3% wall) R&D — continuing on a separate branch
 
-- A longer horizon test (90-180 days) to get the REAL median time-to-pass
-  distribution for the safest config, rather than treating "no pass in 40
-  days" as a hard failure — most of the "frozen" starts may pass eventually.
-- A finer risk sweep between 1.0 and 1.5% (e.g. 1.1, 1.2, 1.3) to look for a
-  sweet spot the 2-point grid may have stepped over.
-- Testing whether a SMALLER `MAX_TOTAL_POSITIONS` (e.g. 8-10) combined with
-  HIGHER per-trade risk changes the tradeoff shape (C3's data was suggestive
-  but not conclusive on this interaction).
+This work continues as ongoing R&D on `claude/3pct-challenge-rd` (forked from
+this branch). Phase 1 (funded account) and Phase 2 (classic 5% challenge) are
+locked/stable findings; Phase 3 remains open — see MASTER_FINDINGS.md for the
+full three-phase summary and current status of each.
 
 Reproduce: `uv run python3 backtest/src/stageC1_entry_shape.py`
-Raw data: `output/doe/stageC1_wall3.json` (384 cells),
+Raw data: `output/doe/stageC1_wall3.json` (384 cells, first restart),
+`output/doe/stageC1_wall3_month.json` (256 cells, relaxed-target follow-up),
 `output/doe/stageC3_wall3.csv` (129 Optuna trials).
