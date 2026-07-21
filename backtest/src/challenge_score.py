@@ -42,6 +42,12 @@ PROFITABLE_DAY_USD = 0.005 * ACCOUNT   # $500 realized/day counts as profitable
 MIN_PROFITABLE_DAYS = 3
 STEP_HORIZON = 40                      # days per step; >40 total is a fail anyway
 
+# 5%ers "Summer Edition" 100k: daily wall is 3% of EOD equity-or-balance
+# (whichever is higher), NOT the classic 5%. Total wall unchanged at 10%.
+# Forced into every challenge-scored run so callers can't accidentally score
+# against the wrong wall by forgetting the env var.
+DAILY_WALL_PCT = "3.0"
+
 TRAIN_STARTS = [f"{y}-{m:02d}-01" for y in (2016, 2018, 2021, 2023) for m in (1, 4, 7, 10)]
 HOLDOUT_STARTS = [f"{y}-{m:02d}-01" for y in (2017, 2019, 2022, 2024) for m in (1, 4, 7, 10)]
 
@@ -71,6 +77,7 @@ def run_step(env_over: dict, tp_over: dict, start: str, target_usd: float,
     s = date.fromisoformat(start)
     end = (s + timedelta(days=horizon)).isoformat()
     env = dict(os.environ); env.update(dh.BASE_ENV); env.update(env_over)
+    env["CFG_DAILY_WALL_PCT"] = DAILY_WALL_PCT  # force the 3% Summer Edition wall
     env["OPT_PARAMS"] = json.dumps({**dh.BASE_TP, **tp_over})
     env["PYTHONUTF8"] = "1"
     td = tempfile.mkdtemp(dir=str(DOE_DIR / "tmp"))

@@ -5618,11 +5618,18 @@ class LiveTradingBot:
             _t0 = _t0.replace(tzinfo=timezone.utc)
         run_start_dt = _t0
 
+        # Terminal daily-drawdown wall — env-configurable so different account
+        # editions (e.g. a "Summer Edition" 3% daily wall vs the classic 5%) can
+        # be backtested without editing code. Default 5.0 preserves all prior
+        # results/reproducibility for accounts using the classic wall.
+        _daily_wall_pct = float(os.getenv("CFG_DAILY_WALL_PCT", "5.0"))
+
         def _register_breach(when, dd_value, source, kind="daily"):
-            """Record a terminal account failure — either a 5% daily-drawdown
-            breach (kind='daily') or a 10% total-drawdown breach (kind='total').
-            Both permanently end a 5ers account; both must set account_failed so
-            survival flags and the optimizer's survivor scoring are correct."""
+            """Record a terminal account failure — either a daily-drawdown
+            breach at the CFG_DAILY_WALL_PCT threshold (kind='daily') or a
+            10% total-drawdown breach (kind='total'). Both permanently end a
+            5ers account; both must set account_failed so survival flags and
+            the optimizer's survivor scoring are correct."""
             nonlocal account_failed, fail_info
             if account_failed:
                 return
@@ -5631,10 +5638,10 @@ class LiveTradingBot:
                 survived = (when - run_start_dt).days
             except Exception:
                 survived = None
-            label = "10% TOTAL" if kind == "total" else "5% DAILY"
+            label = "10% TOTAL" if kind == "total" else f"{_daily_wall_pct:g}% DAILY"
             reason = (f'10% total drawdown breached ({dd_value:.2f}%) [{source}]'
                       if kind == "total"
-                      else f'5% daily drawdown breached ({dd_value:.2f}%) [{source}]')
+                      else f'{_daily_wall_pct:g}% daily drawdown breached ({dd_value:.2f}%) [{source}]')
             fail_info = {
                 'failed': True,
                 'breach_type': kind,
@@ -5801,11 +5808,11 @@ class LiveTradingBot:
             ddd_pct = max(0, (day_start_equity - equity) / day_start_equity * 100) if day_start_equity > 0 else 0
             max_ddd = max(max_ddd, ddd_pct)
 
-            # === TERMINAL 5% DAILY BREACH (equity basis) ===
+            # === TERMINAL DAILY BREACH (equity basis) ===
             # Equity is mark-to-market (incl. floating PnL), exactly what 5ers
-            # measures DDD against. If a gap/spike puts us >=5% below day-start
-            # equity before the 3.2% halt could close out, the account is dead.
-            if ddd_pct >= 5.0 and not account_failed:
+            # measures DDD against. If a gap/spike puts us >= the daily wall
+            # below day-start equity before the halt could close out, dead.
+            if ddd_pct >= _daily_wall_pct and not account_failed:
                 _register_breach(current_time, ddd_pct, 'bar')
                 safety_events.append({
                     'time': str(current_time),
@@ -5928,8 +5935,8 @@ class LiveTradingBot:
                         actual_ddd = max(0, (day_start_equity - eq2) / day_start_equity * 100) if day_start_equity > 0 else 0
                         max_ddd = max(max_ddd, actual_ddd)
                         log.warning(f"  💸 Close commission: ${close_comm:.2f} | Actual DDD: {actual_ddd:.2f}%")
-                        if actual_ddd >= 5.0:
-                            log.error(f"  ⚠️ 5ERS BREACH: DDD {actual_ddd:.2f}% >= 5.0%!")
+                        if actual_ddd >= _daily_wall_pct:
+                            log.error(f"  ⚠️ 5ERS BREACH: DDD {actual_ddd:.2f}% >= {_daily_wall_pct:g}%!")
                             _register_breach(current_time, actual_ddd, 'midbar')
                         trading_halted_today = True
                         self.ddd_halted = True
@@ -5939,7 +5946,7 @@ class LiveTradingBot:
                             'ddd_pct': ddd_now,
                             'actual_ddd_pct': actual_ddd,
                             'close_commission': close_comm,
-                            'breach_5pct': actual_ddd >= 5.0,
+                            'breach_5pct': actual_ddd >= _daily_wall_pct,
                         })
                         break
 
