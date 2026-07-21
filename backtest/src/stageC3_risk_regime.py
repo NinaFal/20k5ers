@@ -86,8 +86,12 @@ def _suggest(trial):
     cap     = trial.suggest_categorical("CORR_GROUP_CAP", [2, 3, 4])
     # NEW -- total concurrent-position cap (see diag_wall3_anomaly.py): without
     # this, breadth across DIFFERENT correlation groups can still breach the
-    # tight 3% wall even at low per-trade risk. CORR_GROUP_CAP alone isn't enough.
-    maxpos  = trial.suggest_categorical("MAX_TOTAL_POSITIONS", [3, 4, 5, 6, 8])
+    # tight 3% wall even at low per-trade risk. CORR_GROUP_CAP alone isn't
+    # enough. Wide range -- too tight starves trade throughput (and therefore
+    # challenge SPEED); too loose reintroduces the breadth-breach. Let the
+    # optimizer find the tradeoff rather than assuming a low cap is right.
+    maxpos  = trial.suggest_categorical("MAX_TOTAL_POSITIONS",
+                                        [3, 4, 5, 6, 8, 10, 12, 15, 20])
     ladder  = trial.suggest_categorical("ladder", list(LADDERS.keys()))
     env = {
         "RISK_REGIME_ENABLE": "1", "VOL_SIZE_ENABLE": "0", "VOL_REGIME_DD_MULT": "1.0",
