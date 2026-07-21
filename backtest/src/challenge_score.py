@@ -40,7 +40,11 @@ STEP1_TARGET = 0.08 * ACCOUNT          # $8,000 closed
 STEP2_TARGET = 0.05 * ACCOUNT          # $5,000 closed
 PROFITABLE_DAY_USD = 0.005 * ACCOUNT   # $500 realized/day counts as profitable
 MIN_PROFITABLE_DAYS = 3
-STEP_HORIZON = 40                      # days per step; >40 total is a fail anyway
+# User target: ~20 days ideal, up to a MONTH (30 days total) is still a pass.
+# Per-step horizon widened to 60 (was 40) so a start that genuinely finishes at
+# e.g. day 45-50 total is measured, not truncated into a false "step1 fail" —
+# the prior 40-day cutoff was hiding real (if slow) completions.
+STEP_HORIZON = 60
 
 # 5%ers "Summer Edition" 100k: daily wall is 3% of EOD equity-or-balance
 # (whichever is higher), NOT the classic 5%. Total wall unchanged at 10%.
@@ -146,15 +150,23 @@ def full_two_step(env_over: dict, tp_over: dict, start: str) -> dict:
 
 
 def score_results(rows: list[dict]) -> dict:
-    """Roadmap score over a list of full_two_step results."""
+    """Roadmap score over a list of full_two_step results.
+
+    User target (2026-07-21): ~20 days ideal, up to a MONTH (30 days total)
+    still counts as a real pass. p30 is now the primary speed metric; p20 is
+    tracked as the stretch goal, p40/p60 show how far the tail extends.
+    """
     n = len(rows)
     if n == 0:
         return {"score": -1e9}
     p20 = sum(1 for r in rows if r["total"] is not None and r["total"] <= 20) / n
+    p30 = sum(1 for r in rows if r["total"] is not None and r["total"] <= 30) / n
     p40 = sum(1 for r in rows if r["total"] is not None and r["total"] <= 40) / n
+    p60 = sum(1 for r in rows if r["total"] is not None and r["total"] <= 60) / n
     pbr = sum(1 for r in rows if r["breach"]) / n
     totals = sorted(r["total"] for r in rows if r["total"] is not None)
     med = median(totals) if totals else 2 * STEP_HORIZON
-    score = 3 * p20 * 100 + 1 * p40 * 100 - 10 * pbr * 100 - med / 100
-    return {"score": round(score, 2), "p20": round(p20, 3), "p40": round(p40, 3),
+    score = 2 * p20 * 100 + 3 * p30 * 100 + 1 * p60 * 100 - 10 * pbr * 100 - med / 100
+    return {"score": round(score, 2), "p20": round(p20, 3), "p30": round(p30, 3),
+            "p40": round(p40, 3), "p60": round(p60, 3),
             "breach_rate": round(pbr, 3), "median_total": med, "n": n}

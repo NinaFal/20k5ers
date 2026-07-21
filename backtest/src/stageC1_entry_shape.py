@@ -35,7 +35,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 DOE_DIR = HERE.parent / "output" / "doe"
-OUT = DOE_DIR / "stageC1_wall3.json"
+OUT = DOE_DIR / "stageC1_wall3_month.json"
 
 _s = importlib.util.spec_from_file_location("cs", str(HERE / "challenge_score.py"))
 cs = importlib.util.module_from_spec(_s); _s.loader.exec_module(cs)
@@ -56,16 +56,20 @@ BANK_FAST = {
     "tp1_close_pct": 0.45, "tp2_close_pct": 0.35, "tp3_close_pct": 0.20,
     "tp4_close_pct": 0.0, "tp5_close_pct": 0.0,
     "sl_after_tp2_r": 0.5, "sl_after_tp3_r": 1.2, "sl_after_tp4_r": 1.8}
-RISK_LEVELS = [1.0, 1.5]  # C3's transition-zone band; a single fixed risk was too rigid last time
+# FOCUSED FOLLOW-UP (2026-07-21): user relaxed the target to ~20d ideal / 30d
+# (a month) still a pass, and STEP_HORIZON widened 40->60 so genuine slow
+# completions are measured instead of truncated. The prior 384-cell grid
+# (stageC1_wall3.json) showed a clean monotonic pattern: c=0.45 (shallow calm
+# fib) was safest at every v/thr/risk combo, c=0.65 consistently worst. Rather
+# than re-run the full 12-entry grid at the new horizon, converge on the
+# promising region: does going even SHALLOWER help further, crossed with a
+# finer risk step, holding v=0.80/thr=1.05 (the best combo) fixed.
+RISK_LEVELS = [0.8, 1.0, 1.2, 1.5]
 BASE_ENTRY = dict(scr.PINNED_ENTRY)
 
-# 12 entry shapes x 2 risk levels = 24 configs. Baseline (Stage-1 winner:
-# c=0.55 v=0.80 thr=1.05) is included.
 GRID = [
-    {"entry_fib_level": c, "entry_fib_level_volatile": v, "fib_vol_ratio_threshold": t, "risk": r}
-    for c in (0.45, 0.55, 0.65)
-    for v in (0.65, 0.80)
-    for t in (1.05, 1.15)
+    {"entry_fib_level": c, "entry_fib_level_volatile": 0.80, "fib_vol_ratio_threshold": 1.05, "risk": r}
+    for c in (0.35, 0.40, 0.45, 0.50)
     for r in RISK_LEVELS
 ]
 
@@ -110,7 +114,7 @@ def main():
             OUT.write_text(json.dumps(results, indent=2, default=str))
 
     print(f"\n=== C1 entry shape — challenge score (TRAIN, {len(cs.TRAIN_STARTS)} starts) ===", flush=True)
-    print(f"{'config':>24}{'score':>8}{'p20':>6}{'p40':>6}{'breach':>8}{'medTot':>8}", flush=True)
+    print(f"{'config':>24}{'score':>8}{'p20':>6}{'p30':>6}{'p40':>6}{'p60':>6}{'breach':>8}{'medTot':>8}", flush=True)
     ranked = []
     for g in GRID:
         name = cfg_name(g)
@@ -120,8 +124,8 @@ def main():
         sc = cs.score_results(rows)
         ranked.append((sc["score"], name, sc))
     for score, name, sc in sorted(ranked, reverse=True):
-        print(f"{name:>24}{sc['score']:>8.1f}{sc['p20']:>6.2f}{sc['p40']:>6.2f}"
-              f"{sc['breach_rate']:>8.2f}{sc['median_total']:>8}", flush=True)
+        print(f"{name:>24}{sc['score']:>8.1f}{sc['p20']:>6.2f}{sc['p30']:>6.2f}{sc['p40']:>6.2f}"
+              f"{sc['p60']:>6.2f}{sc['breach_rate']:>8.2f}{sc['median_total']:>8}", flush=True)
     print("[stageC1_entry_shape] DONE_MARKER", flush=True)
 
 
