@@ -3231,6 +3231,31 @@ class LiveTradingBot:
             risk_pct = risk_pct * _rm
             log.info(f"[{symbol}] Regime-risk x{_rm:.2f} -> risk {risk_pct:.3f}%")
 
+        # ── CUSHION RATCHET (env-gated; default off) ─────────────────────────
+        # D2 (WALL3_RD_PLAN.md): scale risk UP once profit is BANKED (realized).
+        # The existing ladders only ever ratchet risk DOWN on drawdown; nothing
+        # exploits the fact that banked profit makes higher risk provably safer:
+        # the daily wall is measured from EOD max(equity, balance), so banked
+        # gains raise the wall's dollar floor, and with a few % banked even a
+        # max daily loss cannot end a challenge attempt (10% total wall stays
+        # far). Ladder: cushion >= CUSHION_T1/T2/T3 (% realized profit over
+        # starting balance) -> risk x CUSHION_M1/M2/M3. Gated off whenever the
+        # account is in ANY drawdown state (daily loss or total DD beyond
+        # CUSHION_DD_OFF) so it never fights the safety ladders.
+        if os.getenv("CUSHION_RATCHET_ENABLE", "0").strip().lower() in ("1", "true", "yes", "on"):
+            _cushion_pct = ((current_balance - starting_balance) / starting_balance * 100
+                            if starting_balance > 0 else 0.0)
+            _c_dd_off = float(os.getenv("CUSHION_DD_OFF", "1.0"))
+            if _cushion_pct > 0 and daily_loss_pct < _c_dd_off and total_dd_pct < _c_dd_off:
+                _t1 = float(os.getenv("CUSHION_T1", "2.0")); _m1 = float(os.getenv("CUSHION_M1", "1.5"))
+                _t2 = float(os.getenv("CUSHION_T2", "4.0")); _m2 = float(os.getenv("CUSHION_M2", "2.0"))
+                _t3 = float(os.getenv("CUSHION_T3", "6.0")); _m3 = float(os.getenv("CUSHION_M3", "2.5"))
+                _cm = _m3 if _cushion_pct >= _t3 else (_m2 if _cushion_pct >= _t2
+                       else (_m1 if _cushion_pct >= _t1 else 1.0))
+                if _cm != 1.0:
+                    risk_pct = risk_pct * _cm
+                    log.info(f"[{symbol}] Cushion ratchet: banked {_cushion_pct:.2f}% -> risk x{_cm:.2f} = {risk_pct:.3f}%")
+
         # Emergency wall-guard: in the high-TDD zone, cap per-trade risk so even a
         # FULL stop-loss can't push TDD through the 10% wall (room-to-wall / safety
         # factor). This is the principled replacement for the binary 7% freeze:
