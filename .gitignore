@@ -254,6 +254,7 @@ backtest/output/doe/diag_*/
 # live optimizer results CSV (churns every trial while running; final winner captured in a *_WINNER/*_FINDINGS doc)
 backtest/output/doe/challenge*.csv
 backtest/output/doe/stageC*.csv
+backtest/output/doe/stageD*.csv
 
 
 # Claude Code local tooling / worktrees (do not commit)
