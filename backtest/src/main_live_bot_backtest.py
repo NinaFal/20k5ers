@@ -3231,6 +3231,16 @@ class LiveTradingBot:
             risk_pct = risk_pct * _rm
             log.info(f"[{symbol}] Regime-risk x{_rm:.2f} -> risk {risk_pct:.3f}%")
 
+        # ── TREND-QUALITY CONTROLLER (D3; env-gated; default off) ────────────
+        # Continuous ADX-based sizing: full risk in strong trends, floor risk in
+        # chop. Size-UP side gated by drawdown like the other multipliers.
+        _tm = self._trend_risk_multiplier(symbol)
+        if _tm > 1.0 and (total_dd_pct >= _dd_off or daily_loss_pct >= _dd_off):
+            _tm = 1.0
+        if _tm != 1.0:
+            risk_pct = risk_pct * _tm
+            log.info(f"[{symbol}] Trend-quality x{_tm:.2f} -> risk {risk_pct:.3f}%")
+
         # ── CUSHION RATCHET (env-gated; default off) ─────────────────────────
         # D2 (WALL3_RD_PLAN.md): scale risk UP once profit is BANKED (realized).
         # The existing ladders only ever ratchet risk DOWN on drawdown; nothing
@@ -3544,6 +3554,47 @@ class LiveTradingBot:
                     mult = m_calm if ratio < lo else (m_vol if ratio >= hi else m_norm)
                 else:
                     mult = m_vol if ratio >= thr else m_calm
+        cache[key] = mult
+        return mult
+
+    def _trend_risk_multiplier(self, symbol: str) -> float:
+        """D3 (WALL3_RD_PLAN.md): trend-quality risk CONTROLLER (env-gated,
+        default off). Passes cluster in trending windows and breaches in chop,
+        so size risk continuously by D1 ADX(14): TREND_MULT_LO at/below
+        TREND_ADX_LO, TREND_MULT_HI at/above TREND_ADX_HI, linear in between.
+        A sizing controller, NOT a skip-gate (the binary ADX gate was proven
+        harmful in Stage 1). Memoized per (symbol, day) like the regime mult."""
+        if os.getenv("TREND_RISK_ENABLE", "0").strip().lower() not in ("1", "true", "yes", "on"):
+            return 1.0
+        ct = getattr(self.mt5, "_current_time", None)
+        day = ct.date() if ct is not None and hasattr(ct, "date") else None
+        cache = getattr(self, "_trend_risk_cache", None)
+        if cache is None:
+            cache = self._trend_risk_cache = {}
+        key = (symbol, day)
+        if key in cache:
+            return cache[key]
+        mult = 1.0
+        try:
+            from strategy_core import calculate_adx
+            broker = self.symbol_map.get(symbol, symbol)
+            candles = self.mt5.get_ohlcv(broker, "D1", 40)
+            if candles and len(candles) >= 20:
+                adx = calculate_adx(candles, 14)
+                lo = float(os.getenv("TREND_ADX_LO", "18"))
+                hi = float(os.getenv("TREND_ADX_HI", "30"))
+                mlo = float(os.getenv("TREND_MULT_LO", "0.5"))
+                mhi = float(os.getenv("TREND_MULT_HI", "1.5"))
+                if hi <= lo:
+                    hi = lo + 1e-6
+                if adx <= lo:
+                    mult = mlo
+                elif adx >= hi:
+                    mult = mhi
+                else:
+                    mult = mlo + (mhi - mlo) * (adx - lo) / (hi - lo)
+        except Exception:
+            mult = 1.0
         cache[key] = mult
         return mult
 
