@@ -754,6 +754,13 @@ class CSVMT5Simulator:
             def _read_norm(path):
                 d = pd.read_csv(path, parse_dates=['time'])
                 d.columns = [c.lower() for c in d.columns]
+                # Normalize tz per-file BEFORE concat/sort: some symbols have one
+                # tz-aware and one tz-naive M15 file (e.g. NAS100_USD 2015 vs
+                # 2020 exports) — mixed tz makes sort_values raise "Cannot
+                # compare tz-naive and tz-aware timestamps" and silently drops
+                # the whole symbol from the backtest universe.
+                if d['time'].dt.tz is None:
+                    d['time'] = d['time'].dt.tz_localize('UTC')
                 return d
 
             if len(candidates) == 1:

@@ -82,6 +82,10 @@ def run_step(env_over: dict, tp_over: dict, start: str, target_usd: float,
     end = (s + timedelta(days=horizon)).isoformat()
     env = dict(os.environ); env.update(dh.BASE_ENV); env.update(env_over)
     env["CFG_DAILY_WALL_PCT"] = DAILY_WALL_PCT  # force the 3% Summer Edition wall
+    # Use the REAL target broker profile: the default (forexcom_demo) has
+    # trade_metals=False, which silently removed XAU/XAG from every prior
+    # backtest even though the live 5ers account trades them (D0_D1_FINDINGS.md).
+    env.setdefault("BROKER_TYPE", "fiveers_live")
     env["OPT_PARAMS"] = json.dumps({**dh.BASE_TP, **tp_over})
     env["PYTHONUTF8"] = "1"
     td = tempfile.mkdtemp(dir=str(DOE_DIR / "tmp"))
