@@ -106,6 +106,23 @@ when it completes — most starts don't finish within 60 days).
 - Joint C3-style risk/regime/position-cap search on TOP of the new C1 winner
   (the corrected-wall C3 run was done on the OLD entry ranking).
 
+### CONCLUDED — see `output/doe/PHASE3_FINAL_ASSESSMENT.md`
+
+The R&D above is finished and the answer is negative. Across 262 Optuna trials
+(4,192 simulated two-step attempts) spanning seven independent mechanisms,
+speed and safety proved **monotonically opposed** under the 3% wall:
+
+- at **0% breach**, the best 30-day pass rate is **0.0%** (best 60-day: 6.2%)
+- the **minimum** breach rate among configs that *ever* passed inside 30 days
+  is **31.2%**
+- even accepting a 25% chance of losing the account, the 30-day pass rate is
+  still exactly zero
+
+Exactly one config is both safe and eventually-completing — **D2 trial 117**
+(0% breach, 1/16 windows, day 68). D4 (event-calendar throttle) was dropped:
+it reduces exposure, so it moves along the frontier toward the safe/slow
+corner that is already saturated, and cannot manufacture speed.
+
 ---
 
 ## Which config to use, right now
@@ -113,7 +130,15 @@ when it completes — most starts don't finish within 60 days).
 - **Have a funded account already?** → Phase 1 (primary winner for safety
   margin, backup for +$200k more profit at slightly thinner TDD margin).
 - **Taking a 5%-wall challenge?** → Phase 2 (trial 4) — fast and proven safe.
-- **Taking the 3%-wall "Summer Edition" challenge?** → Phase 3's current best
-  (c=0.35-0.45/v=0.80/thr=1.05, risk 1.0%, maxpos 15) is the only 0%-breach
-  option, but budget for a MULTI-MONTH timeline, not weeks. R&D continues on
-  `claude/3pct-challenge-rd` to try to improve this.
+- **Taking the 3%-wall "Summer Edition" challenge?** → Reconsider. Phase 3 is
+  concluded (`output/doe/PHASE3_FINAL_ASSESSMENT.md`): a ~20-30 day pass is
+  **not achievable** at any acceptable breach risk. The only 0%-breach config
+  that completes at all is **D2 trial 117**, at ~10 weeks, and only 1 start
+  window in 16 got there. Any attempt to speed it up costs ≥31% breach risk.
+  If the choice is available, take the 5%-wall challenge instead.
+
+> **Revalidation caveat:** the Phase 1 and Phase 2 winners were computed before
+> the metals/NAS100 pipeline fixes (which had silently excluded 10 symbols from
+> every backtest). Revalidate them on the faithful universe — or pin
+> `EXCLUDE_SYMBOLS=XAU_USD,XAG_USD` to reproduce their original conditions —
+> before trusting either with real money.

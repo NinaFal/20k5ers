@@ -29,6 +29,8 @@ cs = importlib.util.module_from_spec(_s); _s.loader.exec_module(cs)
 _p = importlib.util.spec_from_file_location("scr5c", str(HERE / "stage5c_oos_screen.py"))
 scr = importlib.util.module_from_spec(_p); _p.loader.exec_module(scr)
 os.environ.setdefault("RUN_TIMEOUT_S", "999999")
+# one worker per core: the 16 starts are independent, and the box has 4.
+WORKERS = int(os.environ.get("D23_WORKERS", str(os.cpu_count() or 2)))
 
 BASE_ENV = {"RISK_REGIME_ENABLE": "1", "VOL_SIZE_ENABLE": "0", "VOL_REGIME_DD_MULT": "1.0",
             "FIVEERS_MAX_SCALE": "4000000", "RISK_CALM_MULT": "1.45", "RISK_VOLATILE_MULT": "0.64",
@@ -82,7 +84,7 @@ def _suggest(trial):
 def objective(trial):
     env, tp = _suggest(trial)
     rows = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as ex:
         futs = [ex.submit(cs.full_two_step, env, tp, start) for start in cs.TRAIN_STARTS]
         for fut in futs:
             r = fut.result()
