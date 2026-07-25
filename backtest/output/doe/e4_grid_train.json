@@ -89,5 +89,15 @@
     "p40": 0.0,
     "p60": 0.0,
     "aborted_after": 8
+  },
+  "1-3/1.4": {
+    "breach_rate": 0.125,
+    "complete_rate": 0.0,
+    "median_days": null,
+    "fastest_days": null,
+    "p30": 0.0,
+    "p40": 0.0,
+    "p60": 0.0,
+    "aborted_after": 8
   }
 }
