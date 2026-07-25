@@ -85,11 +85,31 @@ def _suggest(trial):
 
 
 def evaluate(env, tp, horizon):
+    """Evaluate all 16 TRAIN starts, aborting early on the first breach.
+
+    Breach is a hard constraint, so a config that breaches anywhere is rejected
+    regardless of its speed — there is no reason to pay for the remaining
+    windows once one has breached. Roughly two thirds of trials breach, and
+    they abort after a few starts instead of all 16, which is where most of the
+    search budget was going. Configs that stay clean are still evaluated on
+    every window, so nothing that could win is measured differently.
+    """
     rows = []
+    chunk = max(2, WORKERS)
+    starts = list(cs.TRAIN_STARTS)
     with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as ex:
-        futs = [ex.submit(cs.full_two_step, env, tp, s, horizon) for s in cs.TRAIN_STARTS]
-        for fut in futs:
-            r = fut.result(); r.pop("detail", None); rows.append(r)
+        for i in range(0, len(starts), chunk):
+            futs = [ex.submit(cs.full_two_step, env, tp, s, horizon)
+                    for s in starts[i:i + chunk]]
+            for fut in futs:
+                r = fut.result(); r.pop("detail", None); rows.append(r)
+            if any(r["breach"] for r in rows):
+                # partial rate is enough: every breaching config scores far
+                # below every clean one, so only the ordering among rejects
+                # is approximate.
+                return {"breach_rate": round(sum(1 for r in rows if r["breach"]) / len(rows), 3),
+                        "complete_rate": 0.0, "median_days": None, "fastest_days": None,
+                        "p30": 0.0, "p40": 0.0, "p60": 0.0, "aborted": True}
     n = len(rows)
     totals = sorted(r["total"] for r in rows if r["total"] is not None)
     return {"breach_rate": round(sum(1 for r in rows if r["breach"]) / n, 3),
