@@ -28,5 +28,15 @@
     "breach_rate": 0.188,
     "median_total": 27.0,
     "n": 16
+  },
+  "faithful_nobleed/TRAIN": {
+    "score": -100.27,
+    "p20": 0.188,
+    "p30": 0.25,
+    "p40": 0.375,
+    "p60": 0.375,
+    "breach_rate": 0.25,
+    "median_total": 27.0,
+    "n": 16
   }
 }
