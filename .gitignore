@@ -255,6 +255,7 @@ backtest/output/doe/diag_*/
 backtest/output/doe/challenge*.csv
 backtest/output/doe/stageC*.csv
 backtest/output/doe/stageD*.csv
+backtest/output/doe/stageE*.csv
 
 
 # Claude Code local tooling / worktrees (do not commit)
