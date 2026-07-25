@@ -81,7 +81,11 @@ def run_step(env_over: dict, tp_over: dict, start: str, target_usd: float,
     s = date.fromisoformat(start)
     end = (s + timedelta(days=horizon)).isoformat()
     env = dict(os.environ); env.update(dh.BASE_ENV); env.update(env_over)
-    env["CFG_DAILY_WALL_PCT"] = DAILY_WALL_PCT  # force the 3% Summer Edition wall
+    # Default to the 3% Summer Edition wall so a caller can't silently score
+    # against the wrong one by forgetting the var. A caller that *deliberately*
+    # passes CFG_DAILY_WALL_PCT in env_over (e.g. revalidating a classic-5%
+    # account config) keeps its value.
+    env["CFG_DAILY_WALL_PCT"] = env_over.get("CFG_DAILY_WALL_PCT", DAILY_WALL_PCT)
     # Use the REAL target broker profile: the default (forexcom_demo) has
     # trade_metals=False, which silently removed XAU/XAG from every prior
     # backtest even though the live 5ers account trades them (D0_D1_FINDINGS.md).
