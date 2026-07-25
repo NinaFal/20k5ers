@@ -138,16 +138,23 @@ def run_step(env_over: dict, tp_over: dict, start: str, target_usd: float,
         shutil.rmtree(td, ignore_errors=True)
 
 
-def full_two_step(env_over: dict, tp_over: dict, start: str) -> dict:
-    """Sequential Step 1 then Step 2. total = d1 + 1 + d2 (calendar days)."""
-    s1 = run_step(env_over, tp_over, start, STEP1_TARGET)
+def full_two_step(env_over: dict, tp_over: dict, start: str,
+                  horizon: int = STEP_HORIZON) -> dict:
+    """Sequential Step 1 then Step 2. total = d1 + 1 + d2 (calendar days).
+
+    `horizon` is the per-step measurement window. Widen it when the question is
+    "how fast is this config?" rather than "does it pass in N days" — at the
+    default 60 a config that genuinely completes on day 75 is censored into a
+    step-1 failure, which makes real differences in speed invisible.
+    """
+    s1 = run_step(env_over, tp_over, start, STEP1_TARGET, horizon)
     if s1["pass_day"] is None:
         return {"start": start, "total": None, "d1": None, "d2": None,
                 "breach": s1["breach"], "why": "step1",
                 "detail": {"s1": s1}}
     d1 = s1["pass_day"]
     start2 = (date.fromisoformat(start) + timedelta(days=d1 + 1)).isoformat()
-    s2 = run_step(env_over, tp_over, start2, STEP2_TARGET)
+    s2 = run_step(env_over, tp_over, start2, STEP2_TARGET, horizon)
     if s2["pass_day"] is None:
         return {"start": start, "total": None, "d1": d1, "d2": None,
                 "breach": s2["breach"], "why": "step2",

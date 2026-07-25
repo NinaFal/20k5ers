@@ -1,0 +1,68 @@
+{
+  "initial_balance": 100000.0,
+  "final_balance": 126458.3,
+  "net_pnl": 34667.55,
+  "closed_trades_pnl": 11776.21,
+  "total_commission": 56.34,
+  "total_swap": 0.0,
+  "return_pct": 34.67,
+  "total_trades": 24,
+  "winners": 16,
+  "losers": 8,
+  "win_rate": 66.7,
+  "mfe_r_median": 0.755,
+  "mfe_r_p75": 1.438,
+  "mae_r_median": 0.266,
+  "tp1_hits": 17,
+  "tp1_hit_rate": 70.8,
+  "max_tdd_pct": 1.71,
+  "max_ddd_pct": 2.21,
+  "tdd_bars_ge_9_0": 0,
+  "tdd_bars_ge_9_5": 0,
+  "tdd_bars_ge_9_9": 0,
+  "tdd_days_ge_9_0": 0,
+  "tdd_days_ge_9_5": 0,
+  "tdd_days_ge_9_9": 0,
+  "tdd_excursions_ge_9_5": 0,
+  "safety_events": 1,
+  "ddd_halts": 0,
+  "ddd_halts_midbar": 0,
+  "breaches_5pct": 0,
+  "ddd_reduces": 0,
+  "ddd_warnings": 1,
+  "tdd_stopouts": 0,
+  "monthly_stats": {
+    "2023-04": {
+      "trades": 11,
+      "winners": 8,
+      "losers": 3,
+      "pnl": 4636.01,
+      "partial_closes": 24,
+      "win_rate": 72.7
+    },
+    "2023-05": {
+      "trades": 13,
+      "winners": 8,
+      "losers": 5,
+      "pnl": 7140.19,
+      "partial_closes": 16,
+      "win_rate": 61.5
+    }
+  },
+  "fiveers_total_withdrawn": 8209.25,
+  "fiveers_final_funded_level": 125000,
+  "fiveers_scaling_events": 1,
+  "fiveers_scaling_log": [
+    {
+      "time": "2023-05-31 00:00:00+00:00",
+      "old_level": 100000.0,
+      "new_level": 125000,
+      "profit_made": 10261.57,
+      "trader_payout": 8209.25,
+      "profit_split": 0.8
+    }
+  ],
+  "terminal_on_breach": true,
+  "account_failed": false,
+  "fail_info": null
+}

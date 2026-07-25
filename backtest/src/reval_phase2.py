@@ -54,6 +54,11 @@ TP = {
 BLEEDERS = "AUD_NZD,EUR_NZD,AUD_JPY"
 
 ARMS = {
+    # True reproduction of the conditions that produced 174.8: the tz bug
+    # dropped NAS100 for BOTH broker profiles (trade_indices=True on each), so
+    # "forexcom_demo" alone does NOT restore the original universe — NAS100 has
+    # to be excluded explicitly as well.
+    "orig_repro":       {"BROKER_TYPE": "forexcom_demo", "EXCLUDE_SYMBOLS": "NAS100_USD"},
     "old_universe":     {"BROKER_TYPE": "forexcom_demo"},
     "faithful":         {"BROKER_TYPE": "fiveers_live"},
     "faithful_nobleed": {"BROKER_TYPE": "fiveers_live", "EXCLUDE_SYMBOLS": BLEEDERS},

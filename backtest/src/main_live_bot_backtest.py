@@ -1844,6 +1844,82 @@ class LiveTradingBot:
     # WEEKEND GAP RISK MANAGEMENT - Tier 1 Conservative Strategy
     # ═══════════════════════════════════════════════════════════════════════════
 
+    def handle_nightly_derisk(self):
+        """
+        NIGHTLY_DERISK (env-gated, default off) — overnight gap-risk control.
+
+        E0's breach anatomy (output/doe/E0_FINDINGS.md) found that on a 3% daily
+        wall, 95.5% of the loss on breach days came from positions carried
+        OVERNIGHT — 5 of 6 breaches were 100% overnight, and a single position
+        averaged 62% of the day's loss. Position-count caps don't address this:
+        they bound how many trades are open, not how much gap risk rides
+        unattended through the night.
+
+        This reuses the same Tier-1 correlation-aware selector the bot already
+        applies on Fridays (close losers, reduce young positions, hold winners,
+        cap per correlation group and in total) and runs it EVERY night at
+        NIGHTLY_DERISK_HOUR instead of only before the weekend.
+
+        Env:
+          NIGHTLY_DERISK=1              enable
+          NIGHTLY_DERISK_HOUR=21        UTC hour to run (once per calendar day)
+          NIGHTLY_MAX_PER_GROUP=2       max overnight positions per corr group
+          NIGHTLY_MAX_TOTAL=5           max overnight non-crypto positions
+          NIGHTLY_R_CLOSE_LOSING=0.0    close positions below this R
+          NIGHTLY_R_NEW=0.5             reduce positions below this R
+          NIGHTLY_REDUCE_PCT=0.5        fraction to reduce those by
+        """
+        if os.getenv("NIGHTLY_DERISK", "0") != "1":
+            return
+        now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
+        hour = int(os.getenv("NIGHTLY_DERISK_HOUR", "21"))
+        _dbg = os.getenv("NIGHTLY_DEBUG") == "1"
+        if _dbg:
+            self._nd_hours = getattr(self, "_nd_hours", set()); self._nd_hours.add(now.hour)
+        if now.hour != hour:
+            return
+        # Friday is already handled by the weekend logic — don't double-derisk.
+        if now.weekday() == 4:
+            return
+        day_key = now.date()
+        if getattr(self, "_nightly_derisk_day", None) == day_key:
+            return
+        self._nightly_derisk_day = day_key
+
+        positions = self.mt5.get_my_positions()
+        if _dbg:
+            import sys as _sys
+            print(f"[ND] {now} fired, positions={len(positions or [])}",
+                  file=_sys.stderr, flush=True)
+        if not positions:
+            return
+
+        result = wgm.select_positions_for_weekend_tier1(
+            positions=positions,
+            mt5_client=self.mt5,
+            current_time=now,
+            max_per_group=int(os.getenv("NIGHTLY_MAX_PER_GROUP", "2")),
+            max_total_non_crypto=int(os.getenv("NIGHTLY_MAX_TOTAL", "5")),
+            r_close_losing=float(os.getenv("NIGHTLY_R_CLOSE_LOSING", "0.0")),
+            r_new_position=float(os.getenv("NIGHTLY_R_NEW", "0.5")),
+            reduce_pct=float(os.getenv("NIGHTLY_REDUCE_PCT", "0.5")),
+            enforce_friday_gate=False,   # this IS the nightly caller
+        )
+
+        if _dbg:
+            import sys as _sys
+            print(f"[ND]   CLOSE={len(result['CLOSE'])} REDUCE={len(result['REDUCE_50'])} "
+                  f"HOLD={len(result['HOLD'])}", file=_sys.stderr, flush=True)
+        for pos in result['CLOSE']:
+            self.mt5.close_position(pos.ticket)
+
+        reduce_pct = float(os.getenv("NIGHTLY_REDUCE_PCT", "0.5"))
+        for pos in result['REDUCE_50']:
+            reduce_volume = round(pos.volume * reduce_pct, 2)
+            if reduce_volume < 0.01:
+                continue
+            self.mt5.partial_close(pos.ticket, reduce_volume)
+
     def handle_friday_position_closing(self):
         """
         TIER 1: Correlation-aware Friday position closing
@@ -5833,6 +5909,7 @@ class LiveTradingBot:
             # full-size basket ride into the 2015-06-28 Greek-gap weekend and breach.
             minute = current_time.minute
             self.handle_friday_position_closing()   # self-gates (sim time): Friday 19:30+ UTC
+            self.handle_nightly_derisk()            # self-gates: env NIGHTLY_DERISK + hour
             self.handle_sunday_gap_detection()      # self-gates (sim time): Sunday 22:00+ / Mon <02:00
             self.handle_monday_order_resume(current_time)  # self-gates (sim time): Monday only
             # handle_weekend_gap_positions() gates on get_server_time() (wall clock),

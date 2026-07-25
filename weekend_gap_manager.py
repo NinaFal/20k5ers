@@ -264,6 +264,7 @@ def select_positions_for_weekend_tier1(
     r_close_losing: float = 0.0,
     r_new_position: float = 0.5,
     reduce_pct: float = 0.50,
+    enforce_friday_gate: bool = True,
 ) -> dict:
     """
     TIER 1: Conservative correlation-aware weekend position selector
@@ -301,7 +302,12 @@ def select_positions_for_weekend_tier1(
     # Only run Friday 19:30+ UTC (2.5 hours before forex close)
     hour = current_time.hour
     minute = current_time.minute
-    if current_time.weekday() != 4 or not (hour > 19 or (hour == 19 and minute >= 30)):
+    # The selection logic itself is time-agnostic; this gate just stops it being
+    # applied on a non-Friday. Callers that want the same correlation-aware
+    # de-risking on another schedule (e.g. the nightly overnight-gap control)
+    # pass enforce_friday_gate=False.
+    if enforce_friday_gate and (
+        current_time.weekday() != 4 or not (hour > 19 or (hour == 19 and minute >= 30))):
         return {
             'HOLD': list(positions),
             'CLOSE': [],
