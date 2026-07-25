@@ -18,5 +18,15 @@
     "breach_rate": 0.125,
     "median_total": 21,
     "n": 16
+  },
+  "faithful/TRAIN": {
+    "score": -31.52,
+    "p20": 0.188,
+    "p30": 0.25,
+    "p40": 0.375,
+    "p60": 0.438,
+    "breach_rate": 0.188,
+    "median_total": 27.0,
+    "n": 16
   }
 }
