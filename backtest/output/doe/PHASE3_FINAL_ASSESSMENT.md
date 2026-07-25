@@ -1,7 +1,39 @@
-# Phase 3 final assessment — the 3% daily wall (100k Summer Edition)
+# Phase 3 assessment — the 3% daily wall (100k Summer Edition)
 
 **Date:** 2026-07-25. Branch `claude/3pct-challenge-rd`.
-**Verdict: the ~20-30 day target is not reachable on a 3% daily wall with this
+
+> ## ⚠️ SUPERSEDED — the verdict below is WRONG
+>
+> This document concluded the 3% wall was "structurally blocked". That was an
+> artifact of a blind spot, not a property of the strategy: **every search
+> summarized here tuned position sizing and counts, and none of them ever
+> controlled overnight exposure.**
+>
+> The E0 breach-anatomy diagnostic (`E0_FINDINGS.md`) found that **95.5% of the
+> loss on breach days came from positions carried overnight** — 5 of 6 breaches
+> were 100% overnight. Adding a nightly de-risk control (`NIGHTLY_DERISK`)
+> improved **safety and speed simultaneously**, which the "monotonically
+> opposed" claim below says is impossible:
+>
+> | risk | overnight control | breach | completes | median | fastest | p40 |
+> |---|---|---|---|---|---|---|
+> | 1.0% | off | 25.0% | 25.0% | 165d | 109d | 0% |
+> | 1.0% | **on** | **6.2%** | **68.8%** | **76d** | **31d** | 6.2% |
+> | 1.6% | off | 43.8% | 12.5% | 94d | 49d | 0% |
+> | 1.6% | **on** | 25.0% | **75.0%** | **59d** | **18d** | **31.2%** |
+>
+> The frontier tabulated below ("minimum breach rate among configs that ever
+> passed inside 30 days is 31.2%") no longer holds: p40 = 6.2% is now reached at
+> 6.2% breach. See `E2_FINDINGS.md`, and `E3` for the zero-breach search.
+>
+> **What remains valid below:** the measurements themselves, and the conclusion
+> that *within the levers searched there* (entry, ladder, risk/regime, caps,
+> universe, cushion, trend) no config passes quickly at 0% breach. The error was
+> generalizing "these levers can't" into "nothing can".
+
+## Original (superseded) verdict
+
+**The ~20-30 day target is not reachable on a 3% daily wall with this
 strategy. Not "not found yet" — structurally blocked. Evidence below.**
 
 ## The question
