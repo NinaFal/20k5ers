@@ -40,7 +40,105 @@
         "d2": null,
         "breach": false,
         "why": "step1"
+      },
+      "2019-10-01": {
+        "start": "2019-10-01",
+        "total": 55,
+        "d1": 34,
+        "d2": 20,
+        "breach": false,
+        "why": ""
+      },
+      "2022-01-01": {
+        "start": "2022-01-01",
+        "total": 72,
+        "d1": 40,
+        "d2": 31,
+        "breach": false,
+        "why": ""
+      },
+      "2019-07-01": {
+        "start": "2019-07-01",
+        "total": 43,
+        "d1": 28,
+        "d2": 14,
+        "breach": false,
+        "why": ""
+      },
+      "2019-04-01": {
+        "start": "2019-04-01",
+        "total": 80,
+        "d1": 22,
+        "d2": 57,
+        "breach": false,
+        "why": ""
+      },
+      "2022-04-01": {
+        "start": "2022-04-01",
+        "total": null,
+        "d1": null,
+        "d2": null,
+        "breach": false,
+        "why": "step1"
+      },
+      "2022-07-01": {
+        "start": "2022-07-01",
+        "total": null,
+        "d1": null,
+        "d2": null,
+        "breach": false,
+        "why": "step1"
+      },
+      "2024-07-01": {
+        "start": "2024-07-01",
+        "total": null,
+        "d1": null,
+        "d2": null,
+        "breach": true,
+        "why": "step1"
+      },
+      "2024-01-01": {
+        "start": "2024-01-01",
+        "total": 67,
+        "d1": 60,
+        "d2": 6,
+        "breach": false,
+        "why": ""
+      },
+      "2022-10-01": {
+        "start": "2022-10-01",
+        "total": 80,
+        "d1": 60,
+        "d2": 19,
+        "breach": false,
+        "why": ""
+      },
+      "2024-04-01": {
+        "start": "2024-04-01",
+        "total": null,
+        "d1": 24,
+        "d2": null,
+        "breach": false,
+        "why": "step2"
+      },
+      "2024-10-01": {
+        "start": "2024-10-01",
+        "total": 77,
+        "d1": 43,
+        "d2": 33,
+        "breach": false,
+        "why": ""
       }
     }
+  },
+  "holdout": {
+    "n": 16,
+    "breach_rate": 0.062,
+    "complete_rate": 0.625,
+    "median_days": 72,
+    "fastest_days": 43,
+    "p30": 0.0,
+    "p40": 0.0,
+    "p60": 0.125
   }
 }
