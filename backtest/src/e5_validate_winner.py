@@ -75,13 +75,33 @@ def _save(path, obj):
     path.write_text(json.dumps(obj, indent=2))
 
 
-def challenge_arm(env, tp, starts, horizon=60):
-    """Two-step challenge over `starts`; no early abort — we want the true rate."""
+def challenge_arm(env, tp, starts, horizon=60, cache=None, cache_key=None, out=None):
+    """Two-step challenge over `starts`; no early abort — we want the true rate.
+
+    Results are cached PER START. The container restarts periodically and kills
+    everything; caching only after a whole 16-window check completed meant every
+    restart threw away the entire check and it never finished. Per-start caching
+    caps the loss at one window.
+    """
+    store = None
+    if cache is not None and cache_key is not None:
+        store = cache.setdefault("_starts", {}).setdefault(cache_key, {})
+
     rows = []
+    todo = [s for s in starts if not (store is not None and s in store)]
+    if store is not None:
+        rows.extend(store[s] for s in starts if s in store)
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as ex:
-        futs = [ex.submit(cs.full_two_step, env, tp, s, horizon) for s in starts]
-        for fut in futs:
-            r = fut.result(); r.pop("detail", None); rows.append(r)
+        futs = {ex.submit(cs.full_two_step, env, tp, s, horizon): s for s in todo}
+        for fut in concurrent.futures.as_completed(futs):
+            s = futs[fut]
+            r = fut.result(); r.pop("detail", None)
+            rows.append(r)
+            if store is not None:
+                store[s] = r
+                if out is not None:
+                    _save(out, cache)
     n = len(rows)
     totals = sorted(r["total"] for r in rows if r["total"] is not None)
     return {"n": n,
@@ -128,7 +148,8 @@ def check_holdout(out):
     res = _load(out)
     if "holdout" not in res:
         env = dict(WINNER_ENV); tp = dict(TP); tp["risk_per_trade_pct"] = WINNER_RISK
-        res["holdout"] = challenge_arm(env, tp, cs.HOLDOUT_STARTS)
+        res["holdout"] = challenge_arm(env, tp, cs.HOLDOUT_STARTS,
+                                       cache=res, cache_key="holdout", out=out)
         _save(out, res)
     m = res["holdout"]
     print(f"\n=== HOLDOUT (16 unseen starts) ===", flush=True)
@@ -171,7 +192,7 @@ def check_random(out, n_starts, seed):
         starts = sorted({(lo + timedelta(days=rng.randrange(span))).isoformat()
                          for _ in range(n_starts * 2)})[:n_starts]
         env = dict(WINNER_ENV); tp = dict(TP); tp["risk_per_trade_pct"] = WINNER_RISK
-        m = challenge_arm(env, tp, starts)
+        m = challenge_arm(env, tp, starts, cache=res, cache_key=key, out=out)
         m["starts"] = starts
         res[key] = m
         _save(out, res)
@@ -207,7 +228,8 @@ def check_robust(out):
         if name not in r:
             env = dict(WINNER_ENV); env.update(over)
             tp = dict(TP); tp["risk_per_trade_pct"] = risk
-            r[name] = challenge_arm(env, tp, cs.TRAIN_STARTS)
+            r[name] = challenge_arm(env, tp, cs.TRAIN_STARTS,
+                                    cache=res, cache_key=f"robust/{name}", out=out)
             _save(out, res)
         m = r[name]
         md = "-" if m["median_days"] is None else m["median_days"]
