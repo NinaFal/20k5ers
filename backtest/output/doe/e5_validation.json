@@ -32,6 +32,14 @@
         "d2": 10,
         "breach": false,
         "why": ""
+      },
+      "2019-01-01": {
+        "start": "2019-01-01",
+        "total": null,
+        "d1": null,
+        "d2": null,
+        "breach": false,
+        "why": "step1"
       }
     }
   }
