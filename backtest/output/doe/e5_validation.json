@@ -1,0 +1,38 @@
+{
+  "_starts": {
+    "holdout": {
+      "2017-10-01": {
+        "start": "2017-10-01",
+        "total": null,
+        "d1": null,
+        "d2": null,
+        "breach": false,
+        "why": "step1"
+      },
+      "2017-04-01": {
+        "start": "2017-04-01",
+        "total": 87,
+        "d1": 38,
+        "d2": 48,
+        "breach": false,
+        "why": ""
+      },
+      "2017-07-01": {
+        "start": "2017-07-01",
+        "total": 62,
+        "d1": 24,
+        "d2": 37,
+        "breach": false,
+        "why": ""
+      },
+      "2017-01-01": {
+        "start": "2017-01-01",
+        "total": 68,
+        "d1": 57,
+        "d2": 10,
+        "breach": false,
+        "why": ""
+      }
+    }
+  }
+}
