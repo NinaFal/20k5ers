@@ -140,5 +140,29 @@
     "p30": 0.0,
     "p40": 0.0,
     "p60": 0.125
+  },
+  "tenyear": {
+    "net_pnl": -13686.87,
+    "return_pct": -13.69,
+    "final_balance": 86313.13,
+    "withdrawn": 0.0,
+    "final_funded_level": 100000.0,
+    "scaling_events": 0,
+    "max_tdd_pct": 13.67,
+    "max_ddd_pct": 2.51,
+    "trades": 34,
+    "win_rate": 32.4,
+    "account_failed": true,
+    "fail_info": {
+      "failed": true,
+      "breach_type": "total",
+      "reason": "10% total drawdown breached (13.67%) [bar]",
+      "time": "2015-01-15 10:30:00+00:00",
+      "funded_level_at_failure": 100000.0,
+      "ddd_pct_at_failure": 13.67,
+      "survived_days": 13
+    },
+    "ddd_halts": 0,
+    "tdd_stopouts": 1
   }
 }

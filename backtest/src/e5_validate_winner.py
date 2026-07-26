@@ -160,15 +160,14 @@ def check_holdout(out):
     print("  TRAIN was: breach=0.0% p30=6.2% p40=18.8% median=63 fastest=30", flush=True)
 
 
-def check_tenyear(out):
+def check_tenyear(out, start="2015-01-01", key="tenyear"):
     res = _load(out)
-    if "tenyear" not in res:
+    if key not in res:
         env = dict(WINNER_ENV); tp = dict(TP); tp["risk_per_trade_pct"] = WINNER_RISK
-        res["tenyear"] = continuous_run(env, tp, "2015-01-01", "2024-12-31",
-                                        100_000, SCALE_CAP)
+        res[key] = continuous_run(env, tp, start, "2024-12-31", 100_000, SCALE_CAP)
         _save(out, res)
-    m = res["tenyear"]
-    print(f"\n=== 10-YEAR CONTINUOUS (2015-2024, funded 100k, scaling cap ${SCALE_CAP}) ===",
+    m = res[key]
+    print(f"\n=== CONTINUOUS {start}..2024-12-31 (funded 100k, scaling cap ${SCALE_CAP}) ===",
           flush=True)
     if m.get("error"):
         print(f"  ERROR: {m['error']}", flush=True); return
@@ -254,6 +253,9 @@ def main():
           f"@{WINNER_ENV['NIGHTLY_DERISK_HOUR']}h, 3% wall, {WORKERS} workers", flush=True)
     if "holdout" in args.checks: check_holdout(out)
     if "tenyear" in args.checks: check_tenyear(out)
+    # The 2015-01-15 CHF unpeg is a designated black swan the user asked to
+    # exclude; this arm measures the decade without it.
+    if "postchf" in args.checks: check_tenyear(out, "2015-02-01", "tenyear_postchf")
     if "random"  in args.checks: check_random(out, args.random_starts, args.seed)
     if "robust"  in args.checks: check_robust(out)
     print("\n[e5_validate_winner] DONE_MARKER", flush=True)
