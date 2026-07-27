@@ -1,0 +1,128 @@
+{
+  "2015": {
+    "net_pnl": 38463.24,
+    "final_balance": 130106.98,
+    "withdrawn": 8356.25,
+    "final_funded_level": 125000,
+    "scaling_events": 1,
+    "max_tdd_pct": 0.87,
+    "max_ddd_pct": 2.9,
+    "trades": 533,
+    "win_rate": 32.3,
+    "account_failed": false,
+    "fail_info": null,
+    "_start_balance": 100000.0
+  },
+  "_carry_balance": 190822.36,
+  "_carry_withdrawn": 107526.83,
+  "2016": {
+    "net_pnl": 84388.04,
+    "final_balance": 177051.82,
+    "withdrawn": 37443.2,
+    "final_funded_level": 175000,
+    "scaling_events": 3,
+    "max_tdd_pct": 0.43,
+    "max_ddd_pct": 8.91,
+    "trades": 453,
+    "win_rate": 38.0,
+    "account_failed": true,
+    "fail_info": {
+      "failed": true,
+      "breach_type": "daily",
+      "reason": "3% daily drawdown breached (8.91%) [bar]",
+      "time": "2016-08-23 21:00:00+00:00",
+      "funded_level_at_failure": 175000,
+      "ddd_pct_at_failure": 8.91,
+      "survived_days": 235
+    },
+    "_start_balance": 130106.98
+  },
+  "2017": {
+    "net_pnl": 20097.07,
+    "final_balance": 181833.0,
+    "withdrawn": 15315.89,
+    "final_funded_level": 177051.82,
+    "scaling_events": 1,
+    "max_tdd_pct": 0.48,
+    "max_ddd_pct": 9.88,
+    "trades": 167,
+    "win_rate": 32.9,
+    "account_failed": true,
+    "fail_info": {
+      "failed": true,
+      "breach_type": "daily",
+      "reason": "3% daily drawdown breached (9.88%) [bar]",
+      "time": "2017-04-04 13:00:00+00:00",
+      "funded_level_at_failure": 177051.82,
+      "ddd_pct_at_failure": 9.88,
+      "survived_days": 91
+    },
+    "_start_balance": 177051.82
+  },
+  "2018": {
+    "net_pnl": 11932.61,
+    "final_balance": 178125.61,
+    "withdrawn": 15640.0,
+    "final_funded_level": 181833.0,
+    "scaling_events": 1,
+    "max_tdd_pct": 2.03,
+    "max_ddd_pct": 11.18,
+    "trades": 67,
+    "win_rate": 46.3,
+    "account_failed": true,
+    "fail_info": {
+      "failed": true,
+      "breach_type": "daily",
+      "reason": "3% daily drawdown breached (11.18%) [bar]",
+      "time": "2018-02-06 22:00:00+00:00",
+      "funded_level_at_failure": 181833.0,
+      "ddd_pct_at_failure": 11.18,
+      "survived_days": 36
+    },
+    "_start_balance": 181833.0
+  },
+  "2019": {
+    "net_pnl": 18073.13,
+    "final_balance": 180930.58,
+    "withdrawn": 15268.16,
+    "final_funded_level": 178125.61,
+    "scaling_events": 1,
+    "max_tdd_pct": 0.07,
+    "max_ddd_pct": 10.34,
+    "trades": 199,
+    "win_rate": 36.7,
+    "account_failed": true,
+    "fail_info": {
+      "failed": true,
+      "breach_type": "daily",
+      "reason": "3% daily drawdown breached (10.34%) [bar]",
+      "time": "2019-04-17 21:00:00+00:00",
+      "funded_level_at_failure": 178125.61,
+      "ddd_pct_at_failure": 10.34,
+      "survived_days": 105
+    },
+    "_start_balance": 178125.61
+  },
+  "2020": {
+    "net_pnl": 25395.12,
+    "final_balance": 190822.36,
+    "withdrawn": 15503.33,
+    "final_funded_level": 180930.58,
+    "scaling_events": 1,
+    "max_tdd_pct": 1.12,
+    "max_ddd_pct": 10.12,
+    "trades": 192,
+    "win_rate": 36.5,
+    "account_failed": true,
+    "fail_info": {
+      "failed": true,
+      "breach_type": "daily",
+      "reason": "3% daily drawdown breached (10.12%) [bar]",
+      "time": "2020-05-01 12:45:00+00:00",
+      "funded_level_at_failure": 180930.58,
+      "ddd_pct_at_failure": 10.12,
+      "survived_days": 120
+    },
+    "_start_balance": 180930.58
+  }
+}
