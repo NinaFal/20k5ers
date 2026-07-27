@@ -5765,6 +5765,7 @@ class LiveTradingBot:
             if _record_tdd_series:
                 _tdd_series.append((str(t), round(val, 3)))
         day_start_equity = self.initial_balance
+        _day_start_payout_removed = getattr(self.mt5, "_payout_balance_removed", 0.0)
         safety_events = []
         trading_halted_today = False
 
@@ -5804,6 +5805,16 @@ class LiveTradingBot:
             if account_failed:
                 return
             funded = getattr(self.mt5, '_funded_level', self.initial_balance)
+            if os.getenv("DDD_DEBUG") == "1":
+                import sys as _sys
+                _acct = self.mt5.get_account_info()
+                print(f"[DDD] {when} kind={kind} dd={dd_value:.2f}% "
+                      f"day_start_eq={day_start_equity:,.2f} "
+                      f"equity={_acct.get('equity', 0):,.2f} balance={_acct.get('balance', 0):,.2f} "
+                      f"funded={funded:,.2f} "
+                      f"payout_cum={getattr(self.mt5, '_payout_balance_removed', None)} "
+                      f"day_start_payout={_day_start_payout_removed}",
+                      file=_sys.stderr, flush=True)
             try:
                 survived = (when - run_start_dt).days
             except Exception:
@@ -5859,6 +5870,9 @@ class LiveTradingBot:
                 
                 # CRITICAL: Use MAX(equity, balance) per 5ers rules
                 day_start_equity = max(day_equity, day_balance)
+                # Baseline for excluding payouts from this day's drawdown: a
+                # scaling payout removes balance, which is not a trading loss.
+                _day_start_payout_removed = getattr(self.mt5, "_payout_balance_removed", 0.0)
                 
                 # CRITICAL: Sync day_start_equity to challenge_manager
                 if self.challenge_manager:
@@ -5976,7 +5990,16 @@ class LiveTradingBot:
             # Layer 5: tighten halt during rollover or with many open positions
             halt_pct = self._dynamic_halt_pct(base_halt_pct)
 
-            ddd_pct = max(0, (day_start_equity - equity) / day_start_equity * 100) if day_start_equity > 0 else 0
+            # Exclude scaling payouts: a milestone payout removes balance (at a
+            # capped funded level it resets balance straight back down to the
+            # cap), which is NOT a trading loss. Counting it produced phantom
+            # 9-11% daily breaches on every payout day at a 175k cap while the
+            # identical run uncapped peaked at 2.89%. 5ers does not charge a
+            # trader's own withdrawal against the daily loss limit.
+            _payout_today = (getattr(self.mt5, "_payout_balance_removed", 0.0)
+                             - _day_start_payout_removed)
+            ddd_pct = (max(0, (day_start_equity - equity - _payout_today) / day_start_equity * 100)
+                       if day_start_equity > 0 else 0)
             max_ddd = max(max_ddd, ddd_pct)
 
             # === TERMINAL DAILY BREACH (equity basis) ===
@@ -6064,7 +6087,12 @@ class LiveTradingBot:
                     acct = self.mt5.get_account_info()
                     eq_now = acct.get('equity', equity)
                     bal_now = acct.get('balance', balance)
-                    ddd_now = max(0, (day_start_equity - eq_now) / day_start_equity * 100) if day_start_equity > 0 else 0
+                    # Same payout exclusion as the bar-level DDD below: a
+                    # scaling payout removes balance and is not a trading loss.
+                    _payout_now = (getattr(self.mt5, "_payout_balance_removed", 0.0)
+                                   - _day_start_payout_removed)
+                    ddd_now = (max(0, (day_start_equity - eq_now - _payout_now) / day_start_equity * 100)
+                               if day_start_equity > 0 else 0)
                     tdd_ref = self.challenge_manager.starting_balance if self.challenge_manager else self.initial_balance
                     tdd_now = max(0, (tdd_ref - eq_now) / tdd_ref * 100) if tdd_ref > 0 else 0
                     max_ddd = max(max_ddd, ddd_now)
@@ -6103,7 +6131,10 @@ class LiveTradingBot:
                             self.mt5.cancel_pending_order(order.ticket)
                         acct2 = self.mt5.get_account_info()
                         eq2 = acct2.get('equity', day_start_equity)
-                        actual_ddd = max(0, (day_start_equity - eq2) / day_start_equity * 100) if day_start_equity > 0 else 0
+                        _payout_at_close = (getattr(self.mt5, "_payout_balance_removed", 0.0)
+                                            - _day_start_payout_removed)
+                        actual_ddd = (max(0, (day_start_equity - eq2 - _payout_at_close) / day_start_equity * 100)
+                                      if day_start_equity > 0 else 0)
                         max_ddd = max(max_ddd, actual_ddd)
                         log.warning(f"  💸 Close commission: ${close_comm:.2f} | Actual DDD: {actual_ddd:.2f}%")
                         if actual_ddd >= _daily_wall_pct:
