@@ -1,0 +1,60 @@
+{
+  "2015": {
+    "net_pnl": 38463.24,
+    "final_balance": 130106.98,
+    "withdrawn": 8356.25,
+    "final_funded_level": 125000,
+    "scaling_events": 1,
+    "max_tdd_pct": 0.87,
+    "max_ddd_pct": 2.9,
+    "trades": 533,
+    "win_rate": 32.3,
+    "account_failed": false,
+    "fail_info": null,
+    "_start_balance": 100000.0
+  },
+  "_carry_balance": 180137.83,
+  "_carry_withdrawn": 215729.77000000002,
+  "2016": {
+    "net_pnl": 98446.49,
+    "final_balance": 176180.64,
+    "withdrawn": 52372.83,
+    "final_funded_level": 175000,
+    "scaling_events": 4,
+    "max_tdd_pct": 2.71,
+    "max_ddd_pct": 2.88,
+    "trades": 641,
+    "win_rate": 38.2,
+    "account_failed": false,
+    "fail_info": null,
+    "_start_balance": 130106.98
+  },
+  "2017": {
+    "net_pnl": 80057.59,
+    "final_balance": 177035.27,
+    "withdrawn": 79202.96,
+    "final_funded_level": 176180.64,
+    "scaling_events": 4,
+    "max_tdd_pct": 0.48,
+    "max_ddd_pct": 2.47,
+    "trades": 570,
+    "win_rate": 38.2,
+    "account_failed": false,
+    "fail_info": null,
+    "_start_balance": 176180.64
+  },
+  "2018": {
+    "net_pnl": 78900.29,
+    "final_balance": 180137.83,
+    "withdrawn": 75797.73,
+    "final_funded_level": 177035.27,
+    "scaling_events": 5,
+    "max_tdd_pct": 2.34,
+    "max_ddd_pct": 2.3,
+    "trades": 669,
+    "win_rate": 37.8,
+    "account_failed": false,
+    "fail_info": null,
+    "_start_balance": 177035.27
+  }
+}
