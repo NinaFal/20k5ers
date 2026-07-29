@@ -1844,6 +1844,44 @@ class LiveTradingBot:
     # WEEKEND GAP RISK MANAGEMENT - Tier 1 Conservative Strategy
     # ═══════════════════════════════════════════════════════════════════════════
 
+    def handle_max_hold(self):
+        """MAX_HOLD_DAYS (env-gated, default off) — force-close aged positions.
+
+        The nightly de-risk exempts any position whose stop has reached
+        breakeven ("TP1 reached — can't lose"), so a protected runner stops
+        counting toward the overnight book cap and can stay open indefinitely.
+        In 2017 that produced a single NAS100 long held 333 days.
+
+        That exemption is only true intraday. A held position keeps full
+        exposure to gaps, and — because daily drawdown is measured on EQUITY,
+        which includes floating P&L — a large open winner also feeds straight
+        into the daily loss number the moment it retraces. Capping hold age
+        bounds both.
+
+        Runs once per day, independent of NIGHTLY_DERISK.
+        """
+        max_days = float(os.getenv("MAX_HOLD_DAYS", "0") or 0)
+        if max_days <= 0:
+            return
+        now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
+        if now.hour != int(os.getenv("MAX_HOLD_HOUR", "21")):
+            return
+        day_key = now.date()
+        if getattr(self, "_max_hold_day", None) == day_key:
+            return
+        self._max_hold_day = day_key
+
+        for pos in (self.mt5.get_my_positions() or []):
+            opened = getattr(pos, "time", None)
+            if opened is None:
+                continue
+            try:
+                age = (now - opened).total_seconds() / 86400.0
+            except Exception:
+                continue
+            if age >= max_days:
+                self.mt5.close_position(pos.ticket)
+
     def handle_nightly_derisk(self):
         """
         NIGHTLY_DERISK (env-gated, default off) — overnight gap-risk control.
@@ -5924,6 +5962,7 @@ class LiveTradingBot:
             minute = current_time.minute
             self.handle_friday_position_closing()   # self-gates (sim time): Friday 19:30+ UTC
             self.handle_nightly_derisk()            # self-gates: env NIGHTLY_DERISK + hour
+            self.handle_max_hold()                  # self-gates: env MAX_HOLD_DAYS + hour
             self.handle_sunday_gap_detection()      # self-gates (sim time): Sunday 22:00+ / Mon <02:00
             self.handle_monday_order_resume(current_time)  # self-gates (sim time): Monday only
             # handle_weekend_gap_positions() gates on get_server_time() (wall clock),
