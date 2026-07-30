@@ -72,7 +72,12 @@ def run_step1(env_over, tp_over, start, horizon):
                     continue
                 v = float(row.get("pnl") or 0) + float(row.get("swap") or 0)
                 by_day[d] = by_day.get(d, 0.0) + v
-                if not bool(row.get("partial", False)):
+                # pandas gives NaN for a blank 'partial' cell, and bool(nan) is
+                # True — which silently classified every full close as a partial
+                # and zeroed the trade stats. Compare explicitly.
+                _p = row.get("partial", False)
+                is_partial = str(_p).strip().lower() in ("true", "1", "1.0")
+                if not is_partial:
                     n_trades += 1
                     if v > 0:
                         n_win += 1; gross_win += v
