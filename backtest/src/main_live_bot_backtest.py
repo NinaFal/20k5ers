@@ -1844,6 +1844,45 @@ class LiveTradingBot:
     # WEEKEND GAP RISK MANAGEMENT - Tier 1 Conservative Strategy
     # ═══════════════════════════════════════════════════════════════════════════
 
+    def _params_for_symbol(self, symbol):
+        """Per-correlation-group entry-fib override (env-gated, default off).
+
+        Every instrument currently shares one entry fib level, which assumes
+        gold, EUR/GBP and NAS100 retrace alike. Per-SYMBOL levels would be 27
+        free parameters fitted to a shared outcome — an overfitting machine, and
+        this branch has already produced one TRAIN-only winner. Per-GROUP keeps
+        it to ~6, each backed by many more samples.
+
+        Set FIB_GROUP_<GROUP>=<level> to override entry_fib_level for that
+        correlation group, e.g. FIB_GROUP_METALS=0.62. Group names come from
+        weekend_gap_manager.get_correlation_group (USD_MAJORS, USD_INVERSE,
+        EUR_CROSSES, METALS, ... , UNCORRELATED). Unset groups use the base
+        level, so with no vars set behaviour is unchanged.
+        """
+        base = self.params
+        if not getattr(self, "_fib_group_map", None):
+            self._fib_group_map = {}
+            for k, v in os.environ.items():
+                if k.startswith("FIB_GROUP_") and v.strip():
+                    try:
+                        self._fib_group_map[k[len("FIB_GROUP_"):].upper()] = float(v)
+                    except ValueError:
+                        pass
+        if not self._fib_group_map:
+            return base
+        try:
+            grp = wgm.get_correlation_group(symbol)
+        except Exception:
+            return base
+        lvl = self._fib_group_map.get(str(grp).upper())
+        if lvl is None:
+            return base
+        # shallow copy so the override never leaks to another symbol
+        import copy as _copy
+        p = _copy.copy(base)
+        p.entry_fib_level = lvl
+        return p
+
     def handle_max_hold(self):
         """MAX_HOLD_DAYS (env-gated, default off) — force-close aged positions.
 
@@ -3821,7 +3860,7 @@ class LiveTradingBot:
             daily_candles,
             h4_candles,
             direction,
-            self.params,
+            self._params_for_symbol(symbol),
             historical_sr,
         )
         
