@@ -265,6 +265,7 @@ def select_positions_for_weekend_tier1(
     r_new_position: float = 0.5,
     reduce_pct: float = 0.50,
     enforce_friday_gate: bool = True,
+    honor_manual_exclusions: bool = True,
 ) -> dict:
     """
     TIER 1: Conservative correlation-aware weekend position selector
@@ -343,7 +344,13 @@ def select_positions_for_weekend_tier1(
 
         # MANUAL EXCLUDED (e.g. NAS100): Manually managed by trader - skip entirely
         # Do NOT close, reduce, or count toward position limits
-        if is_manual_excluded(symbol):
+        # Manual exclusions are a LIVE convenience — symbols the trader manages
+        # by hand. A caller enforcing an automated risk rule (the nightly
+        # overnight-gap control) passes honor_manual_exclusions=False so nothing
+        # sits outside that rule: an exempt symbol is neither closed, reduced,
+        # nor counted toward the position caps, which is exactly the unmanaged
+        # overnight exposure the rule exists to bound.
+        if honor_manual_exclusions and is_manual_excluded(symbol):
             hold.append(pos)
             logger.info(f"⛔ HOLD {oanda_symbol}: MANUALLY EXCLUDED ({current_r:+.2f}R) - Not touched by Friday check")
             continue

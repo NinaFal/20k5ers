@@ -1941,7 +1941,8 @@ class LiveTradingBot:
             r_close_losing=float(os.getenv("NIGHTLY_R_CLOSE_LOSING", "0.0")),
             r_new_position=float(os.getenv("NIGHTLY_R_NEW", "0.5")),
             reduce_pct=float(os.getenv("NIGHTLY_REDUCE_PCT", "0.5")),
-            enforce_friday_gate=False,   # this IS the nightly caller
+            enforce_friday_gate=False,       # this IS the nightly caller
+            honor_manual_exclusions=False,   # NAS100 etc. are not exempt from it
         )
 
         if _dbg:
