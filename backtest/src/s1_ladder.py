@@ -69,17 +69,45 @@ def _suggest(trial):
     return tp
 
 
+RUNCACHE = DOE_DIR / "s1_runcache.json"
+
+
+def _cache_key(tp):
+    """Stable fingerprint of the searched ladder params."""
+    keys = ("tp1_r_multiple", "tp2_r_multiple", "tp3_r_multiple",
+            "tp1_close_pct", "tp2_close_pct", "tp3_close_pct",
+            "sl_after_tp1_r", "sl_after_tp2_r", "sl_after_tp3_r")
+    return "|".join(f"{k}={tp.get(k)}" for k in keys)
+
+
 def evaluate(tp, starts, horizon=75):
-    """Two-step over `starts`, aborting on the first breach (hard reject)."""
+    """Two-step over `starts`, aborting on the first breach (hard reject).
+
+    Cached PER (config, start). One trial is up to 30 two-step backtests, ~11
+    minutes, and this container restarts more often than that — without the
+    cache an interrupted trial loses everything and the search never advances
+    past its first trial. With it, a restart costs one start.
+    """
     env = dict(e5.WINNER_ENV)
-    rows = []
+    ck = _cache_key(tp)
+    store = json.loads(RUNCACHE.read_text()) if RUNCACHE.exists() else {}
+    mine = store.setdefault(ck, {})
+
+    rows = [mine[s] for s in starts if s in mine]
+    if any(r["breach"] for r in rows):           # already known bad
+        return {"breach_rate": round(sum(1 for r in rows if r["breach"]) / len(rows), 3),
+                "p50": 0.0, "complete_rate": 0.0, "median_days": None,
+                "fastest": None, "aborted_after": len(rows)}
+    todo = [s for s in starts if s not in mine]
     chunk = max(2, WORKERS)
     with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as ex:
-        for i in range(0, len(starts), chunk):
-            futs = [ex.submit(cs.full_two_step, env, tp, s, horizon)
-                    for s in starts[i:i + chunk]]
-            for f in futs:
-                r = f.result(); r.pop("detail", None); rows.append(r)
+        for i in range(0, len(todo), chunk):
+            futs = {ex.submit(cs.full_two_step, env, tp, s, horizon): s
+                    for s in todo[i:i + chunk]}
+            for f in concurrent.futures.as_completed(futs):
+                r = f.result(); r.pop("detail", None)
+                rows.append(r); mine[futs[f]] = r
+            RUNCACHE.write_text(json.dumps(store))
             if any(r["breach"] for r in rows):
                 return {"breach_rate": round(sum(1 for r in rows if r["breach"]) / len(rows), 3),
                         "p50": 0.0, "complete_rate": 0.0, "median_days": None,
