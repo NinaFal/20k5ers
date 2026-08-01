@@ -72,6 +72,31 @@ def _suggest(trial):
 RUNCACHE = DOE_DIR / "s1_runcache.json"
 
 
+def _atomic_write(path, obj):
+    """Write via temp + rename. The cache is rewritten after every chunk and the
+    container kills processes without warning; a torn write would leave invalid
+    JSON and silently discard every cached result on the next load."""
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(obj))
+    os.replace(tmp, path)
+
+
+def _load_cache():
+    """Tolerate a corrupt cache rather than crashing the search."""
+    if not RUNCACHE.exists():
+        return {}
+    try:
+        return json.loads(RUNCACHE.read_text())
+    except (json.JSONDecodeError, ValueError):
+        bad = RUNCACHE.with_suffix(".corrupt")
+        try:
+            os.replace(RUNCACHE, bad)
+            print(f"[S1] cache was corrupt, moved to {bad.name}; starting fresh", flush=True)
+        except OSError:
+            pass
+        return {}
+
+
 def _cache_key(tp):
     """Stable fingerprint of the searched ladder params."""
     keys = ("tp1_r_multiple", "tp2_r_multiple", "tp3_r_multiple",
@@ -90,7 +115,7 @@ def evaluate(tp, starts, horizon=75):
     """
     env = dict(e5.WINNER_ENV)
     ck = _cache_key(tp)
-    store = json.loads(RUNCACHE.read_text()) if RUNCACHE.exists() else {}
+    store = _load_cache()
     mine = store.setdefault(ck, {})
 
     rows = [mine[s] for s in starts if s in mine]
@@ -107,7 +132,7 @@ def evaluate(tp, starts, horizon=75):
             for f in concurrent.futures.as_completed(futs):
                 r = f.result(); r.pop("detail", None)
                 rows.append(r); mine[futs[f]] = r
-            RUNCACHE.write_text(json.dumps(store))
+            _atomic_write(RUNCACHE, store)
             if any(r["breach"] for r in rows):
                 return {"breach_rate": round(sum(1 for r in rows if r["breach"]) / len(rows), 3),
                         "p50": 0.0, "complete_rate": 0.0, "median_days": None,
