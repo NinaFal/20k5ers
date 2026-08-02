@@ -59,7 +59,7 @@ BASE_ENV = {
     "EXCLUDE_SYMBOLS": "AUD_NZD,EUR_NZD,AUD_JPY",
     "BROKER_TYPE": "fiveers_live",
     "CFG_DAILY_WALL_PCT": "5.0",          # <-- the whole point of this round
-    "FIVEERS_MAX_SCALE": "175000",
+    "FIVEERS_MAX_SCALE": "500000",        # 100k scales up to 500k
     "NIGHTLY_DERISK": "1", "NIGHTLY_DERISK_HOUR": "21",
     "NIGHTLY_MAX_PER_GROUP": "1", "NIGHTLY_MAX_TOTAL": "2",
     "NIGHTLY_R_CLOSE_LOSING": "0.0", "NIGHTLY_R_NEW": "0.5", "NIGHTLY_REDUCE_PCT": "0.5",
