@@ -1,0 +1,482 @@
+[
+  {
+    "ladder": "runner_control",
+    "start": "2016-01-01",
+    "pass20": false,
+    "d1": 4,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2016-07-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2017-01-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2017-07-01",
+    "pass20": false,
+    "d1": 25,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2018-01-01",
+    "pass20": false,
+    "d1": 23,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2018-07-01",
+    "pass20": false,
+    "d1": 15,
+    "d2": 6,
+    "total": 22,
+    "breach": false,
+    "why": "slow"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2019-01-01",
+    "pass20": false,
+    "d1": 1,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2019-07-01",
+    "pass20": false,
+    "d1": 18,
+    "d2": 11,
+    "total": 30,
+    "breach": false,
+    "why": "slow"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2021-01-01",
+    "pass20": false,
+    "d1": 7,
+    "d2": 18,
+    "total": 26,
+    "breach": false,
+    "why": "slow"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2021-07-01",
+    "pass20": false,
+    "d1": 6,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2022-01-01",
+    "pass20": false,
+    "d1": 25,
+    "d2": 4,
+    "total": 30,
+    "breach": false,
+    "why": "slow"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2022-07-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2023-01-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2023-07-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2024-01-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "runner_control",
+    "start": "2024-07-01",
+    "pass20": false,
+    "d1": 10,
+    "d2": null,
+    "total": null,
+    "breach": true,
+    "why": "step2"
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2016-01-01",
+    "pass20": false,
+    "d1": 3,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2016-07-01",
+    "pass20": false,
+    "d1": 16,
+    "d2": 4,
+    "total": 21,
+    "breach": false,
+    "why": "slow"
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2017-01-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2017-07-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2018-01-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2018-07-01",
+    "pass20": false,
+    "d1": 10,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2019-01-01",
+    "pass20": false,
+    "d1": 1,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2019-07-01",
+    "pass20": true,
+    "d1": 2,
+    "d2": 6,
+    "total": 9,
+    "breach": false,
+    "why": ""
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2021-01-01",
+    "pass20": false,
+    "d1": 5,
+    "d2": 20,
+    "total": 26,
+    "breach": false,
+    "why": "slow"
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2021-07-01",
+    "pass20": true,
+    "d1": 6,
+    "d2": 13,
+    "total": 20,
+    "breach": false,
+    "why": ""
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2022-01-01",
+    "pass20": true,
+    "d1": 4,
+    "d2": 6,
+    "total": 11,
+    "breach": false,
+    "why": ""
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2022-07-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2023-01-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2023-07-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2024-01-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_fast",
+    "start": "2024-07-01",
+    "pass20": false,
+    "d1": 9,
+    "d2": null,
+    "total": null,
+    "breach": true,
+    "why": "step2"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2016-01-01",
+    "pass20": false,
+    "d1": 4,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2016-07-01",
+    "pass20": false,
+    "d1": 14,
+    "d2": 6,
+    "total": 21,
+    "breach": false,
+    "why": "slow"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2017-01-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2017-07-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2018-01-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2018-07-01",
+    "pass20": false,
+    "d1": 10,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2019-01-01",
+    "pass20": false,
+    "d1": 1,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2019-07-01",
+    "pass20": true,
+    "d1": 10,
+    "d2": 4,
+    "total": 15,
+    "breach": false,
+    "why": ""
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2021-01-01",
+    "pass20": false,
+    "d1": 5,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2021-07-01",
+    "pass20": false,
+    "d1": 6,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2022-01-01",
+    "pass20": false,
+    "d1": 6,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step2"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2022-07-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2023-01-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2023-07-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2024-01-01",
+    "pass20": false,
+    "d1": null,
+    "d2": null,
+    "total": null,
+    "breach": false,
+    "why": "step1"
+  },
+  {
+    "ladder": "bank_med",
+    "start": "2024-07-01",
+    "pass20": false,
+    "d1": 9,
+    "d2": null,
+    "total": null,
+    "breach": true,
+    "why": "step2"
+  }
+]

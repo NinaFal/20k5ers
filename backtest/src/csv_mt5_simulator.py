@@ -252,6 +252,12 @@ class CSVMT5Simulator:
         self._total_withdrawn: float = 0.0  # total trader profit withdrawn
         self._funded_level: float = initial_balance  # current funded level
         self._scaling_log: list = []  # log of scaling events
+        # Cumulative BALANCE removed by payouts at scaling milestones. A payout
+        # is not a trading loss, but it does drop balance/equity, so a naive
+        # daily-drawdown calc reads it as one — at a 175k cap that is a ~9%
+        # phantom breach on every payout day. Callers subtract the within-day
+        # delta of this counter before measuring daily drawdown.
+        self._payout_balance_removed: float = 0.0
 
     # ═══════════════════════════════════════════════════════════════════════
     # FEE SIMULATION - 5ers realistic costs
@@ -371,6 +377,8 @@ class CSVMT5Simulator:
         trader_profit = profit_made * split
         self._total_withdrawn += trader_profit
 
+        balance_before_payout = self._balance
+
         if self._funded_level < self._max_balance:
             next_level = self._next_fiveers_level(self._funded_level)
             old_level = self._funded_level
@@ -395,6 +403,11 @@ class CSVMT5Simulator:
                 'profit_split': split,
                 'note': 'at_cap',
             })
+
+        # Record how much BALANCE this payout removed so daily-drawdown
+        # measurement can exclude it (see _payout_balance_removed).
+        if balance_before_payout > self._balance:
+            self._payout_balance_removed += balance_before_payout - self._balance
     
     def get_closed_trades(self) -> List[dict]:
         """Get list of closed trades (for results)."""
@@ -754,6 +767,13 @@ class CSVMT5Simulator:
             def _read_norm(path):
                 d = pd.read_csv(path, parse_dates=['time'])
                 d.columns = [c.lower() for c in d.columns]
+                # Normalize tz per-file BEFORE concat/sort: some symbols have one
+                # tz-aware and one tz-naive M15 file (e.g. NAS100_USD 2015 vs
+                # 2020 exports) — mixed tz makes sort_values raise "Cannot
+                # compare tz-naive and tz-aware timestamps" and silently drops
+                # the whole symbol from the backtest universe.
+                if d['time'].dt.tz is None:
+                    d['time'] = d['time'].dt.tz_localize('UTC')
                 return d
 
             if len(candidates) == 1:
