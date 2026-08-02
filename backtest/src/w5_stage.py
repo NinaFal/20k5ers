@@ -190,17 +190,28 @@ def main():
     ap.add_argument("--stage", required=True, choices=list(SPACES))
     ap.add_argument("--trials", type=int, default=120)
     ap.add_argument("--screen", type=int, default=25)
+    ap.add_argument("--round", type=int, default=1,
+                    help="Optimization round. A later round re-runs a stage on top of a "
+                         "DIFFERENT inherited config, so identical parameters produce "
+                         "different results — it therefore needs its own study, or scores "
+                         "from the two rounds would be mixed and mislead the sampler.")
     args = ap.parse_args()
     (w5.DOE_DIR / "tmp").mkdir(parents=True, exist_ok=True)
 
     st = args.stage
+    rnd = args.round
+    tag = st if rnd == 1 else f"{st}_r{rnd}"
+    # The run cache is keyed by each config's diff from the fixed BASE_ENV/BASE_TP,
+    # which is round-independent — so it is SHARED across rounds and a config
+    # already evaluated in round 1 replays for free in round 2. Only the study
+    # and the trial log are namespaced per round.
     cache = w5.W5_DIR / f"{st}_runcache.json"
-    csv_path = w5.W5_DIR / f"{st}_trials.csv"
-    db = str(w5.W5_DIR / f"{st}.db")
+    csv_path = w5.W5_DIR / f"{tag}_trials.csv"
+    db = str(w5.W5_DIR / f"{tag}.db")
     screen = w5.CANON[:args.screen]
     base_env, base_tp, prev = load_current_best()
 
-    study = optuna.create_study(direction="maximize", study_name=f"w5_{st}",
+    study = optuna.create_study(direction="maximize", study_name=f"w5_{tag}",
                                 storage=f"sqlite:///{db}", load_if_exists=True,
                                 sampler=optuna.samplers.TPESampler(seed=42, multivariate=True))
     if not [t for t in study.trials if t.state != optuna.trial.TrialState.FAIL]:
@@ -238,7 +249,7 @@ def main():
 
     done = sum(1 for t in study.trials
                if t.state in (optuna.trial.TrialState.COMPLETE, optuna.trial.TrialState.PRUNED))
-    print(f"[{st}] 5% wall | target <={w5.TARGET_DAYS}d | base from stage '{prev}' | screen {len(screen)} starts "
+    print(f"[{st}] round {rnd} | 5% wall | target <={w5.TARGET_DAYS}d | base from stage '{prev}' | screen {len(screen)} starts "
           f"| {done} done, {max(0, args.trials - done)} left | {w5.WORKERS} workers", flush=True)
     if args.trials > done:
         study.optimize(objective, n_trials=args.trials - done, n_jobs=1,
@@ -250,7 +261,7 @@ def main():
             and t.user_attrs.get("median_days") is not None]
     safe.sort(key=lambda t: (-(t.user_attrs.get("p_target") or 0), t.user_attrs["median_days"]))
     top = safe[:20]
-    out = w5.W5_DIR / f"{st}_top20.json"
+    out = w5.W5_DIR / f"{tag}_top20.json"
     w5.atomic_write(out, [{"trial": t.number, "score": t.value,
                            "p_target": t.user_attrs.get("p_target"),
                            "p30": t.user_attrs.get("p30"), "p40": t.user_attrs.get("p40"),
