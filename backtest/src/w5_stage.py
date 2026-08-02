@@ -164,7 +164,8 @@ def main():
             return
         ua = trial.user_attrs
         row = {"trial": trial.number, "score": round(trial.value or 0, 2),
-               **{k: ua.get(k) for k in ("p50", "p30", "complete_rate", "median_days",
+               **{k: ua.get(k) for k in ("p_target", "p30", "p40", "p50",
+                                         "complete_rate", "median_days",
                                          "fastest", "breach_rate", "n")}}
         new = not csv_path.exists() or csv_path.stat().st_size == 0
         with open(csv_path, "a", newline="") as f:
@@ -172,13 +173,14 @@ def main():
             if new: wr.writeheader()
             wr.writerow(row)
         flag = "SAFE" if ua.get("breach_rate") == 0.0 else f"br={ua.get('breach_rate')}"
-        print(f"[{st}] t{trial.number:3d} {flag:>9} p50={ua.get('p50')} p30={ua.get('p30')} "
+        print(f"[{st}] t{trial.number:3d} {flag:>9} p{w5.TARGET_DAYS}={ua.get('p_target')} "
+              f"p40={ua.get('p40')} p50={ua.get('p50')} "
               f"median={ua.get('median_days')} fastest={ua.get('fastest')} "
               f"n={ua.get('n')}", flush=True)
 
     done = sum(1 for t in study.trials
                if t.state in (optuna.trial.TrialState.COMPLETE, optuna.trial.TrialState.PRUNED))
-    print(f"[{st}] 5% wall | base from stage '{prev}' | screen {len(screen)} starts "
+    print(f"[{st}] 5% wall | target <={w5.TARGET_DAYS}d | base from stage '{prev}' | screen {len(screen)} starts "
           f"| {done} done, {max(0, args.trials - done)} left | {w5.WORKERS} workers", flush=True)
     if args.trials > done:
         study.optimize(objective, n_trials=args.trials - done, n_jobs=1,
@@ -188,11 +190,13 @@ def main():
             if t.state == optuna.trial.TrialState.COMPLETE
             and t.user_attrs.get("breach_rate") == 0.0
             and t.user_attrs.get("median_days") is not None]
-    safe.sort(key=lambda t: (-(t.user_attrs.get("p50") or 0), t.user_attrs["median_days"]))
+    safe.sort(key=lambda t: (-(t.user_attrs.get("p_target") or 0), t.user_attrs["median_days"]))
     top = safe[:20]
     out = w5.W5_DIR / f"{st}_top20.json"
     w5.atomic_write(out, [{"trial": t.number, "score": t.value,
-                           "p50": t.user_attrs.get("p50"), "p30": t.user_attrs.get("p30"),
+                           "p_target": t.user_attrs.get("p_target"),
+                           "p30": t.user_attrs.get("p30"), "p40": t.user_attrs.get("p40"),
+                           "p50": t.user_attrs.get("p50"),
                            "median_days": t.user_attrs.get("median_days"),
                            "complete_rate": t.user_attrs.get("complete_rate"),
                            "env": t.user_attrs.get("cfg_env", {}),
@@ -200,8 +204,8 @@ def main():
     print(f"\n[{st}] {len(safe)} zero-breach configs; wrote top {len(top)} -> {out.name}", flush=True)
     for t in top[:10]:
         ua = t.user_attrs
-        print(f"   t{t.number:3d} p50={ua['p50']} p30={ua.get('p30')} "
-              f"median={ua['median_days']}d fastest={ua['fastest']}d", flush=True)
+        print(f"   t{t.number:3d} p{w5.TARGET_DAYS}={ua['p_target']} p40={ua.get('p40')} "
+              f"p50={ua.get('p50')} median={ua['median_days']}d fastest={ua['fastest']}d", flush=True)
     print(f"[w5_stage:{st}] DONE_MARKER", flush=True)
 
 

@@ -42,7 +42,7 @@ os.environ.setdefault("RUN_TIMEOUT_S", "999999")
 
 WORKERS = int(os.environ.get("W5_WORKERS", str(os.cpu_count() or 2)))
 CANON = json.loads((DOE_DIR / "CANONICAL_100_STARTS.json").read_text())["starts"]
-TARGET_DAYS = 50
+TARGET_DAYS = 30          # both steps passed within 30 calendar days
 HORIZON = 75
 
 # ── Baseline: the best-validated config from the 3% round, re-pointed at 5% ──
@@ -136,13 +136,18 @@ def summarize(rows, aborted):
     n = max(len(rows), 1)
     br = sum(1 for r in rows if r["breach"]) / n
     if aborted or br > 0:
-        return {"breach_rate": round(br, 3), "p50": 0.0, "complete_rate": 0.0,
+        return {"breach_rate": round(br, 3), "p_target": 0.0, "p30": 0.0,
+                "p40": 0.0, "p50": 0.0, "complete_rate": 0.0,
                 "median_days": None, "fastest": None, "n": len(rows), "aborted": aborted}
     tot = sorted(r["total"] for r in rows if r.get("total") is not None)
     return {"breach_rate": 0.0,
             "complete_rate": round(len(tot) / n, 3),
-            "p50": round(sum(1 for t in tot if t <= TARGET_DAYS) / n, 3),
+            # p_target is the objective; p30/p40/p50 are reported alongside so a
+            # change of target never silently redefines what the numbers mean.
+            "p_target": round(sum(1 for t in tot if t <= TARGET_DAYS) / n, 3),
             "p30": round(sum(1 for t in tot if t <= 30) / n, 3),
+            "p40": round(sum(1 for t in tot if t <= 40) / n, 3),
+            "p50": round(sum(1 for t in tot if t <= 50) / n, 3),
             "median_days": (tot[len(tot) // 2] if tot else None),
             "fastest": (tot[0] if tot else None),
             "n": len(rows), "aborted": False}
@@ -154,7 +159,9 @@ def score_of(m):
         return -1e6 * m["breach_rate"]
     if not m["complete_rate"]:
         return -1000.0
-    return 1000.0 * m["p50"] + 200.0 * m["complete_rate"] - float(m["median_days"])
+    # Rate of passing inside TARGET_DAYS dominates; completions and raw speed
+    # only break ties between configs that hit the target equally often.
+    return 1000.0 * m["p_target"] + 200.0 * m["complete_rate"] - float(m["median_days"])
 
 
 # ── 2016-2025 gauntlet (the 0-breach filter between stages) ──────────────────
