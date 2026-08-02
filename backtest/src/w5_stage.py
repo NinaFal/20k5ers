@@ -120,6 +120,60 @@ SPACES = {"ladder": space_ladder, "filters": space_filters, "entry": space_entry
           "halt": space_halt}
 
 
+def baseline_seed(stage, env, tp):
+    """The incumbent's own values for this stage's parameters.
+
+    Enqueued as trial 0 so every stage measures the config it inherited under
+    identical conditions. Without it the first trial is just TPE's random draw
+    and there is no in-study baseline to judge an improvement against.
+    """
+    if stage == "ladder":
+        return {"tp1_r_multiple": tp["tp1_r_multiple"], "tp2_r_multiple": tp["tp2_r_multiple"],
+                "tp3_r_multiple": tp["tp3_r_multiple"], "tp1_close_pct": tp["tp1_close_pct"],
+                "tp2_close_pct": tp["tp2_close_pct"], "sl_after_tp1_r": tp["sl_after_tp1_r"],
+                "sl_after_tp2_r": tp["sl_after_tp2_r"], "sl_after_tp3_r": tp["sl_after_tp3_r"]}
+    if stage == "filters":
+        return {f: bool(tp.get(f, False)) for f in
+                ("use_htf_filter", "use_structure_filter", "use_confirmation_filter",
+                 "use_fib_filter", "use_displacement_filter", "use_candle_rejection")}
+    if stage == "entry":
+        return {"trend_min_confluence": int(tp.get("trend_min_confluence", 6)),
+                "range_min_confluence": int(tp.get("range_min_confluence", 3)),
+                "min_quality_factors": int(tp.get("min_quality_factors", 3)),
+                "atr_min_percentile": float(tp.get("atr_min_percentile", 41.0)),
+                "atr_vol_ratio_range": float(tp.get("atr_vol_ratio_range", 1.4)),
+                "adx_min_entry": float(tp.get("adx_min_entry", 0.0))}
+    if stage == "fib":
+        base = float(tp.get("entry_fib_level", 0.45))
+        return {"entry_fib_level_calm": 0.20,          # lowest = third tier effectively off
+                "entry_fib_level": base,
+                "entry_fib_level_volatile": float(tp.get("entry_fib_level_volatile", 0.80)),
+                "fib_calm_ratio_threshold": 0.70,
+                "fib_vol_ratio_threshold": float(tp.get("fib_vol_ratio_threshold", 1.05))}
+    if stage == "nightly":
+        return {"NIGHTLY_DERISK_HOUR": int(env["NIGHTLY_DERISK_HOUR"]),
+                "NIGHTLY_MAX_PER_GROUP": int(env["NIGHTLY_MAX_PER_GROUP"]),
+                "NIGHTLY_MAX_TOTAL": int(env["NIGHTLY_MAX_TOTAL"]),
+                "NIGHTLY_R_CLOSE_LOSING": float(env["NIGHTLY_R_CLOSE_LOSING"]),
+                "NIGHTLY_R_NEW": float(env["NIGHTLY_R_NEW"]),
+                "NIGHTLY_REDUCE_PCT": float(env["NIGHTLY_REDUCE_PCT"])}
+    if stage == "risk":
+        return {"risk_per_trade_pct": float(tp["risk_per_trade_pct"]),
+                "CFG_MAX_CUM_RISK": float(env["CFG_MAX_CUM_RISK"]),
+                "CORR_GROUP_CAP": int(env["CORR_GROUP_CAP"]),
+                "MAX_TOTAL_POSITIONS": int(env["MAX_TOTAL_POSITIONS"]),
+                "RISK_CALM_MULT": float(env["RISK_CALM_MULT"]),
+                "RISK_VOLATILE_MULT": float(env["RISK_VOLATILE_MULT"])}
+    if stage == "halt":
+        return {"CFG_DAILY_HALT_PCT": float(env["CFG_DAILY_HALT_PCT"]),
+                "CFG_TDD_CAUTION_PCT": float(env["CFG_TDD_CAUTION_PCT"]),
+                "CFG_RISK_CAUTIOUS": float(env["CFG_RISK_CAUTIOUS"]),
+                "CFG_TDD_WARNING_PCT": float(env["CFG_TDD_WARNING_PCT"]),
+                "CFG_RISK_CONSERVATIVE": float(env["CFG_RISK_CONSERVATIVE"]),
+                "TDD_WALL_SAFETY": float(env["TDD_WALL_SAFETY"])}
+    return None
+
+
 def load_current_best():
     """Start from the previous stage's survivor so improvements compound."""
     p = w5.W5_DIR / "current_best.json"
@@ -149,6 +203,10 @@ def main():
     study = optuna.create_study(direction="maximize", study_name=f"w5_{st}",
                                 storage=f"sqlite:///{db}", load_if_exists=True,
                                 sampler=optuna.samplers.TPESampler(seed=42, multivariate=True))
+    if not [t for t in study.trials if t.state != optuna.trial.TrialState.FAIL]:
+        seed = baseline_seed(st, base_env, base_tp)
+        if seed:
+            study.enqueue_trial(seed)      # measure the inherited config first
 
     def objective(trial):
         env, tp = SPACES[st](trial, dict(base_env), dict(base_tp))
