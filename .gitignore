@@ -262,3 +262,4 @@ backtest/output/doe/stageS*.csv
 # Claude Code local tooling / worktrees (do not commit)
 .claude/
 backtest/output/doe/full_2step_eval.json
+backtest/output/doe/wall5/*_run.log
