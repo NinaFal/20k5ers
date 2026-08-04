@@ -1,0 +1,1 @@
+{"from_stage": "ladder", "trial": "61", "payout": 601998.8600000001, "win_rate": 28.5, "env": {}, "tp": {"tp1_r_multiple": 0.65, "tp2_r_multiple": 1.85, "tp3_r_multiple": 2.7500000000000004, "tp1_close_pct": 0.25, "tp2_close_pct": 0.6, "tp3_close_pct": 0.15, "sl_after_tp1_r": -0.1, "sl_after_tp2_r": 0.9, "sl_after_tp3_r": 1.7000000000000002}}
