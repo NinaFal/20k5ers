@@ -30,6 +30,44 @@ _w = importlib.util.spec_from_file_location("w5", str(HERE / "w5_common.py"))
 w5 = importlib.util.module_from_spec(_w); _w.loader.exec_module(w5)
 
 
+def dedupe_by_behaviour(stage, cands):
+    """Collapse candidates that produced IDENTICAL screen results.
+
+    A stage can hand up 20 "different" configs that are behaviourally the same
+    — the filters stage is the clear case: a flag the strategy only consults in
+    a rare combination leaves every other combination bit-identical across all
+    25 windows. Running the decade on each of those costs ~10 hours and then
+    ranks them by payout differences that cannot exist, so the "winner" would
+    be whichever tie the sort happened to put first.
+
+    Two configs are treated as the same strategy when their per-start totals
+    over the screen match exactly. The best-ranked member of each group is kept
+    and the rest are reported as collapsed. Configs missing from the runcache
+    keep their own group, so a cache gap can never silently merge them.
+    """
+    cache = w5.load_json(w5.W5_DIR / f"{stage}_runcache.json")
+    rep_of, kept, collapsed = {}, [], {}
+    for c in cands:
+        env = dict(w5.BASE_ENV); env.update(c.get("env", {}))
+        tp = dict(w5.BASE_TP); tp.update(c.get("tp", {}))
+        rows = cache.get(w5.config_key(env, tp))
+        sig = (("nosig", c["trial"]) if not rows
+               else tuple(sorted((s, r.get("total"), r.get("breach")) for s, r in rows.items())))
+        if sig in rep_of:
+            collapsed.setdefault(rep_of[sig], []).append(c["trial"])
+            continue
+        rep_of[sig] = c["trial"]
+        kept.append(c)
+    if collapsed:
+        n = sum(len(v) for v in collapsed.values())
+        print(f"[gauntlet:{stage}] collapsed {n} behaviourally-identical config(s); "
+              f"{len(kept)} distinct strategies remain", flush=True)
+        for t, dups in collapsed.items():
+            print(f"    t{t} also represents {dups}", flush=True)
+        w5.atomic_write(w5.W5_DIR / f"{stage}_collapsed.json", collapsed)
+    return kept
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--stage", required=True)
@@ -43,6 +81,7 @@ def main():
         print(f"[gauntlet:{st}] {top_path.name} not found — run the stage first", flush=True)
         return
     cands = json.loads(top_path.read_text())[:args.top]
+    cands = dedupe_by_behaviour(st, cands)
     res_path = w5.W5_DIR / f"{st}_gauntlet.json"
     res = w5.load_json(res_path)
 
