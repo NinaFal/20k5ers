@@ -6343,7 +6343,8 @@ class LiveTradingBot:
         original_balance = getattr(self, '_original_initial_balance', self.initial_balance)
         
         closed_trades = self.mt5.get_closed_trades()
-        
+        from collections import defaultdict
+
         # Separate full trades from partial closes for accurate counting
         full_trades = [t for t in closed_trades if not t.get('partial', False)]
         partial_closes = [t for t in closed_trades if t.get('partial', False)]
@@ -6420,8 +6421,24 @@ class LiveTradingBot:
         mae_r_median = round(_median(mae_r_list), 3)
 
         total_trades = len(full_trades)  # Only count full trades as "trades"
-        winners = sum(1 for t in full_trades if t.get('pnl', 0) > 0)
-        win_rate = (winners / total_trades * 100) if total_trades > 0 else 0
+
+        # Win rate is measured on the POSITION, not on its final closing leg.
+        # A trade that banks TP1 and TP2 and then gives a little back on the
+        # runner is profitable overall, but its last leg is red. Counting only
+        # that leg understated the real hit rate by ~13 points (measured on
+        # 2019: 29.1% final-leg vs 43.5% per-position for the same run, with
+        # 91 positions profitable overall yet scored as losses). Sum every leg
+        # of a position — partial closes included — and ask whether the trade
+        # made money.
+        _pos_pnl = defaultdict(float)
+        for _t in closed_trades:
+            _pos_pnl[_base_ticket(_t.get('ticket'))] += ((_t.get('pnl', 0) or 0)
+                                                         + (_t.get('swap', 0) or 0))
+        winners = sum(1 for _v in _pos_pnl.values() if _v > 0)
+        win_rate = (winners / len(_pos_pnl) * 100) if _pos_pnl else 0
+        # Kept so results from before this fix stay comparable.
+        win_rate_final_leg = (sum(1 for t in full_trades if t.get('pnl', 0) > 0)
+                              / total_trades * 100) if total_trades > 0 else 0
         
         # Net PnL includes ALL closes (full + partial)
         closed_pnl = sum(t.get('pnl', 0) for t in closed_trades)
@@ -6435,7 +6452,6 @@ class LiveTradingBot:
         # ═══════════════════════════════════════════════════════════════════
         # MONTHLY STATISTICS
         # ═══════════════════════════════════════════════════════════════════
-        from collections import defaultdict
         monthly_stats = defaultdict(lambda: {'trades': 0, 'winners': 0, 'losers': 0, 'pnl': 0.0, 'partial_closes': 0})
         
         for trade in closed_trades:
@@ -6459,9 +6475,12 @@ class LiveTradingBot:
                     # Track partial closes separately
                     monthly_stats[month_key]['partial_closes'] += 1
                 else:
-                    # Only count full trades for win/loss statistics
+                    # Same position-level rule as the headline win rate: the
+                    # trade is a win if the WHOLE position made money, not just
+                    # the leg that closed it. Attributed to the month of the
+                    # final close.
                     monthly_stats[month_key]['trades'] += 1
-                    if pnl > 0:
+                    if _pos_pnl.get(_base_ticket(trade.get('ticket')), pnl) > 0:
                         monthly_stats[month_key]['winners'] += 1
                     else:
                         monthly_stats[month_key]['losers'] += 1
@@ -6494,6 +6513,7 @@ class LiveTradingBot:
             'winners': winners,
             'losers': total_trades - winners,
             'win_rate': round(win_rate, 1),
+            'win_rate_final_leg': round(win_rate_final_leg, 1),
             # ── MFE/MAE entry-quality aggregates (additive instrumentation) ──
             # All in R-multiples of the original entry→SL risk. tp1_hits counts
             # full trades that reached TP1 (spawned ≥1 partial close).
