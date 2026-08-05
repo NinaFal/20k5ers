@@ -175,14 +175,29 @@ def baseline_seed(stage, env, tp):
 
 
 def load_current_best():
-    """Start from the previous stage's survivor so improvements compound."""
+    """Start from the previous stage's survivor so improvements compound.
+
+    W5_STRICT=1 forces TDD_WORST_CASE into the stage's base env, so every trial
+    is measured with intrabar worst-case marking. The first four stages ran on
+    bar-CLOSE equity and it cost us: of the six risk-stage configs that looked
+    clean on close-mark, five breached the decade once marked strictly, and the
+    close-mark leader (t111) was the very first eliminated. Stages run after
+    that discovery use strict marking from trial 0 rather than screening
+    candidates on a measure that overstates their safety.
+
+    It lands in the env diff (BASE_ENV has no such key), so strict and
+    close-mark runs never share a cache entry.
+    """
     p = w5.W5_DIR / "current_best.json"
     if p.exists():
         d = json.loads(p.read_text())
         env = dict(w5.BASE_ENV); env.update(d.get("env", {}))
         tp = dict(w5.BASE_TP); tp.update(d.get("tp", {}))
-        return env, tp, d.get("from_stage")
-    return dict(w5.BASE_ENV), dict(w5.BASE_TP), None
+    else:
+        env, tp, d = dict(w5.BASE_ENV), dict(w5.BASE_TP), {}
+    if os.getenv("W5_STRICT", "0").strip().lower() in ("1", "true", "yes", "on"):
+        env["TDD_WORST_CASE"] = "1"
+    return env, tp, d.get("from_stage")
 
 
 def main():
