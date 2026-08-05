@@ -70,7 +70,7 @@ if __name__ == "__main__":
     if not p.exists():
         raise SystemExit("continuous_decade.json not found — run w5_continuous.py first")
     res = json.loads(p.read_text())
-    for name in ("t61_incumbent", "t4_risk2.9"):
+    for name in ("t105_wc", "t61_incumbent_wc", "t61_incumbent", "t4_risk2.9"):
         if name in res:
             report(name, res[name])
     print()

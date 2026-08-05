@@ -33,13 +33,29 @@ START, END = "2016-01-01", "2025-12-31"
 
 
 def load_cfg(name):
-    """Return (env, tp) for a named config."""
+    """Return (env, tp) for a named config.
+
+    The *_wc arms force TDD_WORST_CASE=1: every open position is marked to its
+    M15 bar's adverse extreme for the wall checks. The two close-mark arms are
+    kept only for comparison — five of six configs that looked clean on
+    close-mark breached once marked strictly, so nothing close-mark should be
+    relied on.
+    """
     if name == "t61_incumbent":
         b = json.loads((w5.W5_DIR / "current_best.json").read_text())
         return b["env"], b["tp"]
     if name == "t4_risk2.9":
         c = json.loads((w5.W5_DIR / "riskt4_top20.json").read_text())[0]
         return c["env"], c["tp"]
+    if name == "t61_incumbent_wc":
+        b = json.loads((w5.W5_DIR / "current_best.json").read_text())
+        e = dict(b["env"]); e["TDD_WORST_CASE"] = "1"
+        return e, b["tp"]
+    if name == "t105_wc":
+        c = [x for x in json.loads((w5.W5_DIR / "riskwc_top20.json").read_text())
+             if str(x["trial"]) == "105"][0]
+        e = dict(c["env"]); e["TDD_WORST_CASE"] = "1"
+        return e, c["tp"]
     raise SystemExit(f"unknown config {name}")
 
 
@@ -79,7 +95,9 @@ if __name__ == "__main__":
     out_path = w5.W5_DIR / "continuous_decade.json"
     res = w5.load_json(out_path)
     (w5.DOE_DIR / "tmp").mkdir(parents=True, exist_ok=True)
-    for name in ("t61_incumbent", "t4_risk2.9"):
+    # Strict-marking arms first: they are the ones that count. The close-mark
+    # arms are already cached and will be skipped.
+    for name in ("t105_wc", "t61_incumbent_wc", "t61_incumbent", "t4_risk2.9"):
         if name in res:
             print(f"[cont] {name}: cached", flush=True); continue
         print(f"[cont] {name}: running {START}..{END} as ONE account", flush=True)
