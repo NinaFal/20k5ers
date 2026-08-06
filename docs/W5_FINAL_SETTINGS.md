@@ -72,26 +72,47 @@ previous incumbent) $1,302,573. Both also survived.
 
 **Holdout, 100 fresh random starts 2015-2025** (seed 20260805, deliberately not
 the selection seed, extended back into 2015 which no arm of this round touched):
-in progress. At 44/100: **one breach**, median 17 days, fastest 6, 31 of 44
-inside 30 days.
+**COMPLETE — and it is the most important table in this document.**
 
-The breach is the important number in this document. Start **2019-07-31** passed
-Step 1 in 13 days and then breached during Step 2, so it died in mid-August 2019
-— a window the January-anchored decade gauntlet cannot reach, since that test
-only ever starts an account on 2 January. Both the fresh-$100k gauntlet and the
-continuous account show 2019 as clean (2.24% worst daily), and both are wrong
-about this window. That is precisely what the random-start holdout exists to
-catch, and it is the argument against trusting the ten-year "zero breach"
-headline on its own.
+| outcome | count |
+|---|---|
+| passed both steps | **86** |
+| **breached — account lost** | **7** |
+| stalled — no pass in 75d, account intact | 7 |
 
-At this rate the true breach frequency is roughly 2-3 per 100 attempts, not
-zero. Diagnosis of which wall it hit, and whether the safety tiers fired, is
-pending — it needs a single re-run of that start with detail retained, queued
-behind the current jobs.
+Speed, of the 86 passes: median **16 days**, fastest 5, slowest 115.
+Within 20d **58**, within 30d **69**, within 40d 74, within 50d 76.
 
-Four further starts did not breach but failed to pass inside the 75-day horizon,
-all clustered around the January 2015 SNB unpeg: the account survives the event
-intact but cannot build the required gain in the window.
+Breaching starts: 2019-07-31, 2021-04-29, 2022-09-26, 2023-08-30, 2024-04-22,
+2024-11-01, 2025-03-19.
+
+**This corrects the headline of the whole round.** The decade gauntlet reports
+zero breaches across ten years; random starts say the account is lost about
+**1 attempt in 14**. Both are true and they answer different questions — a
+January-anchored test can only ever see eleven windows, and six of these seven
+breaches fall in windows no January test can reach. The ten-year zero-breach
+figure should never be quoted on its own.
+
+**Year clustering.** 0 breaches in 37 starts from 2015-2018, 7 in 63 from 2019
+onward, Fisher one-tailed p = 0.0346. Treat as suggestive, not decisive: the
+hypothesis was formed after seeing the early pattern, and the p-value drifted
+across 0.05 as data accumulated (0.078 at n=80, 0.060 at n=88, 0.0486 at n=96).
+What gives it weight is being the third independent signal in the same
+direction — 2025 needed a dedicated rescue to survive at all, and the cum-risk
+variant that would have saved the 2019 window failed 2021 instead.
+
+**The 7 stalls are a milder, separate failure**: the account survives intact but
+cannot make the target inside 75 days, costing a fee rather than the account.
+Four fall in early 2015, one in 2022, two in 2024.
+
+An earlier draft of this document attributed the 2015 stalls to the January 2015
+SNB unpeg. **That was wrong and is retracted.** Re-running two of those Step 2
+windows shows CHF pairs contributed −$542 and +$236 against total P&L of −$3,651
+and −$2,339 — essentially irrelevant, and profitable in one case. All seven CHF
+pairs were traded (`EXCLUDE_SYMBOLS` is `AUD_NZD,EUR_NZD,AUD_JPY`, no CHF), and
+the accounts cleared Step 1 straight through the unpeg. The real cause is
+mundane: a flat quarter with the win rate at 48.5-53.0% against the usual ~57%.
+That is worse news than a black swan, because it is not rare.
 
 **Why drawdown is lower at the cap.** Crossing a scaling rung credits the next
 account size (`csv_mt5_simulator.py:386` sets balance to the new level), so
@@ -105,9 +126,34 @@ varying only the starting level:
 | 2019 | 3.59% | 2.24% | −1.35pp |
 | 2021 | 4.85% | in progress | — |
 
-Consistent across two independent years. Note the effect is real but partial —
-capped 2016 still runs 3.12% against 2019's capped 2.24%, so the calendar year
-matters at least as much as the climbing.
+| 2021 | 4.85% | 2.48% | −2.37pp |
+
+Consistent across three independent years, averaging ~1.8pp. Note the effect is
+real but partial — capped 2016 still runs 3.12% against 2019's capped 2.24%, so
+the calendar year matters at least as much as the climbing.
+
+**Where to set the cap.** Same config, same decade, all arms starting at $100k,
+varying only `FIVEERS_MAX_SCALE`:
+
+| cap | outcome | 10y trading profit | worst daily |
+|---|---|---|---|
+| $150k | **DIED 2016** | $165,111 | 6.18% |
+| $250k | **DIED 2016** | $246,022 | 6.18% |
+| $350k | survived | $2,402,899 | 4.73% |
+| **$500k** | survived | **$3,400,723** | 4.73% |
+
+The two surviving caps share an **identical worst day**, so a lower cap buys no
+drawdown protection at all — $350k simply earns ~$1M less. Below $350k the
+account does not merely earn less, it dies in year one. The cap is not a safety
+dial; stop-scaling-early is the wrong instinct. This also falsified the
+prediction written into `w5_cap_sweep.py`, that percentage drawdown would be
+flat across caps because every quantity in the risk model is a percentage. Why
+$500k escapes the day that kills $250k is **not established**.
+
+**Is the 5% wall enforced at the cap?** Yes, verified behaviourally rather than
+by reading the code. Bracketing the wall around 2019's known 2.24% capped
+drawdown: 3.0% survives, 2.0% and 1.5% both kill the account with an explicit
+daily-drawdown breach. The payout exclusion at line 6078 is not a loophole.
 
 ---
 
