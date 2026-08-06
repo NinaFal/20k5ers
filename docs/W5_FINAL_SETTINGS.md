@@ -111,27 +111,25 @@ matters at least as much as the climbing.
 
 ---
 
-## 2b. UNRESOLVED: the Step 1 target may be wrong
+## 2b. Account rules — confirmed
 
-Every challenge result in this document — the holdout's pass times, the 9-day
-t47 run, every p30 figure across all seven optimisation stages — was measured
-against a **Step 1 target of 8%** (`challenge_score.py:39`,
-`STEP1_TARGET = 0.08 * ACCOUNT`).
+The account is the **classic 5% variant**, confirmed by the account holder:
+Step 1 **8%**, Step 2 **5%**, daily wall **5%**, total wall **10%**, 3 minimum
+profitable days at 0.5% of initial balance each.
 
-The5ers' current High Stakes page states **Step 1 requires 10%**. Fetched twice,
-same answer. This repo's own `docs/5ERS_COMPLIANCE.md:33` records `Step 1 | 8% |
-$1,600` for a 20K High Stakes account, so either the programme changed after
-that document was written or one of the two is simply wrong.
+Every one of those matches the harness (`challenge_score.py:39-42`, and
+`w5_common.BASE_ENV` sets `CFG_DAILY_WALL_PCT=5.0`, overriding that module's
+3.0 Summer-Edition default). "Classic" here means the 5% daily wall as opposed
+to the 3% Summer Edition — the same sense used in the comment at
+`challenge_score.py:88`. **No pass-speed figure in this document needs
+re-deriving.**
 
-Everything else in the harness matches the published rules: 5% daily, 10% total,
-3 minimum profitable days, and a profitable day defined as 0.5% of initial
-balance. Only the Step 1 target is in dispute.
-
-If 10% is correct, every pass-speed number here is optimistic — a 10% target is
-25% more ground to cover than 8% — and the median would move materially. The
-funded-account decade runs are unaffected, since they never simulate the
-challenge. **Confirm the target for your specific account before relying on any
-speed figure in this document.**
+One caveat carried forward, on the fixed payouts only: the $4,000 / $10,000
+bonus figures in §6 come from the5ers' **High Stakes** page, which is where the
+scaling plan was sourced. The current site publishes no "Classic" programme
+page, so those bonus amounts could not be independently confirmed against this
+specific account type. The trading-profit figures do not depend on them — that
+is precisely why they are reported on a separate line.
 
 ## 3. Assumptions this rests on
 
