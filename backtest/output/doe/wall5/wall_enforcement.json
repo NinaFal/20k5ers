@@ -1,1 +1,1 @@
-{"3.0": {"wall_pct": "3.0", "account_failed": false, "fail_reason": null, "max_ddd_pct": 2.24, "max_tdd_pct": 0.4, "trades": 981, "withdrawn": 303860.28}}
+{"3.0": {"wall_pct": "3.0", "account_failed": false, "fail_reason": null, "max_ddd_pct": 2.24, "max_tdd_pct": 0.4, "trades": 981, "withdrawn": 303860.28}, "2.0": {"wall_pct": "2.0", "account_failed": true, "fail_reason": "2% daily drawdown breached (2.24%) [bar]", "max_ddd_pct": 2.24, "max_tdd_pct": 0.4, "trades": 804, "withdrawn": 253849.54}}
