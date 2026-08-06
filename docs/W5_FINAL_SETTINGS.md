@@ -19,7 +19,9 @@ rescue (`halt2.50+tdd`). Stored in `backtest/output/doe/wall5/current_best.json`
 | `CFG_MAX_CUM_RISK` | `7.0` | Cap on summed open risk, % of balance |
 | `CORR_GROUP_CAP` | `6` | Max positions per correlation group |
 | `MAX_TOTAL_POSITIONS` | `20` | Max concurrent positions |
+| `NIGHTLY_DERISK` | `1` | **Master gate — the whole nightly block is dead without it** |
 | `NIGHTLY_DERISK_HOUR` | `22` | UTC hour for the nightly de-risk pass |
+| `NIGHTLY_R_NEW` | `0.5` | Positions below this R get reduced rather than held |
 | `NIGHTLY_MAX_PER_GROUP` | `0` | Overnight positions allowed per group — **zero** |
 | `NIGHTLY_MAX_TOTAL` | `0` | Overnight non-crypto positions allowed — **zero** |
 | `NIGHTLY_R_CLOSE_LOSING` | `0.25` | Close overnight positions below 0.25R |
@@ -70,10 +72,26 @@ previous incumbent) $1,302,573. Both also survived.
 
 **Holdout, 100 fresh random starts 2015-2025** (seed 20260805, deliberately not
 the selection seed, extended back into 2015 which no arm of this round touched):
-in progress. At 36/100: **zero breaches**, median 18 days, fastest 7, 25 of 36
-inside 30 days. The four non-completions so far all cluster around the January
-2015 SNB unpeg — the account survives it intact but cannot build the required
-gain inside the 75-day horizon.
+in progress. At 44/100: **one breach**, median 17 days, fastest 6, 31 of 44
+inside 30 days.
+
+The breach is the important number in this document. Start **2019-07-31** passed
+Step 1 in 13 days and then breached during Step 2, so it died in mid-August 2019
+— a window the January-anchored decade gauntlet cannot reach, since that test
+only ever starts an account on 2 January. Both the fresh-$100k gauntlet and the
+continuous account show 2019 as clean (2.24% worst daily), and both are wrong
+about this window. That is precisely what the random-start holdout exists to
+catch, and it is the argument against trusting the ten-year "zero breach"
+headline on its own.
+
+At this rate the true breach frequency is roughly 2-3 per 100 attempts, not
+zero. Diagnosis of which wall it hit, and whether the safety tiers fired, is
+pending — it needs a single re-run of that start with detail retained, queued
+behind the current jobs.
+
+Four further starts did not breach but failed to pass inside the 75-day horizon,
+all clustered around the January 2015 SNB unpeg: the account survives the event
+intact but cannot build the required gain in the window.
 
 **Why drawdown is lower at the cap.** Crossing a scaling rung credits the next
 account size (`csv_mt5_simulator.py:386` sets balance to the new level), so
