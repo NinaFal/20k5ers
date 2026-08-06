@@ -354,6 +354,13 @@ class CSVMT5Simulator:
         At each 10% profit milestone on current funded level, advance to the
         next level per the official 5ers scaling plan. Cap at $4M.
         """
+        # FIVEERS_SCALING_OFF=1 disables the ladder entirely: no level advances,
+        # no milestone payouts, balance simply compounds. This is NOT a
+        # 5ers-realistic account — it measures the strategy's raw compounding
+        # capacity with the funded-level ratchet (and therefore the rising TDD
+        # floor) removed. Default off, so no existing result changes.
+        if os.getenv("FIVEERS_SCALING_OFF", "0").strip().lower() in ("1", "true", "yes", "on"):
+            return
         if self._balance <= self._funded_level:
             return
 
