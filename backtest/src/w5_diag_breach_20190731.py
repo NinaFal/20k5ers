@@ -77,8 +77,13 @@ def main():
         "max_ddd_pct": r.get("max_ddd_pct"), "max_tdd_pct": r.get("max_tdd_pct"),
         "trades": r.get("total_trades"), "win_rate": r.get("win_rate"),
         "safety_event_counts": {},
-        "safety_events_total": ev_count,
-        "results_keys": sorted(r.keys()),
+        # The engine reports these as counts. They are the whole question here:
+        # whether the 2.50% halt engaged and was outrun by an intrabar move, or
+        # never engaged at all.
+        "safety_events_total": ev_count if ev_count is not None else r.get("safety_events"),
+        "ddd_halts": r.get("ddd_halts"),
+        "ddd_halts_midbar": r.get("ddd_halts_midbar"),
+        "scaling_events": r.get("fiveers_scaling_events"),
     }
     for e in ev:
         t = e.get("type", "?")
@@ -98,7 +103,9 @@ def main():
     print(f"[diag] worst DDD   {summary['max_ddd_pct']}%   worst TDD "
           f"{summary['max_tdd_pct']}%", flush=True)
     print(f"[diag] trades      {summary['trades']}  win {summary['win_rate']}%", flush=True)
-    print(f"[diag] safety events fired: {summary['safety_event_counts'] or 'NONE'}", flush=True)
+    print(f"[diag] safety events  {summary['safety_events_total']}   "
+          f"ddd_halts {summary['ddd_halts']}   "
+          f"ddd_halts_midbar {summary['ddd_halts_midbar']}", flush=True)
 
     # The events immediately around the kill are what say whether the protection
     # engaged and was outrun, or never engaged at all.
