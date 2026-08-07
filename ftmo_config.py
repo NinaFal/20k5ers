@@ -38,31 +38,11 @@ class Fiveers60KConfig:
     daily_loss_warning_pct: float = 2.0  # Warning at 2.0% daily loss
     # Tier 2: BLOCK new entries at 2.5% - keep existing orders, no new setups
     daily_loss_reduce_pct: float = 2.5  # Block new entries at 2.5% daily loss
-    # Tier 3: HALT at 2.50% - CLOSE ALL positions AND pending orders!
-    # W5: was 3.2. Backtest CFG_DAILY_HALT_PCT=2.50. NOTE: six halt thresholds
-    # from 3.5% down to 2.00% produced byte-identical decade results, so this
-    # dial is inert in practice — set for parity with the tested config, not
-    # because it is load-bearing.
-    daily_loss_halt_pct: float = 2.50
-
+    # Tier 3: HALT at 3.2% - CLOSE ALL positions AND pending orders!
+    daily_loss_halt_pct: float = 3.2  # CLOSE ALL at 3.2% daily loss
+    
     total_dd_warning_pct: float = 5.0  # Warning at 5% total DD
-    # W5: was 7.0. Backtest CFG_TDD_EMERGENCY_PCT=5.5 — the threshold at which
-    # the room-to-the-wall risk cap engages (see tdd_wall_safety below).
-    total_dd_emergency_pct: float = 5.5
-
-    # W5 NEW — no live equivalent existed. Past total_dd_emergency_pct, risk is
-    # capped at (equity - 0.90*starting_balance) / tdd_wall_safety, expressed as
-    # a % of balance: the remaining room to the 10% wall, divided down. This is
-    # the backstop that stopped the 2015 cold-start breaching the total wall.
-    # Backtest TDD_WALL_SAFETY=5.5 (engine default 3.0).
-    tdd_wall_safety: float = 5.5
-
-    # W5 NEW — the third rung of the risk ladder. The backtest reduces risk once
-    # TOTAL drawdown passes this, independently of daily loss; live's third rung
-    # was (ddd >= 2.0 or tdd >= 3.0) -> min(0.75, base), which is both a looser
-    # threshold and a higher risk. Backtest CFG_TDD_CAUTION_PCT / CFG_RISK_CAUTIOUS.
-    tdd_caution_pct: float = 1.5
-    risk_cautious_pct: float = 0.4
+    total_dd_emergency_pct: float = 7.0  # Emergency mode at 7% total DD
     
     # === WEEKEND GAP PROTECTION ===
     weekend_close_ddd_threshold_pct: float = 2.0  # Close all positions Friday if DDD >= 2.0%
@@ -74,11 +54,7 @@ class Fiveers60KConfig:
     news_blackout_minutes_after: int = 30  # No trades 30min after news
 
     # === POSITION SIZING (Match /backtest command) ===
-    # W5: was 0.6. This is only a FALLBACK — main_live_bot.py:4295 reads
-    # risk_per_trade_pct from params/current_params.json first. Raised to match
-    # so the fallback cannot silently size the account at a fifth of the tested
-    # risk if the params file fails to load.
-    risk_per_trade_pct: float = 2.7
+    risk_per_trade_pct: float = 0.6  # 0.6% risk per trade ($360 per R on 60K account)
     max_risk_aggressive_pct: float = 1.5  # Aggressive mode: 1.5%
     max_risk_normal_pct: float = 0.75  # Normal mode: 0.75%
     max_risk_conservative_pct: float = 0.4  # Conservative mode: 0.4% (aligned with simulator)
@@ -87,10 +63,7 @@ class Fiveers60KConfig:
     # === TRADE LIMITS ===
     # NOTE: No position limit - simulator has no max_concurrent_trades
     # Only max_pending_orders applies as sanity check (100)
-    # W5: was 100 ("no limit"). Backtest MAX_TOTAL_POSITIONS=20, and this IS
-    # enforced live (challenge_risk_manager.py:504), unlike max_risk_per_trade_pct
-    # and max_cumulative_risk_pct which are defined there but never read.
-    max_concurrent_trades: int = 20
+    max_concurrent_trades: int = 100  # ALIGNED: No limit (was 7)
     max_trades_per_day: int = 100  # No daily limit
     max_trades_per_week: int = 500  # No weekly limit
     max_pending_orders: int = 100  # High Stakes: margin analysis shows 75 positions at 32.8% max margin
@@ -261,16 +234,8 @@ class Fiveers60KConfig:
 
     def __post_init__(self):
         """Validate configuration parameters"""
-        # W5: ceiling raised 2.5 -> 3.0. The validated config risks 2.7% per
-        # trade, so the old ceiling rejected the very configuration this bot is
-        # meant to run. The 2.5 figure was a self-imposed guard, not a published
-        # 5ers rule — the5ers documents the 5% daily and 10% total walls and a
-        # 50-lot per-position cap, but no per-trade risk limit. CONFIRM WITH
-        # 5ERS before trading; if they do impose one below 2.7%, the whole
-        # config needs re-optimising under that constraint rather than a
-        # loosened assert.
-        if self.risk_per_trade_pct > 3.0:
-            raise ValueError("Risk per trade cannot exceed 3.0% for 5ers")
+        if self.risk_per_trade_pct > 2.5:  # Allow optimizer wide range
+            raise ValueError("Risk per trade cannot exceed 2.5% for 5ers")
         if self.max_daily_loss_pct > 5.0:
             raise ValueError("Max daily loss cannot exceed 5% for 5ers")
         if self.max_total_drawdown_pct > 10.0:
