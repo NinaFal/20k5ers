@@ -31,10 +31,20 @@ HERE = Path(__file__).resolve().parent
 _w = importlib.util.spec_from_file_location("w5", str(HERE / "w5_common.py"))
 w5 = importlib.util.module_from_spec(_w); _w.loader.exec_module(w5)
 
-ARMS = ("t105_wc", "t61_incumbent_wc")
+ARMS = ("t65rescue_wc", "t105_wc", "t61_incumbent_wc")
 
 
 def load_cfg(name):
+    if name == "t65rescue_wc":
+        # t65 (nightly stage) + the TDD-tier tightening that made it survive the
+        # decade. Best config of the round: $2,771,302 fresh-$100k, p30 0.84.
+        c = [x for x in json.loads((w5.W5_DIR / "nightly_top20.json").read_text())
+             if str(x["trial"]) == "65"][0]
+        e = dict(c["env"]); e["TDD_WORST_CASE"] = "1"
+        e.update({"CFG_DAILY_HALT_PCT": "2.50", "TDD_WALL_SAFETY": "5.5",
+                  "CFG_TDD_CAUTION_PCT": "1.5", "CFG_RISK_CAUTIOUS": "0.4",
+                  "CFG_TDD_WARNING_PCT": "2.5", "CFG_RISK_CONSERVATIVE": "0.25"})
+        return e, c["tp"]
     if name == "t105_wc":
         c = [x for x in json.loads((w5.W5_DIR / "riskwc_top20.json").read_text())
              if str(x["trial"]) == "105"][0]
