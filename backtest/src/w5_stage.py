@@ -56,6 +56,63 @@ def space_ladder(trial, env, tp):
     return env, tp
 
 
+def space_ladder5(trial, env, tp):
+    """Five-leg ladder — the three-leg one leaves NO RUNNER.
+
+    space_ladder hardcoded a three-leg ladder: tp3_close_pct absorbed the whole
+    remainder and tp4/tp5 were pinned at 0.0. Three versus five was therefore
+    never a finding, it was an assumption baked into the search space, and every
+    result in this round inherited it.
+
+    It matters because legs close fractions of the ORIGINAL volume
+    (main_live_bot_backtest.py:4954 — `original_volume * close_pct`), so the
+    winner's 0.25/0.60/0.15 closes 100% at 2.75R. The position is flat there.
+    Nothing rides a trend beyond 2.75R, ever, which caps the upside of every
+    winning trade regardless of how far price actually travels.
+
+    This opens all five legs and GUARANTEES a runner: c1..c4 are bounded so
+    their sum cannot exceed 0.95, leaving c5 >= 0.05 to ride to tp5. The bounds
+    tighten progressively rather than being fixed, so the sampler cannot waste
+    trials on combinations that would leave nothing for the runner.
+
+    tp5 reaches 7.0R because the point of a runner is the rare large move; a
+    ceiling near the old 3.2R would reproduce the same cap under a new name.
+    """
+    tp1 = trial.suggest_float("tp1_r_multiple", 0.25, 0.90, step=0.05)
+    tp2 = trial.suggest_float("tp2_r_multiple", tp1 + 0.20, 2.00, step=0.10)
+    tp3 = trial.suggest_float("tp3_r_multiple", tp2 + 0.20, 3.20, step=0.10)
+    tp4 = trial.suggest_float("tp4_r_multiple", tp3 + 0.30, 4.50, step=0.10)
+    tp5 = trial.suggest_float("tp5_r_multiple", tp4 + 0.40, 7.00, step=0.10)
+
+    # Upper bounds tighten as budget is spent. round() before comparing: binary
+    # float drift makes 0.90-0.45-0.40 evaluate to 0.04999999999999993, which is
+    # below the 0.05 floor and makes Optuna reject the distribution outright.
+    # max(lo, ...) keeps a degenerate range legal rather than raising.
+    def _hi(lo, cap, budget):
+        return max(lo, min(cap, round(budget, 4)))
+
+    c1 = trial.suggest_float("tp1_close_pct", 0.10, 0.45, step=0.05)
+    c2 = trial.suggest_float("tp2_close_pct", 0.10, _hi(0.10, 0.45, 0.85 - c1), step=0.05)
+    c3 = trial.suggest_float("tp3_close_pct", 0.05, _hi(0.05, 0.35, 0.90 - c1 - c2),
+                             step=0.05)
+    c4 = trial.suggest_float("tp4_close_pct", 0.05, _hi(0.05, 0.30, 0.95 - c1 - c2 - c3),
+                             step=0.05)
+    c5 = round(1.0 - c1 - c2 - c3 - c4, 4)          # the runner, >= 0.05 by construction
+
+    s1 = trial.suggest_float("sl_after_tp1_r", -0.20, 0.50, step=0.10)
+    s2 = trial.suggest_float("sl_after_tp2_r", max(s1, 0.0), 1.30, step=0.10)
+    s3 = trial.suggest_float("sl_after_tp3_r", max(s2, 0.5), 2.40, step=0.10)
+    s4 = trial.suggest_float("sl_after_tp4_r", max(s3, 1.0), 3.50, step=0.10)
+
+    tp.update({"tp1_r_multiple": tp1, "tp2_r_multiple": tp2, "tp3_r_multiple": tp3,
+               "tp4_r_multiple": tp4, "tp5_r_multiple": tp5,
+               "tp1_close_pct": c1, "tp2_close_pct": c2, "tp3_close_pct": c3,
+               "tp4_close_pct": c4, "tp5_close_pct": c5,
+               "sl_after_tp1_r": s1, "sl_after_tp2_r": s2,
+               "sl_after_tp3_r": s3, "sl_after_tp4_r": s4})
+    return env, tp
+
+
 def space_filters(trial, env, tp):
     for f in ("use_htf_filter", "use_structure_filter", "use_confirmation_filter",
               "use_fib_filter", "use_displacement_filter", "use_candle_rejection"):
@@ -115,9 +172,9 @@ def space_halt(trial, env, tp):
     return env, tp
 
 
-SPACES = {"ladder": space_ladder, "filters": space_filters, "entry": space_entry,
-          "fib": space_fib, "nightly": space_nightly, "risk": space_risk,
-          "halt": space_halt}
+SPACES = {"ladder": space_ladder, "ladder5": space_ladder5, "filters": space_filters,
+          "entry": space_entry, "fib": space_fib, "nightly": space_nightly,
+          "risk": space_risk, "halt": space_halt}
 
 
 def baseline_seed(stage, env, tp):
@@ -132,6 +189,24 @@ def baseline_seed(stage, env, tp):
                 "tp3_r_multiple": tp["tp3_r_multiple"], "tp1_close_pct": tp["tp1_close_pct"],
                 "tp2_close_pct": tp["tp2_close_pct"], "sl_after_tp1_r": tp["sl_after_tp1_r"],
                 "sl_after_tp2_r": tp["sl_after_tp2_r"], "sl_after_tp3_r": tp["sl_after_tp3_r"]}
+    if stage == "ladder5":
+        # The incumbent is three-leg and CANNOT be expressed in this space — a
+        # faithful seed would need c5 = 0, which the bounds forbid by design.
+        # So trial 0 is the incumbent's front end with the last 20% freed to
+        # run: same early profit-taking, a runner added. It is a starting point
+        # for the sampler, NOT an in-study baseline. The bar to beat is the
+        # incumbent's own score on these same screen starts, reported separately.
+        return {"tp1_r_multiple": tp["tp1_r_multiple"],
+                "tp2_r_multiple": tp["tp2_r_multiple"],
+                "tp3_r_multiple": tp["tp3_r_multiple"],
+                "tp4_r_multiple": round(tp["tp3_r_multiple"] + 0.9, 2),
+                "tp5_r_multiple": round(tp["tp3_r_multiple"] + 2.3, 2),
+                "tp1_close_pct": 0.25, "tp2_close_pct": 0.35,
+                "tp3_close_pct": 0.20, "tp4_close_pct": 0.10,
+                "sl_after_tp1_r": tp["sl_after_tp1_r"],
+                "sl_after_tp2_r": tp["sl_after_tp2_r"],
+                "sl_after_tp3_r": tp["sl_after_tp3_r"],
+                "sl_after_tp4_r": max(tp["sl_after_tp3_r"], 1.0)}
     if stage == "filters":
         return {f: bool(tp.get(f, False)) for f in
                 ("use_htf_filter", "use_structure_filter", "use_confirmation_filter",
