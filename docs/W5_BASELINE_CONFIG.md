@@ -86,9 +86,39 @@ worst day but earns ~$1M less; $150k and $250k both die in 2016.
 
 ## 3. Position sizing and the 50-lot cap
 
-**5ers broker hard cap is 50 lots per position** (`main_live_bot.py:4361`). It is
-not published on the5ers' High Stakes page, which states only leverage 1:100 —
-reconfirm with support.
+**There is no per-trade risk limit at 5ers.** Confirmed by the account holder
+and consistent with the5ers' published rules, which state the 5% daily wall, the
+10% total wall and 1:100 leverage, and say nothing about risk per trade. The
+`ftmo_config.py` guard that rejected anything above 2.5% was self-imposed and
+had no basis; it is raised to 5.0 so it cannot reject the validated 2.7%
+configuration. Changing an assertion is safe while the backtest runs — it either
+raises or does not — unlike the behavioural fields in that file, which the
+backtest imports and which must never be edited.
+
+**The real constraint on size is margin.** At 1:100 each standard lot ties up
+$1,000, so a $500k account supports at most 500 lots if it spends every cent of
+margin. Measured peak concurrent exposure:
+
+| account | peak concurrent lots | margin at 1:100 | % of equity |
+|---|---|---|---|
+| $100k climbing | 69.37 | $69,370 | **69.4%** |
+| $500k at cap | 62.80 | $62,800 | 12.6% |
+
+Peak exposure is essentially flat in absolute terms while equity grows 5x, so
+margin pressure is concentrated entirely in the climb — the same phase that
+produces every breach.
+
+Two caveats on that 69.4%. It assumes 1:100 on **every** instrument, which is the
+headline FX number; metals, indices and crypto are normally leveraged lower, and
+this config trades XAU, XAG and NAS100. And the simulator models no margin at
+all — `csv_mt5_simulator.py:557-559` hardcodes `margin: 0.0` and
+`margin_free: equity` — so the backtest will happily open positions a broker
+would reject. **Get the per-asset-class leverage from 5ers**; if indices are
+1:20, NAS100 positions consume five times what is credited above and the
+climbing phase may be at the margin ceiling rather than at 69% of it.
+
+**Per-position cap: 50 lots** (`main_live_bot.py:4361`). Not published on the
+High Stakes page either — reconfirm with support.
 
 Realised sizes under this config are far below it:
 
