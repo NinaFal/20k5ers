@@ -4611,7 +4611,71 @@ class LiveTradingBot:
         if risk_ratio > 1.5:
             log.warning(f"[{symbol}] ⚠️ Risk slightly elevated: ${actual_risk_usd:.2f} vs intended ${intended_risk_usd:.2f} ({risk_ratio:.1f}x)")
 
+        # ── W5 PORT: cumulative open-risk cap (CFG_MAX_CUM_RISK) ────────────
+        # In CHALLENGE_MODE the live bot had NO cumulative cap. RiskManager.
+        # check_trade does enforce one (MAX_CUMULATIVE_RISK_PCT = 3.0,
+        # tradr/risk/manager.py:412) but it is called from the `else` branch —
+        # the non-challenge path — so it never runs for a challenge account.
+        # The backtest applies its cap here instead, at fill time
+        # (main_live_bot_backtest.py:3558), which is why the comment further up
+        # this file claiming the simulator has no cumulative limit is wrong.
+        #
+        # Capping TOTAL simultaneous open risk is the mechanism that matters
+        # against intrabar gaps: what a single adverse move can reach depends on
+        # aggregate exposure, not on any one position's size.
+        _cum_cap = _w5_max_cum_risk_pct()
+        if _cum_cap < 100.0 and current_balance > 0:
+            _existing = self._w5_total_open_risk_usd()
+            _cap_usd = current_balance * _cum_cap / 100.0
+            _avail = _cap_usd - _existing
+            if _avail <= 0:
+                log.info(f"[{symbol}] [W5] Cum-risk cap: open risk ${_existing:,.0f} "
+                         f">= cap ${_cap_usd:,.0f} ({_cum_cap}%) — NO TRADE")
+                return 0.0
+            if actual_risk_usd > _avail:
+                _factor = (_avail / actual_risk_usd) * 0.95
+                _new_lot = lot_size * _factor
+                if symbol_info:
+                    _ls = symbol_info.get('lot_step', 0.01)
+                    if _ls > 0:
+                        _new_lot = round(_new_lot / _ls) * _ls
+                if _new_lot < min_lot:
+                    log.info(f"[{symbol}] [W5] Cum-risk cap: room ${_avail:,.0f} "
+                             f"< min lot — NO TRADE")
+                    return 0.0
+                log.info(f"[{symbol}] [W5] Cum-risk cap: lot {lot_size}->{_new_lot} "
+                         f"(open ${_existing:,.0f}, cap ${_cap_usd:,.0f})")
+                lot_size = _new_lot
+
         return lot_size
+
+    def _w5_total_open_risk_usd(self) -> float:
+        """Worst-case loss to stop-loss across all OPEN positions, in USD.
+
+        W5 PORT of main_live_bot_backtest.py:3225. Deliberately NOT reusing
+        RiskManager._calculate_total_open_risk: that reads self.state.
+        open_positions, the risk manager's own bookkeeping, which is only
+        maintained on the non-challenge path. Reading live broker positions
+        directly is what the backtest does and cannot drift out of sync with
+        reality.
+
+        Static contract specs are good enough for a risk cap — FX cross drift is
+        second-order against a 7% ceiling.
+        """
+        from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
+        total = 0.0
+        for pos in (self.mt5.get_my_positions() if self.mt5 else []):
+            try:
+                if not getattr(pos, "sl", 0) or pos.sl <= 0:
+                    continue
+                specs = get_fiveers_contract_specs(pos.symbol)
+                pip_size = specs.get("pip_size", 0.0001) or 0.0001
+                pip_val = specs.get("pip_value_per_lot", 10.0) or 10.0
+                stop_pips = abs(pos.price_open - pos.sl) / pip_size
+                total += stop_pips * pip_val * pos.volume
+            except Exception:
+                continue
+        return total
     
     def _calculate_atr(self, candles: List[Dict], period: int = 14) -> float:
         """
