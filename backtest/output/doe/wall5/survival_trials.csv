@@ -1,3 +1,4 @@
 trial,score,breaches,stalls,passes,median,p30,n,aborted,corr_cap,cum_risk,max_pos,nightly_close_r,nightly_reduce,risk_cautious,risk_per_trade_pct,tdd_caution,wall_safety
 0,137,7,2,21,13,0.567,30,False,6,7.0,20,0.25,0.75,0.4,2.7,1.5,5.5
 1,1682,2,3,25,18,0.667,30,False,7,8.0,16,0.1,0.5,0.55,1.7000000000000002,3.0,5.0
+2,1982,0,5,25,18,0.6,30,False,5,7.5,22,0.2,0.6,0.35000000000000003,2.2,1.0,7.0
