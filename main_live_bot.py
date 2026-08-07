@@ -1964,7 +1964,24 @@ class LiveTradingBot:
         # backtest reads sim time from its mt5 stub; live must not, or the gate
         # would follow broker server time and fire at the wrong hour.
         now = datetime.now(timezone.utc)
-        hour = int(os.getenv("NIGHTLY_DERISK_HOUR", "22"))
+        # DELIBERATE LIVE/BACKTEST DIVERGENCE — default 21, not the backtest's 22.
+        #
+        # The nightly stage compared hours 17/19/20/21/22 and picked 22. But the
+        # simulator applies a FLAT spread: csv_mt5_simulator.py:199 sets
+        # spread_pips once and line 659 applies it uniformly, with no
+        # time-of-day variation and no rollover modelling anywhere in the file.
+        # So that comparison was made in a world where spreads never widen.
+        #
+        # Live, 22:00 UTC sits in the middle of the 21:30-22:30 rollover window
+        # — the same window this bot refuses to OPEN trades in, because spreads
+        # widen 5-50x (see the rollover block in _place_order). Flattening the
+        # whole book there would pay those spreads on every close, a cost the
+        # backtest is structurally blind to.
+        #
+        # 21:00 runs the pass one hour before the daily close and clear of the
+        # rollover window. To reproduce backtest results exactly, set
+        # NIGHTLY_DERISK_HOUR=22.
+        hour = int(os.getenv("NIGHTLY_DERISK_HOUR", "21"))
         if now.hour != hour:
             return
         # Friday is already handled by the weekend logic — don't double-derisk.
