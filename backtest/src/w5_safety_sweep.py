@@ -61,8 +61,25 @@ ARMS = {
 
 
 def starts():
+    """The 2019+ slice of the frozen holdout list.
+
+    NOT the first N. The list is sorted by date, so slicing the front drew
+    2015-01-05..2021-06-17 and captured only 2 of the baseline's 7 breaches —
+    at 2 events, an arm reaching 1 or 0 is indistinguishable from noise and the
+    sweep cannot answer the question it exists to answer.
+
+    Every breach in the 100-start holdout fell in 2019 or later (0/37 before,
+    7/63 after). Concentrating the sample there puts ~7 baseline events in play
+    instead of 2, which is still modest but is the most power available without
+    running all 100 starts per arm.
+
+    The consequence, which must be carried into any reading of the results: this
+    measures breach rate CONDITIONAL on the hard period, so the absolute numbers
+    are not comparable to the 7% overall figure. Only the differences between
+    arms mean anything here.
+    """
     f = w5.DOE_DIR / "HOLDOUT_100_STARTS_2015.json"
-    return json.loads(f.read_text())["starts"][:N]
+    return [s for s in json.loads(f.read_text())["starts"] if s[:4] >= "2019"]
 
 
 def cfg(over):
