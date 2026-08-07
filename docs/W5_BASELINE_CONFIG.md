@@ -99,6 +99,14 @@ Realised sizes under this config are far below it:
 
 So the cap never binds in normal operation.
 
+**Open question for 5ers support — this one could actually change results.** The
+50-lot limit is *per position*. Whether 5ers also caps **aggregate** exposure
+across all open positions is not published on any page found. This config runs
+up to 20 concurrent positions (`MAX_TOTAL_POSITIONS=20`), so at $500k it can
+hold roughly 200-500 lots open at once. A total-exposure ceiling would bind
+where the per-position cap does not, and unlike the backtest's max_lot defect it
+would materially change these numbers. Ask alongside the fixed-payout question.
+
 **Known defect, no impact on these results.** The backtest reads
 `symbol_info.get('max_lot', 100.0)` (`main_live_bot_backtest.py:3454`) but
 `get_symbol_info()` returns `volume_max`, not `max_lot`. The lookup always misses
