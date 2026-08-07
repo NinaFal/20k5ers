@@ -283,6 +283,43 @@ log = setup_logger("tradr", log_file="logs/tradr_live.log")
 running = True
 
 
+# ── W5 PORT: configuration bridge ───────────────────────────────────────────
+# The validated W5 config is expressed as environment variables, because that is
+# how the backtest harness drives main_live_bot_backtest.py. 29 of them were read
+# by the backtest and by nothing here, so the live bot could not reproduce the
+# tested behaviour at all. These helpers read the same variables with the same
+# defaults, so one source of truth drives both engines.
+#
+# Frozen reference: backtest/output/doe/wall5/BASELINE_t65_tdd_FROZEN.json
+def _w5_excluded_symbols():
+    """Symbols the validated config never trades (EXCLUDE_SYMBOLS)."""
+    raw = os.getenv("EXCLUDE_SYMBOLS", "AUD_NZD,EUR_NZD,AUD_JPY").replace(" ", "")
+    return [s for s in raw.split(",") if s]
+
+
+def _w5_corr_group_cap():
+    """Max concurrent positions per correlation group (CORR_GROUP_CAP)."""
+    return int(os.getenv("CORR_GROUP_CAP", "6"))
+
+
+def _w5_max_total_positions():
+    """Max concurrent positions overall (MAX_TOTAL_POSITIONS)."""
+    return int(os.getenv("MAX_TOTAL_POSITIONS", "20"))
+
+
+def _w5_max_cum_risk_pct():
+    """Cap on summed open risk as a % of balance (CFG_MAX_CUM_RISK).
+
+    main_live_bot.py:5001 previously read 'NO cumulative risk check - removed to
+    match simulator'. That is false: the backtest enforces this cap at
+    main_live_bot_backtest.py:3557 and the validated config sets 7.0. The
+    ChallengeConfig field of the same name is dead — defined in
+    challenge_risk_manager.py and never read — so this is the only enforcement.
+    Set >= 100 to disable.
+    """
+    return float(os.getenv("CFG_MAX_CUM_RISK", "7.0"))
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # TIMEZONE HELPERS - MT5/5ERS SERVER TIME
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -6111,6 +6148,22 @@ class LiveTradingBot:
         
         # Only scan symbols that are available on broker
         available_symbols = [s for s in TRADABLE_SYMBOLS if s in self.symbol_map]
+
+        # ── W5 PORT: symbol exclusions ──────────────────────────────────────
+        # The validated config excludes AUD_NZD, EUR_NZD and AUD_JPY —
+        # structurally net-negative across both the in-sample and out-of-sample
+        # halves. The backtest applies this at
+        # main_live_bot_backtest.py:2792; live had no equivalent, so it was
+        # trading three pairs the tested config never touches.
+        # Oil (XBR_USD/XTI_USD) is excluded there too, but via a hardcoded set
+        # rather than the env var, so it is listed separately below.
+        _excluded = set(_w5_excluded_symbols())
+        if _excluded:
+            _before = len(available_symbols)
+            available_symbols = [s for s in available_symbols if s not in _excluded]
+            if _before != len(available_symbols):
+                log.info(f"[W5] EXCLUDE_SYMBOLS dropped {_before - len(available_symbols)}: "
+                         f"{sorted(_excluded)}")
         
         # ═══════════════════════════════════════════════════════════════════════════════
         # WEEKEND CRYPTO SCANNING - Detect if it's weekend and filter accordingly
