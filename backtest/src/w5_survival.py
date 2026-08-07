@@ -58,16 +58,44 @@ SPLIT = w5.W5_DIR / "survival_split.json"
 
 
 def screen_and_holdout():
-    """30 screen starts from 2019+; the rest held back for confirmation."""
+    """30 screen starts: ALL 7 known-breaching windows plus 23 random 2019+ ones.
+
+    A plain random draw from the 63 hard starts caught 1 of the 7 breaching
+    windows against an expected 3.3, and the incumbent duly scored 1 breach on
+    it. At one event the optimizer can only go 1 -> 0, which is noise, and the
+    study would have burned hours measuring nothing — the same mistake as the
+    original 25-start screen, one layer deeper.
+
+    So the screen is CASE-ENRICHED: every window the baseline is known to breach
+    is included by construction. That buys the power to tell 7 -> 1 from 7 -> 6.
+
+    The price, which must be carried into every reading of the results:
+      * The breach COUNT here is not a rate. It is inflated by construction and
+        must never be quoted as one.
+      * Optimising to survive seven specific windows invites overfitting to
+        exactly those windows.
+
+    Both are handled by validating in two further stages rather than one:
+      HOLDOUT   33 remaining 2019+ starts plus 37 pre-2019, all of which the
+                baseline survives — so this catches a candidate that trades the
+                known failures for NEW ones.
+      FRESH     CONFIRM_100_STARTS.json, seed 20260810, disjoint from every list
+                used anywhere in this project, for an unbiased breach rate.
+    """
     if SPLIT.exists():
         d = json.loads(SPLIT.read_text())
         return d["screen"], d["holdout"]
     allst = json.loads((w5.DOE_DIR / "HOLDOUT_100_STARTS_2015.json").read_text())["starts"]
+    res = json.loads((w5.W5_DIR / "holdout100.json").read_text())
     hard = [s for s in allst if s[:4] >= "2019"]
+    breaching = [s for s in hard if res.get(s, {}).get("breach")]
+    rest = [s for s in hard if s not in breaching]
     rng = random.Random(SEED)
-    screen = sorted(rng.sample(hard, N_SCREEN))
-    holdout = sorted(set(hard) - set(screen)) + [s for s in allst if s[:4] < "2019"]
-    w5.atomic_write(SPLIT, {"seed": SEED, "screen": screen, "holdout": holdout})
+    screen = sorted(breaching + rng.sample(rest, N_SCREEN - len(breaching)))
+    holdout = sorted(set(allst) - set(screen))
+    w5.atomic_write(SPLIT, {"seed": SEED, "screen": screen, "holdout": holdout,
+                            "enriched_with_breaching": breaching,
+                            "note": "screen is case-enriched; breach COUNT is not a rate"})
     return screen, holdout
 
 
