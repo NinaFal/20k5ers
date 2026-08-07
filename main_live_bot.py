@@ -5024,6 +5024,47 @@ class LiveTradingBot:
                 log.info(f"[{symbol}] Max trades reached: {total_exposure}/{max_trades} (positions: {open_positions}, pending: {pending_count})")
                 return False
 
+            # ── W5 PORT: total position cap (MAX_TOTAL_POSITIONS) ───────────
+            # CORR_GROUP_CAP bounds exposure WITHIN a correlation group, but with
+            # 11 groups a portfolio can still hold many small positions across
+            # DIFFERENT groups at once. On a broad risk-off day those all move
+            # together even though no single group is overloaded, and that
+            # breadth alone can breach the daily wall at conservative per-trade
+            # risk. Backtest gate: main_live_bot_backtest.py:4269.
+            #
+            # NOT routed through FIVEERS_CONFIG.max_concurrent_trades: the
+            # backtest imports that same object (main_live_bot_backtest.py:165),
+            # so editing it silently changes the backtest too — which is exactly
+            # how the 2021-04-29 result got corrupted earlier in this port.
+            _max_total_pos = _w5_max_total_positions()
+            if _max_total_pos > 0 and total_exposure >= _max_total_pos:
+                log.info(f"[{symbol}] [W5] Total position cap: {total_exposure}/{_max_total_pos} — NO TRADE")
+                return False
+
+            # ── W5 PORT: correlation group cap (CORR_GROUP_CAP) ─────────────
+            # Clustered exposure is the root driver of total-drawdown death: one
+            # signal sweep fills many pairs in the same correlation group in the
+            # same direction, so a single adverse session digs a deep hole. Cap
+            # concurrent open+pending positions per group.
+            # Backtest gate: main_live_bot_backtest.py:4283.
+            _corr_cap = _w5_corr_group_cap()
+            if _corr_cap > 0:
+                try:
+                    import weekend_gap_manager as _wgm
+                    grp = _wgm.get_correlation_group(symbol)
+                    if grp and grp != 'UNCORRELATED':
+                        same = sum(1 for p in (self.mt5.get_my_positions() if self.mt5 else [])
+                                   if _wgm.get_correlation_group(p.symbol) == grp)
+                        same += sum(1 for s in self.pending_setups.values()
+                                    if s.status == "pending"
+                                    and _wgm.get_correlation_group(s.symbol) == grp)
+                        if same >= _corr_cap:
+                            log.info(f"[{symbol}] [W5] Correlation cap: {grp} already has "
+                                     f"{same} (cap {_corr_cap}) — NO TRADE")
+                            return False
+                except Exception as _e:
+                    log.debug(f"[{symbol}] corr-cap skipped: {_e}")
+
             # Layer 1: Rollover window — no new entries 21:30-22:30 UTC
             # Spread widens 5-50x during rollover; floating equity spikes can
             # trigger false DDD halts. Existing positions ride it out normally.
