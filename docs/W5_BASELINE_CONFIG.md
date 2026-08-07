@@ -44,7 +44,7 @@ rescue (variant `halt2.50+tdd`). Account: 5ers **classic**, Step 1 8%, Step 2 5%
 
 | Parameter | Value |
 |---|---|
-| `risk_per_trade_pct` | **2.7** |
+| `risk_per_trade_pct` | **2.7** (base — see §2b for what is actually risked) |
 | `tp1_r_multiple` / `tp1_close_pct` | 0.65 / 0.25 |
 | `tp2_r_multiple` / `tp2_close_pct` | 1.85 / 0.60 |
 | `tp3_r_multiple` / `tp3_close_pct` | 2.75 / 0.15 |
@@ -54,6 +54,43 @@ rescue (variant `halt2.50+tdd`). Account: 5ers **classic**, Step 1 8%, Step 2 5%
 | all six entry filters | disabled |
 
 ---
+
+## 2b. ACTUAL risk per trade — not 2.7%
+
+`risk_per_trade_pct = 2.7` is a base that two mechanisms then modify.
+
+**A hard cap by funded level** (`main_live_bot_backtest.py:3331`):
+
+```python
+if   funded_level >= 2_000_000: base_risk = min(base_risk, 0.25)
+elif funded_level >= 1_000_000: base_risk = min(base_risk, 0.40)
+elif funded_level >=   300_000: base_risk = min(base_risk, 0.60)
+```
+
+**A regime multiplier** (`:3385`, `risk_pct = risk_pct * _rm`): ×1.45 when
+ATR(14)/ATR(50) is below `fib_vol_ratio_threshold` (**1.05** in this config),
+×1.0 otherwise. Collapses to ×1.0 past 5% drawdown.
+
+| funded level | volatile | calm (×1.45) |
+|---|---|---|
+| below $300k — challenge and early climb | 2.70% | **3.92%** |
+| $300k–$1M — includes the $500k cap | 0.60% | **0.87%** |
+| $1M+ | 0.40% | 0.58% |
+| $2M+ | 0.25% | 0.36% |
+
+**At the $500k cap the account risks 0.6–0.87% per trade, roughly 4.5x less than
+during the challenge.** This is very likely the dominant reason capped years run
+1.78-3.42% worst daily drawdown against 4.73% while climbing.
+
+An earlier draft attributed that gap mainly to scaling-rung crossings — balance
+jumping to the next funded level mid-day while `day_start_equity`, the daily
+drawdown denominator, stayed anchored to the pre-jump figure. That effect is
+real and was measured at ~1.8 points across three paired years, but **this cap
+is the larger cause and was missed.** It also explains the margin profile: 69%
+usage climbing at 3.9% risk, 12.6% at the cap at 0.87%.
+
+Practical consequence: the challenge is where the real risk sits. Once funded
+and scaled the bot becomes dramatically more conservative without being told to.
 
 ## 2. What it does — measured
 
