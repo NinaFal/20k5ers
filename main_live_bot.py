@@ -4457,6 +4457,31 @@ class LiveTradingBot:
             # TDD below the caution band → full risk (params, or funded-level cap)
             risk_pct = base_risk
 
+        # ── W5 PORT: regime-coherent risk multiplier ────────────────────────
+        # RISK_REGIME_ENABLE=1, RISK_CALM_MULT=1.45 in the validated config, so
+        # in CALM regimes positions are sized 45% LARGER: 2.7% x 1.45 = 3.9%
+        # effective risk per trade. This is a RETURN driver, not a safety
+        # feature, and omitting it would have made live materially more
+        # conservative than everything that was tested.
+        #
+        # Uses the same ATR(14)/ATR(50) signal as the entry fib regime switch, so
+        # the same bar that triggers volatile entry also triggers volatile
+        # sizing. Gated on drawdown: past VOL_REGIME_DD_OFF the size-up collapses
+        # to VOL_REGIME_DD_MULT, because sizing up while already in drawdown
+        # fights the risk ladder directly above.
+        # Backtest: main_live_bot_backtest.py:3379.
+        _rm = self._w5_regime_risk_multiplier(symbol)
+        _dd_off = float(os.getenv("VOL_REGIME_DD_OFF", "5.0"))
+        if _rm > 1.0 and (total_dd_pct >= _dd_off or daily_loss_pct >= _dd_off):
+            _gated = float(os.getenv("VOL_REGIME_DD_MULT", "1.0"))
+            log.info(f"[{symbol}] [W5] Regime-risk gate: TDD {total_dd_pct:.1f}%/"
+                     f"DDD {daily_loss_pct:.1f}% >= {_dd_off}% -> x{_rm:.2f} "
+                     f"collapsed to x{_gated:.2f}")
+            _rm = _gated
+        if _rm != 1.0:
+            risk_pct = risk_pct * _rm
+            log.info(f"[{symbol}] [W5] Regime-risk x{_rm:.2f} -> risk {risk_pct:.3f}%")
+
         # ── W5 PORT: wall-guard / room-to-the-wall cap ──────────────────────
         # No live equivalent existed. In the high-TDD zone, cap each trade so
         # that even a FULL stop-loss cannot push total drawdown through the 10%
@@ -4648,6 +4673,49 @@ class LiveTradingBot:
                 lot_size = _new_lot
 
         return lot_size
+
+    def _w5_regime_risk_multiplier(self, symbol: str) -> float:
+        """Regime-coherent risk multiplier (W5 PORT of backtest:3659).
+
+        Calm regimes size UP by RISK_CALM_MULT, volatile ones by
+        RISK_VOLATILE_MULT, split on the same ATR(14)/ATR(50) ratio and
+        fib_vol_ratio_threshold the entry fib switch uses — so entry and sizing
+        agree about what the regime is.
+
+        Strict no-op when RISK_REGIME_ENABLE is off or both multipliers are 1.0,
+        so this cannot perturb anything unless deliberately enabled.
+
+        Cached per (symbol, day): the D1 signal only changes daily, and the live
+        bot re-evaluates a symbol many times per session.
+        """
+        if os.getenv("RISK_REGIME_ENABLE", "1").strip().lower() not in ("1", "true", "yes", "on"):
+            return 1.0
+        m_calm = float(os.getenv("RISK_CALM_MULT", "1.45"))
+        m_vol = float(os.getenv("RISK_VOLATILE_MULT", "1.0"))
+        if m_calm == 1.0 and m_vol == 1.0:
+            return 1.0
+        day = datetime.now(timezone.utc).date()
+        cache = getattr(self, "_w5_regime_cache", None)
+        if cache is None:
+            cache = self._w5_regime_cache = {}
+        key = (symbol, day)
+        if key in cache:
+            return cache[key]
+        broker = self.symbol_map.get(symbol, symbol)
+        try:
+            candles = self.mt5.get_ohlcv(broker, "D1", 52 + 1)
+        except Exception:
+            return 1.0
+        mult = 1.0
+        if candles and len(candles) >= 52:
+            atr14 = self._calculate_atr(candles[-15:], 14)
+            atr50 = self._calculate_atr(candles[-51:], 50)
+            if atr50 > 0:
+                ratio = atr14 / atr50
+                thr = float(getattr(self.params, "fib_vol_ratio_threshold", 1.15))
+                mult = m_vol if ratio >= thr else m_calm
+        cache[key] = mult
+        return mult
 
     def _w5_total_open_risk_usd(self) -> float:
         """Worst-case loss to stop-loss across all OPEN positions, in USD.
