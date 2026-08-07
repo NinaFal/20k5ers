@@ -307,6 +307,37 @@ def _w5_max_total_positions():
     return int(os.getenv("MAX_TOTAL_POSITIONS", "20"))
 
 
+def _w5_tdd_caution():
+    """Total-DD threshold for the cautious rung (CFG_TDD_CAUTION_PCT).
+
+    Live hardcoded 3.0 -> 0.60%; the validated config uses 1.5 -> 0.40%, i.e. it
+    de-risks at half the drawdown and to two-thirds the size. This pair was the
+    actual mechanism of the 2025 rescue — the other four settings in that variant
+    turned out to be inert (the halt dial is byte-identical across six
+    thresholds, and CFG_TDD_WARNING_PCT / CFG_RISK_CONSERVATIVE are never read).
+    """
+    return float(os.getenv("CFG_TDD_CAUTION_PCT", "1.5"))
+
+
+def _w5_risk_cautious():
+    """Risk % once past the cautious threshold (CFG_RISK_CAUTIOUS)."""
+    return float(os.getenv("CFG_RISK_CAUTIOUS", "0.4"))
+
+
+def _w5_tdd_emergency_pct():
+    """Total-DD level at which the wall-guard engages (CFG_TDD_EMERGENCY_PCT).
+
+    Deliberately NOT FIVEERS_CONFIG.total_dd_emergency_pct: the backtest imports
+    that object, so writing to it changes both engines.
+    """
+    return float(os.getenv("CFG_TDD_EMERGENCY_PCT", "5.5"))
+
+
+def _w5_wall_safety():
+    """Divisor for the room-to-the-wall risk cap (TDD_WALL_SAFETY)."""
+    return float(os.getenv("TDD_WALL_SAFETY", "5.5"))
+
+
 def _w5_max_cum_risk_pct():
     """Cap on summed open risk as a % of balance (CFG_MAX_CUM_RISK).
 
@@ -4417,12 +4448,38 @@ class LiveTradingBot:
         elif daily_loss_pct >= FIVEERS_CONFIG.daily_loss_warning_pct or total_dd_pct >= 5.0:
             # TDD 5-7% → reduced 0.4%
             risk_pct = min(base_risk, FIVEERS_CONFIG.max_risk_conservative_pct)
-        elif total_dd_pct >= 3.0:
-            # TDD 3-5% → cautious recovery 0.6% (not yet back to full risk)
-            risk_pct = min(base_risk, 0.60)
+        elif total_dd_pct >= _w5_tdd_caution():
+            # W5 PORT: cautious rung. Live hardcoded 3.0% -> 0.60%; the validated
+            # config de-risks at 1.5% -> 0.40%, i.e. at half the drawdown and to
+            # two-thirds the size. Backtest gate: main_live_bot_backtest.py:3348.
+            risk_pct = min(base_risk, _w5_risk_cautious())
         else:
-            # TDD <3% → full risk (1.1% or funded-level cap)
+            # TDD below the caution band → full risk (params, or funded-level cap)
             risk_pct = base_risk
+
+        # ── W5 PORT: wall-guard / room-to-the-wall cap ──────────────────────
+        # No live equivalent existed. In the high-TDD zone, cap each trade so
+        # that even a FULL stop-loss cannot push total drawdown through the 10%
+        # wall: risk no more than room-to-wall divided by a safety factor.
+        # Recovery trades keep flowing — an earlier "no new entry while any
+        # position is open" rule was tried in the backtest and DELETED, because
+        # it trapped the account holding its existing losers with no way to take
+        # diversifying trades, turning a survivable 9.4% draw into a 10% breach.
+        # This is the backstop instead. Backtest: main_live_bot_backtest.py:3439.
+        # `starting_balance` is the local set above from
+        # challenge_manager.initial_balance — the live manager names it
+        # initial_balance where the backtest names it starting_balance, so
+        # reaching for the backtest's attribute name here would silently read 0
+        # and disable the guard.
+        _emerg = _w5_tdd_emergency_pct()
+        if total_dd_pct >= _emerg and starting_balance > 0 and current_balance > 0:
+            _room_usd = max(0.0, current_equity - starting_balance * 0.90)  # 10% wall
+            _cap_pct = (_room_usd / _w5_wall_safety()) / current_balance * 100
+            if _cap_pct < risk_pct:
+                log.info(f"[{symbol}] [W5] Wall-guard: TDD {total_dd_pct:.1f}%, "
+                         f"room ${_room_usd:,.0f} -> risk {risk_pct:.3f}% "
+                         f"capped to {_cap_pct:.3f}%")
+                risk_pct = _cap_pct
 
         log.info(f"[{symbol}] Risk: {risk_pct:.3f}% (base from params: {base_risk:.3f}%, funded: ${current_balance:,.0f}, TDD: {total_dd_pct:.1f}%, DDD safety applied)")
 
