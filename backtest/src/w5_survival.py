@@ -50,7 +50,11 @@ w5 = importlib.util.module_from_spec(_w); _w.loader.exec_module(w5)
 
 SEED = 20260812
 N_SCREEN = 30
-ABORT_AT = 5            # stop a trial once it is clearly worse than baseline (~3)
+# Stop a trial once it is clearly WORSE than the incumbent. The screen is
+# case-enriched with all 7 known-breaching windows, so the incumbent scores 7 —
+# an earlier value of 5 aborted the incumbent itself, leaving the study with a
+# penalised score as its only reference point.
+ABORT_AT = 8
 CACHE = w5.W5_DIR / "survival_runcache.json"
 CSV = w5.W5_DIR / "survival_trials.csv"
 DB = str(w5.W5_DIR / "survival.db")
