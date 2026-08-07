@@ -1906,6 +1906,73 @@ class LiveTradingBot:
     # WEEKEND GAP RISK MANAGEMENT - Tier 1 Conservative Strategy
     # ═══════════════════════════════════════════════════════════════════════════
 
+    def handle_nightly_derisk(self):
+        """W5 PORT — nightly overnight gap-risk control (NIGHTLY_DERISK).
+
+        Ported from main_live_bot_backtest.py:1924. This had NO live
+        implementation: `_nightly` matched 0 times here and 4 times in the
+        backtest, so the live bot de-risked only before the WEEKEND while every
+        tested result came from an account that also flattened every night.
+
+        Why it matters: breach analysis found 5 of 6 breaches were 100%
+        overnight, with a single position averaging 62% of the day's loss.
+        Position-count caps do not address that — they bound how many trades are
+        open, not how much gap risk rides unattended through the night.
+
+        The validated config runs this at 22:00 UTC with MAX_PER_GROUP=0 and
+        MAX_TOTAL=0, i.e. hold ZERO non-crypto positions overnight: close
+        anything below 0.25R and reduce the rest by 75%.
+
+        Reuses the same Tier-1 correlation-aware selector the bot already applies
+        on Fridays, so there is no second implementation of the selection logic
+        to drift out of sync.
+        """
+        if os.getenv("NIGHTLY_DERISK", "1").strip().lower() not in ("1", "true", "yes", "on"):
+            return
+        # Wall-clock UTC, matching handle_friday_position_closing above. The
+        # backtest reads sim time from its mt5 stub; live must not, or the gate
+        # would follow broker server time and fire at the wrong hour.
+        now = datetime.now(timezone.utc)
+        hour = int(os.getenv("NIGHTLY_DERISK_HOUR", "22"))
+        if now.hour != hour:
+            return
+        # Friday is already handled by the weekend logic — don't double-derisk.
+        if now.weekday() == 4:
+            return
+        day_key = now.date()
+        if getattr(self, "_nightly_derisk_day", None) == day_key:
+            return
+        self._nightly_derisk_day = day_key
+
+        positions = self.mt5.get_my_positions()
+        if not positions:
+            return
+
+        result = wgm.select_positions_for_weekend_tier1(
+            positions=positions,
+            mt5_client=self.mt5,
+            current_time=now,
+            max_per_group=int(os.getenv("NIGHTLY_MAX_PER_GROUP", "0")),
+            max_total_non_crypto=int(os.getenv("NIGHTLY_MAX_TOTAL", "0")),
+            r_close_losing=float(os.getenv("NIGHTLY_R_CLOSE_LOSING", "0.25")),
+            r_new_position=float(os.getenv("NIGHTLY_R_NEW", "0.5")),
+            reduce_pct=float(os.getenv("NIGHTLY_REDUCE_PCT", "0.75")),
+            enforce_friday_gate=False,       # this IS the nightly caller
+            honor_manual_exclusions=False,   # NAS100 etc. are not exempt from it
+        )
+
+        log.info(f"[W5][nightly] {now:%Y-%m-%d %H:%M} UTC — CLOSE={len(result['CLOSE'])} "
+                 f"REDUCE={len(result['REDUCE_50'])} HOLD={len(result['HOLD'])}")
+        for pos in result['CLOSE']:
+            self.mt5.close_position(pos.ticket)
+
+        reduce_pct = float(os.getenv("NIGHTLY_REDUCE_PCT", "0.75"))
+        for pos in result['REDUCE_50']:
+            reduce_volume = round(pos.volume * reduce_pct, 2)
+            if reduce_volume < 0.01:
+                continue
+            self.mt5.partial_close(pos.ticket, reduce_volume)
+
     def handle_friday_position_closing(self):
         """
         TIER 1: Correlation-aware Friday position closing
@@ -6480,6 +6547,11 @@ class LiveTradingBot:
 
                         # Weekend gap risk management
                         self.handle_friday_position_closing()  # Friday 18:30+ UTC
+                        # W5 PORT: nightly overnight de-risk. Self-gates on env
+                        # NIGHTLY_DERISK plus the hour, and skips Friday so it
+                        # does not double up with the weekend logic above.
+                        # Backtest call site: main_live_bot_backtest.py:6004.
+                        self.handle_nightly_derisk()  # 22:00 UTC, Mon-Thu
                         self.handle_holiday_position_closing()  # Pre-holiday or early-close days
                         self.handle_sunday_gap_detection()  # Sunday 22:00+ UTC
                         self.handle_monday_order_resume()  # Monday/post-holiday 01:00+ server time
