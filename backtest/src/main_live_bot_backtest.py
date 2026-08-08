@@ -3451,14 +3451,21 @@ class LiveTradingBot:
 
         # Get symbol info
         symbol_info = self.mt5.get_symbol_info(broker_symbol)
-        max_lot = symbol_info.get('max_lot', 100.0) if symbol_info else 100.0
-        min_lot = symbol_info.get('min_lot', 0.01) if symbol_info else 0.01
+        # KEY MISMATCH FIX: get_symbol_info() returns volume_max/volume_min
+        # (csv_mt5_simulator.py:846-848), not max_lot/min_lot. The old lookup
+        # always missed and fell back to 100 — double the 5ers cap — while the
+        # simulator's own volume_max of 50.0 sat unread. Live gets this right
+        # (main_live_bot.py:4557) and clamps to 50; the backtest did not, so the
+        # two engines disagreed about the largest permissible position.
+        symbol_info = symbol_info or {}
+        max_lot = symbol_info.get('max_lot', symbol_info.get('volume_max', 50.0))
+        min_lot = symbol_info.get('min_lot', symbol_info.get('volume_min', 0.01))
 
-        # Ensure min_lot and max_lot are valid
+        # Ensure min_lot and max_lot are valid, and never exceed the broker cap
         if min_lot <= 0:
             min_lot = 0.01
-        if max_lot <= 0:
-            max_lot = 100.0
+        if max_lot <= 0 or max_lot > 50.0:
+            max_lot = 50.0  # 5ers broker hard cap, matching main_live_bot.py:4564
 
         # Get DYNAMIC pip value based on current exchange rates
         try:
