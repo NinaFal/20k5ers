@@ -324,6 +324,34 @@ def _w5_risk_cautious():
     return float(os.getenv("CFG_RISK_CAUTIOUS", "0.4"))
 
 
+def _w5_tdd_emergency_halt_enabled():
+    """Is the hard trading halt at the emergency TDD level active?
+
+    The validated config sets TDD_EMERGENCY_HALT=0 — DISABLED. The backtest
+    found the halt causes breaches rather than preventing them: freezing the
+    account at the threshold traps it holding its existing losers with no way to
+    take diversifying recovery trades, and it bleeds to the 10% wall
+    (main_live_bot_backtest.py:3311). The wall-guard replaces it, capping each
+    recovery trade so a full stop-loss cannot breach while keeping trades
+    flowing.
+
+    Defaults OFF to match the tested config. Set to 1 to restore live's previous
+    unconditional behaviour.
+    """
+    return os.getenv("TDD_EMERGENCY_HALT", "0").strip().lower() not in ("0", "false", "no", "off")
+
+
+def _w5_daily_halt_pct():
+    """Daily-loss level at which trading halts (CFG_DAILY_HALT_PCT).
+
+    Live read FIVEERS_CONFIG.daily_loss_halt_pct (3.2); the validated config
+    uses 2.50. Six thresholds from 3.5% down to 2.00% produced byte-identical
+    decade results, so this dial is inert in practice — wired for exactness.
+    NOT routed through FIVEERS_CONFIG, which the backtest imports.
+    """
+    return float(os.getenv("CFG_DAILY_HALT_PCT", "2.50"))
+
+
 def _w5_tdd_emergency_pct():
     """Total-DD level at which the wall-guard engages (CFG_TDD_EMERGENCY_PCT).
 
@@ -3099,9 +3127,13 @@ class LiveTradingBot:
                     tp3_close_pct=self.params.tp3_close_pct,
                     daily_loss_warning_pct=FIVEERS_CONFIG.daily_loss_warning_pct,
                     daily_loss_reduce_pct=FIVEERS_CONFIG.daily_loss_reduce_pct,
-                    daily_loss_halt_pct=FIVEERS_CONFIG.daily_loss_halt_pct,
+                    # W5: ChallengeRiskManager runs its OWN emergency close-all
+                    # at this level (challenge_risk_manager.py:439), a separate
+                    # path from the entry/sizing gates. It must see 2.50, not
+                    # FIVEERS_CONFIG's 3.2, or the paths disagree on when to stop.
+                    daily_loss_halt_pct=_w5_daily_halt_pct(),
                     total_dd_warning_pct=FIVEERS_CONFIG.total_dd_warning_pct,
-                    total_dd_emergency_pct=FIVEERS_CONFIG.total_dd_emergency_pct,
+                    total_dd_emergency_pct=_w5_tdd_emergency_pct(),
                     protection_loop_interval_sec=FIVEERS_CONFIG.protection_loop_interval_sec,
                     pending_order_max_age_hours=FIVEERS_CONFIG.pending_order_expiry_hours,
                     profit_ultra_safe_threshold_pct=FIVEERS_CONFIG.profit_ultra_safe_threshold_pct,
@@ -4429,11 +4461,16 @@ class LiveTradingBot:
         log.info(f"[{symbol}] DDD/TDD check at fill: day_start_equity=${day_start_equity:.2f}, starting_balance=${starting_balance:.2f}, current_equity=${current_equity:.2f}, daily_loss_pct={daily_loss_pct:.2f}%, total_dd_pct={total_dd_pct:.2f}%")
 
         # Check if trading is halted
-        if daily_loss_pct >= FIVEERS_CONFIG.daily_loss_halt_pct:
-            log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {FIVEERS_CONFIG.daily_loss_halt_pct}% (NO TRADE)")
+        if daily_loss_pct >= _w5_daily_halt_pct():
+            log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {_w5_daily_halt_pct()}% (NO TRADE)")
             return 0.0
 
-        if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
+        # W5 PORT: TDD_EMERGENCY_HALT. The validated config sets 0 — DISABLED.
+        # Live halted unconditionally, which is the behaviour the backtest found
+        # CAUSES breaches: freezing at the threshold traps the account holding
+        # its losers with no diversifying recovery trades, and it bleeds to the
+        # 10% wall (main_live_bot_backtest.py:3311). The wall-guard replaces it.
+        if _w5_tdd_emergency_halt_enabled() and total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
             log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}% (NO TRADE)")
             return 0.0
 
@@ -5277,11 +5314,13 @@ class LiveTradingBot:
             total_dd_pct = getattr(snapshot, "total_dd_pct", 0)
             profit_pct = (snapshot.equity - self.challenge_manager.initial_balance) / self.challenge_manager.initial_balance * 100
             
-            if daily_loss_pct >= FIVEERS_CONFIG.daily_loss_halt_pct:
-                log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {FIVEERS_CONFIG.daily_loss_halt_pct}%")
+            if daily_loss_pct >= _w5_daily_halt_pct():
+                log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {_w5_daily_halt_pct()}%")
                 return False
             
-            if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
+            # W5 PORT: same gate as in _calculate_lot_size_at_fill — both sites
+            # must agree or the entry and sizing paths disagree about halting.
+            if _w5_tdd_emergency_halt_enabled() and total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
                 log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}%")
                 return False
             
