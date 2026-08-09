@@ -324,6 +324,32 @@ def _w5_risk_cautious():
     return float(os.getenv("CFG_RISK_CAUTIOUS", "0.4"))
 
 
+def _w5_dynamic_halt_pct(base_halt_pct, n_positions, now_utc):
+    """W5 PORT of the backtest's Layer-5 halt tightening (backtest:950).
+
+    NOT env-gated in the backtest — always active there — and live had no
+    equivalent at all. With base 2.50 and more than 5 positions open, which this
+    config does routinely (cap 20), the backtest halts at 2.10% where live would
+    have waited for 2.50%.
+
+    Low risk: six halt thresholds from 3.5% down to 2.00% gave byte-identical
+    decade results, so 2.10 and 2.50 both sit inside the range already shown to
+    make no difference. Ported for exactness.
+
+    Rollover clamp — spreads widen 5-50x in 21:30-22:30 UTC, so closing costs
+    more and the trigger should come earlier. Position clamp — more open
+    positions means more closing slippage.
+    """
+    halt = base_halt_pct
+    in_rollover = (now_utc.hour == 21 and now_utc.minute >= 30) or \
+                  (now_utc.hour == 22 and now_utc.minute < 30)
+    if in_rollover:
+        halt = min(halt, 2.5)
+    if n_positions > 5:
+        halt = min(halt, base_halt_pct - 0.4)
+    return halt
+
+
 def _w5_tdd_emergency_halt_enabled():
     """Is the hard trading halt at the emergency TDD level active?
 
@@ -4461,8 +4487,11 @@ class LiveTradingBot:
         log.info(f"[{symbol}] DDD/TDD check at fill: day_start_equity=${day_start_equity:.2f}, starting_balance=${starting_balance:.2f}, current_equity=${current_equity:.2f}, daily_loss_pct={daily_loss_pct:.2f}%, total_dd_pct={total_dd_pct:.2f}%")
 
         # Check if trading is halted
-        if daily_loss_pct >= _w5_daily_halt_pct():
-            log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {_w5_daily_halt_pct()}% (NO TRADE)")
+        _n_pos = len(self.mt5.get_my_positions() or []) if self.mt5 else 0
+        _halt_pct = _w5_dynamic_halt_pct(_w5_daily_halt_pct(), _n_pos,
+                                         datetime.now(timezone.utc))
+        if daily_loss_pct >= _halt_pct:
+            log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {_halt_pct:.2f}% ({_n_pos} pos) (NO TRADE)")
             return 0.0
 
         # W5 PORT: TDD_EMERGENCY_HALT. The validated config sets 0 — DISABLED.
@@ -5314,8 +5343,11 @@ class LiveTradingBot:
             total_dd_pct = getattr(snapshot, "total_dd_pct", 0)
             profit_pct = (snapshot.equity - self.challenge_manager.initial_balance) / self.challenge_manager.initial_balance * 100
             
-            if daily_loss_pct >= _w5_daily_halt_pct():
-                log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {_w5_daily_halt_pct()}%")
+            _n_pos = len(self.mt5.get_my_positions() or []) if self.mt5 else 0
+            _halt_pct = _w5_dynamic_halt_pct(_w5_daily_halt_pct(), _n_pos,
+                                             datetime.now(timezone.utc))
+            if daily_loss_pct >= _halt_pct:
+                log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {_halt_pct:.2f}% ({_n_pos} pos)")
                 return False
             
             # W5 PORT: same gate as in _calculate_lot_size_at_fill — both sites
