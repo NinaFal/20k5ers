@@ -173,20 +173,61 @@ def main():
                  "where spreads widen 5-50x, which the flat-spread simulator "
                  "cannot see. Set 22 to reproduce backtest results exactly.")
 
+    # 6 ── DEPLOYMENT PRE-FLIGHT: environment, not code.
+    # Everything above is verified with NO env set, on the principle that a
+    # config depending on an operator exporting twenty variables correctly is
+    # itself a failure mode. BROKER_TYPE is the one value where that principle
+    # breaks down: unset, broker_config.py:291 resolves to forexcom_demo, so the
+    # bot would run the validated config against a different broker entirely —
+    # different symbols, spreads and account size. It must be set explicitly.
+    print("\n  --- deployment pre-flight (environment, not code) ---")
+    deploy = []
+
+    bt_env = os.getenv("BROKER_TYPE")
+    ok = bt_env is not None and bt_env.lower() in ("fiveers_live", "5ers_live", "5ers", "fiveers")
+    print(f"  {'OK ' if ok else 'FAIL'}  {'BROKER_TYPE':<26} -> {str(bt_env):<22} "
+          f"must be fiveers_live; unset = forexcom_demo")
+    if not ok:
+        deploy.append("BROKER_TYPE is not fiveers_live — the bot would trade the wrong broker")
+
+    for var, why in (("MT5_LOGIN", "5ers account number"),
+                     ("MT5_PASSWORD", "password"),
+                     ("MT5_SERVER", "confirm against what 5ers issued")):
+        val = os.getenv(var)
+        present = bool(val) and val not in ("0", "")
+        shown = "<set>" if (present and var == "MT5_PASSWORD") else (val or "<unset>")
+        print(f"  {'OK ' if present else 'FAIL'}  {var:<26} -> {shown:<22} {why}")
+        if not present:
+            deploy.append(f"{var} is unset")
+
+    try:
+        import MetaTrader5  # noqa: F401
+        print(f"  OK    {'MetaTrader5 package':<26} -> importable")
+    except Exception:
+        print(f"  FAIL  {'MetaTrader5 package':<26} -> NOT importable (Windows host)")
+        deploy.append("MetaTrader5 not importable — run this on the Windows trading host")
+
     print("\n" + "=" * 74)
     if notes:
         print("DELIBERATE DIVERGENCES:")
         for n in notes:
             print(f"  * {n}")
     if fails:
-        print(f"\nRESULT: FAIL — {len(fails)} mismatch(es)")
+        print(f"\nCONFIG: FAIL — {len(fails)} mismatch(es)")
         for f in fails:
             print(f"  - {f}")
         print("\nThe live bot would NOT trade the validated configuration.")
         sys.exit(1)
-    print("\nRESULT: PASS — every checked parameter resolves to the frozen baseline.")
-    print("Scope: configuration only. This does NOT prove behavioural equivalence;")
-    print("the live bot cannot be replayed against history. Demo-trade before a fee.")
+    print("\nCONFIG: PASS — every checked parameter resolves to the frozen baseline.")
+    if deploy:
+        print(f"\nDEPLOYMENT: NOT READY — {len(deploy)} item(s)")
+        for d in deploy:
+            print(f"  - {d}")
+        print("\nExpected on a dev box; re-run on the Windows trading host.")
+        sys.exit(2)
+    print("DEPLOYMENT: pre-flight clear.")
+    print("\nScope: configuration and environment only. This does NOT prove behavioural")
+    print("equivalence — the live bot cannot be replayed against history. Demo first.")
     sys.exit(0)
 
 
