@@ -142,6 +142,20 @@ Let op dat "Contract Size × Current Price" voor FX de notional in de
 basisvaluta is, niet contractgrootte maal quote; anders komt USD_JPY er honderd
 keer te zwaar uit.
 
+**Kan marge ooit bindend worden?** Nee, en niet omdat de backtest hem niet
+modelleert maar omdat de drawdownbeveiliging zes keer eerder vuurt. Gebruikte
+marge staat vast zodra een positie open is; het gebruik stijgt alleen doordat de
+equity daalt. Vanaf het gemeten piekgebruik van 28,6% moet de equity **59%**
+zakken om zelfs maar de eigen blokkade te raken, en 86% om een gebruikelijke
+stop-out van 50% margeniveau te halen. Het account is dood bij 10%, en de bot
+sluit zelf alles bij 2,50% op de dag. Daarom is er geen noodsluiting op marge:
+die zou nooit als eerste aan de beurt zijn.
+
+Wat 5ers als stop-outniveau hanteert staat nergens in de documentatie die ik
+heb; `stop_out_level` in de backtest is de 10%-regel, niet een margeniveau. De
+berekening hierboven gebruikt 50% als gangbare waarde. Het is de moeite waard
+om het echte getal na te vragen, al verandert het de conclusie niet.
+
 **Hoe de live bot met een weigering omgaat.** Er is geen margecontrole vooraf —
 `main_live_bot.py` roept nergens `order_check` aan en kijkt niet naar
 `margin_free`. De order wordt gestuurd en als MT5 hem weigert vangt

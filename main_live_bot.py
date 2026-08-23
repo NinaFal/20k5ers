@@ -456,8 +456,12 @@ def _w5_usd_rate(ccy):
 
 
 def _w5_margin_warn_pct():
-    """Margegebruik waarboven gewaarschuwd wordt, in % van de equity."""
-    return float(os.getenv("W5_MARGIN_WARN_PCT", "50"))
+    """Margegebruik waarboven gewaarschuwd wordt, in % van de equity.
+
+    60% ligt onder alles wat gemeten is behalve de piek van 2023 (72,4%), dus
+    de waarschuwing hoort zelden te komen en betekent iets als hij komt.
+    """
+    return float(os.getenv("W5_MARGIN_WARN_PCT", "60"))
 
 
 def _w5_margin_block_pct():
@@ -466,12 +470,20 @@ def _w5_margin_block_pct():
     5ers weigert de trade zelf zodra de hefboom op is. Dat is geen ramp — de
     order faalt netjes en de bot gaat door — maar het levert wel een STIL
     verschil met de backtest op: live slaat een trade over die de backtest wel
-    nam. Beter is om ruim voor die grens zelf te stoppen, zodat het verschil
-    zichtbaar in het log staat in plaats van in een retcode te verdwijnen.
+    nam. Zelf eerder stoppen maakt daar een gelogde beslissing van.
 
-    70% laat een derde over voor de zwevende verliezen van wat al openstaat.
+    WAAROM 85 EN NIET 70. De eerste versie stond op 70 en dat was fout. Het
+    gemeten piekgebruik in de challengefase is 28,6%, maar over een heel jaar
+    gerekend haalde 2023 **72,4%** — bij een balans van $152.000, midden in de
+    klim. Een grens van 70 zou precies de trade geblokkeerd hebben die die piek
+    veroorzaakte. Dan beschermt de poort niet tegen een afwijking van de
+    backtest, dan IS hij de afwijking.
+
+    85 ligt boven alles wat ooit gemeten is en houdt nog 15 punten over voordat
+    5ers zelf begint te weigeren. Dat is waar deze grens voor bedoeld is: net
+    voor de broker gaan staan, niet voor de strategie.
     """
-    return float(os.getenv("W5_MARGIN_BLOCK_PCT", "70"))
+    return float(os.getenv("W5_MARGIN_BLOCK_PCT", "85"))
 
 
 def _w5_margin_class(symbol):
@@ -4947,10 +4959,11 @@ class LiveTradingBot:
         # langskomt, ongeacht via welke wachtrij hij binnenkwam.
         #
         # De backtest kent geen marge (csv_mt5_simulator.py zet margin op 0,0),
-        # dus dit kan alleen strenger zijn dan de backtest, nooit ruimer. Bij
-        # het gemeten piekgebruik van 28,6% in de challengefase hoort deze poort
-        # nooit te vuren; doet hij dat wel, dan klopt de meting niet en wil je
-        # dat in het log zien.
+        # dus deze poort kan alleen strenger zijn dan de backtest, nooit ruimer.
+        # Precies daarom staat de grens op 85 en niet lager: het hoogste ooit
+        # gemeten gebruik is 72,4% (2023, balans $152k, midden in de klim), dus
+        # elke grens onder ~75 zou een trade blokkeren die de backtest wel nam.
+        # Vuurt deze poort toch, dan klopt die meting niet en wil je het zien.
         if getattr(self, '_w5_margin_blocked', False):
             log.error(f"[{symbol}] [W5] ORDER GEWEIGERD: margeblokkade actief "
                       f"({getattr(self, '_w5_margin_pct', 0):.1f}% in gebruik)")
