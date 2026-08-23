@@ -27,6 +27,7 @@ Configuration:
     - SCAN_INTERVAL_HOURS: How often to scan (default: 4)
 """
 
+import math
 import os
 import sys
 import time
@@ -348,6 +349,40 @@ def _w5_dynamic_halt_pct(base_halt_pct, n_positions, now_utc):
     if n_positions > 5:
         halt = min(halt, base_halt_pct - 0.4)
     return halt
+
+
+def _w5_asset_class(symbol):
+    """METALS / CRYPTO / INDEX / FX — bepaalt welke risicotolerantie geldt."""
+    u = (symbol or "").upper().replace("_", "").replace("/", "")
+    if any(x in u for x in ("XAU", "XAG", "XPT", "XPD", "GOLD", "SILVER")):
+        return "METALS"
+    if any(x in u for x in ("BTC", "ETH", "LTC", "XRP", "SOL", "DOGE")):
+        return "CRYPTO"
+    if any(x in u for x in ("NAS100", "US100", "US30", "SPX", "GER40", "UK100", "JP225")):
+        return "INDEX"
+    return "FX"
+
+
+def _w5_risk_tolerance(symbol):
+    """Hoeveel mag het WERKELIJKE dollarrisico het bedoelde overschrijden?
+
+    Was 2.0x — dat is geen veiligheidsgrens maar een vangnet voor rampen. Een
+    positie op 1.9x het bedoelde risico ging gewoon door.
+
+    METALS en CRYPTO krijgen 1.00: geen enkele overschrijding. Dat is precies
+    waar het in het verleden misging — de contractgrootte en pip-waarde van
+    goud (contract 100, pip 0.1) wijken zo af van FX dat een verkeerde
+    tick_value een positie oplevert die een veelvoud van het bedoelde risico
+    draagt. METAL_PIP_RANGES corrigeert de pip-waarde al, maar dat is een
+    correctie, geen verbod; dit is het verbod.
+
+    FX en indices houden 1.10 om afronding naar de lotstap (0.01) niet als
+    fout te bestempelen.
+    """
+    cls = _w5_asset_class(symbol)
+    if cls in ("METALS", "CRYPTO"):
+        return float(os.getenv("W5_RISK_TOLERANCE_STRICT", "1.00"))
+    return float(os.getenv("W5_RISK_TOLERANCE", "1.10"))
 
 
 def _w5_tdd_emergency_halt_enabled():
@@ -4708,16 +4743,37 @@ class LiveTradingBot:
         log.info(f"  Pip value: ${dynamic_pip_value:.4f}")
         log.info(f"  Lot size: {lot_size}")
 
-        # HARD BLOCK: If actual risk exceeds 2x intended, something is wrong
-        if risk_ratio > 2.0:
-            log.error(f"[{symbol}] 🚨 RISK SAFETY BLOCK: Actual risk ${actual_risk_usd:.2f} is {risk_ratio:.1f}x intended ${intended_risk_usd:.2f}")
-            log.error(f"[{symbol}]   pip_value=${dynamic_pip_value:.4f}, stop_pips={_stop_pips:.1f}, lot={lot_size}")
-            log.error(f"[{symbol}]   ORDER REJECTED to protect account!")
-            return 0.0
-
-        # SOFT WARNING: If actual risk exceeds 1.5x intended
-        if risk_ratio > 1.5:
-            log.warning(f"[{symbol}] ⚠️ Risk slightly elevated: ${actual_risk_usd:.2f} vs intended ${intended_risk_usd:.2f} ({risk_ratio:.1f}x)")
+        # ── W5: HARDE BEDRAGSLIMIET ─────────────────────────────────────────
+        # Het werkelijke dollarrisico mag het bedoelde (balance x risk_pct) niet
+        # overschrijden. Was een blokkade op 2.0x, wat betekent dat een positie
+        # met 1.9x het bedoelde risico gewoon doorging.
+        #
+        # Volgorde: eerst VERKLEINEN tot het past — dat behoudt de trade tegen
+        # het juiste risico. Alleen als zelfs de minimum lot te groot is wordt
+        # de order geweigerd, want dan is er geen maat waarop dit instrument
+        # binnen het budget past.
+        _tol = _w5_risk_tolerance(symbol)
+        _cls = _w5_asset_class(symbol)
+        if risk_ratio > _tol and _stop_pips > 0 and dynamic_pip_value > 0:
+            _max_lot_by_risk = (intended_risk_usd * _tol) / (_stop_pips * dynamic_pip_value)
+            _step = 0.01
+            _fitted = math.floor(_max_lot_by_risk / _step) * _step
+            _fitted = round(_fitted, 2)
+            if _fitted >= min_lot:
+                log.warning(f"[{symbol}] [W5] Risico {risk_ratio:.2f}x boven tolerantie "
+                            f"{_tol:.2f} ({_cls}) — lot {lot_size} -> {_fitted} "
+                            f"(${actual_risk_usd:.0f} -> ${intended_risk_usd*_tol:.0f})")
+                lot_size = _fitted
+                actual_risk_usd = lot_size * _stop_pips * dynamic_pip_value
+                risk_ratio = actual_risk_usd / intended_risk_usd if intended_risk_usd > 0 else 999
+            else:
+                log.error(f"[{symbol}] 🚨 [W5] ORDER GEWEIGERD: zelfs de minimum lot "
+                          f"({min_lot}) draagt ${min_lot * _stop_pips * dynamic_pip_value:.2f} "
+                          f"risico, boven het toegestane ${intended_risk_usd * _tol:.2f} "
+                          f"({_cls}, tolerantie {_tol:.2f}x)")
+                log.error(f"[{symbol}]   pip_value=${dynamic_pip_value:.4f}, "
+                          f"stop_pips={_stop_pips:.1f}, balance=${current_balance:.0f}")
+                return 0.0
 
         # ── W5 PORT: cumulative open-risk cap (CFG_MAX_CUM_RISK) ────────────
         # In CHALLENGE_MODE the live bot had NO cumulative cap. RiskManager.
