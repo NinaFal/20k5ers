@@ -427,6 +427,105 @@ def _w5_wall_safety():
     return float(os.getenv("TDD_WALL_SAFETY", "5.5"))
 
 
+# 5ers-hefbomen, bevestigd door support op 2026-08-23. De backtest modelleert
+# marge helemaal niet (csv_mt5_simulator.py zet margin op 0,0), dus dit bestaat
+# alleen live. Gemeten piekgebruik in de backtest was 28,6% in de challengefase
+# en 72,4% op het zwaarste moment van een heel jaar, dus deze grenzen horen
+# nooit te binden. Ze zijn er voor het geval de meting het mis had.
+W5_LEVERAGE = {"FX": 100.0, "METALS": 25.0, "INDEX": 25.0, "COMMODITY": 5.0,
+               "CRYPTO": 2.0}
+
+# Contractgroottes voor niet-FX. Voor FX geldt 100.000 eenheden basisvaluta.
+W5_CONTRACT = {"XAU": 100.0, "XAG": 5000.0, "NAS100": 1.0, "US100": 1.0,
+               "US30": 1.0, "UK100": 1.0, "SPX": 1.0, "GER40": 1.0,
+               "XBR": 100.0, "XTI": 100.0, "BCO": 100.0, "WTICO": 100.0,
+               "BTC": 1.0, "ETH": 1.0, "XRP": 1.0, "ADA": 1.0}
+
+
+# Indicatieve USD-waarde van een eenheid basisvaluta, voor crossparen waar de
+# genoteerde prijs niets over de USD-notional zegt. Grof — GBP bewoog in tien
+# jaar tussen 1,20 en 1,70 — maar zonder deze tabel zou GBP_JPY op $1.000 marge
+# per lot uitkomen in plaats van ~$1.300, en dan onderschat de poort de druk.
+# Overschrijfbaar met W5_USD_RATE_<VALUTA> als een koers ver wegloopt.
+W5_USD_RATE = {"USD": 1.00, "EUR": 1.10, "GBP": 1.28, "AUD": 0.68,
+               "NZD": 0.62, "CAD": 0.73, "CHF": 1.12, "JPY": 0.0068}
+
+
+def _w5_usd_rate(ccy):
+    return float(os.getenv(f"W5_USD_RATE_{ccy}", W5_USD_RATE.get(ccy, 1.0)))
+
+
+def _w5_margin_warn_pct():
+    """Margegebruik waarboven gewaarschuwd wordt, in % van de equity."""
+    return float(os.getenv("W5_MARGIN_WARN_PCT", "50"))
+
+
+def _w5_margin_block_pct():
+    """Margegebruik waarboven geen nieuwe posities meer geopend worden.
+
+    5ers weigert de trade zelf zodra de hefboom op is. Dat is geen ramp — de
+    order faalt netjes en de bot gaat door — maar het levert wel een STIL
+    verschil met de backtest op: live slaat een trade over die de backtest wel
+    nam. Beter is om ruim voor die grens zelf te stoppen, zodat het verschil
+    zichtbaar in het log staat in plaats van in een retcode te verdwijnen.
+
+    70% laat een derde over voor de zwevende verliezen van wat al openstaat.
+    """
+    return float(os.getenv("W5_MARGIN_BLOCK_PCT", "70"))
+
+
+def _w5_margin_class(symbol):
+    """Activaklasse voor MARGE — niet hetzelfde als _w5_asset_class.
+
+    _w5_asset_class kent geen COMMODITY: olie valt daar onder FX, wat voor
+    risicotolerantie klopt (olie krijgt dezelfde 1,10 als FX) maar voor marge
+    50 keer misgaat. XTI op $75 zou als FX $75.000 marge per lot vragen in
+    plaats van $1.500, en dan wordt elke olietrade geweigerd.
+
+    Die functie blijft daarom ongemoeid — hij stuurt bestaand gedrag aan — en
+    marge krijgt zijn eigen indeling.
+    """
+    u = (symbol or "").upper().replace("_", "").replace("/", "")
+    if any(x in u for x in ("XBR", "XTI", "BCO", "WTICO", "OIL", "NGAS")):
+        return "COMMODITY"
+    return _w5_asset_class(symbol)
+
+
+def _w5_contract_size(symbol):
+    u = (symbol or "").upper().replace("_", "").replace("/", "")
+    for name, cs in W5_CONTRACT.items():
+        if name in u:
+            return cs
+    return 100_000.0
+
+
+def _w5_margin_per_lot(symbol, price, account_currency_rate=1.0):
+    """Vereiste marge voor 1,00 lot, in USD.
+
+    Voor FX is de notional de contractgrootte in de BASISVALUTA omgerekend naar
+    USD, niet contractgrootte maal de genoteerde prijs. Voor USD_JPY is dat
+    $100.000 en niet 100.000 x 110. Die fout maakt JPY-paren honderd keer te
+    zwaar en blokkeert alles.
+    """
+    cls = _w5_margin_class(symbol)
+    lev = W5_LEVERAGE.get(cls, 100.0)
+    u = (symbol or "").upper().replace("/", "")
+    if cls != "FX":
+        notional = _w5_contract_size(symbol) * float(price)
+    else:
+        parts = u.split("_") if "_" in u else [u[:3], u[3:6]]
+        base, quote = (parts + ["", ""])[:2]
+        if quote == "USD":
+            notional = 100_000.0 * float(price)
+        elif base == "USD":
+            notional = 100_000.0
+        else:
+            rate = (account_currency_rate if account_currency_rate != 1.0
+                    else _w5_usd_rate(base))
+            notional = 100_000.0 * float(rate)
+    return notional / lev if lev > 0 else 0.0
+
+
 def _w5_max_cum_risk_pct():
     """Cap on summed open risk as a % of balance (CFG_MAX_CUM_RISK).
 
@@ -814,6 +913,36 @@ class LiveTradingBot:
                     current_equity = self._calculate_mid_equity()
                     if current_equity <= 0:
                         current_equity = account.get("equity", 0)  # fallback
+
+                    # === MARGEBEWAKING — elke 5 s, samen met DDD en TDD ===
+                    # 5ers weigert nieuwe trades zodra de hefboom op is. Dat is
+                    # een stille afwijking van de backtest, die helemaal geen
+                    # marge modelleert. Hier wordt het zichtbaar gemaakt en
+                    # stopt de bot uit zichzelf voordat de broker hem stopt.
+                    _m_used, _m_eq, _m_pct = self._w5_margin_state(account)
+                    self._w5_margin_pct = _m_pct
+                    _m_block = _w5_margin_block_pct()
+                    _m_warn = _w5_margin_warn_pct()
+                    if _m_pct >= _m_block:
+                        if not getattr(self, '_w5_margin_blocked', False):
+                            log.error("=" * 70)
+                            log.error(f"[W5] MARGE BLOKKADE: {_m_pct:.1f}% van de equity in "
+                                      f"gebruik (${_m_used:,.0f} van ${_m_eq:,.0f})")
+                            log.error(f"  Grens {_m_block:.0f}% — GEEN nieuwe posities. "
+                                      f"Bestaande posities blijven staan.")
+                            log.error("=" * 70)
+                        self._w5_margin_blocked = True
+                    elif _m_pct >= _m_warn:
+                        if not getattr(self, '_w5_margin_warned', False):
+                            log.warning(f"[W5] marge {_m_pct:.1f}% van de equity "
+                                        f"(${_m_used:,.0f} van ${_m_eq:,.0f}), "
+                                        f"waarschuwing bij {_m_warn:.0f}%, "
+                                        f"blokkade bij {_m_block:.0f}%")
+                            self._w5_margin_warned = True
+                        self._w5_margin_blocked = False
+                    else:
+                        self._w5_margin_blocked = False
+                        self._w5_margin_warned = False
 
                     # Get fixed day_start_equity from challenge_manager (never updated during day)
                     if not self.challenge_manager:
@@ -4811,6 +4940,26 @@ class LiveTradingBot:
                          f"(open ${_existing:,.0f}, cap ${_cap_usd:,.0f})")
                 lot_size = _new_lot
 
+        # ── W5: MARGEPOORT — de laatste controle voor elke order ─────────────
+        # Twee redenen om dit hier te doen en niet alleen in de 5-secondenlus.
+        # De lus kijkt naar wat er AL openstaat; deze poort kijkt naar wat deze
+        # order er nog bovenop legt. En dit is het enige punt waar iedere order
+        # langskomt, ongeacht via welke wachtrij hij binnenkwam.
+        #
+        # De backtest kent geen marge (csv_mt5_simulator.py zet margin op 0,0),
+        # dus dit kan alleen strenger zijn dan de backtest, nooit ruimer. Bij
+        # het gemeten piekgebruik van 28,6% in de challengefase hoort deze poort
+        # nooit te vuren; doet hij dat wel, dan klopt de meting niet en wil je
+        # dat in het log zien.
+        if getattr(self, '_w5_margin_blocked', False):
+            log.error(f"[{symbol}] [W5] ORDER GEWEIGERD: margeblokkade actief "
+                      f"({getattr(self, '_w5_margin_pct', 0):.1f}% in gebruik)")
+            return 0.0
+        _mb, _mr = self._w5_margin_would_block(symbol, lot_size, entry)
+        if _mb:
+            log.error(f"[{symbol}] [W5] ORDER GEWEIGERD: {_mr}")
+            return 0.0
+
         return lot_size
 
     def _w5_regime_risk_multiplier(self, symbol: str) -> float:
@@ -4855,6 +5004,49 @@ class LiveTradingBot:
                 mult = m_vol if ratio >= thr else m_calm
         cache[key] = mult
         return mult
+
+    def _w5_margin_state(self, account=None):
+        """(gebruikte marge, equity, gebruik in %) — uit MT5, niet geschat.
+
+        MT5 rekent de marge zelf uit met de hefbomen die 5ers op de server heeft
+        staan, dus dit is de waarheid. _w5_margin_per_lot bestaat alleen om
+        VOORAF in te schatten wat een nog niet geplaatste order gaat kosten.
+
+        Geeft (0, 0, 0) terug als het accountinfo niet op te halen is; de
+        aanroeper moet dan niet blokkeren, want een verbroken verbinding is geen
+        margeprobleem.
+        """
+        try:
+            a = account if account is not None else self.mt5.get_account_info()
+            if not a:
+                return 0.0, 0.0, 0.0
+            used = float(a.get("margin", 0.0) or 0.0)
+            equity = float(a.get("equity", 0.0) or 0.0)
+            if equity <= 0:
+                return used, 0.0, 0.0
+            return used, equity, used / equity * 100.0
+        except Exception as e:
+            log.debug(f"[W5] margestatus niet leesbaar: {e}")
+            return 0.0, 0.0, 0.0
+
+    def _w5_margin_would_block(self, symbol, lot_size, price):
+        """Zou deze order het margegebruik boven de blokkeergrens duwen?
+
+        Geeft (True, reden) terug als de order geweigerd moet worden.
+        """
+        block = _w5_margin_block_pct()
+        if block >= 100:
+            return False, ""
+        used, equity, pct = self._w5_margin_state()
+        if equity <= 0:
+            return False, ""
+        extra = _w5_margin_per_lot(symbol, price) * float(lot_size)
+        projected = (used + extra) / equity * 100.0
+        if projected > block:
+            return True, (f"marge zou naar {projected:.1f}% gaan "
+                          f"(nu {pct:.1f}%, deze order +${extra:,.0f}, "
+                          f"grens {block:.0f}%)")
+        return False, ""
 
     def _w5_total_open_risk_usd(self) -> float:
         """Worst-case loss to stop-loss across all OPEN positions, in USD.

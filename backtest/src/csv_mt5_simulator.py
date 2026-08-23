@@ -258,6 +258,19 @@ class CSVMT5Simulator:
         # phantom breach on every payout day. Callers subtract the within-day
         # delta of this counter before measuring daily drawdown.
         self._payout_balance_removed: float = 0.0
+        # Calendar-driven payouts. Default OFF, so every existing result is
+        # unchanged. FIVEERS_PAYOUT_DAYS=14 makes the account also sweep profit
+        # above the funded level every 14 days, on top of the +10% milestone
+        # sweep. FIVEERS_PAYOUT_AT_CAP_ONLY=1 restricts that to a capped
+        # account, which is the interesting case: below the cap a withdrawal
+        # delays the next rung, and crossing a rung is worth more than the cash
+        # because 5ers raises the allocation. Once capped there are no rungs
+        # left, so waiting for +10% only leaves money exposed.
+        self._payout_days: int = int(os.getenv("FIVEERS_PAYOUT_DAYS", "0") or 0)
+        self._payout_at_cap_only: bool = os.getenv(
+            "FIVEERS_PAYOUT_AT_CAP_ONLY", "0").strip().lower() in ("1", "true", "yes", "on")
+        self._last_calendar_payout = None
+        self._calendar_payouts: list = []
 
     # ═══════════════════════════════════════════════════════════════════════
     # FEE SIMULATION - 5ers realistic costs
@@ -348,6 +361,51 @@ class CSVMT5Simulator:
                 return level
         return self._max_balance
 
+    def _split_for_level(self, level: float) -> float:
+        """5ers profit split at a funded level, per the official scaling plan."""
+        if level >= 350_000:
+            return 1.00
+        if level >= 250_000:
+            return 0.90
+        if level >= 175_000:
+            return 0.85
+        return 0.80
+
+    def _maybe_calendar_payout(self):
+        """Sweep profit above the funded level on a fixed calendar interval.
+
+        Inert unless FIVEERS_PAYOUT_DAYS is set. This exists to answer whether
+        taking profit every two weeks beats waiting for the +10% milestone. The
+        two differ only in timing, never in split: 5ers pays the same
+        percentage either way. What changes is how long profit sits on the
+        account, and — below the cap — how long it takes to reach the next rung.
+        """
+        if self._payout_days <= 0:
+            return
+        if self._payout_at_cap_only and self._funded_level < self._max_balance:
+            return
+        now = self._current_time
+        if self._last_calendar_payout is None:
+            self._last_calendar_payout = now
+            return
+        if (now - self._last_calendar_payout).days < self._payout_days:
+            return
+        self._last_calendar_payout = now
+        profit = self._balance - self._funded_level
+        if profit <= 0:
+            return
+        split = self._split_for_level(self._funded_level)
+        self._total_withdrawn += profit * split
+        self._calendar_payouts.append({
+            'time': str(now),
+            'level': self._funded_level,
+            'profit_swept': round(profit, 2),
+            'trader_payout': round(profit * split, 2),
+            'profit_split': split,
+        })
+        self._balance = self._funded_level
+        self._payout_balance_removed += profit
+
     def _apply_fiveers_scaling(self):
         """Apply 5ers scaling rules after each balance change.
 
@@ -361,6 +419,8 @@ class CSVMT5Simulator:
         # floor) removed. Default off, so no existing result changes.
         if os.getenv("FIVEERS_SCALING_OFF", "0").strip().lower() in ("1", "true", "yes", "on"):
             return
+        self._maybe_calendar_payout()
+
         if self._balance <= self._funded_level:
             return
 
