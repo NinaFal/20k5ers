@@ -1,3 +1,7 @@
+> **BEANTWOORD op 2026-08-23.** De reactie van support en wat er met de
+> cijfers verandert staat in `5ERS_ANSWERS.md`. Dit bestand blijft staan als
+> vastlegging van wat er precies gevraagd is.
+
 # E-mail aan 5ers support
 
 **Aan:** support@the5ers.com

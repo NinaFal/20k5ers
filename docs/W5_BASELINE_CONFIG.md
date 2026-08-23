@@ -111,7 +111,12 @@ breaches, under strict intrabar marking):
 | start | years | trading profit | fixed payouts | worst daily | worst total |
 |---|---|---|---|---|---|
 | $100k, 2016-2025 | 10 | $3,400,723 | not computed | 4.73% | 4.27% |
-| $50k, 2015-2025 | 11 | $3,622,756 | $672,000 | 4.09% | 6.33% |
+| $50k, 2015-2025 | 11 | $3,622,756 | $600k-$1.15M | 4.09% | 6.33% |
+
+The fixed-payout column was $672,000 and that figure was wrong — see
+`5ERS_ANSWERS.md` §2. 5ers pays $10,000 **per month** at the 500K level, not
+per withdrawal; 115 months to end-2025 gives $1,150,000 unconditional or
+$600,000 if a profitable month is required. Working figure $120,000/year.
 
 Once both reach the $500k cap they are **bit-for-bit identical**; starting at
 $50k costs one extra year of climbing and nothing else.
@@ -132,27 +137,50 @@ configuration. Changing an assertion is safe while the backtest runs — it eith
 raises or does not — unlike the behavioural fields in that file, which the
 backtest imports and which must never be edited.
 
-**The real constraint on size is margin.** At 1:100 each standard lot ties up
-$1,000, so a $500k account supports at most 500 lots if it spends every cent of
-margin. Measured peak concurrent exposure:
+**The real constraint on size is margin, and 5ers has now confirmed the
+leverages:** FX 1:100, indices and metals 1:25, commodities 1:5, crypto 1:2.
+Every earlier figure in this document assumed 1:100 on everything and was
+therefore too low. Margin per lot at the real schedule:
 
-| account | peak concurrent lots | margin at 1:100 | % of equity |
-|---|---|---|---|
-| $100k climbing | 69.37 | $69,370 | **69.4%** |
-| $500k at cap | 62.80 | $62,800 | 12.6% |
+| instrument | class | leverage | notional | margin/lot |
+|---|---|---|---|---|
+| EUR_USD | FX | 1:100 | $110,000 | $1,100 |
+| USD_JPY | FX | 1:100 | $100,000 | $1,000 |
+| XAU_USD | metal | 1:25 | $200,000 | $8,000 |
+| XAG_USD | metal | 1:25 | $125,000 | $5,000 |
+| NAS100_USD | index | 1:25 | $20,000 | $800 |
+| BTC_USD | crypto | 1:2 | $60,000 | $30,000 |
 
-Peak exposure is essentially flat in absolute terms while equity grows 5x, so
-margin pressure is concentrated entirely in the climb — the same phase that
-produces every breach.
+Re-measured over 2019 (a climbing year, no crypto data before 2020) and 2023
+(the only full year that actually exercises the 1:2 crypto leverage), with used
+margin divided by the balance **at that moment** rather than the starting
+balance:
 
-Two caveats on that 69.4%. It assumes 1:100 on **every** instrument, which is the
-headline FX number; metals, indices and crypto are normally leveraged lower, and
-this config trades XAU, XAG and NAS100. And the simulator models no margin at
-all — `csv_mt5_simulator.py:557-559` hardcodes `margin: 0.0` and
-`margin_free: equity` — so the backtest will happily open positions a broker
-would reject. **Get the per-asset-class leverage from 5ers**; if indices are
-1:20, NAS100 positions consume five times what is credited above and the
-climbing phase may be at the margin ceiling rather than at 69% of it.
+| run | peak margin / balance | heaviest single position |
+|---|---|---|
+| 2019, $50k start | 43.0% | XAU 13.5% |
+| 2019, $500k start | 8.9% | XAU 2.5% |
+| 2023, $50k start | 72.4% | ETH 21.7% |
+| 2023, $500k start | 11.1% | ETH 2.2% |
+
+Restricted to the challenge phase, while the balance is still under $55k and the
+account is at its smallest:
+
+| run | peak margin / balance | heaviest single position |
+|---|---|---|
+| 2019 | 14.7% | 3.6% |
+| 2023 | **28.6%** | 7.4% |
+
+**Margin never binds.** The tightest moment in a challenge uses 28.6% of what is
+available, better than three times clear of the limit, and no individual
+position exceeds 22%. 5ers would not have rejected a single trade in either
+year. This retires the 69.4% figure and the open question about whether indices
+at 1:20 would put the climb at the ceiling — they do not.
+
+The simulator still models no margin at all (`csv_mt5_simulator.py:557-559`
+hardcodes `margin: 0.0`, `margin_free: equity`), so the absence of a problem is
+a measurement, not a guarantee. It covers two years of eleven. Redo it if
+`MAX_TOTAL_POSITIONS`, `CORR_GROUP_CAP` or `risk_per_trade_pct` increase.
 
 **Per-position cap: 50 lots** (`main_live_bot.py:4361`). Not published on the
 High Stakes page either — reconfirm with support.
@@ -166,13 +194,11 @@ Realised sizes under this config are far below it:
 
 So the cap never binds in normal operation.
 
-**Open question for 5ers support — this one could actually change results.** The
-50-lot limit is *per position*. Whether 5ers also caps **aggregate** exposure
-across all open positions is not published on any page found. This config runs
-up to 20 concurrent positions (`MAX_TOTAL_POSITIONS=20`), so at $500k it can
-hold roughly 200-500 lots open at once. A total-exposure ceiling would bind
-where the per-position cap does not, and unlike the backtest's max_lot defect it
-would materially change these numbers. Ask alongside the fixed-payout question.
+**Answered:** there is no aggregate exposure cap. Support confirmed that any
+number of positions may be open as long as margin allows, and that the account
+rejects the trade once leverage is exhausted. The earlier worry — that a
+total-exposure ceiling would bind where the per-position cap does not — does
+not apply.
 
 **Known defect, no impact on these results.** The backtest reads
 `symbol_info.get('max_lot', 100.0)` (`main_live_bot_backtest.py:3454`) but
@@ -191,7 +217,20 @@ instead. Separating them needs a run with the TDD tiers disabled.
 
 ## 4. Before this can be traded
 
-Unchanged from `W5_FINAL_SETTINGS.md` §4 — none of the tuned environment
-variables are read by any live-bot file, the nightly de-risk pass has no live
-implementation, and `ftmo_config.py` defaults differ sharply (`risk_per_trade_pct`
-0.6 against the validated 2.7). Read that section before going live.
+`W5_FINAL_SETTINGS.md` §4 described a state that no longer holds: it was written
+before the live port. All tuned environment variables now reach `main_live_bot.py`
+through the `_w5_*` bridge helpers, the nightly de-risk pass has a live
+implementation, and the `ftmo_config.py` mismatch is handled by the bridge rather
+than by editing that file — which must stay untouched, since the backtest imports
+the same object and editing it silently changes backtest results.
+
+Verify with `backtest/src/w5_acceptance.py` (config layer plus deployment
+pre-flight) and `backtest/src/w5_full_check.py` (five layers, currently zero
+unexplained differences). Launch through `deploy/start_live.bat`, which runs the
+acceptance test first and refuses to start without credentials in the machine
+environment.
+
+What is still genuinely open before real money: costs are modelled at a flat
+1.0 pip across all instruments and the sensitivity sweep is only part-done; the
+nightly de-risk hour was tuned at 22:00 UTC under that flat-spread model and the
+live default is 21:00; and none of this has run on a 5ers demo yet.

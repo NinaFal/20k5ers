@@ -31,8 +31,16 @@ restates it.
 
 | start | period | trading profit | fixed payouts | worst daily | worst total |
 |---|---|---|---|---|---|
-| $50k | 2015–2025 | $3,622,756 | $672,000 | 4.09% | 6.33% |
+| $50k | 2015–2025 | $3,622,756 | $600k–$1,150,000 | 4.09% | 6.33% |
 | $100k | 2016–2025 | $3,400,723 | not computed | 4.73% | 4.27% |
+
+The fixed-payout figure was **$672,000 and that was wrong** — the model paid
+$10k per withdrawal event, so the answer tracked the simulator's payout cadence
+rather than the calendar. 5ers confirmed $10,000 **per month** once the account
+is at the 500K level. The account reaches 500K in June 2016, giving 115
+calendar months to end-2025: $1,150,000 if the payment is unconditional,
+$600,000 if it requires a profitable month. Working figure **$120,000/year at
+the cap**. Detail and per-year breakdown in `5ERS_ANSWERS.md`.
 
 Zero breaches in either. Once both reach the $500k cap they are bit-for-bit
 identical — starting at $50k costs one extra year of climbing and nothing else.
@@ -62,16 +70,34 @@ first-trade ceiling, not a per-trade norm.
 2. **Costs are optimistic.** Every result used a flat **1.0 pip** spread across
    all instruments including XAU, XAG, NAS100 and crypto. Live costs are higher
    by an unmeasured margin.
-3. **No margin model.** `csv_mt5_simulator.py:557-559` hardcodes `margin: 0.0`.
-   Measured peak exposure is 69.4% of equity while climbing at 1:100 — and that
-   assumes 1:100 on indices and metals too, which is unlikely.
+3. **No margin model, but now measured.** `csv_mt5_simulator.py:557-559` still
+   hardcodes `margin: 0.0`, so the backtest can open a book a broker would
+   refuse. Re-measured at the real 5ers leverages (FX 1:100, indices/metals
+   1:25, commodities 1:5, crypto 1:2) over 2019 and 2023, margin peaks at
+   **28.6% of balance during the challenge phase** and 72.4% at the highest
+   point of a full year after the account has grown. No single position exceeds
+   22%. Margin does not bind for this configuration. It is two years of eleven,
+   and the measurement must be redone if `MAX_TOTAL_POSITIONS`, `CORR_GROUP_CAP`
+   or `risk_per_trade_pct` go up.
 4. **Nightly de-risk hour.** Tested at 22:00 UTC under a flat-spread model that
    cannot see the 21:30–22:30 rollover window. Live defaults to 21:00.
 
-## Questions for 5ers
+## Questions for 5ers — answered 2026-08-23
 
-- Is the $10k fixed payout per milestone, monthly, or one-off? (~$500k/decade)
-- Per-asset-class leverage — 1:100 on indices and metals too?
-- Any aggregate exposure cap beyond the 50-lot per-position limit?
-- Are withdrawals charged against the daily loss limit? The capped-year results
-  assume they are not.
+All four came back; full text and consequences in `5ERS_ANSWERS.md`.
+
+- **Fixed payout** — $10,000 per month at the 500K level. Corrected above.
+- **Leverage** — FX 1:100, indices and metals 1:25, commodities 1:5, crypto
+  1:2. Prompted the margin re-measurement in gap 3.
+- **Aggregate exposure cap** — none. "As many positions as you wish as long as
+  the account leverage allows you"; margin is the only ceiling.
+- **Withdrawals and the daily limit** — not charged as a loss. 5ers resets the
+  baseline to the post-withdrawal balance; the model keeps the pre-withdrawal
+  `day_start_equity` and nets the payout out of the numerator. The two differ
+  by about $1,650 of allowance on payout days at the cap, against a worst
+  observed day of 4.09%. No change needed.
+
+Still open: whether the $10,000 is unconditional or tied to a profitable month
+($1.15M against $600k over the decade), and whether the 50-lot per-position
+limit the bot enforces is real — support did not mention it and measured sizes
+top out at 16-35 lots.

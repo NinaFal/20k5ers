@@ -263,3 +263,4 @@ backtest/output/doe/stageS*.csv
 .claude/
 backtest/output/doe/full_2step_eval.json
 backtest/output/doe/wall5/*_run.log
+backtest/output/doe/wall5/margin_trades/
