@@ -142,19 +142,45 @@ Let op dat "Contract Size × Current Price" voor FX de notional in de
 basisvaluta is, niet contractgrootte maal quote; anders komt USD_JPY er honderd
 keer te zwaar uit.
 
-**Kan marge ooit bindend worden?** Nee, en niet omdat de backtest hem niet
-modelleert maar omdat de drawdownbeveiliging zes keer eerder vuurt. Gebruikte
-marge staat vast zodra een positie open is; het gebruik stijgt alleen doordat de
-equity daalt. Vanaf het gemeten piekgebruik van 28,6% moet de equity **59%**
-zakken om zelfs maar de eigen blokkade te raken, en 86% om een gebruikelijke
-stop-out van 50% margeniveau te halen. Het account is dood bij 10%, en de bot
-sluit zelf alles bij 2,50% op de dag. Daarom is er geen noodsluiting op marge:
-die zou nooit als eerste aan de beurt zijn.
+**Wat voor soort grens dit is — en waar een eerdere versie hiervan de mist in
+ging.** Ik heb dit eerst als een stop-out beschreven, een niveau waarop posities
+gedwongen gesloten worden. Dat is niet wat support beschrijft en het staat
+nergens in hun antwoord. Wat er staat is een plafond op wat je kunt OPENEN: de
+order wordt geweigerd, meer niet. Bestaande posities blijven staan. Er is dus
+geen liquidatiemechanisme in beeld en de vraag "loopt de marge vol" is de
+verkeerde vraag.
 
-Wat 5ers als stop-outniveau hanteert staat nergens in de documentatie die ik
-heb; `stop_out_level` in de backtest is de 10%-regel, niet een margeniveau. De
-berekening hierboven gebruikt 50% als gangbare waarde. Het is de moeite waard
-om het echte getal na te vragen, al verandert het de conclusie niet.
+De juiste vraag is: vraagt de bot ooit meer lots aan dan er nog passen? Gemeten
+met `w5_maxlot_headroom.py`, tegen de formule van support zelf:
+
+| run | zwaarste enkele order t.o.v. het symboolplafond | cumulatief t.o.v. de balans |
+|---|---|---|
+| 2019, $50k | 13,7% — EUR_CHF 13,68 van 100,0 lots | 43,0% |
+| 2019, $500k | 2,5% — XAU 3,18 van 125,0 lots | 8,9% |
+| 2023, $50k | **21,7%** — ETH 30,95 van 142,5 lots | **72,4%** |
+| 2023, $500k | 5,7% — BTC 2,52 van 44,0 lots | 11,1% |
+
+Geen enkele order komt boven 22% van wat dat symbool op dat moment toestaat —
+ruim vier keer ruimte. Cumulatief is de krapste meting 72,4%, en weigering
+treedt pas op bij 100%, dus ook daar blijft 1,4x over.
+
+De zorg dat het plafond gaat binden naarmate de lots groeien klopt intuïtief
+maar niet in de cijfers, en wel om een reden die makkelijk over het hoofd te
+zien is: **het plafond groeit mee met de balans, en het risico per trade doet
+het omgekeerde.** Onder $300k risicoot de bot 2,70-3,92% per trade, vanaf $300k
+nog maar 0,60-0,87% (zie `W5_BASELINE_CONFIG.md` §2b). Bij $500k is de krapste
+order 5,7% van het plafond tegen 21,7% bij $50k. De druk zit dus in de
+KLEINE-accountfase, niet in de grote, en zelfs daar is er vier keer ruimte.
+
+Waar het het krapst wordt is crypto op 1:2, en dat is precies het stuk met de
+zwakste data — 24 trades op uurbars vanaf 2023 (zie `W5_DATA_INTEGRITY.md`).
+Dat cijfer van 21,7% rust op weinig.
+
+Een stop-out bestaat technisch op elke MT5-rekening, maar is hier niet de
+bindende grens: het account is bij een equitydaling van 10% al dood door de
+totale muur, en de bot sluit zelf alles bij 2,50% op de dag. 5ers noemt geen
+stop-outniveau en `stop_out_level` in de backtest is de 10%-regel, geen
+margeniveau.
 
 **Hoe de live bot met een weigering omgaat.** Er is geen margecontrole vooraf —
 `main_live_bot.py` roept nergens `order_check` aan en kijkt niet naar
