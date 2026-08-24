@@ -31,6 +31,11 @@ september 2014 en is echte dagdata; die wordt hier niet overschreven maar apart
 gehouden, zodat de afweging tussen langere historie en een consistente bron
 achteraf te maken is in plaats van nu stilzwijgend.
 
+H4 ZIT ER OOK BIJ, hoewel er niet om gevraagd is. De confluentie leest
+maandelijks, wekelijks, dagelijks EN H4 (`main_live_bot_backtest.py:3042-3045`).
+Zonder H4 valt hij terug op `daily_candles[-20:]` — twintig dagbars in plaats van
+vierhonderd vier-uursbars. Dat werkt, maar het is een andere invoer dan bedoeld.
+
 Draaien:  uv run python3 scripts/download_crypto_binance.py
 """
 import csv, io, sys, time, urllib.request, zipfile
@@ -43,7 +48,7 @@ BASE = "https://data.binance.vision/data/spot/monthly/klines"
 
 SYMBOLS = {"BTCUSDT": "BTC_USD", "ETHUSDT": "ETH_USD"}
 # Binance-interval -> onze timeframe-naam zoals csv_mt5_simulator hem zoekt.
-INTERVALS = {"15m": "M15", "1d": "D1", "1w": "W1", "1mo": "MN"}
+INTERVALS = {"15m": "M15", "4h": "H4", "1d": "D1", "1w": "W1", "1mo": "MN"}
 START = date(2017, 8, 1)
 END = date(2025, 12, 1)
 
