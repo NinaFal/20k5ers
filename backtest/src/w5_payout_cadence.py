@@ -31,7 +31,7 @@ Drie armen, allemaal $50.000 start, 2015-2025, jaar voor jaar doorgerold:
 
 Draaien:  uv run python3 backtest/src/w5_payout_cadence.py
 """
-import importlib.util, json, os, shutil, subprocess, sys
+import hashlib, importlib.util, json, os, shutil, subprocess, sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -51,6 +51,61 @@ ARMS = (
 )
 
 MONTHLY_FIXED = 10_000
+
+
+def data_fingerprint():
+    """Vingerafdruk van de koersdata waarop een resultaat gemeten is.
+
+    Deze cache wordt jaar voor jaar opgebouwd en kan dagen beslaan. Als de
+    onderliggende data intussen verandert — zoals bij het vervangen van de
+    Yahoo-cryptobestanden door Binance — dan zijn de oude jaren gemeten in een
+    andere wereld dan de nieuwe, en levert hervatten een vergelijking op tussen
+    twee dingen die niet vergelijkbaar zijn. Zonder deze controle gebeurt dat
+    stil: het script hervat gewoon en de tabel ziet er net zo overtuigend uit.
+
+    Naam plus grootte van elk M15-bestand is genoeg. De inhoud hashen zou een
+    gigabyte lezen bij elke start voor een zekerheid die hier niet nodig is.
+    """
+    d = w5.cs.dh.REPO / "data" / "ohlcv"
+    parts = sorted(f"{f.name}:{f.stat().st_size}" for f in d.glob("*_M15*.csv"))
+    return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
+
+
+def check_vintage(res):
+    """Weigert te hervatten als de data sinds de vorige run veranderd is.
+
+    Een ontbrekende vingerafdruk op een cache die AL jaren bevat betekent niet
+    "in orde", het betekent "onbekend" — die cache is opgebouwd voordat deze
+    controle bestond en er is niets dat zegt op welke data. Een eerdere versie
+    hiervan stempelde in dat geval gewoon de huidige vingerafdruk en liet de run
+    doorgaan, precies het stille scenario dat de controle moest afvangen.
+    """
+    now = data_fingerprint()
+    was = res.get("_data_fingerprint")
+    has_work = any(isinstance(v, dict) and v.get("years") for v in res.values())
+    if not has_work:
+        res["_data_fingerprint"] = now
+        return True
+    if was == now:
+        return True
+    if was is None:
+        was = "ONBEKEND (cache van voor deze controle)"
+    print("=" * 78, flush=True)
+    print("GESTOPT — de koersdata is veranderd sinds deze cache is opgebouwd.", flush=True)
+    print(f"  cache gemeten op data {was}", flush=True)
+    print(f"  huidige data          {now}", flush=True)
+    print("", flush=True)
+    print("De opgeslagen jaren zijn gemeten op andere data dan de jaren die nu", flush=True)
+    print("zouden volgen. Hervatten levert een vergelijking op tussen twee", flush=True)
+    print("verschillende werelden, en dat is aan de uitkomst niet te zien.", flush=True)
+    print("", flush=True)
+    print("Ook de referentiearm komt uit fiftyk_decade.json en is op de OUDE", flush=True)
+    print("data gemeten; die moet dus net zo goed opnieuw.", flush=True)
+    print("", flush=True)
+    print(f"  verplaats {OUT.name} en start opnieuw, of", flush=True)
+    print("  draai met --resume-anyway als je bewust een gemengde run wilt.", flush=True)
+    print("=" * 78, flush=True)
+    return False
 
 
 def run_year(over, year, balance, tag):
@@ -104,6 +159,8 @@ def months_at_cap(years_dict):
 
 def main():
     res = w5.load_json(OUT)
+    if not check_vintage(res) and "--resume-anyway" not in sys.argv:
+        return 1
     (w5.DOE_DIR / "tmp").mkdir(parents=True, exist_ok=True)
     for arm, over in ARMS:
         slot = res.setdefault(arm, {"years": {}})
@@ -169,7 +226,8 @@ def main():
         print(f"    {name:<22}{hit or 'nooit'}", flush=True)
 
     print("\n[w5_payout_cadence] DONE_MARKER", flush=True)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main() or 0)
