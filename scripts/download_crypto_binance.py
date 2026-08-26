@@ -16,7 +16,11 @@ gedraagt rust daarop.
 
 BRON. data.binance.vision, de publieke archieven van Binance. Geen sleutel
 nodig, maandelijkse zips per symbool en interval, tijden in UTC.
-BTCUSDT en ETHUSDT beginnen allebei in augustus 2017.
+BTCUSDT en ETHUSDT beginnen in augustus 2017, ADAUSDT in april 2018 en
+XRPUSDT in mei 2018. XRP en ADA staan in `CRYPTO_ASSETS` en dus in de
+verhandelbare lijst van 5ers, maar hadden tot nu toe GEEN ENKEL databestand op
+geen enkele timeframe. De backtest sloeg ze stil over; live zou de bot ze wel
+verhandelen, want MT5 heeft die data wel. Dat verschil werd nergens gelogd.
 
 BTCUSDT IS NIET BTCUSD. 5ers noteert tegen USD, Binance tegen USDT. Die twee
 lopen in de praktijk binnen een fractie van een procent uit elkaar, maar het is
@@ -46,7 +50,8 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "ohlcv"
 BASE = "https://data.binance.vision/data/spot/monthly/klines"
 
-SYMBOLS = {"BTCUSDT": "BTC_USD", "ETHUSDT": "ETH_USD"}
+SYMBOLS = {"BTCUSDT": "BTC_USD", "ETHUSDT": "ETH_USD",
+           "XRPUSDT": "XRP_USD", "ADAUSDT": "ADA_USD"}
 # Binance-interval -> onze timeframe-naam zoals csv_mt5_simulator hem zoekt.
 INTERVALS = {"15m": "M15", "4h": "H4", "1d": "D1", "1w": "W1", "1mo": "MN"}
 START = date(2017, 8, 1)
