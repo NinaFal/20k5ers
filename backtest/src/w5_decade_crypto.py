@@ -32,25 +32,35 @@ w5 = importlib.util.module_from_spec(_w); _w.loader.exec_module(w5)
 START_BALANCE = 50_000.0
 YEARS = list(range(2015, 2026))
 SCALE_CAP = "500000"
-# Twee armen op DEZELFDE code. Dat is de hele reden dat dit bestaat.
+# Armen op DEZELFDE code, die alleen verschillen in wat er uitgesloten wordt.
 #
-# De opgeslagen fiftyk_decade.json is geschreven voordat commit 4e71041 het
-# 50-lots plafond in de backtest herstelde (de backtest las 'max_lot' terwijl
-# get_symbol_info 'volume_max' teruggeeft, miste dus altijd en viel terug op 100
-# lots — het dubbele van wat 5ers toestaat). Daardoor verschilt 2016 met
-# $1.013 terwijl er in dat jaar nul cryptotrades waren: zelfde 1.020 trades,
-# zelfde win rate, zelfde DDD en TDD, ander geld.
+# ABSOLUUT, niet relatief. Een eerdere versie zette hier alleen de EXTRA
+# uitsluitingen bovenop BASE_ENV. Dat werkte tot BASE_ENV zelf veranderde: sinds
+# BTC en ETH daar zijn toegevoegd zou de arm 'crypto' opnieuw gedraaid iets
+# anders betekenen dan toen hij gedraaid werd, en dat is aan de naam niet te
+# zien. Elke arm noemt nu de volledige lijst.
 #
-# Die oude reeks naast de nieuwe leggen meet dus crypto EN het lotsplafond door
-# elkaar. De arm 'nocrypto' draait daarom op de huidige code met BTC en ETH
-# uitgesloten; het verschil tussen de twee armen is dan zuiver crypto.
+# Waarom een referentiearm op dezelfde code nodig is: de opgeslagen
+# fiftyk_decade.json dateert van voor commit 4e71041, die het 50-lots plafond in
+# de backtest herstelde (er werd 'max_lot' gelezen terwijl get_symbol_info
+# 'volume_max' teruggeeft, dus miste de lookup altijd en viel hij terug op 100
+# lots, het dubbele van wat 5ers toestaat). 2016 liet dat zien: $1.013 verschil
+# bij nul cryptotrades, zelfde 1.020 trades, zelfde win rate, zelfde DDD en TDD.
 ARMS = {
-    "crypto":   "",                       # niets extra uitsluiten
-    "nocrypto": "BTC_USD,ETH_USD",
+    # de vastgestelde configuratie — dit is de referentie
+    "nocrypto": "AUD_NZD,EUR_NZD,AUD_JPY,XRP_USD,ADA_USD,BTC_USD,ETH_USD",
+    # crypto weer aan, verder gelijk
+    "crypto":   "AUD_NZD,EUR_NZD,AUD_JPY,XRP_USD,ADA_USD",
+    # de drie FX-paren weer aan, crypto blijft uit
+    "fxpairs":  "XRP_USD,ADA_USD,BTC_USD,ETH_USD",
+    # allebei weer aan, om te zien of de effecten optellen
+    "allon":    "XRP_USD,ADA_USD",
 }
-ARM = os.getenv("W5_DECADE_ARM", "crypto")
+ARM = os.getenv("W5_DECADE_ARM", "nocrypto")
+if ARM not in ARMS:
+    raise SystemExit(f"onbekende arm {ARM!r}; kies uit {sorted(ARMS)}")
 OUT = w5.W5_DIR / f"decade_{ARM}.json"
-OLD = w5.W5_DIR / "decade_nocrypto.json"   # de eerlijke referentie
+OLD = w5.W5_DIR / "decade_nocrypto.json"
 
 
 def run_year(year, balance):
@@ -58,10 +68,7 @@ def run_year(year, balance):
     e = dict(os.environ); e.update(w5.cs.dh.BASE_ENV)
     e.update(w5.BASE_ENV); e.update(b["env"])
     e["FIVEERS_MAX_SCALE"] = SCALE_CAP
-    extra = ARMS.get(ARM, "")
-    if extra:
-        base_excl = e.get("EXCLUDE_SYMBOLS", "")
-        e["EXCLUDE_SYMBOLS"] = (base_excl + "," + extra).strip(",")
+    e["EXCLUDE_SYMBOLS"] = ARMS[ARM]
     e["CFG_DAILY_WALL_PCT"] = w5.BASE_ENV.get("CFG_DAILY_WALL_PCT", "5.0")
     e.setdefault("BROKER_TYPE", "fiveers_live")
     tp = dict(w5.BASE_TP); tp.update(b["tp"])
@@ -138,14 +145,14 @@ def main():
     w5.atomic_write(OUT, res)
 
     old = {}
-    if ARM == "crypto" and OLD.exists():
+    if ARM != "nocrypto" and OLD.exists():
         old = json.loads(OLD.read_text()).get("years", {})
     print("\n" + "=" * 96, flush=True)
-    hdr = ("MET crypto  —  naast dezelfde code ZONDER crypto"
-           if ARM == "crypto" else "ZONDER crypto (referentiearm)")
+    hdr = (f"arm {ARM!r}  —  naast de referentiearm 'nocrypto'"
+           if ARM != "nocrypto" else "arm 'nocrypto' (de referentie zelf)")
     print(f"[dec] $50.000, 2015-2025, {hdr}", flush=True)
     print("=" * 96, flush=True)
-    print(f"\n  {'jaar':<6}{'crypto':>8}{'opgenomen NIEUW':>18}{'opgenomen ZONDER':>18}"
+    print(f"\n  {'jaar':<6}{'crypto':>8}{'opgenomen NIEUW':>18}{'opgenomen REFERENTIE':>21}"
           f"{'DDD n':>8}{'DDD o':>8}{'TDD n':>8}{'TDD o':>8}  {'niveau eind'}", flush=True)
     for y in YEARS:
         n = years.get(str(y)); o = old.get(str(y))
