@@ -32,8 +32,25 @@ w5 = importlib.util.module_from_spec(_w); _w.loader.exec_module(w5)
 START_BALANCE = 50_000.0
 YEARS = list(range(2015, 2026))
 SCALE_CAP = "500000"
-OUT = w5.W5_DIR / "decade_crypto.json"
-OLD = w5.W5_DIR / "_pre_crypto" / "fiftyk_decade.json"
+# Twee armen op DEZELFDE code. Dat is de hele reden dat dit bestaat.
+#
+# De opgeslagen fiftyk_decade.json is geschreven voordat commit 4e71041 het
+# 50-lots plafond in de backtest herstelde (de backtest las 'max_lot' terwijl
+# get_symbol_info 'volume_max' teruggeeft, miste dus altijd en viel terug op 100
+# lots — het dubbele van wat 5ers toestaat). Daardoor verschilt 2016 met
+# $1.013 terwijl er in dat jaar nul cryptotrades waren: zelfde 1.020 trades,
+# zelfde win rate, zelfde DDD en TDD, ander geld.
+#
+# Die oude reeks naast de nieuwe leggen meet dus crypto EN het lotsplafond door
+# elkaar. De arm 'nocrypto' draait daarom op de huidige code met BTC en ETH
+# uitgesloten; het verschil tussen de twee armen is dan zuiver crypto.
+ARMS = {
+    "crypto":   "",                       # niets extra uitsluiten
+    "nocrypto": "BTC_USD,ETH_USD",
+}
+ARM = os.getenv("W5_DECADE_ARM", "crypto")
+OUT = w5.W5_DIR / f"decade_{ARM}.json"
+OLD = w5.W5_DIR / "decade_nocrypto.json"   # de eerlijke referentie
 
 
 def run_year(year, balance):
@@ -41,6 +58,10 @@ def run_year(year, balance):
     e = dict(os.environ); e.update(w5.cs.dh.BASE_ENV)
     e.update(w5.BASE_ENV); e.update(b["env"])
     e["FIVEERS_MAX_SCALE"] = SCALE_CAP
+    extra = ARMS.get(ARM, "")
+    if extra:
+        base_excl = e.get("EXCLUDE_SYMBOLS", "")
+        e["EXCLUDE_SYMBOLS"] = (base_excl + "," + extra).strip(",")
     e["CFG_DAILY_WALL_PCT"] = w5.BASE_ENV.get("CFG_DAILY_WALL_PCT", "5.0")
     e.setdefault("BROKER_TYPE", "fiveers_live")
     tp = dict(w5.BASE_TP); tp.update(b["tp"])
@@ -116,11 +137,15 @@ def main():
     res["survived"] = not res.get("dead") and len(years) == len(YEARS)
     w5.atomic_write(OUT, res)
 
-    old = json.loads(OLD.read_text()).get("scaled", {}).get("years", {}) if OLD.exists() else {}
+    old = {}
+    if ARM == "crypto" and OLD.exists():
+        old = json.loads(OLD.read_text()).get("years", {})
     print("\n" + "=" * 96, flush=True)
-    print("[dec] $50.000, 2015-2025, MET crypto  —  naast de oude meting ZONDER crypto", flush=True)
+    hdr = ("MET crypto  —  naast dezelfde code ZONDER crypto"
+           if ARM == "crypto" else "ZONDER crypto (referentiearm)")
+    print(f"[dec] $50.000, 2015-2025, {hdr}", flush=True)
     print("=" * 96, flush=True)
-    print(f"\n  {'jaar':<6}{'crypto':>8}{'opgenomen NIEUW':>18}{'opgenomen OUD':>16}"
+    print(f"\n  {'jaar':<6}{'crypto':>8}{'opgenomen NIEUW':>18}{'opgenomen ZONDER':>18}"
           f"{'DDD n':>8}{'DDD o':>8}{'TDD n':>8}{'TDD o':>8}  {'niveau eind'}", flush=True)
     for y in YEARS:
         n = years.get(str(y)); o = old.get(str(y))
