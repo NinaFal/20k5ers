@@ -69,7 +69,18 @@ BASE_ENV = {
     # forex: een enkele ETH-positie at 21,7% van het margeplafond waar een
     # forexpositie 2% pakt. Terugzetten is een regel: haal BTC_USD,ETH_USD
     # hier weg en draai w5_decade_crypto.py opnieuw voor beide armen.
-    "EXCLUDE_SYMBOLS": "AUD_NZD,EUR_NZD,AUD_JPY,XRP_USD,ADA_USD,BTC_USD,ETH_USD",
+    # AUD_NZD, EUR_NZD en AUD_JPY zijn hier TERUGGEZET. Ze stonden uit op het
+    # oordeel "structureel net-negatief in beide helften", en dat oordeel houdt
+    # geen stand op de huidige data en configuratie. Gemeten over elf jaar met de
+    # arm 'fxpairs': $4.550.460 tegen $4.107.981, +10,8%, en over 2017-2025 met
+    # beide armen op de $500k-cap $335 winst per trade tegen $318.
+    #
+    # Dat is geen gratis verbetering en dat hoort hier te staan: de dagelijkse
+    # drawdown is in 8 van de 9 vergelijkbare jaren HOGER (gemiddeld 2,57% tegen
+    # 2,39%) en de ergste totale drawdown over 2017+ gaat van 3,6% naar 4,6%.
+    # De keuze is bewust gemaakt: meer winst tegen meer dagelijkse drawdown, met
+    # nog ruime marge tot de muur van 5%.
+    "EXCLUDE_SYMBOLS": "XRP_USD,ADA_USD,BTC_USD,ETH_USD",
     "BROKER_TYPE": "fiveers_live",
     "CFG_DAILY_WALL_PCT": "5.0",          # <-- the whole point of this round
     "FIVEERS_MAX_SCALE": "500000",        # 100k scales up to 500k

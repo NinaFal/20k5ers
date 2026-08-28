@@ -46,7 +46,7 @@ rescue (variant `halt2.50+tdd`). Account: 5ers **classic**, Step 1 8%, Step 2 5%
 | `FIVEERS_MAX_SCALE` | `500000` |
 | `DDD_CLOSE_AT_TRIGGER` | `1` |
 | `TDD_WORST_CASE` | `1` (measurement only — no live equivalent) |
-| `EXCLUDE_SYMBOLS` | `AUD_NZD,EUR_NZD,AUD_JPY,XRP_USD,ADA_USD,BTC_USD,ETH_USD` — see §3b |
+| `EXCLUDE_SYMBOLS` | `XRP_USD,ADA_USD,BTC_USD,ETH_USD` — see §3b |
 | `BROKER_TYPE` | `fiveers_live` |
 
 ### Trade parameters
@@ -70,9 +70,37 @@ Three groups are excluded, for three different reasons.
 
 | symbols | reason | reversible |
 |---|---|---|
-| AUD_NZD, EUR_NZD, AUD_JPY | structurally net-negative in both the in-sample and out-of-sample halves | no |
 | XRP_USD, ADA_USD | 5ers does not offer them | no |
 | BTC_USD, ETH_USD | measured: no profit, more daily drawdown | **yes — a judgment call** |
+
+**AUD_NZD, EUR_NZD and AUD_JPY were excluded and are now back in.** They were
+dropped as "structurally net-negative in both halves". That verdict does not
+survive remeasurement on the current data and engine — in particular on an
+engine where the 50-lot cap actually applies, which it did not when the original
+exclusion was decided. Measured with the `fxpairs` arm over eleven years:
+
+| $50k, 2015-2025 | with the three pairs | without |
+|---|---|---|
+| withdrawn + closing balance | **$4,550,460** | $4,107,981 |
+| 2017-2025 only, both at the $500k cap | **$3,464,804** | $3,104,669 |
+| profit per trade, 2017+ | **$335** | $318 |
+| worst single day | 4.19% | 4.09% |
+| average worst day, 2017+ | 2.57% | **2.39%** |
+| worst total drawdown, 2017+ | 4.60% | **3.60%** |
+
++10.8% over the decade, and the per-trade edge is genuine rather than an artefact
+of trading more — but it is **not** a free improvement. Daily drawdown is higher
+in 8 of the 9 comparable years, and peak total drawdown over 2017+ goes from
+3.60% to 4.60%. The trade was taken deliberately: more profit for more daily
+drawdown, with room left to the 5% wall.
+
+Two things worth not misreading. Over the full eleven years the arm shows worst
+total drawdown of 4.60% against 6.33%, which looks like an improvement — but
+that 6.33% comes from 2015, where the arms sat at different funded levels and
+are not comparable. And there is no pattern of the pairs helping in bad years:
+correlation between how poor the reference year was and how much they added is
++0.22, essentially nothing. Six years gain roughly $50,000 and three gain
+nothing; that is on-or-off behaviour, not a regime effect.
 
 The crypto decision rests on a paired eleven-year run, both arms on the same
 engine, differing only in whether BTC and ETH are excluded
