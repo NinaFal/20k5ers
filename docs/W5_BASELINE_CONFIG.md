@@ -1,5 +1,14 @@
 # BASELINE CONFIG — t65 + TDD tiers (FROZEN)
 
+> **⚠ ONDER HERVALIDATIE — cijfers hieronder zijn van vóór de datawissel.**
+> De cryptodata is vervangen (Yahoo-uurbars vanaf 2023 → Binance M15 vanaf
+> 2017/2018, vier symbolen in plaats van twee). Crypto handelde 24 keer in de
+> hele backtest; nu doet het mee in elk jaar. Een rooktest op 2021 gaf 81
+> cryptotrades en een slechtste dag van 4,92% tegen een muur van 5,0%.
+> Elk getal over slaagkans, breaches, doorlooptijd en drawdown in dit document
+> is gemeten zonder die data en moet als voorlopig gelezen worden.
+> Zie `W5_DATA_INTEGRITY.md`; hermeting loopt via `w5_revalidate.py`.
+
 This is the confirmed baseline. Frozen copy:
 `backtest/output/doe/wall5/BASELINE_t65_tdd_FROZEN.json`, which is immutable —
 future optimisation rounds write to `current_best.json` and must never touch it.

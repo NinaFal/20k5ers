@@ -1,5 +1,14 @@
 # W5 — final verdict
 
+> **⚠ ONDER HERVALIDATIE — cijfers hieronder zijn van vóór de datawissel.**
+> De cryptodata is vervangen (Yahoo-uurbars vanaf 2023 → Binance M15 vanaf
+> 2017/2018, vier symbolen in plaats van twee). Crypto handelde 24 keer in de
+> hele backtest; nu doet het mee in elk jaar. Een rooktest op 2021 gaf 81
+> cryptotrades en een slechtste dag van 4,92% tegen een muur van 5,0%.
+> Elk getal over slaagkans, breaches, doorlooptijd en drawdown in dit document
+> is gemeten zonder die data en moet als voorlopig gelezen worden.
+> Zie `W5_DATA_INTEGRITY.md`; hermeting loopt via `w5_revalidate.py`.
+
 Config: **t65 + TDD tiers**, frozen at
 `backtest/output/doe/wall5/BASELINE_t65_tdd_FROZEN.json`.
 Account: 5ers classic — Step 1 8%, Step 2 5%, 5% daily wall, 10% total wall.
