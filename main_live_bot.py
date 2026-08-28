@@ -294,7 +294,7 @@ running = True
 # Frozen reference: backtest/output/doe/wall5/BASELINE_t65_tdd_FROZEN.json
 def _w5_excluded_symbols():
     """Symbols the validated config never trades (EXCLUDE_SYMBOLS)."""
-    raw = os.getenv("EXCLUDE_SYMBOLS", "AUD_NZD,EUR_NZD,AUD_JPY").replace(" ", "")
+    raw = os.getenv("EXCLUDE_SYMBOLS", "AUD_NZD,EUR_NZD,AUD_JPY,XRP_USD,ADA_USD").replace(" ", "")
     return [s for s in raw.split(",") if s]
 
 

@@ -56,7 +56,11 @@ BASE_ENV = {
     "CFG_TDD_EMERGENCY_PCT": "5.5", "CFG_RISK_ULTRASAFE": "0.15",
     "TDD_WALL_SAFETY": "4.0",
     "CORR_GROUP_CAP": "3", "MAX_TOTAL_POSITIONS": "15",
-    "EXCLUDE_SYMBOLS": "AUD_NZD,EUR_NZD,AUD_JPY",
+    # XRP en ADA staan in CRYPTO_ASSETS maar 5ers biedt ze niet aan, dus ze
+    # horen niet in de universe. Tot nu toe werden ze stil overgeslagen omdat
+    # er geen data voor was; sinds die data er wel is moeten ze expliciet weg,
+    # anders handelt de backtest instrumenten die live niet bestaan.
+    "EXCLUDE_SYMBOLS": "AUD_NZD,EUR_NZD,AUD_JPY,XRP_USD,ADA_USD",
     "BROKER_TYPE": "fiveers_live",
     "CFG_DAILY_WALL_PCT": "5.0",          # <-- the whole point of this round
     "FIVEERS_MAX_SCALE": "500000",        # 100k scales up to 500k
