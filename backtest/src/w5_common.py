@@ -60,7 +60,16 @@ BASE_ENV = {
     # horen niet in de universe. Tot nu toe werden ze stil overgeslagen omdat
     # er geen data voor was; sinds die data er wel is moeten ze expliciet weg,
     # anders handelt de backtest instrumenten die live niet bestaan.
-    "EXCLUDE_SYMBOLS": "AUD_NZD,EUR_NZD,AUD_JPY,XRP_USD,ADA_USD",
+    # BTC en ETH staan er sinds de decade-vergelijking uit. Met crypto komt
+    # opgenomen plus eindbalans over elf jaar op $4.069.877 uit, zonder op
+    # $4.107.981 — crypto kost 0,93%. Dat is ruis, maar het levert ook niets
+    # op, en het kost gemiddeld 0,32 punt dagelijkse drawdown in de jaren
+    # waarin het meedoet (2,70% tegen 2,39%, hoger in 5 van 9 jaren) op een
+    # muur van 5%. Daar komt bij dat crypto op 1:2 staat tegen 1:100 voor
+    # forex: een enkele ETH-positie at 21,7% van het margeplafond waar een
+    # forexpositie 2% pakt. Terugzetten is een regel: haal BTC_USD,ETH_USD
+    # hier weg en draai w5_decade_crypto.py opnieuw voor beide armen.
+    "EXCLUDE_SYMBOLS": "AUD_NZD,EUR_NZD,AUD_JPY,XRP_USD,ADA_USD,BTC_USD,ETH_USD",
     "BROKER_TYPE": "fiveers_live",
     "CFG_DAILY_WALL_PCT": "5.0",          # <-- the whole point of this round
     "FIVEERS_MAX_SCALE": "500000",        # 100k scales up to 500k

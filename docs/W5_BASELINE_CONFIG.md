@@ -46,7 +46,7 @@ rescue (variant `halt2.50+tdd`). Account: 5ers **classic**, Step 1 8%, Step 2 5%
 | `FIVEERS_MAX_SCALE` | `500000` |
 | `DDD_CLOSE_AT_TRIGGER` | `1` |
 | `TDD_WORST_CASE` | `1` (measurement only — no live equivalent) |
-| `EXCLUDE_SYMBOLS` | `AUD_NZD,EUR_NZD,AUD_JPY` |
+| `EXCLUDE_SYMBOLS` | `AUD_NZD,EUR_NZD,AUD_JPY,XRP_USD,ADA_USD,BTC_USD,ETH_USD` — see §3b |
 | `BROKER_TYPE` | `fiveers_live` |
 
 ### Trade parameters
@@ -63,6 +63,65 @@ rescue (variant `halt2.50+tdd`). Account: 5ers **classic**, Step 1 8%, Step 2 5%
 | all six entry filters | disabled |
 
 ---
+
+## 3b. Why crypto is switched off
+
+Three groups are excluded, for three different reasons.
+
+| symbols | reason | reversible |
+|---|---|---|
+| AUD_NZD, EUR_NZD, AUD_JPY | structurally net-negative in both the in-sample and out-of-sample halves | no |
+| XRP_USD, ADA_USD | 5ers does not offer them | no |
+| BTC_USD, ETH_USD | measured: no profit, more daily drawdown | **yes — a judgment call** |
+
+The crypto decision rests on a paired eleven-year run, both arms on the same
+engine, differing only in whether BTC and ETH are excluded
+(`w5_decade_crypto.py`, arms `crypto` and `nocrypto`):
+
+| $50k, 2015-2025 | with crypto | without |
+|---|---|---|
+| withdrawn + closing balance | $4,069,877 | **$4,107,981** |
+| worst day (5% wall) | 4.09% | 4.09% |
+| worst total (10% wall) | 6.33% | 6.33% |
+| trades | 11,918 | 11,843 |
+| profit per trade | $296 | **$301** |
+
+Crypto costs **0.93% over the decade** — noise, but it earns nothing either,
+across 300 trades.
+
+**Read the per-year table with care.** Most yearly gaps land within a few
+percent of exactly one $50,000 payout (2017 +1.10, 2019 −1.01, 2020 +1.09,
+2022 +1.08, 2023 −1.00, 2024 −1.02, 2025 −1.08). At the cap a payout fires the
+moment balance touches +10%; whether that lands on 28 December or 3 January
+moves a whole block between years without anything being earned or lost. Only
+withdrawn **plus** closing balance is meaningful.
+
+What is consistent is drawdown. Across the nine years crypto actually trades in:
+
+| | with | without |
+|---|---|---|
+| average worst day | 2.70% | **2.39%** |
+| worse in | **5 of 9 years** | |
+
+That is +0.32 points on a 5% wall. Total drawdown moves the other way (1.70%
+against 1.97%), so the effect is not uniformly bad.
+
+**This is a thin argument on its own** — nine years and a 5-4 split support no
+statistical claim, and 0.93% is inside the noise of any run. What tips it is
+leverage: 5ers gives crypto 1:2 against 1:100 for FX, so a single ETH position
+consumed 21.7% of the margin ceiling where an FX position takes about 2%
+(`5ERS_ANSWERS.md` §3). Paying that for a return the measurement cannot find is
+the reason it is off.
+
+Both arms survived all eleven years with no wall touched, and in both the worst
+day and worst total come from 2015, where neither trades crypto.
+
+**To turn it back on:** remove `BTC_USD,ETH_USD` from `EXCLUDE_SYMBOLS` in
+`backtest/src/w5_common.py` and the `_w5_excluded_symbols` default in
+`main_live_bot.py`, regenerate `deploy/start_live.bat` with `w5_gen_env.py`, and
+rerun both arms. The data stays in `data/ohlcv/` precisely so this stays a one
+-line change; the XRP and ADA files were moved to `_quarantine` instead, because
+those are not coming back.
 
 ## 2b. ACTUAL risk per trade — not 2.7%
 
