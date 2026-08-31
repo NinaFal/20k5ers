@@ -126,6 +126,51 @@ Deze vier maken de oude cijfers ongeldig, niet alleen achterhaald:
 
 ---
 
+## 5b. Twee metingen die tegen de verwachting in gingen
+
+**NAS100 uitzetten helpt de challenge niet.** Dezelfde honderd vensters, gepaard:
+
+| | met NAS100 | zonder |
+|---|---|---|
+| geslaagd | 88 | 88 |
+| breach | **8** | **9** |
+| mediaan | 19d | 20d |
+| <=30 dagen | 68 | 65 |
+
+Alle acht oorspronkelijke breaches blijven staan en er komt er een bij
+(2022-05-17). Beide dingen zijn dus waar: op het gefunde account is NAS100
+aantoonbaar schadelijk (enig symbool negatief in beide helften, profit factor
+0,72 over 164 trades), en in de challengefase verandert uitzetten niets ten
+goede. Een breach verschil op honderd vensters is ruis — dezelfde maat die
+hierboven is aangelegd bij AUD_NZD.
+
+Het blijft uit, maar op de expectancy-onderbouwing, niet omdat het gemeten de
+challenge verbetert. Dat onderscheid hoort hier te staan.
+
+**Brent heeft geen bruikbare historie voor 2022.** Een eerdere versie van dit
+document zei dat Brent volledige data had. Dat was gebaseerd op het M15-bestand
+alleen; de hogere timeframes zijn niet gecontroleerd:
+
+| bestand | dekking |
+|---|---|
+| `XBR_USD_M15` | 2015 → 2025 |
+| `XBR_USD_H4` | 2015 → 2025 |
+| `XBR_USD_W1` | 2015 → 2025 |
+| **`XBR_USD_D1`** | **2022 → 2025** |
+
+De confluentie eist minstens 50 dagbars (`main_live_bot_backtest.py:3842`), dus
+Brent kan voor 2022 geen signaal geven. De arm bevestigt dat: 2015 tot en met
+2021 zijn cent voor cent identiek aan de arm zonder olie.
+
+Over de vier jaar dat Brent wel handelde: $4.678.411 tegen $4.550.460 over het
+hele decennium (+2,8%), en de ergste totale drawdown over 2022-2025 zakt van
+4,60% naar 3,41%. Positief, maar het rust op vier jaar en twee van de vier
+jaarverschillen zijn de bekende uitbetaling die over een jaargrens schuift. Om
+dit te kunnen wegen is D1-data vanaf 2015 nodig — net als bij UK100 dus een
+download, niet een configuratiewijziging.
+
+---
+
 ## 6. Wat nog niet af is
 
 * **Toewijzing van de 8 breaches.** AUD_NZD eruit halen verandert er niets aan
