@@ -16,12 +16,23 @@ Bevroren in `backtest/output/doe/wall5/BASELINE_t65_tdd_FROZEN.json`, met
 | stap 1 / stap 2 | +8% / +5%, 5% dagmuur, 10% totale muur |
 | risico per trade | 2,7% basis (3,92% in kalme regimes; 0,87% op de cap) |
 | TP-ladder | 0,65R/25% — 1,85R/60% — 2,75R/15% |
-| verhandeld | **31 symbolen** — 27 FX, XAU, XAG, NAS100, UK100 |
-| uitgesloten | XRP_USD, ADA_USD (5ers biedt ze niet), BTC_USD, ETH_USD (gemeten: geen winst) |
+| verhandeld | **30 symbolen** — 27 FX, XAU, XAG, UK100 |
+| uitgesloten | XRP_USD, ADA_USD (5ers biedt ze niet), BTC_USD, ETH_USD (geen winst), NAS100_USD (negatief in beide helften) |
 | niet beschikbaar | olie — `trade_oil=False` én hardgecodeerd uit in de engine |
 
 UK100 staat in de lijst maar handelt feitelijk niet: het enige databestand
-bevat dagbars, geen M15 (`W5_DATA_INTEGRITY.md`). Effectief 30 symbolen.
+bevat dagbars, geen M15 (`W5_DATA_INTEGRITY.md`). Effectief **29 symbolen**, en
+in de praktijk dus puur FX plus goud en zilver.
+
+**NAS100 is uitgezet.** Het was het enige symbool dat in beide helften geld kost
+— $-41 per trade over 2015-2019, $-122 over 2020-2025, profit factor 0,72 over
+164 trades. Het wint vaak (61,6%) maar verliest dubbel zo groot als het wint:
+gemiddelde winst $329 tegen gemiddeld verlies $-731.
+
+Bijvangst: daarmee verdwijnt ook de laatst overgebleven datavervuiling. Naast
+het echte M15-bestand lag `NAS100_USD_M15_2020_2025.csv` met 751 DAGbars die na
+ontdubbelen de echte M15-bar om 00:00 verdrongen. Een uitgesloten symbool wordt
+niet geladen, dus dat is opgelost in plaats van verplaatst.
 
 ---
 
@@ -38,6 +49,12 @@ gegenereerd uit een vaste seed en gecommit vóór de meting.
 | mediaan | **19 dagen** |
 | binnen 20 / 30 / 40 dagen | 49 / 68 / 75 |
 | snelste / traagste | 6 / 85 dagen |
+
+> **Deze meting is van vóór het uitzetten van NAS100.** De arm `no_nas100`
+> draait dezelfde honderd vensters op de nieuwe configuratie en vervangt deze
+> tabel zodra hij af is. Op de eerste 36 vensters staan beide op 3 breaches, dus
+> een grote verschuiving is niet te verwachten — maar dat is een deelmeting en
+> die hebben in deze ronde al een keer niet standgehouden.
 
 Breaches per jaar: 2015, 2016, 2017, 2019 elk 1; 2020 en 2022 elk 2. Gespreid,
 geen cluster in één regime.

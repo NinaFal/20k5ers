@@ -80,7 +80,20 @@ BASE_ENV = {
     # 2,39%) en de ergste totale drawdown over 2017+ gaat van 3,6% naar 4,6%.
     # De keuze is bewust gemaakt: meer winst tegen meer dagelijkse drawdown, met
     # nog ruime marge tot de muur van 5%.
-    "EXCLUDE_SYMBOLS": "XRP_USD,ADA_USD,BTC_USD,ETH_USD",
+    # NAS100_USD eruit. Het is het enige symbool dat in BEIDE helften geld
+    # kost: -$41 per trade over 2015-2019 en -$122 over 2020-2025, profit factor
+    # 0,72 over 164 trades. Het wint vaak genoeg (61,6%) maar verliest dubbel zo
+    # groot als het wint: gemiddelde winst $329 tegen gemiddeld verlies -$731.
+    # Dat is het patroon dat je op winratio niet ziet en op verwachtingswaarde
+    # wel.
+    #
+    # Bijvangst: hiermee verdwijnt ook de datavervuiling uit
+    # W5_DATA_INTEGRITY.md. Naast het echte M15-bestand lag
+    # NAS100_USD_M15_2020_2025.csv met 751 DAGbars, die na ontdubbelen de echte
+    # M15-bar om 00:00 verdrongen — een bar met het bereik van een hele dag,
+    # vermomd als vijftien minuten. Een uitgesloten symbool wordt niet geladen,
+    # dus dat probleem is weg in plaats van verplaatst.
+    "EXCLUDE_SYMBOLS": "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD",
     "BROKER_TYPE": "fiveers_live",
     "CFG_DAILY_WALL_PCT": "5.0",          # <-- the whole point of this round
     "FIVEERS_MAX_SCALE": "500000",        # 100k scales up to 500k

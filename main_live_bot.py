@@ -298,6 +298,7 @@ def _w5_excluded_symbols():
     Drie groepen, om drie verschillende redenen:
       XRP_USD, ADA_USD           5ers biedt ze niet aan
       BTC_USD, ETH_USD           gemeten: geen winst, wel drawdown
+      NAS100_USD                 enige symbool negatief in BEIDE helften
 
     AUD_NZD, EUR_NZD en AUD_JPY stonden hier ook, op het oordeel dat ze
     structureel verlieslatend waren. Dat is nagemeten en klopt niet meer:
@@ -306,7 +307,7 @@ def _w5_excluded_symbols():
     De laatste groep is een keuze en geen feit, dus de data blijft staan;
     de eerste twee komen nooit terug. Zie W5_BASELINE_CONFIG.md.
     """
-    raw = os.getenv("EXCLUDE_SYMBOLS", "XRP_USD,ADA_USD,BTC_USD,ETH_USD").replace(" ", "")
+    raw = os.getenv("EXCLUDE_SYMBOLS", "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD").replace(" ", "")
     return [s for s in raw.split(",") if s]
 
 
