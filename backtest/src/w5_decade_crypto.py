@@ -84,6 +84,7 @@ def run_year(year, balance):
     # Olie zit standaard uit op twee plekken; de arm 'brent' zet hem aan en
     # sluit WTI apart uit, want die heeft pas M15 vanaf 2022.
     e["OIL_ENABLE"] = "1" if ARM == "brent" else "0"
+    e["SPX500_ENABLE"] = "1" if ARM == "spx" else "0"
     e["CFG_DAILY_WALL_PCT"] = w5.BASE_ENV.get("CFG_DAILY_WALL_PCT", "5.0")
     e.setdefault("BROKER_TYPE", "fiveers_live")
     tp = dict(w5.BASE_TP); tp.update(b["tp"])
