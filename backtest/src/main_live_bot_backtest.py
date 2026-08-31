@@ -2786,7 +2786,19 @@ class LiveTradingBot:
 
         # BACKTEST: Load M15 data for all symbols (filtered by date range)
         from config import FOREX_PAIRS, METALS, OIL_ASSETS, INDICES, CRYPTO_ASSETS
-        _excluded = {"XBR_USD", "XTI_USD"}  # Oil: extreme gaps
+        # Olie stond hier hardgecodeerd uit, los van EXCLUDE_SYMBOLS, met als
+        # reden "extreme gaps". In broker_config.py:209 staat dezelfde
+        # uitsluiting met de comment "excluded from demo" — een instelling voor
+        # een demo-account die nooit is teruggedraaid. Er ligt geen meting
+        # onder, net zomin als onder de drie FX-paren die na hermeting +10,8%
+        # bleken op te leveren.
+        #
+        # Standaard onveranderd: zonder OIL_ENABLE blijft olie uit en is elk
+        # bestaand resultaat identiek. OIL_ENABLE=1 zet hem aan zodat het
+        # gemeten kan worden in plaats van aangenomen.
+        _excluded = set()
+        if os.getenv("OIL_ENABLE", "0").strip().lower() not in ("1", "true", "yes", "on"):
+            _excluded = {"XBR_USD", "XTI_USD"}
         # Additional exclusions via env (comma-separated), e.g. structurally
         # net-negative tickers identified as bad across BOTH IS and OOS halves.
         _env_excl = os.getenv("EXCLUDE_SYMBOLS", "").replace(" ", "")

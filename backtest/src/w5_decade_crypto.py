@@ -55,6 +55,14 @@ ARMS = {
     "fxpairs":  "XRP_USD,ADA_USD,BTC_USD,ETH_USD",
     # allebei weer aan, om te zien of de effecten optellen
     "allon":    "XRP_USD,ADA_USD",
+    # olie erbij. Brent heeft echte M15 van 2015 tot 2025; WTI pas vanaf 2022,
+    # dus die blijft uit — anders meet je Brent en een gat door elkaar. Olie
+    # stond uit op de comment "excluded from demo", een instelling voor een
+    # demo-account die nooit is teruggedraaid, zonder meting eronder.
+    "brent":    "XRP_USD,ADA_USD,BTC_USD,ETH_USD,XTI_USD",
+    # NAS100 eruit: het enige symbool dat in BEIDE helften verliest
+    # (-$41/trade 2015-2019, -$122/trade 2020-2025, profit factor 0,72).
+    "no_nas":   "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD",
 }
 ARM = os.getenv("W5_DECADE_ARM", "nocrypto")
 if ARM not in ARMS:
@@ -69,6 +77,9 @@ def run_year(year, balance):
     e.update(w5.BASE_ENV); e.update(b["env"])
     e["FIVEERS_MAX_SCALE"] = SCALE_CAP
     e["EXCLUDE_SYMBOLS"] = ARMS[ARM]
+    # Olie zit standaard uit op twee plekken; de arm 'brent' zet hem aan en
+    # sluit WTI apart uit, want die heeft pas M15 vanaf 2022.
+    e["OIL_ENABLE"] = "1" if ARM == "brent" else "0"
     e["CFG_DAILY_WALL_PCT"] = w5.BASE_ENV.get("CFG_DAILY_WALL_PCT", "5.0")
     e.setdefault("BROKER_TYPE", "fiveers_live")
     tp = dict(w5.BASE_TP); tp.update(b["tp"])

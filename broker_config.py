@@ -257,7 +257,10 @@ def get_fiveers_live_config() -> BrokerConfig:
         # All symbols
         trade_forex=True,
         trade_metals=True,  # ENABLED - XAU/XAG included
-        trade_oil=False,    # DISABLED - XBR/XTI both excluded (extreme gaps)
+        # Zie main_live_bot_backtest.py: dezelfde uitsluiting staat daar ook,
+        # en beide gaan terug op een demo-instelling zonder meting eronder.
+        # OIL_ENABLE=1 zet olie aan in backtest en live tegelijk.
+        trade_oil=os.getenv("OIL_ENABLE", "0").strip().lower() in ("1", "true", "yes", "on"),
         trade_indices=True,
         trade_crypto=True,
         excluded_symbols=[],
