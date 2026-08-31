@@ -47,24 +47,28 @@ SCALE_CAP = "500000"
 # lots, het dubbele van wat 5ers toestaat). 2016 liet dat zien: $1.013 verschil
 # bij nul cryptotrades, zelfde 1.020 trades, zelfde win rate, zelfde DDD en TDD.
 ARMS = {
-    # de vastgestelde configuratie — dit is de referentie
+    # === de huidige configuratie: dit is de referentie ===
+    "current":  "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD",
+
+    # === varianten daarop, elk een symbool of groep verschil ===
+    # olie erbij. WTI blijft uit: die heeft M15 pas vanaf 2022, dus anders meet
+    # je Brent en een datagat door elkaar. Brent heeft nu wel volledige D1,
+    # afgeleid uit de eigen M15 en geverifieerd tegen OANDA (mediaan 0,0000%).
+    "brent":    "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD,XTI_USD",
+    # SPX500 erbij. Vereist ook toevoegen aan INDICES in config.py, anders
+    # verandert deze arm niets — dat wordt hier gecontroleerd, niet aangenomen.
+    "spx":      "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD",
+    # NAS100 terug. Het staat uit op de verwachtingswaarde, maar zeven van de
+    # elf jaren waren positief en het uitzetten hielp de challenge niet.
+    "with_nas": "XRP_USD,ADA_USD,BTC_USD,ETH_USD",
+
+    # === oudere armen, bewaard zodat hun opgeslagen resultaten leesbaar blijven ===
     "nocrypto": "AUD_NZD,EUR_NZD,AUD_JPY,XRP_USD,ADA_USD,BTC_USD,ETH_USD",
-    # crypto weer aan, verder gelijk
     "crypto":   "AUD_NZD,EUR_NZD,AUD_JPY,XRP_USD,ADA_USD",
-    # de drie FX-paren weer aan, crypto blijft uit
     "fxpairs":  "XRP_USD,ADA_USD,BTC_USD,ETH_USD",
-    # allebei weer aan, om te zien of de effecten optellen
     "allon":    "XRP_USD,ADA_USD",
-    # olie erbij. Brent heeft echte M15 van 2015 tot 2025; WTI pas vanaf 2022,
-    # dus die blijft uit — anders meet je Brent en een gat door elkaar. Olie
-    # stond uit op de comment "excluded from demo", een instelling voor een
-    # demo-account die nooit is teruggedraaid, zonder meting eronder.
-    "brent":    "XRP_USD,ADA_USD,BTC_USD,ETH_USD,XTI_USD",
-    # NAS100 eruit: het enige symbool dat in BEIDE helften verliest
-    # (-$41/trade 2015-2019, -$122/trade 2020-2025, profit factor 0,72).
-    "no_nas":   "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD",
 }
-ARM = os.getenv("W5_DECADE_ARM", "nocrypto")
+ARM = os.getenv("W5_DECADE_ARM", "current")
 if ARM not in ARMS:
     raise SystemExit(f"onbekende arm {ARM!r}; kies uit {sorted(ARMS)}")
 OUT = w5.W5_DIR / f"decade_{ARM}.json"
@@ -156,11 +160,11 @@ def main():
     w5.atomic_write(OUT, res)
 
     old = {}
-    if ARM != "nocrypto" and OLD.exists():
+    if ARM != "current" and OLD.exists():
         old = json.loads(OLD.read_text()).get("years", {})
     print("\n" + "=" * 96, flush=True)
-    hdr = (f"arm {ARM!r}  —  naast de referentiearm 'nocrypto'"
-           if ARM != "nocrypto" else "arm 'nocrypto' (de referentie zelf)")
+    hdr = (f"arm {ARM!r}  —  naast de referentiearm 'current'"
+           if ARM != "current" else "arm 'current' (de referentie zelf)")
     print(f"[dec] $50.000, 2015-2025, {hdr}", flush=True)
     print("=" * 96, flush=True)
     print(f"\n  {'jaar':<6}{'crypto':>8}{'opgenomen NIEUW':>18}{'opgenomen REFERENTIE':>21}"
