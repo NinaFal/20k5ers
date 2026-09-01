@@ -13,16 +13,12 @@
   2025
  ],
  "split": 2020,
- "both_negative": [
-  "NAS100_USD"
- ],
+ "both_negative": [],
  "excluded_now": [
   "ADA_USD",
-  "AUD_JPY",
-  "AUD_NZD",
   "BTC_USD",
   "ETH_USD",
-  "EUR_NZD",
+  "NAS100_USD",
   "XRP_USD"
  ]
 }
