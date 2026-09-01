@@ -72,7 +72,12 @@ ARMS = {
     "fxpairs":  "XRP_USD,ADA_USD,BTC_USD,ETH_USD",
     "allon":    "XRP_USD,ADA_USD",
 }
-ARM = os.getenv("W5_DECADE_ARM", "current")
+# De arm mag ook als argument mee. Dat is niet cosmetisch: een omgevingsvariabele
+# staat niet in de commandoregel, dus een toezichthouder die met pgrep kijkt of
+# een arm nog draait ziet hem niet, denkt dat hij weg is en start hem eindeloos
+# opnieuw. Als argument is hij zichtbaar in ps.
+ARM = (sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("-")
+       else os.getenv("W5_DECADE_ARM", "current"))
 if ARM not in ARMS:
     raise SystemExit(f"onbekende arm {ARM!r}; kies uit {sorted(ARMS)}")
 OUT = w5.W5_DIR / f"decade_{ARM}.json"
