@@ -92,3 +92,47 @@ uv run python3 backtest/src/w5_data_audit.py
 Draait over alle `*_M15*.csv`, vergelijkt de belofte in de bestandsnaam met de
 werkelijke eerste datum, de mediane afstand tussen bars en de tijdzone, en
 markeert alles wat afwijkt.
+
+---
+
+## De per-symbool-studie meet niet wat hij lijkt te meten
+
+`w5_per_symbol.py` draait elk jaar los op $50.000, om te voorkomen dat late
+jaren zwaarder wegen puur doordat het account groter is. Dat lost een echt
+probleem op en introduceert een ergere.
+
+Zonder de scalingladder die een gefund account beschermt, loopt een slecht
+begin tegen de 10%-muur en is de rekening dood voor de rest van dat jaar:
+
+| jaar | trades | laatste trade |
+|---|---|---|
+| 2015 | 1.616 | 31 dec |
+| **2016** | **311** | **10 maart** |
+| 2017 | 1.661 | 29 dec |
+| 2018 | 1.795 | 30 dec |
+| **2019** | **174** | **13 februari** |
+| 2020 | 1.970 | 31 dec |
+| 2021 | 1.948 | 30 dec |
+| **2022** | **1.077** | **10 augustus** |
+| 2023 | 1.752 | 29 dec |
+| 2024 | 1.648 | 31 dec |
+
+Drie van de tien jaren duren zes weken tot acht maanden. De blootstelling is dus
+ongeveer 4,3 jaar waar het er zes lijken, en welk symbool toevallig actief was
+in zo'n kort venster weegt onevenredig zwaar.
+
+**Dat is niet theoretisch.** UK100 kwam op $20 per trade uit over 2015-2017 en op
+$144 over 2015-2020. Dat verschil is geen nieuwe informatie over UK100 — het is
+dat de toegevoegde jaren vol waren terwijl twee van de eerste zes dat niet
+waren. Op dat eerste cijfer is UK100 uitgezet; dat besluit rust dus op een
+artefact.
+
+De vervanger rolt de balans door zoals `w5_decade_crypto.py`, waar het account
+de cap bereikt en alle elf jaar overleeft. Pas dan is elk jaar even lang en zijn
+symbolen onderling vergelijkbaar.
+
+**Wat hier algemener uit volgt:** een meting per jaar is pas vergelijkbaar als
+elk jaar even lang duurt, en dat is bij een strategie die het account kan
+verliezen niet vanzelfsprekend. Het aantal trades per jaar naast het resultaat
+zetten is de goedkoopste manier om dit te zien — 174 tegen 1.970 valt op, een
+verkeerd gemiddelde niet.
