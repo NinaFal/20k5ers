@@ -45,7 +45,15 @@ OUT = w5.W5_DIR / "per_symbol.json"
 # Alles aan wat 5ers aanbiedt, ook wat nu uitstaat — anders kun je niet zien of
 # uitsluiten terecht was. Olie zit hardgecodeerd uit in de engine (:2789) en
 # krijg je hier dus niet te zien.
-EXCL_FOR_STUDY = "XRP_USD,ADA_USD"
+# Standaard de LIVE uitsluitingslijst, zodat de bijdrage per symbool gemeten
+# wordt in de configuratie die ook echt gehandeld wordt. Positielimieten en de
+# cumulatieve risicocap maken symbolen namelijk afhankelijk van elkaar: een
+# symbool erbij verdringt trades van een ander, dus een studie met andere
+# symbolen aan meet een ander universum dan het jouwe.
+#
+# W5_STUDY_EXCLUDE overschrijft dit, bijvoorbeeld om te zien wat een
+# uitgesloten symbool zou hebben gedaan.
+EXCL_FOR_STUDY = os.getenv("W5_STUDY_EXCLUDE") or w5.BASE_ENV["EXCLUDE_SYMBOLS"]
 
 
 def run_year(year):
