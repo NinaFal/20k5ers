@@ -252,6 +252,25 @@ class CSVMT5Simulator:
         self._total_withdrawn: float = 0.0  # total trader profit withdrawn
         self._funded_level: float = initial_balance  # current funded level
         self._scaling_log: list = []  # log of scaling events
+        # Cumulative BALANCE removed by payouts at scaling milestones. A payout
+        # is not a trading loss, but it does drop balance/equity, so a naive
+        # daily-drawdown calc reads it as one — at a 175k cap that is a ~9%
+        # phantom breach on every payout day. Callers subtract the within-day
+        # delta of this counter before measuring daily drawdown.
+        self._payout_balance_removed: float = 0.0
+        # Calendar-driven payouts. Default OFF, so every existing result is
+        # unchanged. FIVEERS_PAYOUT_DAYS=14 makes the account also sweep profit
+        # above the funded level every 14 days, on top of the +10% milestone
+        # sweep. FIVEERS_PAYOUT_AT_CAP_ONLY=1 restricts that to a capped
+        # account, which is the interesting case: below the cap a withdrawal
+        # delays the next rung, and crossing a rung is worth more than the cash
+        # because 5ers raises the allocation. Once capped there are no rungs
+        # left, so waiting for +10% only leaves money exposed.
+        self._payout_days: int = int(os.getenv("FIVEERS_PAYOUT_DAYS", "0") or 0)
+        self._payout_at_cap_only: bool = os.getenv(
+            "FIVEERS_PAYOUT_AT_CAP_ONLY", "0").strip().lower() in ("1", "true", "yes", "on")
+        self._last_calendar_payout = None
+        self._calendar_payouts: list = []
 
     # ═══════════════════════════════════════════════════════════════════════
     # FEE SIMULATION - 5ers realistic costs
@@ -342,12 +361,66 @@ class CSVMT5Simulator:
                 return level
         return self._max_balance
 
+    def _split_for_level(self, level: float) -> float:
+        """5ers profit split at a funded level, per the official scaling plan."""
+        if level >= 350_000:
+            return 1.00
+        if level >= 250_000:
+            return 0.90
+        if level >= 175_000:
+            return 0.85
+        return 0.80
+
+    def _maybe_calendar_payout(self):
+        """Sweep profit above the funded level on a fixed calendar interval.
+
+        Inert unless FIVEERS_PAYOUT_DAYS is set. This exists to answer whether
+        taking profit every two weeks beats waiting for the +10% milestone. The
+        two differ only in timing, never in split: 5ers pays the same
+        percentage either way. What changes is how long profit sits on the
+        account, and — below the cap — how long it takes to reach the next rung.
+        """
+        if self._payout_days <= 0:
+            return
+        if self._payout_at_cap_only and self._funded_level < self._max_balance:
+            return
+        now = self._current_time
+        if self._last_calendar_payout is None:
+            self._last_calendar_payout = now
+            return
+        if (now - self._last_calendar_payout).days < self._payout_days:
+            return
+        self._last_calendar_payout = now
+        profit = self._balance - self._funded_level
+        if profit <= 0:
+            return
+        split = self._split_for_level(self._funded_level)
+        self._total_withdrawn += profit * split
+        self._calendar_payouts.append({
+            'time': str(now),
+            'level': self._funded_level,
+            'profit_swept': round(profit, 2),
+            'trader_payout': round(profit * split, 2),
+            'profit_split': split,
+        })
+        self._balance = self._funded_level
+        self._payout_balance_removed += profit
+
     def _apply_fiveers_scaling(self):
         """Apply 5ers scaling rules after each balance change.
 
         At each 10% profit milestone on current funded level, advance to the
         next level per the official 5ers scaling plan. Cap at $4M.
         """
+        # FIVEERS_SCALING_OFF=1 disables the ladder entirely: no level advances,
+        # no milestone payouts, balance simply compounds. This is NOT a
+        # 5ers-realistic account — it measures the strategy's raw compounding
+        # capacity with the funded-level ratchet (and therefore the rising TDD
+        # floor) removed. Default off, so no existing result changes.
+        if os.getenv("FIVEERS_SCALING_OFF", "0").strip().lower() in ("1", "true", "yes", "on"):
+            return
+        self._maybe_calendar_payout()
+
         if self._balance <= self._funded_level:
             return
 
@@ -370,6 +443,8 @@ class CSVMT5Simulator:
 
         trader_profit = profit_made * split
         self._total_withdrawn += trader_profit
+
+        balance_before_payout = self._balance
 
         if self._funded_level < self._max_balance:
             next_level = self._next_fiveers_level(self._funded_level)
@@ -395,6 +470,11 @@ class CSVMT5Simulator:
                 'profit_split': split,
                 'note': 'at_cap',
             })
+
+        # Record how much BALANCE this payout removed so daily-drawdown
+        # measurement can exclude it (see _payout_balance_removed).
+        if balance_before_payout > self._balance:
+            self._payout_balance_removed += balance_before_payout - self._balance
     
     def get_closed_trades(self) -> List[dict]:
         """Get list of closed trades (for results)."""
@@ -754,6 +834,13 @@ class CSVMT5Simulator:
             def _read_norm(path):
                 d = pd.read_csv(path, parse_dates=['time'])
                 d.columns = [c.lower() for c in d.columns]
+                # Normalize tz per-file BEFORE concat/sort: some symbols have one
+                # tz-aware and one tz-naive M15 file (e.g. NAS100_USD 2015 vs
+                # 2020 exports) — mixed tz makes sort_values raise "Cannot
+                # compare tz-naive and tz-aware timestamps" and silently drops
+                # the whole symbol from the backtest universe.
+                if d['time'].dt.tz is None:
+                    d['time'] = d['time'].dt.tz_localize('UTC')
                 return d
 
             if len(candidates) == 1:

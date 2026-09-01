@@ -27,6 +27,7 @@ Configuration:
     - SCAN_INTERVAL_HOURS: How often to scan (default: 4)
 """
 
+import math
 import os
 import sys
 import time
@@ -281,6 +282,287 @@ TRADABLE_SYMBOLS = BROKER_CONFIG.get_tradable_symbols()
 
 log = setup_logger("tradr", log_file="logs/tradr_live.log")
 running = True
+
+
+# ── W5 PORT: configuration bridge ───────────────────────────────────────────
+# The validated W5 config is expressed as environment variables, because that is
+# how the backtest harness drives main_live_bot_backtest.py. 29 of them were read
+# by the backtest and by nothing here, so the live bot could not reproduce the
+# tested behaviour at all. These helpers read the same variables with the same
+# defaults, so one source of truth drives both engines.
+#
+# Frozen reference: backtest/output/doe/wall5/BASELINE_t65_tdd_FROZEN.json
+def _w5_excluded_symbols():
+    """Symbols the validated config never trades (EXCLUDE_SYMBOLS).
+
+    Drie groepen, om drie verschillende redenen:
+      XRP_USD, ADA_USD           5ers biedt ze niet aan
+      BTC_USD, ETH_USD           gemeten: geen winst, wel drawdown
+      NAS100_USD                 enige symbool negatief in BEIDE helften
+      UK100_USD                  $20 per trade, win rate 49%
+
+    AUD_NZD, EUR_NZD en AUD_JPY stonden hier ook, op het oordeel dat ze
+    structureel verlieslatend waren. Dat is nagemeten en klopt niet meer:
+    +10,8% over elf jaar. Ze zijn teruggezet.
+
+    De laatste groep is een keuze en geen feit, dus de data blijft staan;
+    de eerste twee komen nooit terug. Zie W5_BASELINE_CONFIG.md.
+    """
+    raw = os.getenv("EXCLUDE_SYMBOLS", "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD,UK100_USD").replace(" ", "")
+    return [s for s in raw.split(",") if s]
+
+
+def _w5_corr_group_cap():
+    """Max concurrent positions per correlation group (CORR_GROUP_CAP)."""
+    return int(os.getenv("CORR_GROUP_CAP", "6"))
+
+
+def _w5_max_total_positions():
+    """Max concurrent positions overall (MAX_TOTAL_POSITIONS)."""
+    return int(os.getenv("MAX_TOTAL_POSITIONS", "20"))
+
+
+def _w5_tdd_caution():
+    """Total-DD threshold for the cautious rung (CFG_TDD_CAUTION_PCT).
+
+    Live hardcoded 3.0 -> 0.60%; the validated config uses 1.5 -> 0.40%, i.e. it
+    de-risks at half the drawdown and to two-thirds the size. This pair was the
+    actual mechanism of the 2025 rescue — the other four settings in that variant
+    turned out to be inert (the halt dial is byte-identical across six
+    thresholds, and CFG_TDD_WARNING_PCT / CFG_RISK_CONSERVATIVE are never read).
+    """
+    return float(os.getenv("CFG_TDD_CAUTION_PCT", "1.5"))
+
+
+def _w5_risk_cautious():
+    """Risk % once past the cautious threshold (CFG_RISK_CAUTIOUS)."""
+    return float(os.getenv("CFG_RISK_CAUTIOUS", "0.4"))
+
+
+def _w5_dynamic_halt_pct(base_halt_pct, n_positions, now_utc):
+    """W5 PORT of the backtest's Layer-5 halt tightening (backtest:950).
+
+    NOT env-gated in the backtest — always active there — and live had no
+    equivalent at all. With base 2.50 and more than 5 positions open, which this
+    config does routinely (cap 20), the backtest halts at 2.10% where live would
+    have waited for 2.50%.
+
+    Low risk: six halt thresholds from 3.5% down to 2.00% gave byte-identical
+    decade results, so 2.10 and 2.50 both sit inside the range already shown to
+    make no difference. Ported for exactness.
+
+    Rollover clamp — spreads widen 5-50x in 21:30-22:30 UTC, so closing costs
+    more and the trigger should come earlier. Position clamp — more open
+    positions means more closing slippage.
+    """
+    halt = base_halt_pct
+    in_rollover = (now_utc.hour == 21 and now_utc.minute >= 30) or \
+                  (now_utc.hour == 22 and now_utc.minute < 30)
+    if in_rollover:
+        halt = min(halt, 2.5)
+    if n_positions > 5:
+        halt = min(halt, base_halt_pct - 0.4)
+    return halt
+
+
+def _w5_asset_class(symbol):
+    """METALS / CRYPTO / INDEX / FX — bepaalt welke risicotolerantie geldt."""
+    u = (symbol or "").upper().replace("_", "").replace("/", "")
+    if any(x in u for x in ("XAU", "XAG", "XPT", "XPD", "GOLD", "SILVER")):
+        return "METALS"
+    if any(x in u for x in ("BTC", "ETH", "LTC", "XRP", "SOL", "DOGE")):
+        return "CRYPTO"
+    if any(x in u for x in ("NAS100", "US100", "US30", "SPX", "GER40", "UK100", "JP225")):
+        return "INDEX"
+    return "FX"
+
+
+def _w5_risk_tolerance(symbol):
+    """Hoeveel mag het WERKELIJKE dollarrisico het bedoelde overschrijden?
+
+    Was 2.0x — dat is geen veiligheidsgrens maar een vangnet voor rampen. Een
+    positie op 1.9x het bedoelde risico ging gewoon door.
+
+    METALS en CRYPTO krijgen 1.00: geen enkele overschrijding. Dat is precies
+    waar het in het verleden misging — de contractgrootte en pip-waarde van
+    goud (contract 100, pip 0.1) wijken zo af van FX dat een verkeerde
+    tick_value een positie oplevert die een veelvoud van het bedoelde risico
+    draagt. METAL_PIP_RANGES corrigeert de pip-waarde al, maar dat is een
+    correctie, geen verbod; dit is het verbod.
+
+    FX en indices houden 1.10 om afronding naar de lotstap (0.01) niet als
+    fout te bestempelen.
+    """
+    cls = _w5_asset_class(symbol)
+    if cls in ("METALS", "CRYPTO"):
+        return float(os.getenv("W5_RISK_TOLERANCE_STRICT", "1.00"))
+    return float(os.getenv("W5_RISK_TOLERANCE", "1.10"))
+
+
+def _w5_tdd_emergency_halt_enabled():
+    """Is the hard trading halt at the emergency TDD level active?
+
+    The validated config sets TDD_EMERGENCY_HALT=0 — DISABLED. The backtest
+    found the halt causes breaches rather than preventing them: freezing the
+    account at the threshold traps it holding its existing losers with no way to
+    take diversifying recovery trades, and it bleeds to the 10% wall
+    (main_live_bot_backtest.py:3311). The wall-guard replaces it, capping each
+    recovery trade so a full stop-loss cannot breach while keeping trades
+    flowing.
+
+    Defaults OFF to match the tested config. Set to 1 to restore live's previous
+    unconditional behaviour.
+    """
+    return os.getenv("TDD_EMERGENCY_HALT", "0").strip().lower() not in ("0", "false", "no", "off")
+
+
+def _w5_daily_halt_pct():
+    """Daily-loss level at which trading halts (CFG_DAILY_HALT_PCT).
+
+    Live read FIVEERS_CONFIG.daily_loss_halt_pct (3.2); the validated config
+    uses 2.50. Six thresholds from 3.5% down to 2.00% produced byte-identical
+    decade results, so this dial is inert in practice — wired for exactness.
+    NOT routed through FIVEERS_CONFIG, which the backtest imports.
+    """
+    return float(os.getenv("CFG_DAILY_HALT_PCT", "2.50"))
+
+
+def _w5_tdd_emergency_pct():
+    """Total-DD level at which the wall-guard engages (CFG_TDD_EMERGENCY_PCT).
+
+    Deliberately NOT FIVEERS_CONFIG.total_dd_emergency_pct: the backtest imports
+    that object, so writing to it changes both engines.
+    """
+    return float(os.getenv("CFG_TDD_EMERGENCY_PCT", "5.5"))
+
+
+def _w5_wall_safety():
+    """Divisor for the room-to-the-wall risk cap (TDD_WALL_SAFETY)."""
+    return float(os.getenv("TDD_WALL_SAFETY", "5.5"))
+
+
+# 5ers-hefbomen, bevestigd door support op 2026-08-23. De backtest modelleert
+# marge helemaal niet (csv_mt5_simulator.py zet margin op 0,0), dus dit bestaat
+# alleen live. Gemeten piekgebruik in de backtest was 28,6% in de challengefase
+# en 72,4% op het zwaarste moment van een heel jaar, dus deze grenzen horen
+# nooit te binden. Ze zijn er voor het geval de meting het mis had.
+W5_LEVERAGE = {"FX": 100.0, "METALS": 25.0, "INDEX": 25.0, "COMMODITY": 5.0,
+               "CRYPTO": 2.0}
+
+# Contractgroottes voor niet-FX. Voor FX geldt 100.000 eenheden basisvaluta.
+W5_CONTRACT = {"XAU": 100.0, "XAG": 5000.0, "NAS100": 1.0, "US100": 1.0,
+               "US30": 1.0, "UK100": 1.0, "SPX": 1.0, "GER40": 1.0,
+               "XBR": 100.0, "XTI": 100.0, "BCO": 100.0, "WTICO": 100.0,
+               "BTC": 1.0, "ETH": 1.0, "XRP": 1.0, "ADA": 1.0}
+
+
+# Indicatieve USD-waarde van een eenheid basisvaluta, voor crossparen waar de
+# genoteerde prijs niets over de USD-notional zegt. Grof — GBP bewoog in tien
+# jaar tussen 1,20 en 1,70 — maar zonder deze tabel zou GBP_JPY op $1.000 marge
+# per lot uitkomen in plaats van ~$1.300, en dan onderschat de poort de druk.
+# Overschrijfbaar met W5_USD_RATE_<VALUTA> als een koers ver wegloopt.
+W5_USD_RATE = {"USD": 1.00, "EUR": 1.10, "GBP": 1.28, "AUD": 0.68,
+               "NZD": 0.62, "CAD": 0.73, "CHF": 1.12, "JPY": 0.0068}
+
+
+def _w5_usd_rate(ccy):
+    return float(os.getenv(f"W5_USD_RATE_{ccy}", W5_USD_RATE.get(ccy, 1.0)))
+
+
+def _w5_margin_warn_pct():
+    """Margegebruik waarboven gewaarschuwd wordt, in % van de equity.
+
+    60% ligt onder alles wat gemeten is behalve de piek van 2023 (72,4%), dus
+    de waarschuwing hoort zelden te komen en betekent iets als hij komt.
+    """
+    return float(os.getenv("W5_MARGIN_WARN_PCT", "60"))
+
+
+def _w5_margin_block_pct():
+    """Margegebruik waarboven geen nieuwe posities meer geopend worden.
+
+    5ers weigert de trade zelf zodra de hefboom op is. Dat is geen ramp — de
+    order faalt netjes en de bot gaat door — maar het levert wel een STIL
+    verschil met de backtest op: live slaat een trade over die de backtest wel
+    nam. Zelf eerder stoppen maakt daar een gelogde beslissing van.
+
+    WAAROM 85 EN NIET 70. De eerste versie stond op 70 en dat was fout. Het
+    gemeten piekgebruik in de challengefase is 28,6%, maar over een heel jaar
+    gerekend haalde 2023 **72,4%** — bij een balans van $152.000, midden in de
+    klim. Een grens van 70 zou precies de trade geblokkeerd hebben die die piek
+    veroorzaakte. Dan beschermt de poort niet tegen een afwijking van de
+    backtest, dan IS hij de afwijking.
+
+    85 ligt boven alles wat ooit gemeten is en houdt nog 15 punten over voordat
+    5ers zelf begint te weigeren. Dat is waar deze grens voor bedoeld is: net
+    voor de broker gaan staan, niet voor de strategie.
+    """
+    return float(os.getenv("W5_MARGIN_BLOCK_PCT", "85"))
+
+
+def _w5_margin_class(symbol):
+    """Activaklasse voor MARGE — niet hetzelfde als _w5_asset_class.
+
+    _w5_asset_class kent geen COMMODITY: olie valt daar onder FX, wat voor
+    risicotolerantie klopt (olie krijgt dezelfde 1,10 als FX) maar voor marge
+    50 keer misgaat. XTI op $75 zou als FX $75.000 marge per lot vragen in
+    plaats van $1.500, en dan wordt elke olietrade geweigerd.
+
+    Die functie blijft daarom ongemoeid — hij stuurt bestaand gedrag aan — en
+    marge krijgt zijn eigen indeling.
+    """
+    u = (symbol or "").upper().replace("_", "").replace("/", "")
+    if any(x in u for x in ("XBR", "XTI", "BCO", "WTICO", "OIL", "NGAS")):
+        return "COMMODITY"
+    return _w5_asset_class(symbol)
+
+
+def _w5_contract_size(symbol):
+    u = (symbol or "").upper().replace("_", "").replace("/", "")
+    for name, cs in W5_CONTRACT.items():
+        if name in u:
+            return cs
+    return 100_000.0
+
+
+def _w5_margin_per_lot(symbol, price, account_currency_rate=1.0):
+    """Vereiste marge voor 1,00 lot, in USD.
+
+    Voor FX is de notional de contractgrootte in de BASISVALUTA omgerekend naar
+    USD, niet contractgrootte maal de genoteerde prijs. Voor USD_JPY is dat
+    $100.000 en niet 100.000 x 110. Die fout maakt JPY-paren honderd keer te
+    zwaar en blokkeert alles.
+    """
+    cls = _w5_margin_class(symbol)
+    lev = W5_LEVERAGE.get(cls, 100.0)
+    u = (symbol or "").upper().replace("/", "")
+    if cls != "FX":
+        notional = _w5_contract_size(symbol) * float(price)
+    else:
+        parts = u.split("_") if "_" in u else [u[:3], u[3:6]]
+        base, quote = (parts + ["", ""])[:2]
+        if quote == "USD":
+            notional = 100_000.0 * float(price)
+        elif base == "USD":
+            notional = 100_000.0
+        else:
+            rate = (account_currency_rate if account_currency_rate != 1.0
+                    else _w5_usd_rate(base))
+            notional = 100_000.0 * float(rate)
+    return notional / lev if lev > 0 else 0.0
+
+
+def _w5_max_cum_risk_pct():
+    """Cap on summed open risk as a % of balance (CFG_MAX_CUM_RISK).
+
+    main_live_bot.py:5001 previously read 'NO cumulative risk check - removed to
+    match simulator'. That is false: the backtest enforces this cap at
+    main_live_bot_backtest.py:3557 and the validated config sets 7.0. The
+    ChallengeConfig field of the same name is dead — defined in
+    challenge_risk_manager.py and never read — so this is the only enforcement.
+    Set >= 100 to disable.
+    """
+    return float(os.getenv("CFG_MAX_CUM_RISK", "7.0"))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -657,6 +939,36 @@ class LiveTradingBot:
                     current_equity = self._calculate_mid_equity()
                     if current_equity <= 0:
                         current_equity = account.get("equity", 0)  # fallback
+
+                    # === MARGEBEWAKING — elke 5 s, samen met DDD en TDD ===
+                    # 5ers weigert nieuwe trades zodra de hefboom op is. Dat is
+                    # een stille afwijking van de backtest, die helemaal geen
+                    # marge modelleert. Hier wordt het zichtbaar gemaakt en
+                    # stopt de bot uit zichzelf voordat de broker hem stopt.
+                    _m_used, _m_eq, _m_pct = self._w5_margin_state(account)
+                    self._w5_margin_pct = _m_pct
+                    _m_block = _w5_margin_block_pct()
+                    _m_warn = _w5_margin_warn_pct()
+                    if _m_pct >= _m_block:
+                        if not getattr(self, '_w5_margin_blocked', False):
+                            log.error("=" * 70)
+                            log.error(f"[W5] MARGE BLOKKADE: {_m_pct:.1f}% van de equity in "
+                                      f"gebruik (${_m_used:,.0f} van ${_m_eq:,.0f})")
+                            log.error(f"  Grens {_m_block:.0f}% — GEEN nieuwe posities. "
+                                      f"Bestaande posities blijven staan.")
+                            log.error("=" * 70)
+                        self._w5_margin_blocked = True
+                    elif _m_pct >= _m_warn:
+                        if not getattr(self, '_w5_margin_warned', False):
+                            log.warning(f"[W5] marge {_m_pct:.1f}% van de equity "
+                                        f"(${_m_used:,.0f} van ${_m_eq:,.0f}), "
+                                        f"waarschuwing bij {_m_warn:.0f}%, "
+                                        f"blokkade bij {_m_block:.0f}%")
+                            self._w5_margin_warned = True
+                        self._w5_margin_blocked = False
+                    else:
+                        self._w5_margin_blocked = False
+                        self._w5_margin_warned = False
 
                     # Get fixed day_start_equity from challenge_manager (never updated during day)
                     if not self.challenge_manager:
@@ -1869,6 +2181,90 @@ class LiveTradingBot:
     # WEEKEND GAP RISK MANAGEMENT - Tier 1 Conservative Strategy
     # ═══════════════════════════════════════════════════════════════════════════
 
+    def handle_nightly_derisk(self):
+        """W5 PORT — nightly overnight gap-risk control (NIGHTLY_DERISK).
+
+        Ported from main_live_bot_backtest.py:1924. This had NO live
+        implementation: `_nightly` matched 0 times here and 4 times in the
+        backtest, so the live bot de-risked only before the WEEKEND while every
+        tested result came from an account that also flattened every night.
+
+        Why it matters: breach analysis found 5 of 6 breaches were 100%
+        overnight, with a single position averaging 62% of the day's loss.
+        Position-count caps do not address that — they bound how many trades are
+        open, not how much gap risk rides unattended through the night.
+
+        The validated config runs this at 22:00 UTC with MAX_PER_GROUP=0 and
+        MAX_TOTAL=0, i.e. hold ZERO non-crypto positions overnight: close
+        anything below 0.25R and reduce the rest by 75%.
+
+        Reuses the same Tier-1 correlation-aware selector the bot already applies
+        on Fridays, so there is no second implementation of the selection logic
+        to drift out of sync.
+        """
+        if os.getenv("NIGHTLY_DERISK", "1").strip().lower() not in ("1", "true", "yes", "on"):
+            return
+        # Wall-clock UTC, matching handle_friday_position_closing above. The
+        # backtest reads sim time from its mt5 stub; live must not, or the gate
+        # would follow broker server time and fire at the wrong hour.
+        now = datetime.now(timezone.utc)
+        # DELIBERATE LIVE/BACKTEST DIVERGENCE — default 21, not the backtest's 22.
+        #
+        # The nightly stage compared hours 17/19/20/21/22 and picked 22. But the
+        # simulator applies a FLAT spread: csv_mt5_simulator.py:199 sets
+        # spread_pips once and line 659 applies it uniformly, with no
+        # time-of-day variation and no rollover modelling anywhere in the file.
+        # So that comparison was made in a world where spreads never widen.
+        #
+        # Live, 22:00 UTC sits in the middle of the 21:30-22:30 rollover window
+        # — the same window this bot refuses to OPEN trades in, because spreads
+        # widen 5-50x (see the rollover block in _place_order). Flattening the
+        # whole book there would pay those spreads on every close, a cost the
+        # backtest is structurally blind to.
+        #
+        # 21:00 runs the pass one hour before the daily close and clear of the
+        # rollover window. To reproduce backtest results exactly, set
+        # NIGHTLY_DERISK_HOUR=22.
+        hour = int(os.getenv("NIGHTLY_DERISK_HOUR", "21"))
+        if now.hour != hour:
+            return
+        # Friday is already handled by the weekend logic — don't double-derisk.
+        if now.weekday() == 4:
+            return
+        day_key = now.date()
+        if getattr(self, "_nightly_derisk_day", None) == day_key:
+            return
+        self._nightly_derisk_day = day_key
+
+        positions = self.mt5.get_my_positions()
+        if not positions:
+            return
+
+        result = wgm.select_positions_for_weekend_tier1(
+            positions=positions,
+            mt5_client=self.mt5,
+            current_time=now,
+            max_per_group=int(os.getenv("NIGHTLY_MAX_PER_GROUP", "0")),
+            max_total_non_crypto=int(os.getenv("NIGHTLY_MAX_TOTAL", "0")),
+            r_close_losing=float(os.getenv("NIGHTLY_R_CLOSE_LOSING", "0.25")),
+            r_new_position=float(os.getenv("NIGHTLY_R_NEW", "0.5")),
+            reduce_pct=float(os.getenv("NIGHTLY_REDUCE_PCT", "0.75")),
+            enforce_friday_gate=False,       # this IS the nightly caller
+            honor_manual_exclusions=False,   # NAS100 etc. are not exempt from it
+        )
+
+        log.info(f"[W5][nightly] {now:%Y-%m-%d %H:%M} UTC — CLOSE={len(result['CLOSE'])} "
+                 f"REDUCE={len(result['REDUCE_50'])} HOLD={len(result['HOLD'])}")
+        for pos in result['CLOSE']:
+            self.mt5.close_position(pos.ticket)
+
+        reduce_pct = float(os.getenv("NIGHTLY_REDUCE_PCT", "0.75"))
+        for pos in result['REDUCE_50']:
+            reduce_volume = round(pos.volume * reduce_pct, 2)
+            if reduce_volume < 0.01:
+                continue
+            self.mt5.partial_close(pos.ticket, reduce_volume)
+
     def handle_friday_position_closing(self):
         """
         TIER 1: Correlation-aware Friday position closing
@@ -2947,9 +3343,13 @@ class LiveTradingBot:
                     tp3_close_pct=self.params.tp3_close_pct,
                     daily_loss_warning_pct=FIVEERS_CONFIG.daily_loss_warning_pct,
                     daily_loss_reduce_pct=FIVEERS_CONFIG.daily_loss_reduce_pct,
-                    daily_loss_halt_pct=FIVEERS_CONFIG.daily_loss_halt_pct,
+                    # W5: ChallengeRiskManager runs its OWN emergency close-all
+                    # at this level (challenge_risk_manager.py:439), a separate
+                    # path from the entry/sizing gates. It must see 2.50, not
+                    # FIVEERS_CONFIG's 3.2, or the paths disagree on when to stop.
+                    daily_loss_halt_pct=_w5_daily_halt_pct(),
                     total_dd_warning_pct=FIVEERS_CONFIG.total_dd_warning_pct,
-                    total_dd_emergency_pct=FIVEERS_CONFIG.total_dd_emergency_pct,
+                    total_dd_emergency_pct=_w5_tdd_emergency_pct(),
                     protection_loop_interval_sec=FIVEERS_CONFIG.protection_loop_interval_sec,
                     pending_order_max_age_hours=FIVEERS_CONFIG.pending_order_expiry_hours,
                     profit_ultra_safe_threshold_pct=FIVEERS_CONFIG.profit_ultra_safe_threshold_pct,
@@ -4277,11 +4677,19 @@ class LiveTradingBot:
         log.info(f"[{symbol}] DDD/TDD check at fill: day_start_equity=${day_start_equity:.2f}, starting_balance=${starting_balance:.2f}, current_equity=${current_equity:.2f}, daily_loss_pct={daily_loss_pct:.2f}%, total_dd_pct={total_dd_pct:.2f}%")
 
         # Check if trading is halted
-        if daily_loss_pct >= FIVEERS_CONFIG.daily_loss_halt_pct:
-            log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {FIVEERS_CONFIG.daily_loss_halt_pct}% (NO TRADE)")
+        _n_pos = len(self.mt5.get_my_positions() or []) if self.mt5 else 0
+        _halt_pct = _w5_dynamic_halt_pct(_w5_daily_halt_pct(), _n_pos,
+                                         datetime.now(timezone.utc))
+        if daily_loss_pct >= _halt_pct:
+            log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {_halt_pct:.2f}% ({_n_pos} pos) (NO TRADE)")
             return 0.0
 
-        if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
+        # W5 PORT: TDD_EMERGENCY_HALT. The validated config sets 0 — DISABLED.
+        # Live halted unconditionally, which is the behaviour the backtest found
+        # CAUSES breaches: freezing at the threshold traps the account holding
+        # its losers with no diversifying recovery trades, and it bleeds to the
+        # 10% wall (main_live_bot_backtest.py:3311). The wall-guard replaces it.
+        if _w5_tdd_emergency_halt_enabled() and total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
             log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}% (NO TRADE)")
             return 0.0
 
@@ -4313,12 +4721,63 @@ class LiveTradingBot:
         elif daily_loss_pct >= FIVEERS_CONFIG.daily_loss_warning_pct or total_dd_pct >= 5.0:
             # TDD 5-7% → reduced 0.4%
             risk_pct = min(base_risk, FIVEERS_CONFIG.max_risk_conservative_pct)
-        elif total_dd_pct >= 3.0:
-            # TDD 3-5% → cautious recovery 0.6% (not yet back to full risk)
-            risk_pct = min(base_risk, 0.60)
+        elif total_dd_pct >= _w5_tdd_caution():
+            # W5 PORT: cautious rung. Live hardcoded 3.0% -> 0.60%; the validated
+            # config de-risks at 1.5% -> 0.40%, i.e. at half the drawdown and to
+            # two-thirds the size. Backtest gate: main_live_bot_backtest.py:3348.
+            risk_pct = min(base_risk, _w5_risk_cautious())
         else:
-            # TDD <3% → full risk (1.1% or funded-level cap)
+            # TDD below the caution band → full risk (params, or funded-level cap)
             risk_pct = base_risk
+
+        # ── W5 PORT: regime-coherent risk multiplier ────────────────────────
+        # RISK_REGIME_ENABLE=1, RISK_CALM_MULT=1.45 in the validated config, so
+        # in CALM regimes positions are sized 45% LARGER: 2.7% x 1.45 = 3.9%
+        # effective risk per trade. This is a RETURN driver, not a safety
+        # feature, and omitting it would have made live materially more
+        # conservative than everything that was tested.
+        #
+        # Uses the same ATR(14)/ATR(50) signal as the entry fib regime switch, so
+        # the same bar that triggers volatile entry also triggers volatile
+        # sizing. Gated on drawdown: past VOL_REGIME_DD_OFF the size-up collapses
+        # to VOL_REGIME_DD_MULT, because sizing up while already in drawdown
+        # fights the risk ladder directly above.
+        # Backtest: main_live_bot_backtest.py:3379.
+        _rm = self._w5_regime_risk_multiplier(symbol)
+        _dd_off = float(os.getenv("VOL_REGIME_DD_OFF", "5.0"))
+        if _rm > 1.0 and (total_dd_pct >= _dd_off or daily_loss_pct >= _dd_off):
+            _gated = float(os.getenv("VOL_REGIME_DD_MULT", "1.0"))
+            log.info(f"[{symbol}] [W5] Regime-risk gate: TDD {total_dd_pct:.1f}%/"
+                     f"DDD {daily_loss_pct:.1f}% >= {_dd_off}% -> x{_rm:.2f} "
+                     f"collapsed to x{_gated:.2f}")
+            _rm = _gated
+        if _rm != 1.0:
+            risk_pct = risk_pct * _rm
+            log.info(f"[{symbol}] [W5] Regime-risk x{_rm:.2f} -> risk {risk_pct:.3f}%")
+
+        # ── W5 PORT: wall-guard / room-to-the-wall cap ──────────────────────
+        # No live equivalent existed. In the high-TDD zone, cap each trade so
+        # that even a FULL stop-loss cannot push total drawdown through the 10%
+        # wall: risk no more than room-to-wall divided by a safety factor.
+        # Recovery trades keep flowing — an earlier "no new entry while any
+        # position is open" rule was tried in the backtest and DELETED, because
+        # it trapped the account holding its existing losers with no way to take
+        # diversifying trades, turning a survivable 9.4% draw into a 10% breach.
+        # This is the backstop instead. Backtest: main_live_bot_backtest.py:3439.
+        # `starting_balance` is the local set above from
+        # challenge_manager.initial_balance — the live manager names it
+        # initial_balance where the backtest names it starting_balance, so
+        # reaching for the backtest's attribute name here would silently read 0
+        # and disable the guard.
+        _emerg = _w5_tdd_emergency_pct()
+        if total_dd_pct >= _emerg and starting_balance > 0 and current_balance > 0:
+            _room_usd = max(0.0, current_equity - starting_balance * 0.90)  # 10% wall
+            _cap_pct = (_room_usd / _w5_wall_safety()) / current_balance * 100
+            if _cap_pct < risk_pct:
+                log.info(f"[{symbol}] [W5] Wall-guard: TDD {total_dd_pct:.1f}%, "
+                         f"room ${_room_usd:,.0f} -> risk {risk_pct:.3f}% "
+                         f"capped to {_cap_pct:.3f}%")
+                risk_pct = _cap_pct
 
         log.info(f"[{symbol}] Risk: {risk_pct:.3f}% (base from params: {base_risk:.3f}%, funded: ${current_balance:,.0f}, TDD: {total_dd_pct:.1f}%, DDD safety applied)")
 
@@ -4439,18 +4898,210 @@ class LiveTradingBot:
         log.info(f"  Pip value: ${dynamic_pip_value:.4f}")
         log.info(f"  Lot size: {lot_size}")
 
-        # HARD BLOCK: If actual risk exceeds 2x intended, something is wrong
-        if risk_ratio > 2.0:
-            log.error(f"[{symbol}] 🚨 RISK SAFETY BLOCK: Actual risk ${actual_risk_usd:.2f} is {risk_ratio:.1f}x intended ${intended_risk_usd:.2f}")
-            log.error(f"[{symbol}]   pip_value=${dynamic_pip_value:.4f}, stop_pips={_stop_pips:.1f}, lot={lot_size}")
-            log.error(f"[{symbol}]   ORDER REJECTED to protect account!")
+        # ── W5: HARDE BEDRAGSLIMIET ─────────────────────────────────────────
+        # Het werkelijke dollarrisico mag het bedoelde (balance x risk_pct) niet
+        # overschrijden. Was een blokkade op 2.0x, wat betekent dat een positie
+        # met 1.9x het bedoelde risico gewoon doorging.
+        #
+        # Volgorde: eerst VERKLEINEN tot het past — dat behoudt de trade tegen
+        # het juiste risico. Alleen als zelfs de minimum lot te groot is wordt
+        # de order geweigerd, want dan is er geen maat waarop dit instrument
+        # binnen het budget past.
+        _tol = _w5_risk_tolerance(symbol)
+        _cls = _w5_asset_class(symbol)
+        if risk_ratio > _tol and _stop_pips > 0 and dynamic_pip_value > 0:
+            _max_lot_by_risk = (intended_risk_usd * _tol) / (_stop_pips * dynamic_pip_value)
+            _step = 0.01
+            _fitted = math.floor(_max_lot_by_risk / _step) * _step
+            _fitted = round(_fitted, 2)
+            if _fitted >= min_lot:
+                log.warning(f"[{symbol}] [W5] Risico {risk_ratio:.2f}x boven tolerantie "
+                            f"{_tol:.2f} ({_cls}) — lot {lot_size} -> {_fitted} "
+                            f"(${actual_risk_usd:.0f} -> ${intended_risk_usd*_tol:.0f})")
+                lot_size = _fitted
+                actual_risk_usd = lot_size * _stop_pips * dynamic_pip_value
+                risk_ratio = actual_risk_usd / intended_risk_usd if intended_risk_usd > 0 else 999
+            else:
+                log.error(f"[{symbol}] 🚨 [W5] ORDER GEWEIGERD: zelfs de minimum lot "
+                          f"({min_lot}) draagt ${min_lot * _stop_pips * dynamic_pip_value:.2f} "
+                          f"risico, boven het toegestane ${intended_risk_usd * _tol:.2f} "
+                          f"({_cls}, tolerantie {_tol:.2f}x)")
+                log.error(f"[{symbol}]   pip_value=${dynamic_pip_value:.4f}, "
+                          f"stop_pips={_stop_pips:.1f}, balance=${current_balance:.0f}")
+                return 0.0
+
+        # ── W5 PORT: cumulative open-risk cap (CFG_MAX_CUM_RISK) ────────────
+        # In CHALLENGE_MODE the live bot had NO cumulative cap. RiskManager.
+        # check_trade does enforce one (MAX_CUMULATIVE_RISK_PCT = 3.0,
+        # tradr/risk/manager.py:412) but it is called from the `else` branch —
+        # the non-challenge path — so it never runs for a challenge account.
+        # The backtest applies its cap here instead, at fill time
+        # (main_live_bot_backtest.py:3558), which is why the comment further up
+        # this file claiming the simulator has no cumulative limit is wrong.
+        #
+        # Capping TOTAL simultaneous open risk is the mechanism that matters
+        # against intrabar gaps: what a single adverse move can reach depends on
+        # aggregate exposure, not on any one position's size.
+        _cum_cap = _w5_max_cum_risk_pct()
+        if _cum_cap < 100.0 and current_balance > 0:
+            _existing = self._w5_total_open_risk_usd()
+            _cap_usd = current_balance * _cum_cap / 100.0
+            _avail = _cap_usd - _existing
+            if _avail <= 0:
+                log.info(f"[{symbol}] [W5] Cum-risk cap: open risk ${_existing:,.0f} "
+                         f">= cap ${_cap_usd:,.0f} ({_cum_cap}%) — NO TRADE")
+                return 0.0
+            if actual_risk_usd > _avail:
+                _factor = (_avail / actual_risk_usd) * 0.95
+                _new_lot = lot_size * _factor
+                if symbol_info:
+                    _ls = symbol_info.get('lot_step', 0.01)
+                    if _ls > 0:
+                        _new_lot = round(_new_lot / _ls) * _ls
+                if _new_lot < min_lot:
+                    log.info(f"[{symbol}] [W5] Cum-risk cap: room ${_avail:,.0f} "
+                             f"< min lot — NO TRADE")
+                    return 0.0
+                log.info(f"[{symbol}] [W5] Cum-risk cap: lot {lot_size}->{_new_lot} "
+                         f"(open ${_existing:,.0f}, cap ${_cap_usd:,.0f})")
+                lot_size = _new_lot
+
+        # ── W5: MARGEPOORT — de laatste controle voor elke order ─────────────
+        # Twee redenen om dit hier te doen en niet alleen in de 5-secondenlus.
+        # De lus kijkt naar wat er AL openstaat; deze poort kijkt naar wat deze
+        # order er nog bovenop legt. En dit is het enige punt waar iedere order
+        # langskomt, ongeacht via welke wachtrij hij binnenkwam.
+        #
+        # De backtest kent geen marge (csv_mt5_simulator.py zet margin op 0,0),
+        # dus deze poort kan alleen strenger zijn dan de backtest, nooit ruimer.
+        # Precies daarom staat de grens op 85 en niet lager: het hoogste ooit
+        # gemeten gebruik is 72,4% (2023, balans $152k, midden in de klim), dus
+        # elke grens onder ~75 zou een trade blokkeren die de backtest wel nam.
+        # Vuurt deze poort toch, dan klopt die meting niet en wil je het zien.
+        if getattr(self, '_w5_margin_blocked', False):
+            log.error(f"[{symbol}] [W5] ORDER GEWEIGERD: margeblokkade actief "
+                      f"({getattr(self, '_w5_margin_pct', 0):.1f}% in gebruik)")
+            return 0.0
+        _mb, _mr = self._w5_margin_would_block(symbol, lot_size, entry)
+        if _mb:
+            log.error(f"[{symbol}] [W5] ORDER GEWEIGERD: {_mr}")
             return 0.0
 
-        # SOFT WARNING: If actual risk exceeds 1.5x intended
-        if risk_ratio > 1.5:
-            log.warning(f"[{symbol}] ⚠️ Risk slightly elevated: ${actual_risk_usd:.2f} vs intended ${intended_risk_usd:.2f} ({risk_ratio:.1f}x)")
-
         return lot_size
+
+    def _w5_regime_risk_multiplier(self, symbol: str) -> float:
+        """Regime-coherent risk multiplier (W5 PORT of backtest:3659).
+
+        Calm regimes size UP by RISK_CALM_MULT, volatile ones by
+        RISK_VOLATILE_MULT, split on the same ATR(14)/ATR(50) ratio and
+        fib_vol_ratio_threshold the entry fib switch uses — so entry and sizing
+        agree about what the regime is.
+
+        Strict no-op when RISK_REGIME_ENABLE is off or both multipliers are 1.0,
+        so this cannot perturb anything unless deliberately enabled.
+
+        Cached per (symbol, day): the D1 signal only changes daily, and the live
+        bot re-evaluates a symbol many times per session.
+        """
+        if os.getenv("RISK_REGIME_ENABLE", "1").strip().lower() not in ("1", "true", "yes", "on"):
+            return 1.0
+        m_calm = float(os.getenv("RISK_CALM_MULT", "1.45"))
+        m_vol = float(os.getenv("RISK_VOLATILE_MULT", "1.0"))
+        if m_calm == 1.0 and m_vol == 1.0:
+            return 1.0
+        day = datetime.now(timezone.utc).date()
+        cache = getattr(self, "_w5_regime_cache", None)
+        if cache is None:
+            cache = self._w5_regime_cache = {}
+        key = (symbol, day)
+        if key in cache:
+            return cache[key]
+        broker = self.symbol_map.get(symbol, symbol)
+        try:
+            candles = self.mt5.get_ohlcv(broker, "D1", 52 + 1)
+        except Exception:
+            return 1.0
+        mult = 1.0
+        if candles and len(candles) >= 52:
+            atr14 = self._calculate_atr(candles[-15:], 14)
+            atr50 = self._calculate_atr(candles[-51:], 50)
+            if atr50 > 0:
+                ratio = atr14 / atr50
+                thr = float(getattr(self.params, "fib_vol_ratio_threshold", 1.15))
+                mult = m_vol if ratio >= thr else m_calm
+        cache[key] = mult
+        return mult
+
+    def _w5_margin_state(self, account=None):
+        """(gebruikte marge, equity, gebruik in %) — uit MT5, niet geschat.
+
+        MT5 rekent de marge zelf uit met de hefbomen die 5ers op de server heeft
+        staan, dus dit is de waarheid. _w5_margin_per_lot bestaat alleen om
+        VOORAF in te schatten wat een nog niet geplaatste order gaat kosten.
+
+        Geeft (0, 0, 0) terug als het accountinfo niet op te halen is; de
+        aanroeper moet dan niet blokkeren, want een verbroken verbinding is geen
+        margeprobleem.
+        """
+        try:
+            a = account if account is not None else self.mt5.get_account_info()
+            if not a:
+                return 0.0, 0.0, 0.0
+            used = float(a.get("margin", 0.0) or 0.0)
+            equity = float(a.get("equity", 0.0) or 0.0)
+            if equity <= 0:
+                return used, 0.0, 0.0
+            return used, equity, used / equity * 100.0
+        except Exception as e:
+            log.debug(f"[W5] margestatus niet leesbaar: {e}")
+            return 0.0, 0.0, 0.0
+
+    def _w5_margin_would_block(self, symbol, lot_size, price):
+        """Zou deze order het margegebruik boven de blokkeergrens duwen?
+
+        Geeft (True, reden) terug als de order geweigerd moet worden.
+        """
+        block = _w5_margin_block_pct()
+        if block >= 100:
+            return False, ""
+        used, equity, pct = self._w5_margin_state()
+        if equity <= 0:
+            return False, ""
+        extra = _w5_margin_per_lot(symbol, price) * float(lot_size)
+        projected = (used + extra) / equity * 100.0
+        if projected > block:
+            return True, (f"marge zou naar {projected:.1f}% gaan "
+                          f"(nu {pct:.1f}%, deze order +${extra:,.0f}, "
+                          f"grens {block:.0f}%)")
+        return False, ""
+
+    def _w5_total_open_risk_usd(self) -> float:
+        """Worst-case loss to stop-loss across all OPEN positions, in USD.
+
+        W5 PORT of main_live_bot_backtest.py:3225. Deliberately NOT reusing
+        RiskManager._calculate_total_open_risk: that reads self.state.
+        open_positions, the risk manager's own bookkeeping, which is only
+        maintained on the non-challenge path. Reading live broker positions
+        directly is what the backtest does and cannot drift out of sync with
+        reality.
+
+        Static contract specs are good enough for a risk cap — FX cross drift is
+        second-order against a 7% ceiling.
+        """
+        from tradr.brokers.fiveers_specs import get_fiveers_contract_specs
+        total = 0.0
+        for pos in (self.mt5.get_my_positions() if self.mt5 else []):
+            try:
+                if not getattr(pos, "sl", 0) or pos.sl <= 0:
+                    continue
+                specs = get_fiveers_contract_specs(pos.symbol)
+                pip_size = specs.get("pip_size", 0.0001) or 0.0001
+                pip_val = specs.get("pip_value_per_lot", 10.0) or 10.0
+                stop_pips = abs(pos.price_open - pos.sl) / pip_size
+                total += stop_pips * pip_val * pos.volume
+            except Exception:
+                continue
+        return total
     
     def _calculate_atr(self, candles: List[Dict], period: int = 14) -> float:
         """
@@ -4967,11 +5618,16 @@ class LiveTradingBot:
             total_dd_pct = getattr(snapshot, "total_dd_pct", 0)
             profit_pct = (snapshot.equity - self.challenge_manager.initial_balance) / self.challenge_manager.initial_balance * 100
             
-            if daily_loss_pct >= FIVEERS_CONFIG.daily_loss_halt_pct:
-                log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {FIVEERS_CONFIG.daily_loss_halt_pct}%")
+            _n_pos = len(self.mt5.get_my_positions() or []) if self.mt5 else 0
+            _halt_pct = _w5_dynamic_halt_pct(_w5_daily_halt_pct(), _n_pos,
+                                             datetime.now(timezone.utc))
+            if daily_loss_pct >= _halt_pct:
+                log.warning(f"[{symbol}] Trading halted: daily loss {daily_loss_pct:.1f}% >= {_halt_pct:.2f}% ({_n_pos} pos)")
                 return False
             
-            if total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
+            # W5 PORT: same gate as in _calculate_lot_size_at_fill — both sites
+            # must agree or the entry and sizing paths disagree about halting.
+            if _w5_tdd_emergency_halt_enabled() and total_dd_pct >= FIVEERS_CONFIG.total_dd_emergency_pct:
                 log.warning(f"[{symbol}] Trading halted: total DD {total_dd_pct:.1f}% >= {FIVEERS_CONFIG.total_dd_emergency_pct}%")
                 return False
             
@@ -4986,6 +5642,47 @@ class LiveTradingBot:
             if total_exposure >= max_trades:
                 log.info(f"[{symbol}] Max trades reached: {total_exposure}/{max_trades} (positions: {open_positions}, pending: {pending_count})")
                 return False
+
+            # ── W5 PORT: total position cap (MAX_TOTAL_POSITIONS) ───────────
+            # CORR_GROUP_CAP bounds exposure WITHIN a correlation group, but with
+            # 11 groups a portfolio can still hold many small positions across
+            # DIFFERENT groups at once. On a broad risk-off day those all move
+            # together even though no single group is overloaded, and that
+            # breadth alone can breach the daily wall at conservative per-trade
+            # risk. Backtest gate: main_live_bot_backtest.py:4269.
+            #
+            # NOT routed through FIVEERS_CONFIG.max_concurrent_trades: the
+            # backtest imports that same object (main_live_bot_backtest.py:165),
+            # so editing it silently changes the backtest too — which is exactly
+            # how the 2021-04-29 result got corrupted earlier in this port.
+            _max_total_pos = _w5_max_total_positions()
+            if _max_total_pos > 0 and total_exposure >= _max_total_pos:
+                log.info(f"[{symbol}] [W5] Total position cap: {total_exposure}/{_max_total_pos} — NO TRADE")
+                return False
+
+            # ── W5 PORT: correlation group cap (CORR_GROUP_CAP) ─────────────
+            # Clustered exposure is the root driver of total-drawdown death: one
+            # signal sweep fills many pairs in the same correlation group in the
+            # same direction, so a single adverse session digs a deep hole. Cap
+            # concurrent open+pending positions per group.
+            # Backtest gate: main_live_bot_backtest.py:4283.
+            _corr_cap = _w5_corr_group_cap()
+            if _corr_cap > 0:
+                try:
+                    import weekend_gap_manager as _wgm
+                    grp = _wgm.get_correlation_group(symbol)
+                    if grp and grp != 'UNCORRELATED':
+                        same = sum(1 for p in (self.mt5.get_my_positions() if self.mt5 else [])
+                                   if _wgm.get_correlation_group(p.symbol) == grp)
+                        same += sum(1 for s in self.pending_setups.values()
+                                    if s.status == "pending"
+                                    and _wgm.get_correlation_group(s.symbol) == grp)
+                        if same >= _corr_cap:
+                            log.info(f"[{symbol}] [W5] Correlation cap: {grp} already has "
+                                     f"{same} (cap {_corr_cap}) — NO TRADE")
+                            return False
+                except Exception as _e:
+                    log.debug(f"[{symbol}] corr-cap skipped: {_e}")
 
             # Layer 1: Rollover window — no new entries 21:30-22:30 UTC
             # Spread widens 5-50x during rollover; floating equity spikes can
@@ -6111,6 +6808,22 @@ class LiveTradingBot:
         
         # Only scan symbols that are available on broker
         available_symbols = [s for s in TRADABLE_SYMBOLS if s in self.symbol_map]
+
+        # ── W5 PORT: symbol exclusions ──────────────────────────────────────
+        # The validated config excludes AUD_NZD, EUR_NZD and AUD_JPY —
+        # structurally net-negative across both the in-sample and out-of-sample
+        # halves. The backtest applies this at
+        # main_live_bot_backtest.py:2792; live had no equivalent, so it was
+        # trading three pairs the tested config never touches.
+        # Oil (XBR_USD/XTI_USD) is excluded there too, but via a hardcoded set
+        # rather than the env var, so it is listed separately below.
+        _excluded = set(_w5_excluded_symbols())
+        if _excluded:
+            _before = len(available_symbols)
+            available_symbols = [s for s in available_symbols if s not in _excluded]
+            if _before != len(available_symbols):
+                log.info(f"[W5] EXCLUDE_SYMBOLS dropped {_before - len(available_symbols)}: "
+                         f"{sorted(_excluded)}")
         
         # ═══════════════════════════════════════════════════════════════════════════════
         # WEEKEND CRYPTO SCANNING - Detect if it's weekend and filter accordingly
@@ -6386,6 +7099,11 @@ class LiveTradingBot:
 
                         # Weekend gap risk management
                         self.handle_friday_position_closing()  # Friday 18:30+ UTC
+                        # W5 PORT: nightly overnight de-risk. Self-gates on env
+                        # NIGHTLY_DERISK plus the hour, and skips Friday so it
+                        # does not double up with the weekend logic above.
+                        # Backtest call site: main_live_bot_backtest.py:6004.
+                        self.handle_nightly_derisk()  # 22:00 UTC, Mon-Thu
                         self.handle_holiday_position_closing()  # Pre-holiday or early-close days
                         self.handle_sunday_gap_detection()  # Sunday 22:00+ UTC
                         self.handle_monday_order_resume()  # Monday/post-holiday 01:00+ server time

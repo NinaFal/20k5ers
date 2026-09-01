@@ -1844,6 +1844,160 @@ class LiveTradingBot:
     # WEEKEND GAP RISK MANAGEMENT - Tier 1 Conservative Strategy
     # ═══════════════════════════════════════════════════════════════════════════
 
+    def _params_for_symbol(self, symbol):
+        """Per-correlation-group entry-fib override (env-gated, default off).
+
+        Every instrument currently shares one entry fib level, which assumes
+        gold, EUR/GBP and NAS100 retrace alike. Per-SYMBOL levels would be 27
+        free parameters fitted to a shared outcome — an overfitting machine, and
+        this branch has already produced one TRAIN-only winner. Per-GROUP keeps
+        it to ~6, each backed by many more samples.
+
+        Set FIB_GROUP_<GROUP>=<level> to override entry_fib_level for that
+        correlation group, e.g. FIB_GROUP_METALS=0.62. Group names come from
+        weekend_gap_manager.get_correlation_group (USD_MAJORS, USD_INVERSE,
+        EUR_CROSSES, METALS, ... , UNCORRELATED). Unset groups use the base
+        level, so with no vars set behaviour is unchanged.
+        """
+        base = self.params
+        if not getattr(self, "_fib_group_map", None):
+            self._fib_group_map = {}
+            for k, v in os.environ.items():
+                if k.startswith("FIB_GROUP_") and v.strip():
+                    try:
+                        self._fib_group_map[k[len("FIB_GROUP_"):].upper()] = float(v)
+                    except ValueError:
+                        pass
+        if not self._fib_group_map:
+            return base
+        try:
+            grp = wgm.get_correlation_group(symbol)
+        except Exception:
+            return base
+        lvl = self._fib_group_map.get(str(grp).upper())
+        if lvl is None:
+            return base
+        # shallow copy so the override never leaks to another symbol
+        import copy as _copy
+        p = _copy.copy(base)
+        p.entry_fib_level = lvl
+        return p
+
+    def handle_max_hold(self):
+        """MAX_HOLD_DAYS (env-gated, default off) — force-close aged positions.
+
+        The nightly de-risk exempts any position whose stop has reached
+        breakeven ("TP1 reached — can't lose"), so a protected runner stops
+        counting toward the overnight book cap and can stay open indefinitely.
+        In 2017 that produced a single NAS100 long held 333 days.
+
+        That exemption is only true intraday. A held position keeps full
+        exposure to gaps, and — because daily drawdown is measured on EQUITY,
+        which includes floating P&L — a large open winner also feeds straight
+        into the daily loss number the moment it retraces. Capping hold age
+        bounds both.
+
+        Runs once per day, independent of NIGHTLY_DERISK.
+        """
+        max_days = float(os.getenv("MAX_HOLD_DAYS", "0") or 0)
+        if max_days <= 0:
+            return
+        now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
+        if now.hour != int(os.getenv("MAX_HOLD_HOUR", "21")):
+            return
+        day_key = now.date()
+        if getattr(self, "_max_hold_day", None) == day_key:
+            return
+        self._max_hold_day = day_key
+
+        for pos in (self.mt5.get_my_positions() or []):
+            opened = getattr(pos, "time", None)
+            if opened is None:
+                continue
+            try:
+                age = (now - opened).total_seconds() / 86400.0
+            except Exception:
+                continue
+            if age >= max_days:
+                self.mt5.close_position(pos.ticket)
+
+    def handle_nightly_derisk(self):
+        """
+        NIGHTLY_DERISK (env-gated, default off) — overnight gap-risk control.
+
+        E0's breach anatomy (output/doe/E0_FINDINGS.md) found that on a 3% daily
+        wall, 95.5% of the loss on breach days came from positions carried
+        OVERNIGHT — 5 of 6 breaches were 100% overnight, and a single position
+        averaged 62% of the day's loss. Position-count caps don't address this:
+        they bound how many trades are open, not how much gap risk rides
+        unattended through the night.
+
+        This reuses the same Tier-1 correlation-aware selector the bot already
+        applies on Fridays (close losers, reduce young positions, hold winners,
+        cap per correlation group and in total) and runs it EVERY night at
+        NIGHTLY_DERISK_HOUR instead of only before the weekend.
+
+        Env:
+          NIGHTLY_DERISK=1              enable
+          NIGHTLY_DERISK_HOUR=21        UTC hour to run (once per calendar day)
+          NIGHTLY_MAX_PER_GROUP=2       max overnight positions per corr group
+          NIGHTLY_MAX_TOTAL=5           max overnight non-crypto positions
+          NIGHTLY_R_CLOSE_LOSING=0.0    close positions below this R
+          NIGHTLY_R_NEW=0.5             reduce positions below this R
+          NIGHTLY_REDUCE_PCT=0.5        fraction to reduce those by
+        """
+        if os.getenv("NIGHTLY_DERISK", "0") != "1":
+            return
+        now = self.mt5.get_current_time() if hasattr(self.mt5, 'get_current_time') else datetime.now(timezone.utc)
+        hour = int(os.getenv("NIGHTLY_DERISK_HOUR", "21"))
+        _dbg = os.getenv("NIGHTLY_DEBUG") == "1"
+        if _dbg:
+            self._nd_hours = getattr(self, "_nd_hours", set()); self._nd_hours.add(now.hour)
+        if now.hour != hour:
+            return
+        # Friday is already handled by the weekend logic — don't double-derisk.
+        if now.weekday() == 4:
+            return
+        day_key = now.date()
+        if getattr(self, "_nightly_derisk_day", None) == day_key:
+            return
+        self._nightly_derisk_day = day_key
+
+        positions = self.mt5.get_my_positions()
+        if _dbg:
+            import sys as _sys
+            print(f"[ND] {now} fired, positions={len(positions or [])}",
+                  file=_sys.stderr, flush=True)
+        if not positions:
+            return
+
+        result = wgm.select_positions_for_weekend_tier1(
+            positions=positions,
+            mt5_client=self.mt5,
+            current_time=now,
+            max_per_group=int(os.getenv("NIGHTLY_MAX_PER_GROUP", "2")),
+            max_total_non_crypto=int(os.getenv("NIGHTLY_MAX_TOTAL", "5")),
+            r_close_losing=float(os.getenv("NIGHTLY_R_CLOSE_LOSING", "0.0")),
+            r_new_position=float(os.getenv("NIGHTLY_R_NEW", "0.5")),
+            reduce_pct=float(os.getenv("NIGHTLY_REDUCE_PCT", "0.5")),
+            enforce_friday_gate=False,       # this IS the nightly caller
+            honor_manual_exclusions=False,   # NAS100 etc. are not exempt from it
+        )
+
+        if _dbg:
+            import sys as _sys
+            print(f"[ND]   CLOSE={len(result['CLOSE'])} REDUCE={len(result['REDUCE_50'])} "
+                  f"HOLD={len(result['HOLD'])}", file=_sys.stderr, flush=True)
+        for pos in result['CLOSE']:
+            self.mt5.close_position(pos.ticket)
+
+        reduce_pct = float(os.getenv("NIGHTLY_REDUCE_PCT", "0.5"))
+        for pos in result['REDUCE_50']:
+            reduce_volume = round(pos.volume * reduce_pct, 2)
+            if reduce_volume < 0.01:
+                continue
+            self.mt5.partial_close(pos.ticket, reduce_volume)
+
     def handle_friday_position_closing(self):
         """
         TIER 1: Correlation-aware Friday position closing
@@ -2632,7 +2786,19 @@ class LiveTradingBot:
 
         # BACKTEST: Load M15 data for all symbols (filtered by date range)
         from config import FOREX_PAIRS, METALS, OIL_ASSETS, INDICES, CRYPTO_ASSETS
-        _excluded = {"XBR_USD", "XTI_USD"}  # Oil: extreme gaps
+        # Olie stond hier hardgecodeerd uit, los van EXCLUDE_SYMBOLS, met als
+        # reden "extreme gaps". In broker_config.py:209 staat dezelfde
+        # uitsluiting met de comment "excluded from demo" — een instelling voor
+        # een demo-account die nooit is teruggedraaid. Er ligt geen meting
+        # onder, net zomin als onder de drie FX-paren die na hermeting +10,8%
+        # bleken op te leveren.
+        #
+        # Standaard onveranderd: zonder OIL_ENABLE blijft olie uit en is elk
+        # bestaand resultaat identiek. OIL_ENABLE=1 zet hem aan zodat het
+        # gemeten kan worden in plaats van aangenomen.
+        _excluded = set()
+        if os.getenv("OIL_ENABLE", "0").strip().lower() not in ("1", "true", "yes", "on"):
+            _excluded = {"XBR_USD", "XTI_USD"}
         # Additional exclusions via env (comma-separated), e.g. structurally
         # net-negative tickers identified as bad across BOTH IS and OOS halves.
         _env_excl = os.getenv("EXCLUDE_SYMBOLS", "").replace(" ", "")
@@ -3231,6 +3397,41 @@ class LiveTradingBot:
             risk_pct = risk_pct * _rm
             log.info(f"[{symbol}] Regime-risk x{_rm:.2f} -> risk {risk_pct:.3f}%")
 
+        # ── TREND-QUALITY CONTROLLER (D3; env-gated; default off) ────────────
+        # Continuous ADX-based sizing: full risk in strong trends, floor risk in
+        # chop. Size-UP side gated by drawdown like the other multipliers.
+        _tm = self._trend_risk_multiplier(symbol)
+        if _tm > 1.0 and (total_dd_pct >= _dd_off or daily_loss_pct >= _dd_off):
+            _tm = 1.0
+        if _tm != 1.0:
+            risk_pct = risk_pct * _tm
+            log.info(f"[{symbol}] Trend-quality x{_tm:.2f} -> risk {risk_pct:.3f}%")
+
+        # ── CUSHION RATCHET (env-gated; default off) ─────────────────────────
+        # D2 (WALL3_RD_PLAN.md): scale risk UP once profit is BANKED (realized).
+        # The existing ladders only ever ratchet risk DOWN on drawdown; nothing
+        # exploits the fact that banked profit makes higher risk provably safer:
+        # the daily wall is measured from EOD max(equity, balance), so banked
+        # gains raise the wall's dollar floor, and with a few % banked even a
+        # max daily loss cannot end a challenge attempt (10% total wall stays
+        # far). Ladder: cushion >= CUSHION_T1/T2/T3 (% realized profit over
+        # starting balance) -> risk x CUSHION_M1/M2/M3. Gated off whenever the
+        # account is in ANY drawdown state (daily loss or total DD beyond
+        # CUSHION_DD_OFF) so it never fights the safety ladders.
+        if os.getenv("CUSHION_RATCHET_ENABLE", "0").strip().lower() in ("1", "true", "yes", "on"):
+            _cushion_pct = ((current_balance - starting_balance) / starting_balance * 100
+                            if starting_balance > 0 else 0.0)
+            _c_dd_off = float(os.getenv("CUSHION_DD_OFF", "1.0"))
+            if _cushion_pct > 0 and daily_loss_pct < _c_dd_off and total_dd_pct < _c_dd_off:
+                _t1 = float(os.getenv("CUSHION_T1", "2.0")); _m1 = float(os.getenv("CUSHION_M1", "1.5"))
+                _t2 = float(os.getenv("CUSHION_T2", "4.0")); _m2 = float(os.getenv("CUSHION_M2", "2.0"))
+                _t3 = float(os.getenv("CUSHION_T3", "6.0")); _m3 = float(os.getenv("CUSHION_M3", "2.5"))
+                _cm = _m3 if _cushion_pct >= _t3 else (_m2 if _cushion_pct >= _t2
+                       else (_m1 if _cushion_pct >= _t1 else 1.0))
+                if _cm != 1.0:
+                    risk_pct = risk_pct * _cm
+                    log.info(f"[{symbol}] Cushion ratchet: banked {_cushion_pct:.2f}% -> risk x{_cm:.2f} = {risk_pct:.3f}%")
+
         # Emergency wall-guard: in the high-TDD zone, cap per-trade risk so even a
         # FULL stop-loss can't push TDD through the 10% wall (room-to-wall / safety
         # factor). This is the principled replacement for the binary 7% freeze:
@@ -3262,14 +3463,21 @@ class LiveTradingBot:
 
         # Get symbol info
         symbol_info = self.mt5.get_symbol_info(broker_symbol)
-        max_lot = symbol_info.get('max_lot', 100.0) if symbol_info else 100.0
-        min_lot = symbol_info.get('min_lot', 0.01) if symbol_info else 0.01
+        # KEY MISMATCH FIX: get_symbol_info() returns volume_max/volume_min
+        # (csv_mt5_simulator.py:846-848), not max_lot/min_lot. The old lookup
+        # always missed and fell back to 100 — double the 5ers cap — while the
+        # simulator's own volume_max of 50.0 sat unread. Live gets this right
+        # (main_live_bot.py:4557) and clamps to 50; the backtest did not, so the
+        # two engines disagreed about the largest permissible position.
+        symbol_info = symbol_info or {}
+        max_lot = symbol_info.get('max_lot', symbol_info.get('volume_max', 50.0))
+        min_lot = symbol_info.get('min_lot', symbol_info.get('volume_min', 0.01))
 
-        # Ensure min_lot and max_lot are valid
+        # Ensure min_lot and max_lot are valid, and never exceed the broker cap
         if min_lot <= 0:
             min_lot = 0.01
-        if max_lot <= 0:
-            max_lot = 100.0
+        if max_lot <= 0 or max_lot > 50.0:
+            max_lot = 50.0  # 5ers broker hard cap, matching main_live_bot.py:4564
 
         # Get DYNAMIC pip value based on current exchange rates
         try:
@@ -3479,7 +3687,12 @@ class LiveTradingBot:
             return 1.0
         m_calm = float(os.getenv("RISK_CALM_MULT", "1.0"))
         m_vol  = float(os.getenv("RISK_VOLATILE_MULT", "1.0"))
-        if m_calm == 1.0 and m_vol == 1.0:
+        # 3-way split (env-gated): add a middle "normal" band between calm and
+        # volatile, with its own multiplier and two thresholds. OFF by default so
+        # the 2-way behavior above stays bit-identical.
+        _three = os.getenv("RISK_REGIME_3WAY", "0").strip().lower() in ("1", "true", "yes", "on")
+        m_norm = float(os.getenv("RISK_NORMAL_MULT", "1.0")) if _three else 1.0
+        if m_calm == 1.0 and m_vol == 1.0 and m_norm == 1.0:
             return 1.0
         ct  = getattr(self.mt5, "_current_time", None)
         day = ct.date() if ct is not None and hasattr(ct, "date") else None
@@ -3499,8 +3712,62 @@ class LiveTradingBot:
             atr14 = self._calculate_atr(candles[-15:], 14)
             atr50 = self._calculate_atr(candles[-51:], 50)
             if atr50 > 0:
-                thr  = float(getattr(self.params, "fib_vol_ratio_threshold", 1.15))
-                mult = m_vol if (atr14 / atr50) >= thr else m_calm
+                ratio = atr14 / atr50
+                thr = float(getattr(self.params, "fib_vol_ratio_threshold", 1.15))
+                if _three:
+                    # calm  : ratio <  RISK_CALM_THR      -> m_calm
+                    # normal: RISK_CALM_THR <= ratio < RISK_VOL_THR -> m_norm
+                    # vol   : ratio >= RISK_VOL_THR        -> m_vol
+                    # Defaults straddle the entry fib threshold so the middle band
+                    # brackets it symmetrically. Ordering enforced (lo <= hi).
+                    lo = float(os.getenv("RISK_CALM_THR", str(round(thr - 0.10, 4))))
+                    hi = float(os.getenv("RISK_VOL_THR",  str(round(thr + 0.10, 4))))
+                    if hi < lo:
+                        lo, hi = hi, lo
+                    mult = m_calm if ratio < lo else (m_vol if ratio >= hi else m_norm)
+                else:
+                    mult = m_vol if ratio >= thr else m_calm
+        cache[key] = mult
+        return mult
+
+    def _trend_risk_multiplier(self, symbol: str) -> float:
+        """D3 (WALL3_RD_PLAN.md): trend-quality risk CONTROLLER (env-gated,
+        default off). Passes cluster in trending windows and breaches in chop,
+        so size risk continuously by D1 ADX(14): TREND_MULT_LO at/below
+        TREND_ADX_LO, TREND_MULT_HI at/above TREND_ADX_HI, linear in between.
+        A sizing controller, NOT a skip-gate (the binary ADX gate was proven
+        harmful in Stage 1). Memoized per (symbol, day) like the regime mult."""
+        if os.getenv("TREND_RISK_ENABLE", "0").strip().lower() not in ("1", "true", "yes", "on"):
+            return 1.0
+        ct = getattr(self.mt5, "_current_time", None)
+        day = ct.date() if ct is not None and hasattr(ct, "date") else None
+        cache = getattr(self, "_trend_risk_cache", None)
+        if cache is None:
+            cache = self._trend_risk_cache = {}
+        key = (symbol, day)
+        if key in cache:
+            return cache[key]
+        mult = 1.0
+        try:
+            from strategy_core import calculate_adx
+            broker = self.symbol_map.get(symbol, symbol)
+            candles = self.mt5.get_ohlcv(broker, "D1", 40)
+            if candles and len(candles) >= 20:
+                adx = calculate_adx(candles, 14)
+                lo = float(os.getenv("TREND_ADX_LO", "18"))
+                hi = float(os.getenv("TREND_ADX_HI", "30"))
+                mlo = float(os.getenv("TREND_MULT_LO", "0.5"))
+                mhi = float(os.getenv("TREND_MULT_HI", "1.5"))
+                if hi <= lo:
+                    hi = lo + 1e-6
+                if adx <= lo:
+                    mult = mlo
+                elif adx >= hi:
+                    mult = mhi
+                else:
+                    mult = mlo + (mhi - mlo) * (adx - lo) / (hi - lo)
+        except Exception:
+            mult = 1.0
         cache[key] = mult
         return mult
 
@@ -3612,7 +3879,7 @@ class LiveTradingBot:
             daily_candles,
             h4_candles,
             direction,
-            self.params,
+            self._params_for_symbol(symbol),
             historical_sr,
         )
         
@@ -4002,6 +4269,24 @@ class LiveTradingBot:
             # Check against static max trades limit
             if total_exposure >= max_trades:
                 log.info(f"[{symbol}] Max trades reached: {total_exposure}/{max_trades} (positions: {open_positions}, pending: {pending_count})")
+                return False
+
+            # ── TOTAL POSITION CAP (env-gated; MAX_TOTAL_POSITIONS, 0 = off) ──
+            # CORR_GROUP_CAP bounds exposure WITHIN one correlation group, but
+            # with 11 groups defined a portfolio can still hold many small
+            # positions across DIFFERENT groups simultaneously. On a broad
+            # risk-off/USD-strength day those all move together even though no
+            # single group is "overloaded" — under a tight daily wall (e.g. the
+            # 3% 5%ers Summer Edition) that breadth alone can breach the wall
+            # even at conservative per-trade risk. Cap TOTAL concurrent
+            # open+pending positions regardless of group.
+            _max_total_pos = 0
+            try:
+                _max_total_pos = int(os.getenv("MAX_TOTAL_POSITIONS", "0"))
+            except ValueError:
+                _max_total_pos = 0
+            if _max_total_pos > 0 and total_exposure >= _max_total_pos:
+                log.info(f"[{symbol}] Total position cap: {total_exposure}/{_max_total_pos} — NO TRADE")
                 return False
 
             # ── CORRELATION CAP (env-gated; CORR_GROUP_CAP, 0 = off/default) ──
@@ -5577,6 +5862,7 @@ class LiveTradingBot:
             if _record_tdd_series:
                 _tdd_series.append((str(t), round(val, 3)))
         day_start_equity = self.initial_balance
+        _day_start_payout_removed = getattr(self.mt5, "_payout_balance_removed", 0.0)
         safety_events = []
         trading_halted_today = False
 
@@ -5600,23 +5886,40 @@ class LiveTradingBot:
             _t0 = _t0.replace(tzinfo=timezone.utc)
         run_start_dt = _t0
 
+        # Terminal daily-drawdown wall — env-configurable so different account
+        # editions (e.g. a "Summer Edition" 3% daily wall vs the classic 5%) can
+        # be backtested without editing code. Default 5.0 preserves all prior
+        # results/reproducibility for accounts using the classic wall.
+        _daily_wall_pct = float(os.getenv("CFG_DAILY_WALL_PCT", "5.0"))
+
         def _register_breach(when, dd_value, source, kind="daily"):
-            """Record a terminal account failure — either a 5% daily-drawdown
-            breach (kind='daily') or a 10% total-drawdown breach (kind='total').
-            Both permanently end a 5ers account; both must set account_failed so
-            survival flags and the optimizer's survivor scoring are correct."""
+            """Record a terminal account failure — either a daily-drawdown
+            breach at the CFG_DAILY_WALL_PCT threshold (kind='daily') or a
+            10% total-drawdown breach (kind='total'). Both permanently end a
+            5ers account; both must set account_failed so survival flags and
+            the optimizer's survivor scoring are correct."""
             nonlocal account_failed, fail_info
             if account_failed:
                 return
             funded = getattr(self.mt5, '_funded_level', self.initial_balance)
+            if os.getenv("DDD_DEBUG") == "1":
+                import sys as _sys
+                _acct = self.mt5.get_account_info()
+                print(f"[DDD] {when} kind={kind} dd={dd_value:.2f}% "
+                      f"day_start_eq={day_start_equity:,.2f} "
+                      f"equity={_acct.get('equity', 0):,.2f} balance={_acct.get('balance', 0):,.2f} "
+                      f"funded={funded:,.2f} "
+                      f"payout_cum={getattr(self.mt5, '_payout_balance_removed', None)} "
+                      f"day_start_payout={_day_start_payout_removed}",
+                      file=_sys.stderr, flush=True)
             try:
                 survived = (when - run_start_dt).days
             except Exception:
                 survived = None
-            label = "10% TOTAL" if kind == "total" else "5% DAILY"
+            label = "10% TOTAL" if kind == "total" else f"{_daily_wall_pct:g}% DAILY"
             reason = (f'10% total drawdown breached ({dd_value:.2f}%) [{source}]'
                       if kind == "total"
-                      else f'5% daily drawdown breached ({dd_value:.2f}%) [{source}]')
+                      else f'{_daily_wall_pct:g}% daily drawdown breached ({dd_value:.2f}%) [{source}]')
             fail_info = {
                 'failed': True,
                 'breach_type': kind,
@@ -5664,6 +5967,9 @@ class LiveTradingBot:
                 
                 # CRITICAL: Use MAX(equity, balance) per 5ers rules
                 day_start_equity = max(day_equity, day_balance)
+                # Baseline for excluding payouts from this day's drawdown: a
+                # scaling payout removes balance, which is not a trading loss.
+                _day_start_payout_removed = getattr(self.mt5, "_payout_balance_removed", 0.0)
                 
                 # CRITICAL: Sync day_start_equity to challenge_manager
                 if self.challenge_manager:
@@ -5714,6 +6020,8 @@ class LiveTradingBot:
             # full-size basket ride into the 2015-06-28 Greek-gap weekend and breach.
             minute = current_time.minute
             self.handle_friday_position_closing()   # self-gates (sim time): Friday 19:30+ UTC
+            self.handle_nightly_derisk()            # self-gates: env NIGHTLY_DERISK + hour
+            self.handle_max_hold()                  # self-gates: env MAX_HOLD_DAYS + hour
             self.handle_sunday_gap_detection()      # self-gates (sim time): Sunday 22:00+ / Mon <02:00
             self.handle_monday_order_resume(current_time)  # self-gates (sim time): Monday only
             # handle_weekend_gap_positions() gates on get_server_time() (wall clock),
@@ -5780,14 +6088,23 @@ class LiveTradingBot:
             # Layer 5: tighten halt during rollover or with many open positions
             halt_pct = self._dynamic_halt_pct(base_halt_pct)
 
-            ddd_pct = max(0, (day_start_equity - equity) / day_start_equity * 100) if day_start_equity > 0 else 0
+            # Exclude scaling payouts: a milestone payout removes balance (at a
+            # capped funded level it resets balance straight back down to the
+            # cap), which is NOT a trading loss. Counting it produced phantom
+            # 9-11% daily breaches on every payout day at a 175k cap while the
+            # identical run uncapped peaked at 2.89%. 5ers does not charge a
+            # trader's own withdrawal against the daily loss limit.
+            _payout_today = (getattr(self.mt5, "_payout_balance_removed", 0.0)
+                             - _day_start_payout_removed)
+            ddd_pct = (max(0, (day_start_equity - equity - _payout_today) / day_start_equity * 100)
+                       if day_start_equity > 0 else 0)
             max_ddd = max(max_ddd, ddd_pct)
 
-            # === TERMINAL 5% DAILY BREACH (equity basis) ===
+            # === TERMINAL DAILY BREACH (equity basis) ===
             # Equity is mark-to-market (incl. floating PnL), exactly what 5ers
-            # measures DDD against. If a gap/spike puts us >=5% below day-start
-            # equity before the 3.2% halt could close out, the account is dead.
-            if ddd_pct >= 5.0 and not account_failed:
+            # measures DDD against. If a gap/spike puts us >= the daily wall
+            # below day-start equity before the halt could close out, dead.
+            if ddd_pct >= _daily_wall_pct and not account_failed:
                 _register_breach(current_time, ddd_pct, 'bar')
                 safety_events.append({
                     'time': str(current_time),
@@ -5868,7 +6185,12 @@ class LiveTradingBot:
                     acct = self.mt5.get_account_info()
                     eq_now = acct.get('equity', equity)
                     bal_now = acct.get('balance', balance)
-                    ddd_now = max(0, (day_start_equity - eq_now) / day_start_equity * 100) if day_start_equity > 0 else 0
+                    # Same payout exclusion as the bar-level DDD below: a
+                    # scaling payout removes balance and is not a trading loss.
+                    _payout_now = (getattr(self.mt5, "_payout_balance_removed", 0.0)
+                                   - _day_start_payout_removed)
+                    ddd_now = (max(0, (day_start_equity - eq_now - _payout_now) / day_start_equity * 100)
+                               if day_start_equity > 0 else 0)
                     tdd_ref = self.challenge_manager.starting_balance if self.challenge_manager else self.initial_balance
                     tdd_now = max(0, (tdd_ref - eq_now) / tdd_ref * 100) if tdd_ref > 0 else 0
                     max_ddd = max(max_ddd, ddd_now)
@@ -5907,11 +6229,14 @@ class LiveTradingBot:
                             self.mt5.cancel_pending_order(order.ticket)
                         acct2 = self.mt5.get_account_info()
                         eq2 = acct2.get('equity', day_start_equity)
-                        actual_ddd = max(0, (day_start_equity - eq2) / day_start_equity * 100) if day_start_equity > 0 else 0
+                        _payout_at_close = (getattr(self.mt5, "_payout_balance_removed", 0.0)
+                                            - _day_start_payout_removed)
+                        actual_ddd = (max(0, (day_start_equity - eq2 - _payout_at_close) / day_start_equity * 100)
+                                      if day_start_equity > 0 else 0)
                         max_ddd = max(max_ddd, actual_ddd)
                         log.warning(f"  💸 Close commission: ${close_comm:.2f} | Actual DDD: {actual_ddd:.2f}%")
-                        if actual_ddd >= 5.0:
-                            log.error(f"  ⚠️ 5ERS BREACH: DDD {actual_ddd:.2f}% >= 5.0%!")
+                        if actual_ddd >= _daily_wall_pct:
+                            log.error(f"  ⚠️ 5ERS BREACH: DDD {actual_ddd:.2f}% >= {_daily_wall_pct:g}%!")
                             _register_breach(current_time, actual_ddd, 'midbar')
                         trading_halted_today = True
                         self.ddd_halted = True
@@ -5921,7 +6246,7 @@ class LiveTradingBot:
                             'ddd_pct': ddd_now,
                             'actual_ddd_pct': actual_ddd,
                             'close_commission': close_comm,
-                            'breach_5pct': actual_ddd >= 5.0,
+                            'breach_5pct': actual_ddd >= _daily_wall_pct,
                         })
                         break
 
@@ -6037,7 +6362,8 @@ class LiveTradingBot:
         original_balance = getattr(self, '_original_initial_balance', self.initial_balance)
         
         closed_trades = self.mt5.get_closed_trades()
-        
+        from collections import defaultdict
+
         # Separate full trades from partial closes for accurate counting
         full_trades = [t for t in closed_trades if not t.get('partial', False)]
         partial_closes = [t for t in closed_trades if t.get('partial', False)]
@@ -6114,8 +6440,24 @@ class LiveTradingBot:
         mae_r_median = round(_median(mae_r_list), 3)
 
         total_trades = len(full_trades)  # Only count full trades as "trades"
-        winners = sum(1 for t in full_trades if t.get('pnl', 0) > 0)
-        win_rate = (winners / total_trades * 100) if total_trades > 0 else 0
+
+        # Win rate is measured on the POSITION, not on its final closing leg.
+        # A trade that banks TP1 and TP2 and then gives a little back on the
+        # runner is profitable overall, but its last leg is red. Counting only
+        # that leg understated the real hit rate by ~13 points (measured on
+        # 2019: 29.1% final-leg vs 43.5% per-position for the same run, with
+        # 91 positions profitable overall yet scored as losses). Sum every leg
+        # of a position — partial closes included — and ask whether the trade
+        # made money.
+        _pos_pnl = defaultdict(float)
+        for _t in closed_trades:
+            _pos_pnl[_base_ticket(_t.get('ticket'))] += ((_t.get('pnl', 0) or 0)
+                                                         + (_t.get('swap', 0) or 0))
+        winners = sum(1 for _v in _pos_pnl.values() if _v > 0)
+        win_rate = (winners / len(_pos_pnl) * 100) if _pos_pnl else 0
+        # Kept so results from before this fix stay comparable.
+        win_rate_final_leg = (sum(1 for t in full_trades if t.get('pnl', 0) > 0)
+                              / total_trades * 100) if total_trades > 0 else 0
         
         # Net PnL includes ALL closes (full + partial)
         closed_pnl = sum(t.get('pnl', 0) for t in closed_trades)
@@ -6129,7 +6471,6 @@ class LiveTradingBot:
         # ═══════════════════════════════════════════════════════════════════
         # MONTHLY STATISTICS
         # ═══════════════════════════════════════════════════════════════════
-        from collections import defaultdict
         monthly_stats = defaultdict(lambda: {'trades': 0, 'winners': 0, 'losers': 0, 'pnl': 0.0, 'partial_closes': 0})
         
         for trade in closed_trades:
@@ -6153,9 +6494,12 @@ class LiveTradingBot:
                     # Track partial closes separately
                     monthly_stats[month_key]['partial_closes'] += 1
                 else:
-                    # Only count full trades for win/loss statistics
+                    # Same position-level rule as the headline win rate: the
+                    # trade is a win if the WHOLE position made money, not just
+                    # the leg that closed it. Attributed to the month of the
+                    # final close.
                     monthly_stats[month_key]['trades'] += 1
-                    if pnl > 0:
+                    if _pos_pnl.get(_base_ticket(trade.get('ticket')), pnl) > 0:
                         monthly_stats[month_key]['winners'] += 1
                     else:
                         monthly_stats[month_key]['losers'] += 1
@@ -6188,6 +6532,7 @@ class LiveTradingBot:
             'winners': winners,
             'losers': total_trades - winners,
             'win_rate': round(win_rate, 1),
+            'win_rate_final_leg': round(win_rate_final_leg, 1),
             # ── MFE/MAE entry-quality aggregates (additive instrumentation) ──
             # All in R-multiples of the original entry→SL risk. tp1_hits counts
             # full trades that reached TP1 (spawned ≥1 partial close).

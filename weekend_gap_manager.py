@@ -264,6 +264,8 @@ def select_positions_for_weekend_tier1(
     r_close_losing: float = 0.0,
     r_new_position: float = 0.5,
     reduce_pct: float = 0.50,
+    enforce_friday_gate: bool = True,
+    honor_manual_exclusions: bool = True,
 ) -> dict:
     """
     TIER 1: Conservative correlation-aware weekend position selector
@@ -301,7 +303,12 @@ def select_positions_for_weekend_tier1(
     # Only run Friday 19:30+ UTC (2.5 hours before forex close)
     hour = current_time.hour
     minute = current_time.minute
-    if current_time.weekday() != 4 or not (hour > 19 or (hour == 19 and minute >= 30)):
+    # The selection logic itself is time-agnostic; this gate just stops it being
+    # applied on a non-Friday. Callers that want the same correlation-aware
+    # de-risking on another schedule (e.g. the nightly overnight-gap control)
+    # pass enforce_friday_gate=False.
+    if enforce_friday_gate and (
+        current_time.weekday() != 4 or not (hour > 19 or (hour == 19 and minute >= 30))):
         return {
             'HOLD': list(positions),
             'CLOSE': [],
@@ -337,7 +344,13 @@ def select_positions_for_weekend_tier1(
 
         # MANUAL EXCLUDED (e.g. NAS100): Manually managed by trader - skip entirely
         # Do NOT close, reduce, or count toward position limits
-        if is_manual_excluded(symbol):
+        # Manual exclusions are a LIVE convenience — symbols the trader manages
+        # by hand. A caller enforcing an automated risk rule (the nightly
+        # overnight-gap control) passes honor_manual_exclusions=False so nothing
+        # sits outside that rule: an exempt symbol is neither closed, reduced,
+        # nor counted toward the position caps, which is exactly the unmanaged
+        # overnight exposure the rule exists to bound.
+        if honor_manual_exclusions and is_manual_excluded(symbol):
             hold.append(pos)
             logger.info(f"⛔ HOLD {oanda_symbol}: MANUALLY EXCLUDED ({current_r:+.2f}R) - Not touched by Friday check")
             continue
