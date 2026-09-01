@@ -651,7 +651,16 @@ def get_pip_size(symbol: str) -> float:
     elif "ETH" in base_symbol:
         return 1.0  # $1 move = 1 pip for Ethereum
     # Indices
-    elif any(i in base_symbol for i in ["NAS", "US100", "US30", "UK100", "GER40", "FRA40", "JPN225"]):
+    elif any(i in base_symbol for i in ["NAS", "US100", "US30", "UK100", "GER40",
+                                        "FRA40", "JPN225", "SPX", "US500", "SP500"]):
+        # SPX/US500/SP500 ontbraken hier. Gevolg: SPX500_USD viel door naar de
+        # forex-standaard van 0,0001, dus een stop van 20 indexpunten werd
+        # gelezen als 200.000 pips en het berekende risico liep zo ver boven het
+        # bedoelde dat de risicoveiligheid ELKE order weigerde — 16 van de 16 in
+        # een testvenster van twee maanden. Het symbool scande en signaleerde
+        # netjes, dus in de resultaten was alleen te zien dat er niets gebeurde.
+        # get_sl_limits noemt SPX in zijn docstring wel als index; die twee
+        # tabellen liepen uit de pas.
         return 1.0  # Other indices
     # Oil / Energy
     elif "XBR" in base_symbol or "BCO" in base_symbol:

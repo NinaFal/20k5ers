@@ -22,6 +22,19 @@ FIVEERS_CONTRACT_SPECS = {
         "max_lot": 100.0,
         "lot_step": 0.01,
     },
+    # SPX500 ontbrak hier, en dat was de vierde tabel met dat gat na config.py
+    # (INDICES), symbol_mapping.py en ftmo_config.py (PIP_SIZES). Zonder deze
+    # regel viel SPX500_USD terug op de forexstandaard van 0,0001, werd een stop
+    # van 55 indexpunten gelezen als 550.021 pips, en weigerde de
+    # risicoveiligheid elke order. Het symbool scande en signaleerde gewoon, dus
+    # in de resultaten was alleen te zien dat er nooit een trade kwam.
+    "SPX500": {
+        "pip_size": 1.0,
+        "pip_value_per_lot": 1.0,     # $1 per punt per lot, zelfde minicontract als NAS100
+        "min_lot": 0.01,
+        "max_lot": 100.0,
+        "lot_step": 0.01,
+    },
     
     # FOREX - Standard 0.0001 pip, $10 per lot
     "FOREX": {
@@ -110,6 +123,10 @@ def get_fiveers_contract_specs(symbol: str) -> dict:
         return FIVEERS_CONTRACT_SPECS["NAS100"]
     elif "UK100" in symbol_upper or "FTSE" in symbol_upper:
         return FIVEERS_CONTRACT_SPECS["UK100"]
+    # Let op: de normalisatie hierboven strdipt "USD", dus SPX500_USD wordt
+    # "SPX500" en US500 wordt "US500" — beide moeten hier genoemd worden.
+    elif "SPX" in symbol_upper or "US500" in symbol_upper or "SP500" in symbol_upper:
+        return FIVEERS_CONTRACT_SPECS["SPX500"]
     
     # Metals
     elif "XAU" in symbol_upper:
