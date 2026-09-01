@@ -24,9 +24,23 @@ kapitaal $325 winst per trade tegen $331 zonder. Dat is een nuchtere herinnering
 aan wat deze analyse waard is — hij vindt symbolen die in het verleden slecht
 waren, niet symbolen die in de toekomst slecht zullen zijn.
 
-Elk jaar draait los op $50.000, niet doorgerold. Doorrollen laat het kapitaal
-groeien en dan wegen late jaren zwaarder puur door positiegrootte; los draaien
-houdt de jaren onderling vergelijkbaar.
+DE BALANS WORDT DOORGEROLD, en een eerdere versie deed dat niet. Die draaide elk
+jaar los op $50.000 om te voorkomen dat late jaren zwaarder wegen puur door
+positiegrootte. Dat loste iets op en brak iets ergers: zonder de scalingladder
+die een gefund account beschermt, liep een slecht begin tegen de 10%-muur en was
+de rekening dood voor de rest van dat jaar. 2016 stopte op 10 maart na 311
+trades, 2019 op 13 februari na 174, 2022 op 10 augustus — tegen 1.600 tot 1.970
+in de volle jaren.
+
+De blootstelling was daarmee ongeveer 4,3 jaar waar het er zes leek, en welk
+symbool toevallig actief was in zo'n kort venster woog onevenredig zwaar. UK100
+kwam daardoor op $20 per trade uit over drie jaar en op $144 over zes, en dat
+verschil zei niets over UK100.
+
+Nu bereikt het account de cap en overleeft het alle elf jaar, net als in
+w5_decade_crypto.py, dus is elk jaar even lang. Late jaren handelen wel met meer
+kapitaal, maar dat geldt voor alle symbolen gelijk en vertekent de onderlinge
+vergelijking niet.
 
 Draaien:  uv run python3 backtest/src/w5_per_symbol.py
 """
@@ -56,7 +70,7 @@ OUT = w5.W5_DIR / "per_symbol.json"
 EXCL_FOR_STUDY = os.getenv("W5_STUDY_EXCLUDE") or w5.BASE_ENV["EXCLUDE_SYMBOLS"]
 
 
-def run_year(year):
+def run_year(year, balance=50_000.0):
     cached = CACHE / f"{year}.csv"
     if cached.exists():
         return cached
@@ -70,13 +84,19 @@ def run_year(year):
     d = w5.DOE_DIR / "tmp" / f"psym_{year}"
     shutil.rmtree(d, ignore_errors=True); d.mkdir(parents=True, exist_ok=True)
     subprocess.run([sys.executable, str(w5.cs.dh.BACKTEST), "--start", f"{year}-01-01",
-                    "--end", f"{year}-12-31", "--balance", "50000",
+                    "--end", f"{year}-12-31", "--balance", f"{balance:.2f}",
                     "--output", str(d), "--quiet"], env=e, cwd=str(w5.cs.dh.REPO),
                    capture_output=True, text=True, timeout=14400)
-    tc = d / "trades.csv"
+    tc, rj = d / "trades.csv", d / "results.json"
+    nxt = balance
+    if rj.exists():
+        r = json.loads(rj.read_text())
+        log = r.get("fiveers_scaling_log") or r.get("scaling_log") or []
+        nxt = (log[-1]["new_level"] if log else balance)
     if tc.exists():
         CACHE.mkdir(parents=True, exist_ok=True)
         shutil.copy(tc, cached)
+        (CACHE / f"{year}.level").write_text(str(nxt))
     shutil.rmtree(d, ignore_errors=True)
     return cached if cached.exists() else None
 
@@ -84,8 +104,12 @@ def run_year(year):
 def main():
     halves = {"vroeg": defaultdict(list), "laat": defaultdict(list)}
     years_done = []
+    bal = 50_000.0
     for y in YEARS:
-        p = run_year(y)
+        p = run_year(y, bal)
+        lv = CACHE / f"{y}.level"
+        if lv.exists():
+            bal = float(lv.read_text())
         if not p:
             print(f"  {y}: geen trades.csv", flush=True); continue
         years_done.append(y)
