@@ -16,8 +16,8 @@ Bevroren in `backtest/output/doe/wall5/BASELINE_t65_tdd_FROZEN.json`, met
 | stap 1 / stap 2 | +8% / +5%, 5% dagmuur, 10% totale muur |
 | risico per trade | 2,7% basis (3,92% in kalme regimes; 0,87% op de cap) |
 | TP-ladder | 0,65R/25% — 1,85R/60% — 2,75R/15% |
-| verhandeld | **30 symbolen** — 27 FX, XAU, XAG, UK100 |
-| uitgesloten | XRP_USD, ADA_USD (5ers biedt ze niet), BTC_USD, ETH_USD (geen winst), NAS100_USD (negatief in beide helften) |
+| verhandeld | **29 symbolen** — 27 FX plus XAU en XAG. Geen indices, geen crypto, geen olie |
+| uitgesloten | XRP_USD, ADA_USD (5ers biedt ze niet), BTC_USD, ETH_USD, NAS100_USD, UK100_USD (gemeten: leveren niets op) |
 | niet beschikbaar | olie — `trade_oil=False` én hardgecodeerd uit in de engine |
 
 UK100 staat in de lijst maar handelt feitelijk niet: het enige databestand
