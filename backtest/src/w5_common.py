@@ -93,19 +93,17 @@ BASE_ENV = {
     # M15-bar om 00:00 verdrongen — een bar met het bereik van een hele dag,
     # vermomd als vijftien minuten. Een uitgesloten symbool wordt niet geladen,
     # dus dat probleem is weg in plaats van verplaatst.
-    # UK100_USD eruit. Het stond elf jaar in het universum zonder ooit te
-    # handelen, omdat het enige databestand dagbars bevatte onder een M15-naam.
-    # Met echte data van OANDA (229.913 M15-bars vanaf 2015) handelt het wel,
-    # maar levert het $20 per trade op bij een win rate van 49% — de onderkant
-    # van de lijst, waar de beste symbolen $250 tot $300 doen.
+    # UK100_USD stond hier en is TERUGGEZET. Het werd uitgezet op $20 per trade,
+    # gemeten over drie jaar waarvan er twee voortijdig waren gestorven doordat de
+    # studie elk jaar los op $50.000 draaide en een slecht begin tegen de
+    # 10%-muur liep. Over elf volle jaren met doorgerolde balans doet het $287
+    # per trade over 765 trades, $219.519 totaal, positief in 10 van de 11 jaar —
+    # plaats 12 van de 30, boven GBP_USD, USD_CHF, EUR_USD en AUD_USD.
     #
-    # LET OP: dat cijfer komt van 112 trades over 2015-2017, drie van de elf
-    # jaar. De volledige studie liep nog toen dit besloten werd. Terugzetten is
-    # deze regel inkorten; de data blijft staan.
-    #
-    # Hiermee staan ALLE indices uit (NAS100 al eerder, SPX500 nooit aan
-    # geweest). Het universum is daarmee puur FX plus goud en zilver.
-    "EXCLUDE_SYMBOLS": "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD,UK100_USD",
+    # NAS100 blijft wel uit: dat is over dezelfde elf jaar gemeten en komt uit op
+    # een nulmeting, en uitzetten veranderde de challenge niet (8 breaches tegen
+    # 9 op dezelfde honderd vensters).
+    "EXCLUDE_SYMBOLS": "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD",
     "BROKER_TYPE": "fiveers_live",
     "CFG_DAILY_WALL_PCT": "5.0",          # <-- the whole point of this round
     "FIVEERS_MAX_SCALE": "500000",        # 100k scales up to 500k
