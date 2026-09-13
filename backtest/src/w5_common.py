@@ -108,7 +108,20 @@ BASE_ENV = {
     # totaal, positief in maar 4 van de 11 jaar. Goud blijft wel staan (+$76 per
     # trade, 8 van 11 jaar positief) — laag maar consistent positief is iets
     # anders dan negatief.
-    "EXCLUDE_SYMBOLS": "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD,XAG_USD",
+    # Uitgesloten op elf jaar gemeten, met doorgerolde balans zodat elk jaar even
+    # lang is:
+    #   XRP, ADA        5ers biedt ze niet aan
+    #   BTC, ETH        -0,93% over elf jaar, meer dagelijkse drawdown, 1:2 hefboom
+    #   NAS100          nulmeting; uitzetten veranderde de challenge niet (8 om 9)
+    #   XAG (zilver)    -$14 per trade, positief in 4 van de 11 jaar
+    #   XAU (goud)      +$76 per trade — de laagste van allemaal — 8 van 11 jaar
+    #                   positief, en een slechtste jaar van -$12.724, het op een
+    #                   na diepste van de hele lijst
+    #   CAD_JPY         7 van 11 jaar positief, het laagste van alle FX-paren
+    "EXCLUDE_SYMBOLS": "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD,XAG_USD,XAU_USD,CAD_JPY",
+    "OIL_ENABLE": "1",        # Brent en WTI: +6,86% over elf jaar, en
+                              # ergste totale drawdown 5,87% -> 4,04%
+    "SPX500_ENABLE": "0",     # gemeten: +0,05%, geen effect
     "BROKER_TYPE": "fiveers_live",
     "CFG_DAILY_WALL_PCT": "5.0",          # <-- the whole point of this round
     "FIVEERS_MAX_SCALE": "500000",        # 100k scales up to 500k

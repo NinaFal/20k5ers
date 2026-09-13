@@ -29,6 +29,10 @@ w5 = importlib.util.module_from_spec(_w); _w.loader.exec_module(w5)
 # Alleen wat main_live_bot.py daadwerkelijk uitleest.
 LIVE_KEYS = [
     "CFG_MAX_CUM_RISK", "CORR_GROUP_CAP", "MAX_TOTAL_POSITIONS", "EXCLUDE_SYMBOLS",
+    # Expliciet vastzetten, ook al staat de standaard nu op aan: het
+    # deploybestand hoort te zeggen wat er gehandeld wordt en niet af te
+    # hangen van een standaard die later kan verschuiven.
+    "OIL_ENABLE", "SPX500_ENABLE",
     "CFG_TDD_CAUTION_PCT", "CFG_RISK_CAUTIOUS", "CFG_TDD_EMERGENCY_PCT",
     "TDD_WALL_SAFETY", "CFG_DAILY_HALT_PCT", "TDD_EMERGENCY_HALT",
     "NIGHTLY_DERISK", "NIGHTLY_DERISK_HOUR", "NIGHTLY_MAX_PER_GROUP",

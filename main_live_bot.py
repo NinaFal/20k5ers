@@ -300,6 +300,8 @@ def _w5_excluded_symbols():
       BTC_USD, ETH_USD           gemeten: geen winst, wel drawdown
       NAS100_USD                 nulmeting over elf jaar
       XAG_USD                    -$14 per trade, 4 van 11 jaar positief
+      XAU_USD                    laagste verwachtingswaarde, 8 van 11
+      CAD_JPY                    7 van 11 jaar positief
 
     AUD_NZD, EUR_NZD en AUD_JPY stonden hier ook, op het oordeel dat ze
     structureel verlieslatend waren. Dat is nagemeten en klopt niet meer:
@@ -308,7 +310,7 @@ def _w5_excluded_symbols():
     De laatste groep is een keuze en geen feit, dus de data blijft staan;
     de eerste twee komen nooit terug. Zie W5_BASELINE_CONFIG.md.
     """
-    raw = os.getenv("EXCLUDE_SYMBOLS", "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD,XAG_USD").replace(" ", "")
+    raw = os.getenv("EXCLUDE_SYMBOLS", "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD,XAG_USD,XAU_USD,CAD_JPY").replace(" ", "")
     return [s for s in raw.split(",") if s]
 
 

@@ -2797,7 +2797,7 @@ class LiveTradingBot:
         # bestaand resultaat identiek. OIL_ENABLE=1 zet hem aan zodat het
         # gemeten kan worden in plaats van aangenomen.
         _excluded = set()
-        if os.getenv("OIL_ENABLE", "0").strip().lower() not in ("1", "true", "yes", "on"):
+        if os.getenv("OIL_ENABLE", "1").strip().lower() not in ("1", "true", "yes", "on"):
             _excluded = {"XBR_USD", "XTI_USD"}
         # Additional exclusions via env (comma-separated), e.g. structurally
         # net-negative tickers identified as bad across BOTH IS and OOS halves.

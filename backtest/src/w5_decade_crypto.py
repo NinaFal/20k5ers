@@ -47,26 +47,20 @@ SCALE_CAP = "500000"
 # lots, het dubbele van wat 5ers toestaat). 2016 liet dat zien: $1.013 verschil
 # bij nul cryptotrades, zelfde 1.020 trades, zelfde win rate, zelfde DDD en TDD.
 ARMS = {
-    # === de huidige configuratie: dit is de referentie ===
-    "current":  "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD",
-
-    # === varianten daarop, elk een symbool of groep verschil ===
-    # olie erbij. WTI blijft uit: die heeft M15 pas vanaf 2022, dus anders meet
-    # je Brent en een datagat door elkaar. Brent heeft nu wel volledige D1,
-    # afgeleid uit de eigen M15 en geverifieerd tegen OANDA (mediaan 0,0000%).
-    "brent":    "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD,XTI_USD",
-    # SPX500 erbij. Vereist ook toevoegen aan INDICES in config.py, anders
-    # verandert deze arm niets — dat wordt hier gecontroleerd, niet aangenomen.
-    "spx":      "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD",
-    # Beide oliesoorten. De eerdere arm 'brent' sloot WTI uit omdat die pas M15
-    # vanaf 2022 had; WTI is inmiddels bij OANDA opgehaald vanaf 2015
-    # (275.638 M15-bars), dus die reden is vervallen.
-    "oil":      "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD",
-    # NAS100 terug. Het staat uit op de verwachtingswaarde, maar zeven van de
-    # elf jaren waren positief en het uitzetten hielp de challenge niet.
-    "with_nas": "XRP_USD,ADA_USD,BTC_USD,ETH_USD",
+    # === de drie armen van deze ronde ===
+    # Basis voor alle drie: olie aan, zilver/goud/CAD_JPY/crypto uit, UK100 aan.
+    # Ze verschillen ALLEEN in welke van de twee grote indices meedoet, zodat
+    # het verschil aan die index toe te wijzen is en aan niets anders.
+    "geen_index": "XRP_USD,ADA_USD,BTC_USD,ETH_USD,XAG_USD,XAU_USD,CAD_JPY,NAS100_USD",          # geen SP500, geen NAS100
+    "met_nas":    "XRP_USD,ADA_USD,BTC_USD,ETH_USD,XAG_USD,XAU_USD,CAD_JPY",                     # NAS100 erbij, geen SP500
+    "met_spx":    "XRP_USD,ADA_USD,BTC_USD,ETH_USD,XAG_USD,XAU_USD,CAD_JPY,NAS100_USD",          # SP500 erbij (via SPX500_ENABLE)
 
     # === oudere armen, bewaard zodat hun opgeslagen resultaten leesbaar blijven ===
+    "current":  "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD",
+    "oil":      "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD",
+    "spx":      "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD",
+    "brent":    "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD,XTI_USD",
+    "with_nas": "XRP_USD,ADA_USD,BTC_USD,ETH_USD",
     "nocrypto": "AUD_NZD,EUR_NZD,AUD_JPY,XRP_USD,ADA_USD,BTC_USD,ETH_USD",
     "crypto":   "AUD_NZD,EUR_NZD,AUD_JPY,XRP_USD,ADA_USD",
     "fxpairs":  "XRP_USD,ADA_USD,BTC_USD,ETH_USD",
@@ -92,8 +86,8 @@ def run_year(year, balance):
     e["EXCLUDE_SYMBOLS"] = ARMS[ARM]
     # Olie zit standaard uit op twee plekken; de arm 'brent' zet hem aan en
     # sluit WTI apart uit, want die heeft pas M15 vanaf 2022.
-    e["OIL_ENABLE"] = "1" if ARM in ("brent", "oil") else "0"
-    e["SPX500_ENABLE"] = "1" if ARM == "spx" else "0"
+    e["OIL_ENABLE"] = "1" if ARM in ("brent", "oil", "geen_index", "met_nas", "met_spx") else "0"
+    e["SPX500_ENABLE"] = "1" if ARM in ("spx", "met_spx") else "0"
     e["CFG_DAILY_WALL_PCT"] = w5.BASE_ENV.get("CFG_DAILY_WALL_PCT", "5.0")
     e.setdefault("BROKER_TYPE", "fiveers_live")
     tp = dict(w5.BASE_TP); tp.update(b["tp"])
