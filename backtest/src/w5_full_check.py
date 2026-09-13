@@ -78,7 +78,13 @@ def main():
 
     # LAAG 2: env-vars
     print("\n[2] Environment-variabelen")
-    BTV, LVV = envvars(BT), envvars(LIVE)
+    # Het handelsuniversum wordt live door broker_config.get_tradable_symbols()
+    # bepaald, niet in main_live_bot.py. Een variabele die daar gelezen wordt is
+    # dus wel geport. Zonder dit meldde de controle OIL_ENABLE als verschil
+    # terwijl live er aantoonbaar op reageert: OIL_ENABLE=0 geeft geen olie in
+    # het universum, OIL_ENABLE=1 geeft XBR_USD en XTI_USD.
+    BTV = envvars(BT)
+    LVV = envvars(LIVE) | envvars(REPO / "broker_config.py") | envvars(REPO / "config.py")
     JUSTIFIED = {"TDD_WORST_CASE", "TERMINAL_ON_BREACH", "CFG_DAILY_WALL_PCT",
                  "DDD_CLOSE_AT_TRIGGER", "VOL_SIZE_ENABLE", "VOL_SIZE_MULT_HIGH",
                  "VOL_SIZE_MULT_LOW"}

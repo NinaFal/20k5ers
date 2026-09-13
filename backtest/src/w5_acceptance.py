@@ -149,7 +149,15 @@ def main():
 
     # 5 ── every env var the frozen config sets is read by live, or justified
     BTV = set(re.findall(r'os\.getenv\(\s*["\']([A-Z0-9_]+)["\']', bt_src))
+    # Live leest niet alles in main_live_bot.py. Het handelsuniversum komt uit
+    # broker_config.get_tradable_symbols(), dus een variabele die daar gelezen
+    # wordt is wel degelijk geport — alleen in een ander bestand. Zonder deze
+    # regel meldde de controle OIL_ENABLE als niet-geport terwijl live er
+    # aantoonbaar op reageert.
     LVV = set(re.findall(r'os\.getenv\(\s*["\']([A-Z0-9_]+)["\']', LIVE.read_text()))
+    _bc = REPO / "broker_config.py"
+    if _bc.exists():
+        LVV |= set(re.findall(r'os\.getenv\(\s*["\']([A-Z0-9_]+)["\']', _bc.read_text()))
     BACKTEST_ONLY = {
         "TDD_WORST_CASE": "measurement convention; no live meaning",
         "TERMINAL_ON_BREACH": "harness control; no live meaning",
@@ -158,6 +166,7 @@ def main():
         "VOL_SIZE_ENABLE": "disabled in the frozen config (0)",
         "VOL_SIZE_MULT_HIGH": "inert while VOL_SIZE_ENABLE=0",
         "VOL_SIZE_MULT_LOW": "inert while VOL_SIZE_ENABLE=0",
+        "SPX500_ENABLE": "read by config.py, which builds INDICES for both engines",
     }
     print("\n  --- env vars set by the config, read by backtest, not by live ---")
     for k in sorted(env):
