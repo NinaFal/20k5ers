@@ -103,7 +103,12 @@ BASE_ENV = {
     # NAS100 blijft wel uit: dat is over dezelfde elf jaar gemeten en komt uit op
     # een nulmeting, en uitzetten veranderde de challenge niet (8 breaches tegen
     # 9 op dezelfde honderd vensters).
-    "EXCLUDE_SYMBOLS": "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD",
+    # XAG_USD (zilver) eruit. Van de dertig verhandelde symbolen is het het enige
+    # dat over elf jaar verlies maakt: -$14 per trade over 555 trades, -$8.019
+    # totaal, positief in maar 4 van de 11 jaar. Goud blijft wel staan (+$76 per
+    # trade, 8 van 11 jaar positief) — laag maar consistent positief is iets
+    # anders dan negatief.
+    "EXCLUDE_SYMBOLS": "XRP_USD,ADA_USD,BTC_USD,ETH_USD,NAS100_USD,XAG_USD",
     "BROKER_TYPE": "fiveers_live",
     "CFG_DAILY_WALL_PCT": "5.0",          # <-- the whole point of this round
     "FIVEERS_MAX_SCALE": "500000",        # 100k scales up to 500k
