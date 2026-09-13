@@ -54,7 +54,15 @@ w5 = importlib.util.module_from_spec(_w); _w.loader.exec_module(w5)
 
 YEARS = list(range(2015, 2026))
 SPLIT = 2020                      # 2015-2019 tegen 2020-2025
-CACHE = w5.W5_DIR / "per_symbol_trades"
+# De cachemap hangt aan de uitsluitingslijst. Zonder dat schrijft een studie met
+# een andere symbolenlijst over de vorige heen, of erger: hij hervat uit een
+# cache die een ander universum meet. Dat is hier al een keer misgegaan — de
+# studie draaide op de live-lijst, waar UK100 in staat, dus juist het symbool
+# waarvoor hij bedoeld was kwam op nul trades uit.
+import hashlib as _h
+CACHE = w5.W5_DIR / ("per_symbol_trades_" + _h.sha1(
+    (os.getenv("W5_STUDY_EXCLUDE") or w5.BASE_ENV["EXCLUDE_SYMBOLS"]).encode()
+).hexdigest()[:8])
 OUT = w5.W5_DIR / "per_symbol.json"
 # Alles aan wat 5ers aanbiedt, ook wat nu uitstaat — anders kun je niet zien of
 # uitsluiten terecht was. Olie zit hardgecodeerd uit in de engine (:2789) en
