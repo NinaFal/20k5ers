@@ -89,7 +89,12 @@ def run_year(year, balance=50_000.0):
     e.setdefault("BROKER_TYPE", "fiveers_live")
     tp = dict(w5.BASE_TP); tp.update(b["tp"])
     e["OPT_PARAMS"] = json.dumps({**w5.cs.dh.BASE_TP, **tp}); e["PYTHONUTF8"] = "1"
-    d = w5.DOE_DIR / "tmp" / f"psym_{year}"
+    # De uitsluitingslijst MOET in de padnaam. De cache is al op die lijst
+    # gesleuteld, maar de werkmap was dat niet: twee gelijktijdig draaiende
+    # varianten deelden tmp/psym_<jaar>, en run_year begint met rmtree. Dan
+    # schrijven beide backtests results.json op dezelfde plek en leest elk wat
+    # er toevallig als laatste staat. Dat faalt niet, het liegt.
+    d = w5.DOE_DIR / "tmp" / f"psym_{CACHE.name[-8:]}_{year}"
     shutil.rmtree(d, ignore_errors=True); d.mkdir(parents=True, exist_ok=True)
     subprocess.run([sys.executable, str(w5.cs.dh.BACKTEST), "--start", f"{year}-01-01",
                     "--end", f"{year}-12-31", "--balance", f"{balance:.2f}",

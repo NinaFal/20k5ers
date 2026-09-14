@@ -93,7 +93,11 @@ def run_year(year, balance):
     tp = dict(w5.BASE_TP); tp.update(b["tp"])
     e["OPT_PARAMS"] = json.dumps({**w5.cs.dh.BASE_TP, **tp})
     e["PYTHONUTF8"] = "1"
-    d = w5.DOE_DIR / "tmp" / f"dec_{year}"
+    # De arm MOET in de padnaam. Zonder hem delen gelijktijdig draaiende armen
+    # dezelfde werkmap, en run_year begint met rmtree: arm B wist de map van arm
+    # A halverwege, allebei schrijven results.json op dezelfde plek en allebei
+    # lezen wat er toevallig als laatste staat. Dat faalt niet, het liegt.
+    d = w5.DOE_DIR / "tmp" / f"dec_{ARM}_{year}"
     shutil.rmtree(d, ignore_errors=True); d.mkdir(parents=True, exist_ok=True)
     try:
         subprocess.run([sys.executable, str(w5.cs.dh.BACKTEST),
