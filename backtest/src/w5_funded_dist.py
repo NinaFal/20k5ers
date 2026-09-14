@@ -33,6 +33,7 @@ Een breach beeindigt het account; de resterende jaren worden niet gedraaid.
 Draaien:  uv run python3 backtest/src/w5_funded_dist.py [--runs 20] [--years 3]
 """
 import argparse, concurrent.futures, importlib.util, json, os, random, shutil, subprocess, sys
+from datetime import date, timedelta
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -97,16 +98,28 @@ def run_window(tag, start_iso, end_iso, balance):
         shutil.rmtree(d, ignore_errors=True)
 
 
+def shift_years(d, n):
+    """d plus n jaar, schrikkeldagveilig.
+
+    date(2016, 2, 29).replace(year=2017) gooit ValueError, en 2016-02-29 staat
+    gewoon in de canonieke startlijst. Zonder deze functie valt precies dat
+    account om met een stacktrace nadat de rest al uren heeft gedraaid.
+    """
+    try:
+        return d.replace(year=d.year + n)
+    except ValueError:                      # 29 februari -> 28 februari
+        return d.replace(year=d.year + n, day=28)
+
+
 def one_account(start_iso, years):
     """Jaar voor jaar, zodat een herstart één jaar kost in plaats van drie."""
-    from datetime import date
     s = date.fromisoformat(start_iso)
     store = w5.load_json(OUT)
     slot = store.setdefault(start_iso, {"years": {}})
     bal = START_BALANCE
     for i in range(years):
-        a = s.replace(year=s.year + i).isoformat()
-        bz = (s.replace(year=s.year + i + 1) - __import__("datetime").timedelta(days=1)).isoformat()
+        a = shift_years(s, i).isoformat()
+        bz = (shift_years(s, i + 1) - timedelta(days=1)).isoformat()
         key = str(i)
         # Elke lus opnieuw inlezen: parallelle accounts schrijven hetzelfde bestand.
         store = w5.load_json(OUT); slot = store.setdefault(start_iso, {"years": {}})
@@ -190,8 +203,15 @@ def main():
     # Startdatums uit de canonieke lijst, maar alleen die waar nog `years` volle
     # jaren achter zitten. Dezelfde lijst als overal elders, zodat niemand later
     # kan zeggen dat dit op vriendelijker vensters is gemeten.
-    last = 2026 - a.years
-    pool = sorted(s for s in w5.CANON if int(s[:4]) <= last)
+    #
+    # Op de EINDDATUM filteren, niet op het startJAAR. Een filter op jaartal
+    # laat 2023-06-01 door bij drie jaar, en dat venster loopt tot 2026-05-31 —
+    # vijf maanden voorbij het einde van de data. Die maanden bestaan niet, dus
+    # het account zou stil korter draaien dan de andere en als volwaardige
+    # trekking in de verdeling belanden.
+    DATA_END = date(2025, 12, 31)
+    pool = sorted(s for s in w5.CANON
+                  if shift_years(date.fromisoformat(s), a.years) - timedelta(days=1) <= DATA_END)
     rng = random.Random(SEED)
     starts = sorted(rng.sample(pool, min(a.runs, len(pool))))
 
