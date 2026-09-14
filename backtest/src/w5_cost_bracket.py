@@ -28,6 +28,19 @@ Ligt de ergste dag in de arm `entry` ook boven de 5%, dan is het resultaat hard
 en is de klim met deze configuratie niet te doen. Blijft hij eronder, dan ligt
 de waarheid ertussen en vertelt de reeks hoe gevoelig de klim precies is.
 
+UITKOMST: de drie kostenarmen zijn niet te onderscheiden. Alle drie 699
+posities, 53,1% win rate, 6,13% ergste dag, dood op 2015-08-07. Het opgenomen
+bedrag verschilt met tientallen dollars op $89.000.
+
+DE REDEN, en die is op zichzelf het onthouden waard: van de 994 trade-regels in
+2015 sluiten er ZES op de stop. Eén procent. De strategie wordt vrijwel nooit
+uitgestopt — hij schaalt af via TP1/TP2/TP3 en de SL staat na TP1 al op -0,1R.
+De slippagebuffer op stops raakt dus zes regels en $26. De ENTRY-spread doet
+al het werk.
+
+Daarmee is de dubbele telling waar dit bracket voor gebouwd was geen bezwaar
+meer, en staat het resultaat: de klim overleeft de entry-spread alleen al niet.
+
 Alleen 2015, want daar valt de beslissing. Een jaar per arm, niet elf.
 
 Draaien:  uv run python3 backtest/src/w5_cost_bracket.py [arm]
