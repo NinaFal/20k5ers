@@ -84,10 +84,20 @@ OLD = w5.W5_DIR / "decade_nocrypto.json"
 # ruil die je wilt zien in dollars over elf jaar, niet alleen in breaches over
 # dertig vensters. Zonder de variabele verandert er niets.
 CONFIG = os.getenv("W5_DECADE_CONFIG") or "BASELINE_t65_tdd_FROZEN.json"
+# W5_DECADE_TAG: vrije achtervoegsel voor de uitvoernaam. Nodig zodra de run
+# verschilt door iets dat NIET in de armnaam of het configuratiebestand staat —
+# run_year begint met `dict(os.environ)`, dus SLIPPAGE_MAP en COST_LIMIT_ENTRIES
+# uit de shell werken door zonder dat er iets aan de naam verandert. Zonder tag
+# schrijft een kostenrun stil over de kosteloze heen en is achteraf aan niets te
+# zien welke van de twee er in het bestand staat.
+TAG = os.getenv("W5_DECADE_TAG", "").strip()
+_suffix = ""
 if CONFIG != "BASELINE_t65_tdd_FROZEN.json":
-    # Anders overschrijft een tweede configuratie de resultaten van de eerste
-    # onder dezelfde armnaam, en is aan het bestand niet te zien welke het was.
-    OUT = w5.W5_DIR / f"decade_{ARM}__{Path(CONFIG).stem}.json"
+    _suffix += f"__{Path(CONFIG).stem}"
+if TAG:
+    _suffix += f"__{TAG}"
+if _suffix:
+    OUT = w5.W5_DIR / f"decade_{ARM}{_suffix}.json"
 
 
 def run_year(year, balance):
