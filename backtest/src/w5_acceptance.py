@@ -176,6 +176,37 @@ def main():
             if not why:
                 fails.append(f"{k} is read by the backtest and not by live, with no justification")
 
+    # 5b ── de kostenknoppen van de simulator staan uit.
+    #
+    # SLIPPAGE_PIPS, SLIPPAGE_MAP, COST_LIMIT_ENTRIES en GAP_FILLS zitten NIET in
+    # de bevroren configuratie, dus stap 5 kijkt er niet naar — die loopt alleen
+    # langs wat de configuratie zet. Precies daarom horen ze hier: een van deze
+    # variabelen die per ongeluk in de shell blijft staan maakt een "bevroren"
+    # run stilletjes een kostenrun, en het verschil is aan de uitvoer niet te
+    # zien. Dat is exact de vorm van de zes stille configuratiebugs die dit
+    # project al heeft opgeleverd.
+    #
+    # GAP_FILLS is de omgekeerde: die hoort juist AAN te staan (1 is de default),
+    # want hij vult een gegapte stop op de open in plaats van op de trigger. Uit
+    # zetten maakt de resultaten optimistischer, niet pessimistischer.
+    print("\n  --- kostenknoppen van de simulator (moeten uit staan) ---")
+    for var, want, why in (
+            ("SLIPPAGE_PIPS", "0", "vlakke opslag in pips op stop-entries en SL-exits"),
+            ("SLIPPAGE_MAP", "", "opslag per instrument"),
+            ("COST_LIMIT_ENTRIES", "0", "rekent de spread ook op limit-fills"),
+    ):
+        got = os.getenv(var)
+        ok_ = got is None or got.strip() in ("", "0", "false", "no", "off")
+        print(f"  {'OK ' if ok_ else 'FAIL'}  {var:<28} -> {str(got):<12} {why}")
+        if not ok_:
+            fails.append(f"{var}={got} staat in de omgeving — dit is geen bevroren run")
+    _gf = os.getenv("GAP_FILLS")
+    ok_ = _gf is None or _gf.strip().lower() not in ("0", "false", "no", "off")
+    print(f"  {'OK ' if ok_ else 'FAIL'}  {'GAP_FILLS':<28} -> {str(_gf):<12} "
+          f"moet AAN: gegapte stops vullen op de open, niet op de trigger")
+    if not ok_:
+        fails.append("GAP_FILLS staat uit — gegapte stops vullen dan optimistisch")
+
     # 6 ── known deliberate divergences, reported not failed
     notes.append("NIGHTLY_DERISK_HOUR: live defaults 21, frozen config says 22. "
                  "Deliberate — 22:00 sits inside the 21:30-22:30 rollover window "
