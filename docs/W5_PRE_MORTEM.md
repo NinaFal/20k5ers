@@ -113,10 +113,71 @@ days. The survival candidates are the natural fallback and none is confirmed.
 | | wat | stand |
 |---|---|---|
 | 1 | 5ers gemaild | **AF.** Antwoorden in `docs/5ERS_ANSWERS.md`. De load-bearing vraag is goed afgelopen: de dagelijkse limiet reset naar de balans NA opname, dus een uitbetalingsdag is geen breach en de gecapte jaren blijven staan. Vaste uitbetaling is $10.000 per MAAND op $500k. Hefboom per klasse bevestigd (forex 1:100, indices en metalen 1:25, grondstoffen 1:5, crypto 1:2) en gemeten: de marge piekt op 28,6% in de challenge, geen order boven 22% van zijn symboolplafond |
-| 2 | kostenrealisme | **DRAAIT.** `w5_costs_real.py`, drie armen van 40 vensters. De simulator kreeg `SLIPPAGE_MAP` (opslag per instrument) en `COST_LIMIT_ENTRIES` (rekent de spread ook op limit-fills, waar bijna elke entry van deze bot zit). Beide standaard uit en bewezen inert: dezelfde backtest levert voor en na dezelfde md5 over 76 trades |
+| 2 | kostenrealisme | **GEMETEN, en het is de bindende beperking.** Zie §8 hieronder. In de challenge kost 1x de geschatte spreads één venster van de veertig; 2x kost er acht en vijf breaches. Op het GEFUNDE klimjaar 2015 gaat 1x al door de muur: ergste dag 6,13% tegen 4,76% zonder kosten, win rate 53,1% tegen 59,5%, account dood. De bracket die lokaliseert hoeveel daarvan aan de dubbele telling ligt, draait |
 | 3 | demo twee weken | **NIET GEDAAN.** Kan hier niet — dat vraagt de Windows/MT5-machine. Dit blijft het enige punt dat bug nummer zeven kan vangen |
 | 4 | foutmarges | **KLAAR OM TE DRAAIEN.** `w5_funded_dist.py`, 20 gefunde accounts van elk drie jaar. De vensters overlappen in kalendertijd en dat staat in de docstring: gevoeligheid voor de startdatum, geen zuiver betrouwbaarheidsinterval |
 | 5 | survival-zoektocht | **DRAAIT,** 35 van 80 trials. Beste tot nu toe op de 30 case-enriched vensters: 1 breach en 29/30 geslaagd tegen 7 breaches en 21/30 voor de incumbent, ten koste van acht dagen doorlooptijd. Het patroon is kleiner handelen (risico 2,7% -> 1,8%, muurmarge 5,5 -> 6,0). Dit is een KANDIDAAT; `w5_confirm_candidate.py` toetst hem op 70 achtergehouden vensters en daarna op 100 verse, gepaard, met McNemar |
+
+
+---
+
+## 8. Wat de kostenmeting opleverde — dit verandert de rangorde
+
+Post 1 stond hier als "hoogste waarschijnlijkheid, ongemeten". Hij is nu gemeten
+en hij is niet alleen waarschijnlijk, hij is bindend.
+
+**Het model.** Per-instrument spreads (majors 1,2 pip, JPY-crosses 2,5, dure
+crosses 4,5, UK100 2,0 punt, olie 4,0 cent), gerekend op elke entry inclusief de
+Fib-limitorders — waar bijna elke entry van deze bot zit en waar de simulator
+tot nu toe frictieloos vulde — en nog eens op elke SL-exit. Die tweede is een
+DUBBELE telling: de spread betaal je bij openen, niet nog eens bij sluiten. Ze
+staat er als slippagebuffer, en dat maakt elk getal hieronder pessimistisch met
+een bekende richting maar een onbekende omvang.
+
+**De challenge: 40 gepaarde vensters.**
+
+| | geen kosten | 1x | 2x |
+|---|---|---|---|
+| geslaagd | 37 | 36 | 29 |
+| breach | 0 | 1 | 5 |
+| vastgelopen | 3 | 3 | 6 |
+| <=30 dagen | 28 | 27 | 21 |
+| mediaan | 16d | 16d | 18d |
+| McNemar tegen base | — | p=1,000 | p=0,062 |
+
+De helling is niet vlak. Tussen 1x en 2x zit een klif. De 1x-kolom is dus geen
+geruststelling: hij zegt dat we aan de goede kant van die klif zitten ALS de
+spreadschattingen kloppen, en die zijn geschat, niet gemeten aan de feed van
+5ers.
+
+**Het gefunde klimjaar: 2015, gepaard, zelfde $50.000 start.**
+
+| | zonder kosten | met kosten (1x) |
+|---|---|---|
+| trades | 1189 | 699 (stierf halverwege) |
+| win rate | 59,5% | 53,1% |
+| ergste dag | 4,76% | **6,13%** |
+| niveau eind | $350.000 | $250.000 |
+| opgenomen | $141.277 | $89.364 |
+| uitkomst | overleeft | **DOOD** |
+
+Dit is de tegenovergestelde uitkomst van de challengemeting op dezelfde kosten,
+en het verschil is blootstelling. 2015 is het enige KLIMJAAR: risico per trade
+rond 3,9% tegen 0,87% op de cap, en het duurt een jaar in plaats van zestien
+dagen. Post 5 van deze pre-mortem zei al dat de klim de risicopost is en dat je
+hem precies één keer doet. Dit zet er een getal op.
+
+**Wat hieruit volgt.**
+
+1. De belangrijkste ontbrekende informatie in dit project is niet een parameter
+   maar een FEIT: de werkelijke spreads van 5ers per instrument. Alles hierboven
+   hangt aan een schatting.
+2. De demoperiode krijgt een tweede taak. Naast bug nummer zeven moet hij de
+   echte spreads en de echte fills meten, en die terugvoeren in dit model.
+3. De survival-kandidaat (risico 1,8% tegen 2,7%) wordt hierdoor interessanter
+   dan hij op de challenge alleen leek. Kleiner handelen tijdens de klim is
+   precies wat een te dunne marge boven de kosten vraagt. Dat is een hypothese,
+   niet een meting — de kandidaat is nog niet onder kosten gedraaid.
 
 ---
 
