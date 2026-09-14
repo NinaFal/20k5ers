@@ -31,6 +31,20 @@ Dat is een dubbele telling ten opzichte van de werkelijkheid, waar je de spread
 één keer betaalt: de SL-exit betaalt hem hier een tweede keer. Bewust — het is
 tegelijk de slippage-buffer op stops, waar slippage echt bestaat.
 
+HOE DE LIMIET-KOSTEN ZIJN GEMODELLEERD, en waar dat afwijkt van de echte
+markt. Echt: een buy limit op X vult pas als de ASK X raakt, dus als de BID op
+X - spread staat. De vulprijs is X, maar er zijn MINDER fills. Hier: de trigger
+blijft gelijk en de VULPRIJS wordt X + spread. In geld is dat dezelfde spread,
+maar de verzameling trades verschilt — dit model handelt evenveel keer en
+betaalt per trade, het echte model handelt minder vaak en betaalt niet per
+trade. Deze kant is gekozen omdat hij de triggerlogica van de bot niet raakt.
+
+Bijwerking die je in de uitkomst terugziet: een slechtere entry vergroot de
+afstand tot de SL, dus de lotgrootte bij hetzelfde risicopercentage KRIMPT, en
+de R-doelen schuiven mee. Het pad loopt daardoor chaotisch uiteen — op een kort
+venster kan de dure arm toevallig hoger uitkomen. Alleen het gemiddelde over
+alle 40 vensters zegt iets.
+
 ARMEN
     base    geen opslag (referentie, identiek aan de bestaande resultaten)
     real    de tabel hierboven
