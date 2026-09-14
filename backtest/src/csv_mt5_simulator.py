@@ -207,6 +207,30 @@ class CSVMT5Simulator:
             self._slippage_pips = float(_os.getenv("SLIPPAGE_PIPS", "0") or "0")
         except ValueError:
             self._slippage_pips = 0.0
+
+        # SLIPPAGE_MAP: per-instrument adverse pips, as JSON {"SUBSTRING": pips}.
+        # A flat SLIPPAGE_PIPS treats 1 pip on EUR/USD and 1 pip on Brent as the
+        # same cost, which they are not. Keys are matched as substrings against
+        # the uppercased symbol (first match wins, longest key first), so
+        # {"JPY": 1.5, "XBR": 4} covers every JPY cross and Brent. Symbols with
+        # no matching key fall back to SLIPPAGE_PIPS.
+        # COST_LIMIT_ENTRIES: by default limit entries fill frictionless at the
+        # limit price. In reality a buy limit fills on the ASK, so its trigger is
+        # one spread optimistic. Setting this to 1 charges the same adverse pips
+        # on limit fills — the conservative reading.
+        self._slippage_map = []
+        try:
+            import json as _json
+            _m = _json.loads(_os.getenv("SLIPPAGE_MAP", "") or "{}")
+            self._slippage_map = sorted(
+                ((str(k).upper().replace("_", "").replace("/", ""), float(v))
+                 for k, v in _m.items()),
+                key=lambda kv: -len(kv[0]),
+            )
+        except Exception:
+            self._slippage_map = []
+        self._cost_limit_entries = _os.getenv("COST_LIMIT_ENTRIES", "0").strip().lower() \
+            in ("1", "true", "yes", "on")
         self._gap_fills = _os.getenv("GAP_FILLS", "1").strip().lower() \
             not in ("0", "false", "no", "off")
 
@@ -1242,11 +1266,15 @@ class CSVMT5Simulator:
         STOP entries (buy_stop=4, sell_stop=5) are market-on-touch and CAN slip /
         gap through, so they keep adverse slippage (#3) + gap-through (#4).
         """
-        # Limit entries: exact price, no friction.
+        # Limit entries: exact price, no friction — unless COST_LIMIT_ENTRIES
+        # charges the spread they really fill across.
         if order_type in (2, 3):
-            return price
+            if not self._cost_limit_entries:
+                return price
+            slip = self._slippage_for(symbol) * self._pip_size_for(symbol)
+            return price + slip if order_type == 2 else price - slip
         pip = self._pip_size_for(symbol)
-        slip = self._slippage_pips * pip
+        slip = self._slippage_for(symbol) * pip
         op = bar.get('open', price)
         if order_type == 4:  # buy_stop
             base = price
@@ -1259,10 +1287,19 @@ class CSVMT5Simulator:
                 base = op  # gapped down -> worse fill at open
             return base - slip
 
+    def _slippage_for(self, symbol):
+        """Adverse pips for this symbol: SLIPPAGE_MAP match, else SLIPPAGE_PIPS."""
+        if self._slippage_map:
+            u = (symbol or "").upper().replace("_", "").replace("/", "")
+            for key, pips in self._slippage_map:
+                if key in u:
+                    return pips
+        return self._slippage_pips
+
     def _exit_sl_price(self, pos, bar):
         """SL exit price with gap-through (#4) + adverse slippage (#3)."""
         pip = self._pip_size_for(pos.symbol)
-        slip = self._slippage_pips * pip
+        slip = self._slippage_for(pos.symbol) * pip
         op = bar.get('open', pos.sl)
         if pos.type == 0:  # buy: worse is lower
             base = min(pos.sl, op) if self._gap_fills else pos.sl
