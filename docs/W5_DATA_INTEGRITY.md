@@ -136,3 +136,47 @@ elk jaar even lang duurt, en dat is bij een strategie die het account kan
 verliezen niet vanzelfsprekend. Het aantal trades per jaar naast het resultaat
 zetten is de goedkoopste manier om dit te zien — 174 tegen 1.970 valt op, een
 verkeerd gemiddelde niet.
+
+---
+
+## Gedeelde werkmap tussen gelijktijdige armen — gevonden, gerepareerd, gecontroleerd
+
+`w5_decade_crypto.run_year` gebruikte `tmp/dec_<jaar>` en `w5_per_symbol.run_year`
+`tmp/psym_<jaar>`, beide zonder de arm in de naam, en beide beginnen met
+`rmtree`. De toezichthouder draait de armen tegelijk. Twee armen die op hetzelfde
+moment aan hetzelfde jaar werken wissen dus elkaars werkmap halverwege, schrijven
+allebei `results.json` op dezelfde plek en lezen allebei wat er toevallig als
+laatste staat. Dat faalt niet zichtbaar — het levert stil het verkeerde getal.
+Beide zijn nu op de arm gesleuteld.
+
+**Aanleiding.** Bij het nalopen van de drie index-armen was de ergste dagelijkse
+drawdown in 8 van de 11 jaren tot op twee decimalen gelijk tussen `geen_index`
+en `met_spx`, terwijl er ongeveer 45 SP500-trades per jaar bij kwamen.
+
+**Uitkomst: de opgeslagen armen kloppen.** 2023 van `met_spx` is los herhaald via
+dezelfde `run_year`, en komt cent voor cent terug op alle zeven velden:
+
+| veld | opgeslagen | herhaald |
+|---|---|---|
+| opgenomen | $465.974,98 | $465.974,98 |
+| eindbalans | $516.600,25 | $516.600,25 |
+| niveau eind | $500.000 | $500.000 |
+| trades | 1292 | 1292 |
+| win rate | 57,1% | 57,1% |
+| ergste dag | 1,85% | 1,85% |
+| ergste totaal | 1,78% | 1,78% |
+
+De gelijke drawdowns hadden de onschuldige verklaring: vanaf 2016 staat de balans
+in beide armen op de $500.000-cap en wordt de winst bij elke mijlpaal
+teruggenomen tot dat niveau, dus de noemer van het percentage is identiek. In de
+jaren waarin SP500 wél op de slechtste dag in het boek zat lopen ze wel uiteen
+(2020: 3,44% tegen 3,19%; 2021: 2,61 tegen 2,62; 2024: 2,62 tegen 2,63).
+
+**Waarom dit toch een bug was.** De race bestond; hij is deze keer niet
+afgegaan omdat de armen uit de pas liepen. Dat is geluk, geen veiligheid.
+
+**En een waarschuwing over de controle zelf.** De eerste poging bouwde de
+omgeving met de hand na en vergat de helft van `BASE_ENV` — de risicoregimes, de
+noodtiers, de nachtelijke de-risk. Resultaat: 327 trades waar er 1292 hoorden te
+staan, wat eruitzag als bewijs van datavervuiling en het niet was. Een
+reproductiecontrole die de productiecode niet AANROEPT meet zijn eigen script.
