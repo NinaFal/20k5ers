@@ -52,7 +52,7 @@ ARMEN
 
 Draaien:  uv run python3 backtest/src/w5_costs_real.py [arm]
 """
-import importlib.util, json, os, random, sys
+import importlib.util, json, math, os, random, sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -136,5 +136,67 @@ def main():
           f"mediaan {tot[len(tot)//2] if tot else None}d")
 
 
+def _sum(d, starts):
+    rows = [d[s] for s in starts if s in d]
+    br = sum(1 for r in rows if r["breach"])
+    tot = sorted(r["total"] for r in rows if r.get("total"))
+    return {"n": len(rows), "pass": len(tot), "breach": br,
+            "stall": len(rows) - br - len(tot),
+            "median": tot[len(tot) // 2] if tot else None,
+            "le30": sum(1 for t in tot if t <= 30)}
+
+
+def mcnemar_exact(b, c):
+    """Tweezijdige exacte tekentoets op de discordante paren. Alleen de vensters
+    waar de armen VAN ELKAAR VERSCHILLEN dragen bij; de rest zegt niets over
+    welke arm beter is. Met b+c klein is de normale benadering waardeloos."""
+    n = b + c
+    if n == 0:
+        return 1.0
+    k = min(b, c)
+    return min(1.0, 2 * sum(math.comb(n, i) for i in range(k + 1)) / (2 ** n))
+
+
+def compare():
+    """Gepaard, op dezelfde vensters. Ongepaard vergelijken van twee armen die
+    toevallig verschillende vensters af hebben is de fout die eerder in dit
+    project 3 tegen 1 breaches liet zien waar er niets stond."""
+    store = w5.load_json(OUT)
+    starts = sorted(random.Random(SEED).sample(w5.CANON, N))
+    have = [a for a in ("base", "real", "real2x") if store.get(a)]
+    if "base" not in have:
+        print("[kosten] geen referentiearm — vergelijken kan niet"); return
+    base = store["base"]
+    for arm in have:
+        if arm == "base":
+            continue
+        shared = [s for s in starts if s in base and s in store[arm]]
+        sb, sa = _sum(base, shared), _sum(store[arm], shared)
+        print("\n" + "=" * 66)
+        print(f"{arm.upper()} tegen BASE — {len(shared)} GEPAARDE vensters")
+        print(f"\n{'':14}{'geen kosten':>14}{arm:>14}{'verschil':>12}")
+        for lbl, k in (("geslaagd", "pass"), ("breach", "breach"),
+                       ("vastgelopen", "stall"), ("<=30 dagen", "le30"),
+                       ("mediaan (d)", "median")):
+            a_, b_ = sb[k], sa[k]
+            dv = (b_ - a_) if (isinstance(a_, int) and isinstance(b_, int)) else ""
+            print(f"{lbl:14}{str(a_):>14}{str(b_):>14}{str(dv):>12}")
+        b = sum(1 for s in shared if base[s]["breach"] and not store[arm][s]["breach"])
+        c = sum(1 for s in shared if store[arm][s]["breach"] and not base[s]["breach"])
+        both = sum(1 for s in shared if base[s]["breach"] and store[arm][s]["breach"])
+        print(f"\ngepaarde breach-tabel: beide {both} | alleen base {b} | alleen {arm} {c}")
+        print(f"McNemar exact, tweezijdig: p = {mcnemar_exact(b, c):.3f}")
+        d = [store[arm][s]["total"] - base[s]["total"] for s in shared
+             if base[s].get("total") and store[arm][s].get("total")]
+        if d:
+            d.sort()
+            print(f"dagen per venster (alleen waar beide slagen, n={len(d)}): "
+                  f"mediaan {d[len(d)//2]:+d}, slechtste {d[-1]:+d}, beste {d[0]:+d}")
+    print("\n[w5_costs_real] DONE_MARKER", flush=True)
+
+
 if __name__ == "__main__":
-    main()
+    if "--compare" in sys.argv:
+        compare()
+    else:
+        main()
