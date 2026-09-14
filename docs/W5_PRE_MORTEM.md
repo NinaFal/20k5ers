@@ -11,7 +11,7 @@ were opened and none finished:
 
 | lead | what it showed | why it stopped |
 |---|---|---|
-| 5-leg TP ladder | never tested at all — `space_ladder` hardcoded `tp4_close_pct: 0.0, tp5_close_pct: 0.0`, so every stage of every round inherited a 3-leg assumption. The position is flat at 2.75R and nothing ever rides a trend further | stopped by request after 17 trials, ties unresolved |
+| 5-leg TP ladder | never tested at all — `space_ladder` hardcoded `tp4_close_pct: 0.0, tp5_close_pct: 0.0`, so every stage of every round inherited a 3-leg assumption. The position is flat at 2.75R and nothing ever rides a trend further. **Still true**: the frozen config closes 25% at 0.65R, 60% at 1.85R and 15% at 2.75R — 100% in three legs. The engine itself supports five (`main_live_bot_backtest.py:5084` handles TP4 and TP5); only the config zeroes them. **Landmine if anyone turns them on:** `tp4_r_multiple` is 2.5 and `tp3_r_multiple` is 2.75, so TP4 would fire BEFORE TP3. Inert while the close percentages are zero, wrong the moment they are not | stopped by request after 17 trials, ties unresolved |
 | survival optimizer | 3 of 5 trials **halved** total failures vs the incumbent (5 vs 9 per 30) via mutually contradictory parameters | paused, 5 of 80 trials |
 | risk 2.2% | 7 breaches → 2 on the hard sample, McNemar p=0.062 | confirmation cancelled midway |
 
