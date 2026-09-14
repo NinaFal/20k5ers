@@ -194,6 +194,8 @@ def main():
             ("SLIPPAGE_PIPS", "0", "vlakke opslag in pips op stop-entries en SL-exits"),
             ("SLIPPAGE_MAP", "", "opslag per instrument"),
             ("COST_LIMIT_ENTRIES", "0", "rekent de spread ook op limit-fills"),
+            ("SL_SLIPPAGE_OFF", "0", "zet de opslag op SL-exits uit"),
+            ("SL_SLIPPAGE_PIPS", "", "vaste opslag op SL-exits"),
     ):
         got = os.getenv(var)
         ok_ = got is None or got.strip() in ("", "0", "false", "no", "off")

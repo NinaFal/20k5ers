@@ -231,6 +231,22 @@ class CSVMT5Simulator:
             self._slippage_map = []
         self._cost_limit_entries = _os.getenv("COST_LIMIT_ENTRIES", "0").strip().lower() \
             in ("1", "true", "yes", "on")
+
+        # De SL-exit apart regelbaar. Zonder deze twee knoppen betaalt een
+        # SL-exit dezelfde opslag als de entry, en dat is een DUBBELE telling:
+        # de spread betaal je bij openen, niet nog eens bij sluiten. Wat er op
+        # een stop wel bestaat is slippage, en die is in liquide forex doorgaans
+        # onder de halve pip — niet 1,2 tot 4,5.
+        #   SL_SLIPPAGE_OFF=1     geen opslag op SL-exits (gap-fills blijven)
+        #   SL_SLIPPAGE_PIPS=0.5  vaste opslag op SL-exits in plaats van de map
+        # Niets gezet = ongewijzigd gedrag.
+        self._sl_slippage_off = _os.getenv("SL_SLIPPAGE_OFF", "0").strip().lower() \
+            in ("1", "true", "yes", "on")
+        _sp = _os.getenv("SL_SLIPPAGE_PIPS")
+        try:
+            self._sl_slippage_pips = float(_sp) if _sp not in (None, "") else None
+        except ValueError:
+            self._sl_slippage_pips = None
         self._gap_fills = _os.getenv("GAP_FILLS", "1").strip().lower() \
             not in ("0", "false", "no", "off")
 
@@ -1299,7 +1315,12 @@ class CSVMT5Simulator:
     def _exit_sl_price(self, pos, bar):
         """SL exit price with gap-through (#4) + adverse slippage (#3)."""
         pip = self._pip_size_for(pos.symbol)
-        slip = self._slippage_for(pos.symbol) * pip
+        if self._sl_slippage_off:
+            slip = 0.0
+        elif self._sl_slippage_pips is not None:
+            slip = self._sl_slippage_pips * pip
+        else:
+            slip = self._slippage_for(pos.symbol) * pip
         op = bar.get('open', pos.sl)
         if pos.type == 0:  # buy: worse is lower
             base = min(pos.sl, op) if self._gap_fills else pos.sl
