@@ -78,8 +78,20 @@ OUT = w5.W5_DIR / f"decade_{ARM}.json"
 OLD = w5.W5_DIR / "decade_nocrypto.json"
 
 
+# De configuratie mag worden omgezet, de armen blijven verder identiek. Dat is
+# nodig om te kunnen meten wat een survival-kandidaat KOST op het gefunde
+# account: die handelt kleiner (risico 1,8% tegen 2,7%) en dat is precies de
+# ruil die je wilt zien in dollars over elf jaar, niet alleen in breaches over
+# dertig vensters. Zonder de variabele verandert er niets.
+CONFIG = os.getenv("W5_DECADE_CONFIG") or "BASELINE_t65_tdd_FROZEN.json"
+if CONFIG != "BASELINE_t65_tdd_FROZEN.json":
+    # Anders overschrijft een tweede configuratie de resultaten van de eerste
+    # onder dezelfde armnaam, en is aan het bestand niet te zien welke het was.
+    OUT = w5.W5_DIR / f"decade_{ARM}__{Path(CONFIG).stem}.json"
+
+
 def run_year(year, balance):
-    b = json.loads((w5.W5_DIR / "BASELINE_t65_tdd_FROZEN.json").read_text())
+    b = json.loads((w5.W5_DIR / CONFIG).read_text())
     e = dict(os.environ); e.update(w5.cs.dh.BASE_ENV)
     e.update(w5.BASE_ENV); e.update(b["env"])
     e["FIVEERS_MAX_SCALE"] = SCALE_CAP
