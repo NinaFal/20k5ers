@@ -108,6 +108,18 @@ days. The survival candidates are the natural fallback and none is confirmed.
 
 ---
 
+## Status of those five
+
+| | wat | stand |
+|---|---|---|
+| 1 | 5ers gemaild | **AF.** Antwoorden in `docs/5ERS_ANSWERS.md`. De load-bearing vraag is goed afgelopen: de dagelijkse limiet reset naar de balans NA opname, dus een uitbetalingsdag is geen breach en de gecapte jaren blijven staan. Vaste uitbetaling is $10.000 per MAAND op $500k. Hefboom per klasse bevestigd (forex 1:100, indices en metalen 1:25, grondstoffen 1:5, crypto 1:2) en gemeten: de marge piekt op 28,6% in de challenge, geen order boven 22% van zijn symboolplafond |
+| 2 | kostenrealisme | **DRAAIT.** `w5_costs_real.py`, drie armen van 40 vensters. De simulator kreeg `SLIPPAGE_MAP` (opslag per instrument) en `COST_LIMIT_ENTRIES` (rekent de spread ook op limit-fills, waar bijna elke entry van deze bot zit). Beide standaard uit en bewezen inert: dezelfde backtest levert voor en na dezelfde md5 over 76 trades |
+| 3 | demo twee weken | **NIET GEDAAN.** Kan hier niet — dat vraagt de Windows/MT5-machine. Dit blijft het enige punt dat bug nummer zeven kan vangen |
+| 4 | foutmarges | **KLAAR OM TE DRAAIEN.** `w5_funded_dist.py`, 20 gefunde accounts van elk drie jaar. De vensters overlappen in kalendertijd en dat staat in de docstring: gevoeligheid voor de startdatum, geen zuiver betrouwbaarheidsinterval |
+| 5 | survival-zoektocht | **DRAAIT,** 35 van 80 trials. Beste tot nu toe op de 30 case-enriched vensters: 1 breach en 29/30 geslaagd tegen 7 breaches en 21/30 voor de incumbent, ten koste van acht dagen doorlooptijd. Het patroon is kleiner handelen (risico 2,7% -> 1,8%, muurmarge 5,5 -> 6,0). Dit is een KANDIDAAT; `w5_confirm_candidate.py` toetst hem op 70 achtergehouden vensters en daarna op 100 verse, gepaard, met McNemar |
+
+---
+
 ## The honest summary
 
 A config validated at 95.4% pass / 4.6% account loss over 196 out-of-sample
