@@ -59,11 +59,24 @@ SPLIT = 2020                      # 2015-2019 tegen 2020-2025
 # cache die een ander universum meet. Dat is hier al een keer misgegaan — de
 # studie draaide op de live-lijst, waar UK100 in staat, dus juist het symbool
 # waarvoor hij bedoeld was kwam op nul trades uit.
+# De KOSTENINSTELLINGEN horen er net zo goed in. run_year begint met
+# dict(os.environ), dus SLIPPAGE_MAP en COST_LIMIT_ENTRIES uit de shell werken
+# door zonder dat de sleutel verandert: een kostenrun zou dan hervatten uit een
+# kosteloze cache en de twee door elkaar mengen, jaar voor jaar, zonder foutmelding.
+# Dat is dezelfde vorm als de fout hierboven, één laag dieper.
 import hashlib as _h
-CACHE = w5.W5_DIR / ("per_symbol_trades_" + _h.sha1(
-    (os.getenv("W5_STUDY_EXCLUDE") or w5.BASE_ENV["EXCLUDE_SYMBOLS"]).encode()
-).hexdigest()[:8])
-OUT = w5.W5_DIR / "per_symbol.json"
+# Zonder kosteninstellingen blijft de sleutel EXACT wat hij was — de
+# uitsluitingslijst alleen — anders wordt de bestaande cache van elf jaar
+# weesgemaakt en draait alles opnieuw voor niets.
+_COST = "|".join(os.getenv(k, "") for k in
+                 ("SLIPPAGE_MAP", "SLIPPAGE_PIPS", "COST_LIMIT_ENTRIES",
+                  "SL_SLIPPAGE_OFF", "SL_SLIPPAGE_PIPS"))
+_KEY = os.getenv("W5_STUDY_EXCLUDE") or w5.BASE_ENV["EXCLUDE_SYMBOLS"]
+if _COST.strip("|"):
+    _KEY += "|" + _COST
+CACHE = w5.W5_DIR / ("per_symbol_trades_" + _h.sha1(_KEY.encode()).hexdigest()[:8])
+OUT = w5.W5_DIR / ("per_symbol.json" if not os.getenv("SLIPPAGE_MAP")
+                   else "per_symbol_kosten.json")
 # Alles aan wat 5ers aanbiedt, ook wat nu uitstaat — anders kun je niet zien of
 # uitsluiten terecht was. Olie zit hardgecodeerd uit in de engine (:2789) en
 # krijg je hier dus niet te zien.
