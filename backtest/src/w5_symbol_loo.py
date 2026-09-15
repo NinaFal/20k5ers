@@ -82,25 +82,33 @@ AAN = _universe()
 # hun eigen armen zodat ze wel meetbaar zijn.
 UIT = [s for s in BASE_EXCL if s not in ("XRP_USD", "ADA_USD")]   # 5ers biedt die twee niet aan
 
-ARMS = {"basis": (BASE_EXCL, True)}
+# (uitsluitingslijst, olie aan?, SP500 aan?)
+ARMS = {"basis": (BASE_EXCL, True, False)}
 for s in AAN:
     if s in ("XBR_USD", "XTI_USD"):
         continue
-    ARMS[f"-{s}"] = (BASE_EXCL + [s], True)
-ARMS["-XBR_USD"] = (BASE_EXCL + ["XBR_USD"], True)
-ARMS["-XTI_USD"] = (BASE_EXCL + ["XTI_USD"], True)
-ARMS["-OLIE"] = (BASE_EXCL, False)                 # allebei de olies eruit
+    ARMS[f"-{s}"] = (BASE_EXCL + [s], True, False)
+ARMS["-XBR_USD"] = (BASE_EXCL + ["XBR_USD"], True, False)
+ARMS["-XTI_USD"] = (BASE_EXCL + ["XTI_USD"], True, False)
+ARMS["-OLIE"] = (BASE_EXCL, False, False)          # allebei de olies eruit
 for s in UIT:
-    ARMS[f"+{s}"] = ([x for x in BASE_EXCL if x != s], True)
+    ARMS[f"+{s}"] = ([x for x in BASE_EXCL if x != s], True, False)
+# SP500 hangt aan SPX500_ENABLE, niet aan de uitsluitingslijst, en krijgt daarom
+# zijn eigen arm. Hij staat hier omdat het advies om hem uit te laten omviel: op
+# het klimjaar MET kosten en MET de kandidaat doet hij +$29.535 (+27%), haalt
+# $350.000 in plaats van $300.000 en heeft de laagste ergste dag van alle armen
+# (3,95% tegen 4,08%). Dat advies berustte op de elfjarige vergelijking ZONDER
+# kosten, op een configuratie die inmiddels dood is.
+ARMS["+SPX500_USD"] = (BASE_EXCL, True, True)
 
 
 def run_year(arm, year, balance):
-    excl, oil = ARMS[arm]
+    excl, oil, spx = ARMS[arm]
     env, tp = cc.candidate(TRIAL)[:2]
     e = dict(os.environ); e.update(w5.cs.dh.BASE_ENV); e.update(env)
     e["EXCLUDE_SYMBOLS"] = ",".join(excl)
     e["OIL_ENABLE"] = "1" if oil else "0"
-    e["SPX500_ENABLE"] = "0"
+    e["SPX500_ENABLE"] = "1" if spx else "0"
     e["FIVEERS_MAX_SCALE"] = "500000"; e["CFG_DAILY_WALL_PCT"] = "5.0"
     e.setdefault("BROKER_TYPE", "fiveers_live")
     e["OPT_PARAMS"] = json.dumps({**w5.cs.dh.BASE_TP, **tp}); e["PYTHONUTF8"] = "1"
