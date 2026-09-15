@@ -1,0 +1,62 @@
+[
+  {
+    "risk_pct": 1.0,
+    "failed": false,
+    "net": 533888,
+    "max_tdd": 6.27,
+    "max_ddd": 3.23,
+    "final_funded": 400000,
+    "scalings": 12,
+    "withdrawn": 175205,
+    "breach_type": null,
+    "breach_time": null
+  },
+  {
+    "risk_pct": 1.5,
+    "failed": false,
+    "net": 743277,
+    "max_tdd": 9.12,
+    "max_ddd": 3.64,
+    "final_funded": 500000,
+    "scalings": 14,
+    "withdrawn": 263121,
+    "breach_type": null,
+    "breach_time": null
+  },
+  {
+    "risk_pct": 2.0,
+    "failed": true,
+    "net": 8093,
+    "max_tdd": 1.99,
+    "max_ddd": 5.12,
+    "final_funded": 60000,
+    "scalings": 1,
+    "withdrawn": 4758,
+    "breach_type": "daily",
+    "breach_time": "2015-01-15 10:45:00+00:00"
+  },
+  {
+    "risk_pct": 2.5,
+    "failed": true,
+    "net": 6982,
+    "max_tdd": 3.37,
+    "max_ddd": 6.09,
+    "final_funded": 60000,
+    "scalings": 1,
+    "withdrawn": 5293,
+    "breach_type": "daily",
+    "breach_time": "2015-01-15 10:45:00+00:00"
+  },
+  {
+    "risk_pct": 3.0,
+    "failed": true,
+    "net": 6534,
+    "max_tdd": 3.75,
+    "max_ddd": 6.67,
+    "final_funded": 60000,
+    "scalings": 1,
+    "withdrawn": 6329,
+    "breach_type": "daily",
+    "breach_time": "2015-01-15 10:45:00+00:00"
+  }
+]

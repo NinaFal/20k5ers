@@ -1,0 +1,168 @@
+{
+  "2016-01-01": {
+    "breach": false
+  },
+  "2016-04-01": {
+    "breach": false
+  },
+  "2016-07-01": {
+    "breach": false
+  },
+  "2016-10-01": {
+    "breach_day": "2016-11-09",
+    "n_losers": 4,
+    "total_loss": -3551.25,
+    "overnight_share": 0.73,
+    "n_overnight": 2,
+    "worst_single_share": 0.724,
+    "worst_symbol": "USD_JPY",
+    "top_group": "USD_INVERSE",
+    "top_group_share": 0.73,
+    "n_groups": 2,
+    "dir_split": {
+      "buy": 1.0,
+      "sell": 0.0
+    },
+    "symbols": [
+      "GBP_CHF",
+      "GBP_JPY",
+      "USD_JPY"
+    ],
+    "breach": true
+  },
+  "2018-01-01": {
+    "breach_day": "2018-02-07",
+    "n_losers": 5,
+    "total_loss": -3054.32,
+    "overnight_share": 1.0,
+    "n_overnight": 5,
+    "worst_single_share": 0.454,
+    "worst_symbol": "XAU_USD",
+    "top_group": "METALS",
+    "top_group_share": 0.506,
+    "n_groups": 4,
+    "dir_split": {
+      "sell": 0.242,
+      "buy": 0.758
+    },
+    "symbols": [
+      "AUD_USD",
+      "EUR_GBP",
+      "USD_CAD",
+      "XAU_USD"
+    ],
+    "breach": true
+  },
+  "2018-04-01": {
+    "breach": false
+  },
+  "2018-07-01": {
+    "breach": false
+  },
+  "2018-10-01": {
+    "breach_day": "2018-10-19",
+    "n_losers": 5,
+    "total_loss": -3302.42,
+    "overnight_share": 1.0,
+    "n_overnight": 5,
+    "worst_single_share": 0.491,
+    "worst_symbol": "GBP_USD",
+    "top_group": "USD_MAJORS",
+    "top_group_share": 0.509,
+    "n_groups": 2,
+    "dir_split": {
+      "sell": 0.509,
+      "buy": 0.491
+    },
+    "symbols": [
+      "AUD_CAD",
+      "AUD_CHF",
+      "AUD_USD",
+      "GBP_USD",
+      "NZD_CHF"
+    ],
+    "breach": true
+  },
+  "2021-01-01": {
+    "breach_day": "2021-01-27",
+    "n_losers": 6,
+    "total_loss": -2049.47,
+    "overnight_share": 1.0,
+    "n_overnight": 6,
+    "worst_single_share": 0.462,
+    "worst_symbol": "USD_CHF",
+    "top_group": "USD_INVERSE",
+    "top_group_share": 0.462,
+    "n_groups": 5,
+    "dir_split": {
+      "sell": 0.536,
+      "buy": 0.464
+    },
+    "symbols": [
+      "AUD_CAD",
+      "CHF_JPY",
+      "EUR_JPY",
+      "GBP_AUD",
+      "USD_CHF"
+    ],
+    "breach": true
+  },
+  "2021-04-01": {
+    "breach": false
+  },
+  "2021-07-01": {
+    "breach": false
+  },
+  "2021-10-01": {
+    "breach": false
+  },
+  "2023-01-01": {
+    "breach_day": "2023-01-03",
+    "n_losers": 3,
+    "total_loss": -3179.26,
+    "overnight_share": 1.0,
+    "n_overnight": 3,
+    "worst_single_share": 0.736,
+    "worst_symbol": "EUR_USD",
+    "top_group": "USD_MAJORS",
+    "top_group_share": 0.736,
+    "n_groups": 3,
+    "dir_split": {
+      "buy": 0.736,
+      "sell": 0.264
+    },
+    "symbols": [
+      "EUR_CHF",
+      "EUR_USD",
+      "USD_CAD"
+    ],
+    "breach": true
+  },
+  "2023-04-01": {
+    "breach": false
+  },
+  "2023-07-01": {
+    "breach": false
+  },
+  "2023-10-01": {
+    "breach_day": "2023-11-01",
+    "n_losers": 2,
+    "total_loss": -1890.44,
+    "overnight_share": 1.0,
+    "n_overnight": 2,
+    "worst_single_share": 0.858,
+    "worst_symbol": "EUR_AUD",
+    "top_group": "EUR_CROSSES",
+    "top_group_share": 0.858,
+    "n_groups": 2,
+    "dir_split": {
+      "buy": 0.858,
+      "sell": 0.142
+    },
+    "symbols": [
+      "EUR_AUD",
+      "NZD_USD"
+    ],
+    "breach": true
+  }
+}

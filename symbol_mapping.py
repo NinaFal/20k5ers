@@ -47,7 +47,7 @@ ALL_FOREX_PAIRS_OANDA: List[str] = [
 
 ALL_METALS_OANDA: List[str] = ["XAU_USD", "XAG_USD"]
 ALL_CRYPTO_OANDA: List[str] = ["BTC_USD", "ETH_USD"]
-ALL_INDICES_OANDA: List[str] = ["NAS100_USD", "UK100_USD"]
+ALL_INDICES_OANDA: List[str] = ["NAS100_USD", "UK100_USD", "SPX500_USD"]
 
 ALL_TRADABLE_OANDA: List[str] = (
     ALL_FOREX_PAIRS_OANDA + ALL_METALS_OANDA + ALL_CRYPTO_OANDA + ALL_INDICES_OANDA
@@ -111,6 +111,14 @@ OANDA_TO_FIVEERS: Dict[str, str] = {
     # CRITICAL: 5ers uses direct names WITHOUT .cash suffix!
     "NAS100_USD": "NAS100",   # Nasdaq 100 - NOT US100.cash!
     "UK100_USD": "UK100",     # FTSE 100 - NOT UK100.cash!
+    # SPX500 ontbrak hier. Gevolg: ook met SPX500_ENABLE=1 en met data werd het
+    # symbool stil weggefilterd door
+    #   available_symbols = [s for s in TRADABLE_SYMBOLS if s in self.symbol_map]
+    # (main_live_bot_backtest.py:5367), en kwam de spx-arm er byte-identiek uit
+    # als de referentie — zelfde 9.371 trades, zelfde P&L tot op de cent. Dat
+    # zag er als een geldig "SPX voegt niets toe" uit terwijl er niets gemeten
+    # was. ALL_INDICES_FTMO op regel 283 noemt SP500 wel, dus 5ers heeft het.
+    "SPX500_USD": "SP500",    # S&P 500
 }
 
 

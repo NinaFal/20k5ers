@@ -207,6 +207,46 @@ class CSVMT5Simulator:
             self._slippage_pips = float(_os.getenv("SLIPPAGE_PIPS", "0") or "0")
         except ValueError:
             self._slippage_pips = 0.0
+
+        # SLIPPAGE_MAP: per-instrument adverse pips, as JSON {"SUBSTRING": pips}.
+        # A flat SLIPPAGE_PIPS treats 1 pip on EUR/USD and 1 pip on Brent as the
+        # same cost, which they are not. Keys are matched as substrings against
+        # the uppercased symbol (first match wins, longest key first), so
+        # {"JPY": 1.5, "XBR": 4} covers every JPY cross and Brent. Symbols with
+        # no matching key fall back to SLIPPAGE_PIPS.
+        # COST_LIMIT_ENTRIES: by default limit entries fill frictionless at the
+        # limit price. In reality a buy limit fills on the ASK, so its trigger is
+        # one spread optimistic. Setting this to 1 charges the same adverse pips
+        # on limit fills — the conservative reading.
+        self._slippage_map = []
+        try:
+            import json as _json
+            _m = _json.loads(_os.getenv("SLIPPAGE_MAP", "") or "{}")
+            self._slippage_map = sorted(
+                ((str(k).upper().replace("_", "").replace("/", ""), float(v))
+                 for k, v in _m.items()),
+                key=lambda kv: -len(kv[0]),
+            )
+        except Exception:
+            self._slippage_map = []
+        self._cost_limit_entries = _os.getenv("COST_LIMIT_ENTRIES", "0").strip().lower() \
+            in ("1", "true", "yes", "on")
+
+        # De SL-exit apart regelbaar. Zonder deze twee knoppen betaalt een
+        # SL-exit dezelfde opslag als de entry, en dat is een DUBBELE telling:
+        # de spread betaal je bij openen, niet nog eens bij sluiten. Wat er op
+        # een stop wel bestaat is slippage, en die is in liquide forex doorgaans
+        # onder de halve pip — niet 1,2 tot 4,5.
+        #   SL_SLIPPAGE_OFF=1     geen opslag op SL-exits (gap-fills blijven)
+        #   SL_SLIPPAGE_PIPS=0.5  vaste opslag op SL-exits in plaats van de map
+        # Niets gezet = ongewijzigd gedrag.
+        self._sl_slippage_off = _os.getenv("SL_SLIPPAGE_OFF", "0").strip().lower() \
+            in ("1", "true", "yes", "on")
+        _sp = _os.getenv("SL_SLIPPAGE_PIPS")
+        try:
+            self._sl_slippage_pips = float(_sp) if _sp not in (None, "") else None
+        except ValueError:
+            self._sl_slippage_pips = None
         self._gap_fills = _os.getenv("GAP_FILLS", "1").strip().lower() \
             not in ("0", "false", "no", "off")
 
@@ -252,6 +292,25 @@ class CSVMT5Simulator:
         self._total_withdrawn: float = 0.0  # total trader profit withdrawn
         self._funded_level: float = initial_balance  # current funded level
         self._scaling_log: list = []  # log of scaling events
+        # Cumulative BALANCE removed by payouts at scaling milestones. A payout
+        # is not a trading loss, but it does drop balance/equity, so a naive
+        # daily-drawdown calc reads it as one — at a 175k cap that is a ~9%
+        # phantom breach on every payout day. Callers subtract the within-day
+        # delta of this counter before measuring daily drawdown.
+        self._payout_balance_removed: float = 0.0
+        # Calendar-driven payouts. Default OFF, so every existing result is
+        # unchanged. FIVEERS_PAYOUT_DAYS=14 makes the account also sweep profit
+        # above the funded level every 14 days, on top of the +10% milestone
+        # sweep. FIVEERS_PAYOUT_AT_CAP_ONLY=1 restricts that to a capped
+        # account, which is the interesting case: below the cap a withdrawal
+        # delays the next rung, and crossing a rung is worth more than the cash
+        # because 5ers raises the allocation. Once capped there are no rungs
+        # left, so waiting for +10% only leaves money exposed.
+        self._payout_days: int = int(os.getenv("FIVEERS_PAYOUT_DAYS", "0") or 0)
+        self._payout_at_cap_only: bool = os.getenv(
+            "FIVEERS_PAYOUT_AT_CAP_ONLY", "0").strip().lower() in ("1", "true", "yes", "on")
+        self._last_calendar_payout = None
+        self._calendar_payouts: list = []
 
     # ═══════════════════════════════════════════════════════════════════════
     # FEE SIMULATION - 5ers realistic costs
@@ -342,12 +401,66 @@ class CSVMT5Simulator:
                 return level
         return self._max_balance
 
+    def _split_for_level(self, level: float) -> float:
+        """5ers profit split at a funded level, per the official scaling plan."""
+        if level >= 350_000:
+            return 1.00
+        if level >= 250_000:
+            return 0.90
+        if level >= 175_000:
+            return 0.85
+        return 0.80
+
+    def _maybe_calendar_payout(self):
+        """Sweep profit above the funded level on a fixed calendar interval.
+
+        Inert unless FIVEERS_PAYOUT_DAYS is set. This exists to answer whether
+        taking profit every two weeks beats waiting for the +10% milestone. The
+        two differ only in timing, never in split: 5ers pays the same
+        percentage either way. What changes is how long profit sits on the
+        account, and — below the cap — how long it takes to reach the next rung.
+        """
+        if self._payout_days <= 0:
+            return
+        if self._payout_at_cap_only and self._funded_level < self._max_balance:
+            return
+        now = self._current_time
+        if self._last_calendar_payout is None:
+            self._last_calendar_payout = now
+            return
+        if (now - self._last_calendar_payout).days < self._payout_days:
+            return
+        self._last_calendar_payout = now
+        profit = self._balance - self._funded_level
+        if profit <= 0:
+            return
+        split = self._split_for_level(self._funded_level)
+        self._total_withdrawn += profit * split
+        self._calendar_payouts.append({
+            'time': str(now),
+            'level': self._funded_level,
+            'profit_swept': round(profit, 2),
+            'trader_payout': round(profit * split, 2),
+            'profit_split': split,
+        })
+        self._balance = self._funded_level
+        self._payout_balance_removed += profit
+
     def _apply_fiveers_scaling(self):
         """Apply 5ers scaling rules after each balance change.
 
         At each 10% profit milestone on current funded level, advance to the
         next level per the official 5ers scaling plan. Cap at $4M.
         """
+        # FIVEERS_SCALING_OFF=1 disables the ladder entirely: no level advances,
+        # no milestone payouts, balance simply compounds. This is NOT a
+        # 5ers-realistic account — it measures the strategy's raw compounding
+        # capacity with the funded-level ratchet (and therefore the rising TDD
+        # floor) removed. Default off, so no existing result changes.
+        if os.getenv("FIVEERS_SCALING_OFF", "0").strip().lower() in ("1", "true", "yes", "on"):
+            return
+        self._maybe_calendar_payout()
+
         if self._balance <= self._funded_level:
             return
 
@@ -370,6 +483,8 @@ class CSVMT5Simulator:
 
         trader_profit = profit_made * split
         self._total_withdrawn += trader_profit
+
+        balance_before_payout = self._balance
 
         if self._funded_level < self._max_balance:
             next_level = self._next_fiveers_level(self._funded_level)
@@ -395,6 +510,11 @@ class CSVMT5Simulator:
                 'profit_split': split,
                 'note': 'at_cap',
             })
+
+        # Record how much BALANCE this payout removed so daily-drawdown
+        # measurement can exclude it (see _payout_balance_removed).
+        if balance_before_payout > self._balance:
+            self._payout_balance_removed += balance_before_payout - self._balance
     
     def get_closed_trades(self) -> List[dict]:
         """Get list of closed trades (for results)."""
@@ -754,6 +874,13 @@ class CSVMT5Simulator:
             def _read_norm(path):
                 d = pd.read_csv(path, parse_dates=['time'])
                 d.columns = [c.lower() for c in d.columns]
+                # Normalize tz per-file BEFORE concat/sort: some symbols have one
+                # tz-aware and one tz-naive M15 file (e.g. NAS100_USD 2015 vs
+                # 2020 exports) — mixed tz makes sort_values raise "Cannot
+                # compare tz-naive and tz-aware timestamps" and silently drops
+                # the whole symbol from the backtest universe.
+                if d['time'].dt.tz is None:
+                    d['time'] = d['time'].dt.tz_localize('UTC')
                 return d
 
             if len(candidates) == 1:
@@ -1155,11 +1282,15 @@ class CSVMT5Simulator:
         STOP entries (buy_stop=4, sell_stop=5) are market-on-touch and CAN slip /
         gap through, so they keep adverse slippage (#3) + gap-through (#4).
         """
-        # Limit entries: exact price, no friction.
+        # Limit entries: exact price, no friction — unless COST_LIMIT_ENTRIES
+        # charges the spread they really fill across.
         if order_type in (2, 3):
-            return price
+            if not self._cost_limit_entries:
+                return price
+            slip = self._slippage_for(symbol) * self._pip_size_for(symbol)
+            return price + slip if order_type == 2 else price - slip
         pip = self._pip_size_for(symbol)
-        slip = self._slippage_pips * pip
+        slip = self._slippage_for(symbol) * pip
         op = bar.get('open', price)
         if order_type == 4:  # buy_stop
             base = price
@@ -1172,10 +1303,24 @@ class CSVMT5Simulator:
                 base = op  # gapped down -> worse fill at open
             return base - slip
 
+    def _slippage_for(self, symbol):
+        """Adverse pips for this symbol: SLIPPAGE_MAP match, else SLIPPAGE_PIPS."""
+        if self._slippage_map:
+            u = (symbol or "").upper().replace("_", "").replace("/", "")
+            for key, pips in self._slippage_map:
+                if key in u:
+                    return pips
+        return self._slippage_pips
+
     def _exit_sl_price(self, pos, bar):
         """SL exit price with gap-through (#4) + adverse slippage (#3)."""
         pip = self._pip_size_for(pos.symbol)
-        slip = self._slippage_pips * pip
+        if self._sl_slippage_off:
+            slip = 0.0
+        elif self._sl_slippage_pips is not None:
+            slip = self._sl_slippage_pips * pip
+        else:
+            slip = self._slippage_for(pos.symbol) * pip
         op = bar.get('open', pos.sl)
         if pos.type == 0:  # buy: worse is lower
             base = min(pos.sl, op) if self._gap_fills else pos.sl
