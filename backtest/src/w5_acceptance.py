@@ -190,8 +190,23 @@ def main():
     # want hij vult een gegapte stop op de open in plaats van op de trigger. Uit
     # zetten maakt de resultaten optimistischer, niet pessimistischer.
     print("\n  --- kostenknoppen van de simulator (moeten uit staan) ---")
+    # De SHELL is niet de hele waarheid. challenge_score.run_step bouwt de
+    # child-omgeving als dict(os.environ) + doe_harness.BASE_ENV, en die zet
+    # SLIPPAGE_PIPS op 0,5. Alleen os.getenv opvragen gaf hier dus een groene
+    # OK op een vraag die niet gesteld werd. Wat de backtest ECHT ziet is de
+    # samengestelde waarde, dus die wordt hier getoond.
+    _dh_env = getattr(getattr(w5.cs, "dh", None), "BASE_ENV", {}) or {}
+    if "SLIPPAGE_PIPS" in _dh_env:
+        print(f"  NOTE  {'SLIPPAGE_PIPS (harnas)':<28} -> {_dh_env['SLIPPAGE_PIPS']:<12} "
+              f"doe_harness.BASE_ENV zet dit; elke run heeft deze opslag op "
+              f"stop-entries en SL-exits")
+        notes.append(
+            f"SLIPPAGE_PIPS staat op {_dh_env['SLIPPAGE_PIPS']} in doe_harness.BASE_ENV, niet op 0. "
+            "Elke 'kosteloze' meting in dit project bevat die opslag al op stop-entries en "
+            "SL-exits. Limit-entries bleven wel frictieloos, en dat is waar deze bot "
+            "binnenkomt, dus de ENTRY-spread was werkelijk ongemodelleerd.")
     for var, want, why in (
-            ("SLIPPAGE_PIPS", "0", "vlakke opslag in pips op stop-entries en SL-exits"),
+            ("SLIPPAGE_PIPS", "0", "vlakke opslag in pips (shell; zie NOTE hierboven)"),
             ("SLIPPAGE_MAP", "", "opslag per instrument"),
             ("COST_LIMIT_ENTRIES", "0", "rekent de spread ook op limit-fills"),
             ("SL_SLIPPAGE_OFF", "0", "zet de opslag op SL-exits uit"),

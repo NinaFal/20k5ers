@@ -28,7 +28,7 @@ is completely unknown. Treat it as an existence proof, not an expectation.
 
 ## Ranked by probability x cost
 
-### 1. Trading costs eat the edge — HIGH probability
+### 1. Trading costs eat the edge — HIGH probability — **CONFIRMED, see §8**
 Every result assumed a **flat 1.0 pip spread** on every instrument, including
 XAU, XAG, NAS100 and crypto, where real spreads are multiples of that. The
 strategy took **12,054 trades** across the 11-year run — roughly 1,100 a year.
@@ -85,7 +85,13 @@ exposure.
 ### 6. Execution reality — MODERATE
 The simulator models **no margin at all** (`csv_mt5_simulator.py:557-559`
 hardcodes `margin: 0.0`, `margin_free: equity`) and no slippage beyond a fixed
-spread. The nightly de-risk flattens the entire non-crypto book in one pass —
+spread. **Correction, found 2026-09-15:** this document said elsewhere that
+`SLIPPAGE_PIPS` was unset and slippage therefore zero. It is not — 
+`doe_harness.py:96` sets it to `0.5` in the BASE_ENV that every run inherits, so
+every "frictionless" figure in this project already carries half a pip on
+stop-entries and SL exits. It changes little in practice (limit entries stayed
+free, and only ~1% of exits are at a stop), but the ENTRY spread was the
+unmodelled part, not slippage in general. The nightly de-risk flattens the entire non-crypto book in one pass —
 up to 20 positions at once — with no market-impact model anywhere.
 
 ### 7. No validated fallback — MODERATE
