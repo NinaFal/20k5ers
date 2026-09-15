@@ -48,16 +48,26 @@ YEAR = 2015
 TRIAL = int(os.getenv("W5_CAND_TRIAL", "31"))
 OUT = w5.W5_DIR / "climb_candidate.json"
 COSTS = {"SLIPPAGE_MAP": json.dumps(cr.spread_map(1.0)), "COST_LIMIT_ENTRIES": "1"}
-ARMS = {"nu": (False, False), "nu_kosten": (False, True),
-        "kand": (True, False), "kand_kosten": (True, True)}
+# (kandidaat?, kosten?, SP500?)
+#
+# De SP500-armen zijn er omdat de elfjarige indexvergelijking van VOOR de
+# kostenmeting dateert, en SP500 zijn winst juist in 2015 maakt (+$30.168 van de
+# +$51.161 over elf jaar) — precies het klimjaar dat onder kosten omvalt. Op de
+# DAGELIJKSE muur, de muur die bindt, deed SP500 niets: 4,75% tegen 4,76%. De
+# verwachting is dus dat hij ook hier niets doet, en dat is precies waarom het de
+# moeite is om te meten in plaats van te beweren.
+ARMS = {"nu": (False, False, False), "nu_kosten": (False, True, False),
+        "kand": (True, False, False), "kand_kosten": (True, True, False),
+        "kand_kosten_spx": (True, True, True), "nu_kosten_spx": (False, True, True)}
 
 
 def run(arm):
-    use_cand, use_costs = ARMS[arm]
+    use_cand, use_costs, use_spx = ARMS[arm]
     env, tp = (cc.candidate(TRIAL)[:2] if use_cand else cc.frozen())
     e = dict(os.environ); e.update(w5.cs.dh.BASE_ENV); e.update(env)
     e["EXCLUDE_SYMBOLS"] = w5.BASE_ENV["EXCLUDE_SYMBOLS"]
-    e["OIL_ENABLE"] = "1"; e["SPX500_ENABLE"] = "0"
+    e["OIL_ENABLE"] = "1"
+    e["SPX500_ENABLE"] = "1" if use_spx else "0"
     e["FIVEERS_MAX_SCALE"] = "500000"; e["CFG_DAILY_WALL_PCT"] = "5.0"
     e.setdefault("BROKER_TYPE", "fiveers_live")
     e["OPT_PARAMS"] = json.dumps({**w5.cs.dh.BASE_TP, **tp}); e["PYTHONUTF8"] = "1"
