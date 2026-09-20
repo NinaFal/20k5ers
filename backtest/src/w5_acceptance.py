@@ -225,10 +225,22 @@ def main():
         fails.append("GAP_FILLS staat uit — gegapte stops vullen dan optimistisch")
 
     # 6 ── known deliberate divergences, reported not failed
-    notes.append("NIGHTLY_DERISK_HOUR: live defaults 21, frozen config says 22. "
-                 "Deliberate — 22:00 sits inside the 21:30-22:30 rollover window "
-                 "where spreads widen 5-50x, which the flat-spread simulator "
-                 "cannot see. Set 22 to reproduce backtest results exactly.")
+    notes.append(
+        "NACHTELIJKE DE-RISK draait live op de BROKERKLOK, de backtest op UTC. "
+        "Live: NIGHTLY_DERISK_BROKER_HOUR=23 (EET/EEST), dus 21:00-21:29 UTC in de "
+        "winter en 20:00-20:29 UTC in de zomer, en nooit binnen het rolvenster. "
+        "De backtest houdt NIGHTLY_DERISK_HOUR in UTC aan, want zijn simulator "
+        "kent geen spreadverbreding rond de rollover en zou van een uur verzetten "
+        "alleen een andere bar zien, geen andere kosten — elk opgeslagen resultaat "
+        "zou dan ongeldig worden zonder dat er iets beters voor terugkomt. "
+        "W5_DERISK_UTC=1 zet live terug op het oude UTC-gedrag om backtests exact "
+        "te reproduceren.")
+    notes.append(
+        "ROLVENSTER stond op drie plekken hardgecodeerd als 21:30-22:30 UTC. Dat "
+        "klopt alleen in de winter: de broker draait op EET/EEST, dus zijn "
+        "middernacht ligt op 22:00 UTC (winter) en 21:00 UTC (zomer). In de zomer "
+        "vuurde de rolklem daardoor een uur te laat en dumpte de de-risk het boek "
+        "precies op het rolmoment. Nu berekend vanuit de brokerklok.")
 
     # 6 ── DEPLOYMENT PRE-FLIGHT: environment, not code.
     # Everything above is verified with NO env set, on the principle that a

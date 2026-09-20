@@ -69,6 +69,32 @@ EXPENSIVE = ["GBPNZD", "GBPAUD", "EURNZD", "GBPCAD", "EURAUD"]
 QUIET    = ["EURGBP", "EURCHF", "EURCAD", "GBPCHF", "AUDCAD", "AUDNZD",
             "AUDCHF", "NZDCAD", "NZDCHF", "CADCHF"]
 
+# De spreads hierboven zijn te hoog op de dure crosses, en niet een beetje. De
+# bot WEIGERT te openen boven max_spread_pips=3,0 (broker_config.py, live-profiel).
+# Een model dat 4,5 pip rekent op GBP_NZD, GBP_AUD, EUR_NZD, GBP_CAD en EUR_AUD
+# rekent dus af op trades die live nooit zouden plaatsvinden — te duur EN op
+# transacties die niet bestaan. spread_map_real() plakt alles op dat plafond en
+# brengt de rest terug naar wat een prop-account werkelijk ziet.
+#
+# Dit blijft een schatting. Het verschil met hierboven is dat deze binnen de
+# grenzen valt die de bot zelf hanteert.
+def spread_map_real(mult=1.0):
+    m = {}
+    for s in MAJORS:    m[s] = 1.0 * mult
+    for s in JPY:       m[s] = 1.8 * mult
+    for s in EXPENSIVE: m[s] = 3.0 * mult      # het plafond van de bot zelf
+    for s in QUIET:     m[s] = 1.8 * mult
+    m["UK100"] = 1.5 * mult
+    m["XBR"] = 3.0 * mult
+    m["XTI"] = 3.0 * mult
+    m["XAU"] = 2.5 * mult
+    m["XAG"] = 2.5 * mult
+    m["NAS100"] = 2.5 * mult
+    m["US500"] = 1.2 * mult
+    m["SPX500"] = 1.2 * mult
+    return {k: round(v, 2) for k, v in m.items()}
+
+
 def spread_map(mult=1.0):
     m = {}
     for s in MAJORS:    m[s] = 1.2 * mult

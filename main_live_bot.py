@@ -358,13 +358,72 @@ def _w5_dynamic_halt_pct(base_halt_pct, n_positions, now_utc):
     positions means more closing slippage.
     """
     halt = base_halt_pct
-    in_rollover = (now_utc.hour == 21 and now_utc.minute >= 30) or \
-                  (now_utc.hour == 22 and now_utc.minute < 30)
+    in_rollover = _w5_in_rollover(now_utc)
     if in_rollover:
         halt = min(halt, 2.5)
     if n_positions > 5:
         halt = min(halt, base_halt_pct - 0.4)
     return halt
+
+
+
+# ── BROKERKLOK: zomer- en wintertijd mogen de tijden niet verschuiven ────────
+# De broker draait op EET/EEST, dus zijn middernacht ligt op 22:00 UTC in de
+# winter en 21:00 UTC in de zomer. Alles wat hieraan hangt — het rolvenster en
+# de nachtelijke de-risk — stond hardgecodeerd in UTC en was daarmee de halve
+# tijd een uur mis, in tegengestelde richtingen:
+#
+#                       winter (EET)      zomer (EEST)
+#   echte rollover      21:30-22:30 UTC   20:30-21:30 UTC
+#   gecodeerd venster   21:30-22:30  ok   21:30-22:30  volledig ernaast
+#   de-risk om 21:00    1 uur ervoor ok   precies op het rolmoment
+#
+# In de zomer beschermde de rolklem dus niets en vlakte de de-risk het hele boek
+# af op het duurste moment van de dag. Deze functies rekenen alles om vanuit de
+# BROKERTIJD, zodat de overgang zomer/winter er niets aan verandert.
+W5_BROKER_TZ = os.getenv("W5_BROKER_TZ", "Europe/Athens")
+
+
+def _w5_broker_now(now_utc=None):
+    """now_utc omgerekend naar brokertijd. Valt terug op UTC+2 als de
+    tijdzonedatabase ontbreekt — dan is het gedrag identiek aan het oude,
+    in plaats van een crash."""
+    from datetime import timedelta as _td
+    n = now_utc or datetime.now(timezone.utc)
+    try:
+        from zoneinfo import ZoneInfo
+        return n.astimezone(ZoneInfo(W5_BROKER_TZ))
+    except Exception:
+        return n.astimezone(timezone(_td(hours=2)))
+
+
+def _w5_in_rollover(now_utc=None):
+    """Het rolvenster, gedefinieerd rond MIDDERNACHT BROKERTIJD (23:30-00:30).
+    Dat is 21:30-22:30 UTC in de winter en 20:30-21:30 UTC in de zomer."""
+    b = _w5_broker_now(now_utc)
+    return (b.hour == 23 and b.minute >= 30) or (b.hour == 0 and b.minute < 30)
+
+
+def _w5_derisk_now(now_utc=None):
+    """Draait de nachtelijke de-risk op dit moment?
+
+    NIGHTLY_DERISK_BROKER_HOUR is het uur in BROKERTIJD en is DST-vast. Default
+    23 = een uur voor de brokerdag sluit, ruim voor het rolvenster.
+
+    NIGHTLY_DERISK_HOUR (UTC) blijft bestaan om oude backtestresultaten exact te
+    kunnen reproduceren: zet W5_DERISK_UTC=1 en het oude gedrag komt terug."""
+    if os.getenv("W5_DERISK_UTC", "0").strip().lower() in ("1", "true", "yes", "on"):
+        n = now_utc or datetime.now(timezone.utc)
+        return n.hour == int(os.getenv("NIGHTLY_DERISK_HOUR", "21"))
+    if _w5_broker_now(now_utc).hour != int(
+            os.getenv("NIGHTLY_DERISK_BROKER_HOUR", "23")):
+        return False
+    # Het uur 23:00-23:59 overlapt het rolvenster vanaf 23:30. De de-risk draait
+    # een keer per dag, op het moment dat de lus hem voor het eerst ziet — en dat
+    # kan 23:45 zijn. Dan zou hij het hele boek alsnog afvlakken midden in de
+    # rollover, precies wat deze hele wijziging moet voorkomen. Hier hard
+    # uitgesloten, zodat het ook klopt als iemand het uur later verzet.
+    return not _w5_in_rollover(now_utc)
 
 
 def _w5_asset_class(symbol):
@@ -1066,8 +1125,7 @@ class LiveTradingBot:
                     # 3. TDD buffer protection: DDD halt can't consume more than half the
                     #    remaining TDD buffer (prevents DDD close-all from breaching TDD)
                     _now = datetime.now(timezone.utc)
-                    _in_rollover = (_now.hour == 21 and _now.minute >= 30) or \
-                                   (_now.hour == 22 and _now.minute < 30)
+                    _in_rollover = _w5_in_rollover(_now)
                     _n_positions = len(self.mt5.get_my_positions()) if self.mt5 else 0
                     halt_pct = base_halt_pct
                     if _in_rollover:
@@ -2227,8 +2285,7 @@ class LiveTradingBot:
         # 21:00 runs the pass one hour before the daily close and clear of the
         # rollover window. To reproduce backtest results exactly, set
         # NIGHTLY_DERISK_HOUR=22.
-        hour = int(os.getenv("NIGHTLY_DERISK_HOUR", "21"))
-        if now.hour != hour:
+        if not _w5_derisk_now(now):
             return
         # Friday is already handled by the weekend logic — don't double-derisk.
         if now.weekday() == 4:
