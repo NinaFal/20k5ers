@@ -397,11 +397,33 @@ def _w5_broker_now(now_utc=None):
         return n.astimezone(timezone(_td(hours=2)))
 
 
+# Het rolvenster in MINUTEN NA MIDDERNACHT BROKERTIJD, als enige bron van
+# waarheid: 23:30 tot 00:30. In UTC is dat 21:30-22:30 in de winter en
+# 20:30-21:30 in de zomer. De de-risk leidt zijn eigen grens hiervan af, zodat
+# de twee niet los van elkaar kunnen verschuiven.
+W5_ROLL_START_MIN = 23 * 60 + 30          # 23:30 brokertijd
+W5_ROLL_END_MIN = 24 * 60 + 30            # 00:30 brokertijd (volgende dag)
+# Hoeveel minuten de de-risk VOOR het rolvenster klaar moet zijn. Het afvlakken
+# zelf kost tijd — tot twintig posities sluiten, met drie herpogingen per order —
+# dus eindigen op de minuut voor de rollover betekent dat de laatste sluitingen
+# er gegarandeerd in vallen.
+W5_DERISK_GUARD_MIN = int(os.getenv("W5_DERISK_GUARD_MIN", "15"))
+
+
+def _w5_broker_minutes(now_utc=None):
+    """Minuten na middernacht brokertijd."""
+    b = _w5_broker_now(now_utc)
+    return b.hour * 60 + b.minute
+
+
 def _w5_in_rollover(now_utc=None):
     """Het rolvenster, gedefinieerd rond MIDDERNACHT BROKERTIJD (23:30-00:30).
     Dat is 21:30-22:30 UTC in de winter en 20:30-21:30 UTC in de zomer."""
-    b = _w5_broker_now(now_utc)
-    return (b.hour == 23 and b.minute >= 30) or (b.hour == 0 and b.minute < 30)
+    m = _w5_broker_minutes(now_utc)
+    for start, end in ((W5_ROLL_START_MIN, W5_ROLL_END_MIN),):
+        if start <= m < end or start <= m + 1440 < end:
+            return True
+    return False
 
 
 def _w5_derisk_now(now_utc=None):
@@ -415,15 +437,16 @@ def _w5_derisk_now(now_utc=None):
     if os.getenv("W5_DERISK_UTC", "0").strip().lower() in ("1", "true", "yes", "on"):
         n = now_utc or datetime.now(timezone.utc)
         return n.hour == int(os.getenv("NIGHTLY_DERISK_HOUR", "21"))
-    if _w5_broker_now(now_utc).hour != int(
-            os.getenv("NIGHTLY_DERISK_BROKER_HOUR", "23")):
-        return False
-    # Het uur 23:00-23:59 overlapt het rolvenster vanaf 23:30. De de-risk draait
-    # een keer per dag, op het moment dat de lus hem voor het eerst ziet — en dat
-    # kan 23:45 zijn. Dan zou hij het hele boek alsnog afvlakken midden in de
-    # rollover, precies wat deze hele wijziging moet voorkomen. Hier hard
-    # uitgesloten, zodat het ook klopt als iemand het uur later verzet.
-    return not _w5_in_rollover(now_utc)
+    m = _w5_broker_minutes(now_utc)
+    start = int(os.getenv("NIGHTLY_DERISK_BROKER_HOUR", "23")) * 60
+    # Sluiten moet KLAAR zijn voor het rolvenster, niet er net voor beginnen. Het
+    # uur 23:00-23:59 overlapt de rollover vanaf 23:30, en de de-risk draait op
+    # het moment dat de lus hem voor het eerst ziet — dat kan 23:29 zijn, waarna
+    # de laatste van twintig sluitingen er alsnog in valt. Het venster loopt
+    # daarom tot 15 minuten voor de rollover (23:00-23:14 brokertijd), en die
+    # grens wordt AFGELEID van het rolvenster zodat ze niet los kunnen lopen.
+    eind = W5_ROLL_START_MIN - W5_DERISK_GUARD_MIN
+    return start <= m < min(start + 60, eind)
 
 
 def _w5_asset_class(symbol):
