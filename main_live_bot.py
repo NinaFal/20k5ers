@@ -46,7 +46,11 @@ from zoneinfo import ZoneInfo  # Python 3.9+
 # despite Europe being on summer time (EEST = UTC+3).  Eightcap MT5 server
 # runs on a fixed UTC+2 offset year-round → midnight = 22:00 UTC always.
 # ═══════════════════════════════════════════════════════════════════════════════
-SERVER_TZ = timezone(timedelta(hours=2))  # Fixed UTC+2 (no DST)
+# TERUGVAL ONLY. De echte serverzone komt uit _w5_server_tz(): UTC+2 in de winter,
+# UTC+3 in de zomer, afgeleid van America/New_York. Deze vaste waarde wordt
+# alleen gebruikt als de tijdzonedatabase ontbreekt — dan is het gedrag gelijk
+# aan het oude in plaats van een crash.
+SERVER_TZ = timezone(timedelta(hours=2))  # terugval; zie _w5_server_tz()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -666,9 +670,30 @@ def _w5_max_cum_risk_pct():
 # TIMEZONE HELPERS - MT5/5ERS SERVER TIME
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _w5_server_tz(now_utc=None):
+    """De MT5-serverzone op DIT moment: UTC+2 in de winter, UTC+3 in de zomer.
+
+    Afgeleid van America/New_York, want de FX-dag rolt op 17:00 New York en de
+    data volgt de Amerikaanse zomertijddata (gemeten: 22 van de 22 overgangen
+    over elf jaar). Server = New York + 7 uur, dus -5+7 = +2 in EST en
+    -4+7 = +3 in EDT.
+
+    SERVER_TZ blijft bestaan als terugval zonder tijdzonedatabase: dan is het
+    gedrag gelijk aan het oude vaste UTC+2 in plaats van een crash.
+    """
+    from datetime import timedelta as _td
+    n = now_utc or datetime.now(timezone.utc)
+    try:
+        from zoneinfo import ZoneInfo
+        ny = n.astimezone(ZoneInfo(os.getenv("W5_BROKER_TZ", "America/New_York")))
+        return timezone(ny.utcoffset() + _td(hours=7))
+    except Exception:
+        return SERVER_TZ
+
+
 def get_server_time() -> datetime:
-    """Get current time in MT5 server timezone (UTC+2/+3)."""
-    return datetime.now(SERVER_TZ)
+    """Get current time in MT5 server timezone (UTC+2/+3, DST-bewust)."""
+    return datetime.now(_w5_server_tz())
 
 
 def get_server_date() -> datetime.date:
@@ -766,7 +791,7 @@ def get_next_midnight_sync_time() -> datetime:
     # Reconstruct midnight in server timezone for that date.
     # datetime() with ZoneInfo correctly resolves the UTC offset for the given date.
     next_midnight = datetime(next_date.year, next_date.month, next_date.day,
-                             0, 0, 0, tzinfo=SERVER_TZ)
+                             0, 0, 0, tzinfo=_w5_server_tz())
 
     return next_midnight.astimezone(timezone.utc)
 
@@ -2698,7 +2723,7 @@ class LiveTradingBot:
             return
 
         # Wait until 01:00 server time (market needs to stabilize after open)
-        server_now = now.astimezone(SERVER_TZ)
+        server_now = now.astimezone(_w5_server_tz(now))
         if server_now.hour < 1:
             return
 
@@ -3559,8 +3584,7 @@ class LiveTradingBot:
         # Re-place orphaned pending setups with live entry_distance_r (same as daily scan)
         if orphaned_to_replace:
             now_utc = datetime.now(timezone.utc)
-            _in_rollover = (now_utc.hour == 21 and now_utc.minute >= 30) or \
-                           (now_utc.hour == 22 and now_utc.minute < 30)
+            _in_rollover = _w5_in_rollover(now_utc)
             if _in_rollover:
                 log.info(f"⏰ Rollover active on startup — queuing {len(orphaned_to_replace)} orphaned setup(s) for post-rollover placement")
                 for sym, ps in orphaned_to_replace:
@@ -5783,8 +5807,7 @@ class LiveTradingBot:
             # Spread widens 5-50x during rollover; floating equity spikes can
             # trigger false DDD halts. Existing positions ride it out normally.
             now_utc = datetime.now(timezone.utc)
-            in_rollover = (now_utc.hour == 21 and now_utc.minute >= 30) or \
-                          (now_utc.hour == 22 and now_utc.minute < 30)
+            in_rollover = _w5_in_rollover(now_utc)
             if in_rollover:
                 log.info(f"[{symbol}] New entry blocked — rollover window (21:30-22:30 UTC), queuing for post-rollover placement")
                 self._rollover_queued_setups[symbol] = {**setup, "force_limit": True}
@@ -7215,8 +7238,7 @@ class LiveTradingBot:
                 # ═══════════════════════════════════════════════════════════════
                 # POST-ROLLOVER QUEUE — fire once when rollover window ends
                 # ═══════════════════════════════════════════════════════════════
-                _in_rollover_now = (now.hour == 21 and now.minute >= 30) or \
-                                   (now.hour == 22 and now.minute < 30)
+                _in_rollover_now = _w5_in_rollover(now)
                 if self._was_in_rollover and not _in_rollover_now:
                     self._place_rollover_queued_setups()
                 self._was_in_rollover = _in_rollover_now

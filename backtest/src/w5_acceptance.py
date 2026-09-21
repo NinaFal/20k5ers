@@ -224,6 +224,46 @@ def main():
     if not ok_:
         fails.append("GAP_FILLS staat uit — gegapte stops vullen dan optimistisch")
 
+    # 5c ── KLOKKEN: geen vaste tijdzone-offsets, geen hardgecodeerde uren.
+    #
+    # Dit is een REGRESSIECONTROLE op een echte bug. De bot draaide op
+    # SERVER_TZ = UTC+2 "fixed (no DST)" en op vijf plekken een rolvenster
+    # hardgecodeerd als 21:30-22:30 UTC. Beide kloppen alleen in de winter: de
+    # FX-dag rolt op 17:00 New York, dus 22:00 UTC in de winter en 21:00 UTC in
+    # de zomer — gemeten aan elf jaar dagbars, 22 van de 22 overgangen volgen de
+    # Amerikaanse zomertijd. In de zomer betekende dat: de daglimiet een uur te
+    # laat gereset (breachrisico), de rolklem een uur te laat gevuurd, en de
+    # nachtelijke de-risk precies op het rolmoment.
+    #
+    # Een env-var-scan had dit nooit gevonden, want het zijn constanten in de
+    # code. Vandaar deze scan op het patroon zelf.
+    print("\n  --- klokken: DST-vast? ---")
+    _live_src = LIVE.read_text()
+    _pats = [
+        (r"hour\s*==\s*2[12]\s+and\s+.*minute", "hardgecodeerd rolvenster in UTC"),
+        (r"timezone\(timedelta\(hours=[23]\)\)", "vaste UTC+2/+3 serverzone"),
+    ]
+    _clock_fail = []
+    for pat, why in _pats:
+        hits = [m for m in re.finditer(pat, _live_src)]
+        # de terugvalregel in _server_tz mag blijven staan: die draait alleen
+        # als de tijdzonedatabase ontbreekt en is daar expliciet benoemd.
+        hits = [m for m in hits
+                if "terugval" not in _live_src[max(0, m.start()-400):m.start()].lower()]
+        if hits:
+            lines = sorted({_live_src[:m.start()].count(chr(10)) + 1 for m in hits})
+            print(f"  FAIL  {why:<44} regels {lines}")
+            _clock_fail.append(f"{why} op regel(s) {lines}")
+        else:
+            print(f"  OK    {why:<44} geen")
+    for fn in ("_w5_server_tz", "_w5_in_rollover", "_w5_derisk_now", "_w5_broker_now"):
+        ok_ = f"def {fn}(" in _live_src
+        print(f"  {'OK  ' if ok_ else 'FAIL'}  {fn + ' aanwezig':<44} "
+              f"{'ja' if ok_ else 'ONTBREEKT'}")
+        if not ok_:
+            _clock_fail.append(f"{fn} ontbreekt — de klokken zijn niet DST-vast")
+    fails.extend(_clock_fail)
+
     # 6 ── known deliberate divergences, reported not failed
     notes.append(
         "NACHTELIJKE DE-RISK draait live op de NEW YORKSE klok, de backtest op UTC. "
