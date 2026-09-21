@@ -381,7 +381,17 @@ def _w5_dynamic_halt_pct(base_halt_pct, n_positions, now_utc):
 # In de zomer beschermde de rolklem dus niets en vlakte de de-risk het hele boek
 # af op het duurste moment van de dag. Deze functies rekenen alles om vanuit de
 # BROKERTIJD, zodat de overgang zomer/winter er niets aan verandert.
-W5_BROKER_TZ = os.getenv("W5_BROKER_TZ", "Europe/Athens")
+# America/New_York, NIET Europe/Athens. Gemeten aan elf jaar dagbars: de
+# dagovergang in de data springt elk voorjaar op de TWEEDE zondag van maart en
+# elk najaar op de EERSTE zondag van november — de Amerikaanse data, 22 van de
+# 22 overgangen. De Europese omschakeling ligt drie weken later in maart en een
+# week eerder in november. Een Europese tijdzone zou dus ongeveer vier weken per
+# jaar een uur mis zitten, precies het probleem dat deze code moet oplossen.
+#
+# De FX-dag rolt op 17:00 New York: 22:00 UTC in de winter, 21:00 UTC in de
+# zomer. Dat komt exact overeen met de tijdstempels in de data.
+W5_BROKER_TZ = os.getenv("W5_BROKER_TZ", "America/New_York")
+W5_ROLL_HOUR_LOCAL = int(os.getenv("W5_ROLL_HOUR_LOCAL", "17"))   # 17:00 New York
 
 
 def _w5_broker_now(now_utc=None):
@@ -394,15 +404,18 @@ def _w5_broker_now(now_utc=None):
         from zoneinfo import ZoneInfo
         return n.astimezone(ZoneInfo(W5_BROKER_TZ))
     except Exception:
-        return n.astimezone(timezone(_td(hours=2)))
+        # Zonder tijdzonedatabase: vaste UTC-5 (EST). Dan is het gedrag gelijk aan
+        # de winterstand in plaats van een crash — mis in de zomer, maar
+        # voorspelbaar mis.
+        return n.astimezone(timezone(_td(hours=-5)))
 
 
 # Het rolvenster in MINUTEN NA MIDDERNACHT BROKERTIJD, als enige bron van
 # waarheid: 23:30 tot 00:30. In UTC is dat 21:30-22:30 in de winter en
 # 20:30-21:30 in de zomer. De de-risk leidt zijn eigen grens hiervan af, zodat
 # de twee niet los van elkaar kunnen verschuiven.
-W5_ROLL_START_MIN = 23 * 60 + 30          # 23:30 brokertijd
-W5_ROLL_END_MIN = 24 * 60 + 30            # 00:30 brokertijd (volgende dag)
+W5_ROLL_START_MIN = W5_ROLL_HOUR_LOCAL * 60 - 30   # 16:30 New York
+W5_ROLL_END_MIN = W5_ROLL_HOUR_LOCAL * 60 + 30    # 17:30 New York
 # Hoeveel minuten de de-risk VOOR het rolvenster klaar moet zijn. Het afvlakken
 # zelf kost tijd — tot twintig posities sluiten, met drie herpogingen per order —
 # dus eindigen op de minuut voor de rollover betekent dat de laatste sluitingen
@@ -417,7 +430,7 @@ def _w5_broker_minutes(now_utc=None):
 
 
 def _w5_in_rollover(now_utc=None):
-    """Het rolvenster, gedefinieerd rond MIDDERNACHT BROKERTIJD (23:30-00:30).
+    """Het rolvenster rond de dagovergang: 16:30-17:30 New York.
     Dat is 21:30-22:30 UTC in de winter en 20:30-21:30 UTC in de zomer."""
     m = _w5_broker_minutes(now_utc)
     for start, end in ((W5_ROLL_START_MIN, W5_ROLL_END_MIN),):
@@ -438,12 +451,12 @@ def _w5_derisk_now(now_utc=None):
         n = now_utc or datetime.now(timezone.utc)
         return n.hour == int(os.getenv("NIGHTLY_DERISK_HOUR", "21"))
     m = _w5_broker_minutes(now_utc)
-    start = int(os.getenv("NIGHTLY_DERISK_BROKER_HOUR", "23")) * 60
+    start = int(os.getenv("NIGHTLY_DERISK_BROKER_HOUR", "16")) * 60
     # Sluiten moet KLAAR zijn voor het rolvenster, niet er net voor beginnen. Het
     # uur 23:00-23:59 overlapt de rollover vanaf 23:30, en de de-risk draait op
-    # het moment dat de lus hem voor het eerst ziet — dat kan 23:29 zijn, waarna
+    # het moment dat de lus hem voor het eerst ziet — dat kan 16:29 zijn, waarna
     # de laatste van twintig sluitingen er alsnog in valt. Het venster loopt
-    # daarom tot 15 minuten voor de rollover (23:00-23:14 brokertijd), en die
+    # daarom tot 15 minuten voor de rollover (16:00-16:14 New York), en die
     # grens wordt AFGELEID van het rolvenster zodat ze niet los kunnen lopen.
     eind = W5_ROLL_START_MIN - W5_DERISK_GUARD_MIN
     return start <= m < min(start + 60, eind)

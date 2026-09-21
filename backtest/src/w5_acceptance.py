@@ -226,9 +226,9 @@ def main():
 
     # 6 ── known deliberate divergences, reported not failed
     notes.append(
-        "NACHTELIJKE DE-RISK draait live op de BROKERKLOK, de backtest op UTC. "
-        "Live: NIGHTLY_DERISK_BROKER_HOUR=23 (EET/EEST), dus 21:00-21:29 UTC in de "
-        "winter en 20:00-20:29 UTC in de zomer, en nooit binnen het rolvenster. "
+        "NACHTELIJKE DE-RISK draait live op de NEW YORKSE klok, de backtest op UTC. "
+        "Live: 16:00-16:14 New York, dus 21:00-21:14 UTC in de winter en "
+        "20:00-20:14 UTC in de zomer, met 15 minuten marge tot het rolvenster. "
         "De backtest houdt NIGHTLY_DERISK_HOUR in UTC aan, want zijn simulator "
         "kent geen spreadverbreding rond de rollover en zou van een uur verzetten "
         "alleen een andere bar zien, geen andere kosten — elk opgeslagen resultaat "
@@ -237,10 +237,17 @@ def main():
         "te reproduceren.")
     notes.append(
         "ROLVENSTER stond op drie plekken hardgecodeerd als 21:30-22:30 UTC. Dat "
-        "klopt alleen in de winter: de broker draait op EET/EEST, dus zijn "
-        "middernacht ligt op 22:00 UTC (winter) en 21:00 UTC (zomer). In de zomer "
-        "vuurde de rolklem daardoor een uur te laat en dumpte de de-risk het boek "
-        "precies op het rolmoment. Nu berekend vanuit de brokerklok.")
+        "klopt alleen in de winter: de FX-dag rolt op 17:00 New York, en dat is "
+        "22:00 UTC (winter) of 21:00 UTC (zomer). In de zomer vuurde de rolklem "
+        "daardoor een uur te laat en dumpte de de-risk het boek precies op het "
+        "rolmoment. Nu berekend vanuit America/New_York (16:30-17:30 lokaal).")
+    notes.append(
+        "TIJDZONE GEMETEN, niet aangenomen. Elf jaar dagbars: de dagovergang "
+        "springt op de TWEEDE zondag van maart en de EERSTE zondag van november "
+        "— de Amerikaanse zomertijddata, 22 van de 22 overgangen. Een Europese "
+        "tijdzone (Europe/Athens) zou ongeveer vier weken per jaar een uur mis "
+        "zitten, want de EU schakelt drie weken later in maart en een week eerder "
+        "in november. W5_BROKER_TZ overschrijft dit als een broker het anders doet.")
 
     # 6 ── DEPLOYMENT PRE-FLIGHT: environment, not code.
     # Everything above is verified with NO env set, on the principle that a
