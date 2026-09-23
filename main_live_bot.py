@@ -397,6 +397,14 @@ def _w5_dynamic_halt_pct(base_halt_pct, n_positions, now_utc):
 W5_BROKER_TZ = os.getenv("W5_BROKER_TZ", "America/New_York")
 W5_ROLL_HOUR_LOCAL = int(os.getenv("W5_ROLL_HOUR_LOCAL", "17"))   # 17:00 New York
 
+# Zelfcorrectie tegen de ECHTE serverklok, in hele uren. Normaal 0. De bot meet
+# bij opstart en bij elke dagelijkse scan de offset van de 5ers-server (uit de
+# tijdstempel van een live tick) en vergelijkt die met wat hij zelf uitrekent.
+# Wijkt het af, dan wordt het verschil hier gezet en volgt ALLES — serverdag,
+# daglimiet-reset, scan, middernacht-sync, rolvenster, de-risk — de server in
+# plaats van de eigen berekening. Zie _w5_check_server_clock().
+_W5_CLOCK_CORR_H = 0
+
 
 def _w5_broker_now(now_utc=None):
     """now_utc omgerekend naar brokertijd. Valt terug op UTC+2 als de
@@ -406,12 +414,13 @@ def _w5_broker_now(now_utc=None):
     n = now_utc or datetime.now(timezone.utc)
     try:
         from zoneinfo import ZoneInfo
-        return n.astimezone(ZoneInfo(W5_BROKER_TZ))
+        b = n.astimezone(ZoneInfo(W5_BROKER_TZ))
     except Exception:
         # Zonder tijdzonedatabase: vaste UTC-5 (EST). Dan is het gedrag gelijk aan
         # de winterstand in plaats van een crash — mis in de zomer, maar
-        # voorspelbaar mis.
-        return n.astimezone(timezone(_td(hours=-5)))
+        # voorspelbaar mis. De zelfcorrectie hieronder vangt dat alsnog op.
+        b = n.astimezone(timezone(_td(hours=-5)))
+    return b + _td(hours=_W5_CLOCK_CORR_H) if _W5_CLOCK_CORR_H else b
 
 
 # Het rolvenster in MINUTEN NA MIDDERNACHT BROKERTIJD, als enige bron van
@@ -464,6 +473,112 @@ def _w5_derisk_now(now_utc=None):
     # grens wordt AFGELEID van het rolvenster zodat ze niet los kunnen lopen.
     eind = W5_ROLL_START_MIN - W5_DERISK_GUARD_MIN
     return start <= m < min(start + 60, eind)
+
+
+def _w5_measure_server_offset(mt5_client, symbols=("EURUSD", "GBPUSD", "USDJPY")):
+    """Offset van de 5ers-server in hele uren, gemeten aan live ticks, of None.
+
+    MT5 geeft ticktijden als seconden-sinds-1970 IN SERVERTIJD; de client leest
+    die als UTC. Het verschil met de echte UTC-tijd is dus de serveroffset.
+
+    Een oude tick (markt dicht, weekend, feestdag) geeft onzin, dus alleen
+    metingen die op minder dan 5 minuten na een HEEL uur uitkomen tellen, en
+    minstens twee symbolen moeten het eens zijn. Anders: None, en de volgende
+    controle probeert het opnieuw.
+    """
+    import time as _t
+
+    def _lees():
+        out = {}
+        for sym in symbols:
+            try:
+                tk = mt5_client.get_tick(sym)
+            except Exception:
+                tk = None
+            if tk and getattr(tk, "time", None):
+                out[sym] = tk.time
+        return out
+
+    # LEEFT DE MARKT? Een oude tick die toevallig precies een heel uur oud is,
+    # ziet eruit als een geldige offset — en in het weekend zijn alle symbolen
+    # even oud en dus het ook nog eens met elkaar eens. Een bot die zaterdag een
+    # uur na de sluiting start, zou zichzelf dan ten onrechte een uur verzetten.
+    # Daarom: alleen meten met ticks die TIJDENS deze controle ververst zijn.
+    # Bij een levende markt duurt dat seconden; na 30 s zonder nieuwe tick is de
+    # markt dicht en wordt er niet gemeten.
+    t0 = _lees()
+    vers = {}
+    deadline = _t.time() + float(os.getenv("W5_CLOCK_PROBE_S", "30"))
+    while _t.time() < deadline:
+        t1 = _lees()
+        vers = {k: v for k, v in t1.items() if k in t0 and v > t0[k]}
+        if len(vers) >= 2:
+            break
+        _t.sleep(1.0)
+    if len(vers) < 2:
+        return None
+    offs = []
+    for sym, tt in vers.items():
+        diff_h = (tt.timestamp() - _t.time()) / 3600.0
+        r = round(diff_h)
+        if abs(diff_h - r) <= 5 / 60 and -12 <= r <= 14:
+            offs.append(r)
+    if len(offs) < 2:
+        return None
+    best = max(set(offs), key=offs.count)
+    return best if offs.count(best) >= 2 else None
+
+
+def _w5_check_server_clock(mt5_client, reden, symbols=None):
+    """Vergelijk de klok van de bot met de ECHTE server en corrigeer zo nodig.
+
+    Draait bij opstart en bij elke dagelijkse scan, dus ook automatisch in de
+    weken van maart en oktober/november waarin de VS en Europa uit de pas
+    lopen. Uitkomst in het log:
+
+      [KLOK] PASS   — bot en server zijn het eens, niets aan de hand
+      [KLOK] FAIL   — verschil gemeten; de bot volgt vanaf nu de server
+      [KLOK] ?      — niet te meten (markt dicht); volgende keer opnieuw
+
+    Een verschil van meer dan 2 uur wordt NIET overgenomen: dat is geen
+    zomertijd maar iets anders, en dan is blind corrigeren gevaarlijker dan het
+    luid melden.
+    """
+    global _W5_CLOCK_CORR_H
+    server = _w5_measure_server_offset(mt5_client, symbols or ("EURUSD", "GBPUSD", "USDJPY"))
+    if server is None:
+        log.warning(f"[KLOK] ? ({reden}) servertijd niet te meten (markt dicht?) — "
+                    f"blijft op correctie {_W5_CLOCK_CORR_H:+d}u, volgende controle opnieuw")
+        return None
+    oud = _W5_CLOCK_CORR_H
+    _W5_CLOCK_CORR_H = 0
+    try:
+        verwacht = int(_w5_server_tz().utcoffset(None).total_seconds() // 3600)
+    finally:
+        _W5_CLOCK_CORR_H = oud
+    verschil = server - verwacht
+    if verschil == 0:
+        if _W5_CLOCK_CORR_H:
+            log.warning(f"[KLOK] PASS ({reden}) server UTC{server:+d} klopt weer met de "
+                        f"eigen berekening — correctie {_W5_CLOCK_CORR_H:+d}u opgeheven")
+        else:
+            log.info(f"[KLOK] PASS ({reden}) server UTC{server:+d} = bot UTC{verwacht:+d}")
+        _W5_CLOCK_CORR_H = 0
+        return True
+    if abs(verschil) > 2:
+        log.error("=" * 70)
+        log.error(f"[KLOK] FAIL ({reden}) server UTC{server:+d}, bot UTC{verwacht:+d} — "
+                  f"{verschil:+d}u is geen zomertijd; NIET gecorrigeerd. Controleer de server!")
+        log.error("=" * 70)
+        return False
+    if verschil != _W5_CLOCK_CORR_H:
+        log.error("=" * 70)
+        log.error(f"[KLOK] FAIL ({reden}) server UTC{server:+d}, bot rekende UTC{verwacht:+d}")
+        log.error(f"  Bot volgt vanaf nu de SERVER (correctie {verschil:+d}u): daglimiet, "
+                  f"scan, middernacht-sync, rolvenster en de-risk.")
+        log.error("=" * 70)
+    _W5_CLOCK_CORR_H = verschil
+    return False
 
 
 def _w5_asset_class(symbol):
@@ -686,9 +801,9 @@ def _w5_server_tz(now_utc=None):
     try:
         from zoneinfo import ZoneInfo
         ny = n.astimezone(ZoneInfo(os.getenv("W5_BROKER_TZ", "America/New_York")))
-        return timezone(ny.utcoffset() + _td(hours=7))
+        return timezone(ny.utcoffset() + _td(hours=7 + _W5_CLOCK_CORR_H))
     except Exception:
-        return SERVER_TZ
+        return timezone(_td(hours=2 + _W5_CLOCK_CORR_H))
 
 
 def _w5_server_to_utc(dt):
@@ -711,11 +826,12 @@ def _w5_server_to_utc(dt):
     naive = dt.replace(tzinfo=None)
     try:
         from zoneinfo import ZoneInfo
-        ny = (naive - _td(hours=7)).replace(
+        ny = (naive - _td(hours=7 + _W5_CLOCK_CORR_H)).replace(
             tzinfo=ZoneInfo(os.getenv("W5_BROKER_TZ", "America/New_York")))
         return ny.astimezone(timezone.utc)
     except Exception:
-        return naive.replace(tzinfo=SERVER_TZ).astimezone(timezone.utc)
+        return naive.replace(tzinfo=timezone(_td(hours=2 + _W5_CLOCK_CORR_H))
+                             ).astimezone(timezone.utc)
 
 
 def get_server_time() -> datetime:
@@ -3516,6 +3632,14 @@ class LiveTradingBot:
         # CRITICAL: Sync pending_setups and queues with actual MT5 state
         self._startup_sync_with_mt5()
         
+        # Klok controleren tegen de echte server — zie _w5_check_server_clock.
+        try:
+            _w5_check_server_clock(
+                self.mt5, "opstart",
+                tuple(self.symbol_map.get(s, s) for s in ("EUR_USD", "GBP_USD", "USD_JPY")))
+        except Exception as _e:
+            log.warning(f"[KLOK] controle bij opstart mislukt: {_e}")
+
         return True
     
     def _startup_sync_with_mt5(self):
@@ -6882,6 +7006,15 @@ class LiveTradingBot:
         Now places pending limit orders instead of market orders
         to match backtest entry behavior exactly.
         """
+        # Klok controleren tegen de echte server, elke scan — zo worden de
+        # omschakelweken in maart en november vanzelf meegenomen.
+        try:
+            _w5_check_server_clock(
+                self.mt5, "dagscan",
+                tuple(self.symbol_map.get(s, s) for s in ("EUR_USD", "GBP_USD", "USD_JPY")))
+        except Exception as _e:
+            log.warning(f"[KLOK] controle bij scan mislukt: {_e}")
+
         # NOTE: News blackout no longer blocks scanning - only order placement
         # Signals are detected and queued, orders placed when blackout ends
         
