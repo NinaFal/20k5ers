@@ -691,6 +691,33 @@ def _w5_server_tz(now_utc=None):
         return SERVER_TZ
 
 
+def _w5_server_to_utc(dt):
+    """Servertijd (wandklok) -> UTC, met de offset die OP DAT MOMENT geldt.
+
+    Niet met de offset van nu. server_now + timedelta(days=N) neemt de offset
+    van vandaag mee naar de doeldag; over een omschakelweekend is dat een uur
+    mis. Gemeten: vrijdag berekend viel de maandagscan in het voorjaar op 02:00
+    servertijd (een uur te laat) en in het najaar op 00:00 (een uur te vroeg,
+    precies op de marktopening met de wijdste spreads van de week). En de
+    scantijd wordt bewaard tot na de volgende scan, dus hij bijt echt.
+
+    Server = New York + 7 uur. Dus wandklok min 7 uur, opgevat als New Yorkse
+    tijd, laat ZoneInfo de juiste offset voor DIE datum kiezen. De tijden die
+    hier langskomen (00:00, 00:15, 01:00 server = 17:00-18:00 New York) liggen
+    ver van het omschakeluur om 02:00 New York, dus er is geen dubbelzinnig
+    of niet-bestaand lokaal tijdstip.
+    """
+    from datetime import timedelta as _td
+    naive = dt.replace(tzinfo=None)
+    try:
+        from zoneinfo import ZoneInfo
+        ny = (naive - _td(hours=7)).replace(
+            tzinfo=ZoneInfo(os.getenv("W5_BROKER_TZ", "America/New_York")))
+        return ny.astimezone(timezone.utc)
+    except Exception:
+        return naive.replace(tzinfo=SERVER_TZ).astimezone(timezone.utc)
+
+
 def get_server_time() -> datetime:
     """Get current time in MT5 server timezone (UTC+2/+3, DST-bewust)."""
     return datetime.now(_w5_server_tz())
@@ -748,7 +775,7 @@ def get_next_scan_time(include_today: bool = False) -> datetime:
     if include_today and server_now < today_scan:
         # Skip weekends
         if today_scan.weekday() < 5:  # Monday-Friday
-            return today_scan.astimezone(timezone.utc)
+            return _w5_server_to_utc(today_scan)
 
     # If we're past today's scan (or it's weekend), get tomorrow's
     if server_now >= today_scan or today_scan.weekday() >= 5:
@@ -758,10 +785,10 @@ def get_next_scan_time(include_today: bool = False) -> datetime:
         while tomorrow.weekday() >= 5:
             tomorrow += timedelta(days=1)
         tomorrow_scan = _scan_time_for(tomorrow)
-        return tomorrow_scan.astimezone(timezone.utc)
+        return _w5_server_to_utc(tomorrow_scan)
 
     # Return today's scan (handles case where include_today=False but it's before scan time)
-    return today_scan.astimezone(timezone.utc)
+    return _w5_server_to_utc(today_scan)
 
 
 def get_next_midnight_sync_time() -> datetime:
@@ -788,12 +815,14 @@ def get_next_midnight_sync_time() -> datetime:
     while next_date.weekday() >= 5 or is_market_holiday(next_date):
         next_date += timedelta(days=1)
 
-    # Reconstruct midnight in server timezone for that date.
-    # datetime() with ZoneInfo correctly resolves the UTC offset for the given date.
+    # Middernacht op de serverklok van die datum. De offset wordt pas bij de
+    # omzetting naar UTC bepaald, voor DIE datum (_w5_server_to_utc). Het
+    # commentaar dat hier stond beloofde ZoneInfo, maar de code gebruikte een
+    # vaste UTC+2 — goed bedoeld, stil ongedaan gemaakt.
     next_midnight = datetime(next_date.year, next_date.month, next_date.day,
                              0, 0, 0, tzinfo=_w5_server_tz())
 
-    return next_midnight.astimezone(timezone.utc)
+    return _w5_server_to_utc(next_midnight)
 
 
 def is_market_open() -> bool:

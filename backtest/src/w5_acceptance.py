@@ -276,7 +276,7 @@ def main():
         "W5_DERISK_UTC=1 zet live terug op het oude UTC-gedrag om backtests exact "
         "te reproduceren.")
     notes.append(
-        "ROLVENSTER stond op drie plekken hardgecodeerd als 21:30-22:30 UTC. Dat "
+        "ROLVENSTER stond op VIJF plekken hardgecodeerd als 21:30-22:30 UTC. Dat "
         "klopt alleen in de winter: de FX-dag rolt op 17:00 New York, en dat is "
         "22:00 UTC (winter) of 21:00 UTC (zomer). In de zomer vuurde de rolklem "
         "daardoor een uur te laat en dumpte de de-risk het boek precies op het "
