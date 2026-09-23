@@ -488,7 +488,7 @@ def _w5_measure_server_offset(mt5_client, symbols=("EURUSD", "GBPUSD", "USDJPY")
     """
     import time as _t
 
-    def _lees():
+    def _w5_lees():
         out = {}
         for sym in symbols:
             try:
@@ -506,11 +506,11 @@ def _w5_measure_server_offset(mt5_client, symbols=("EURUSD", "GBPUSD", "USDJPY")
     # Daarom: alleen meten met ticks die TIJDENS deze controle ververst zijn.
     # Bij een levende markt duurt dat seconden; na 30 s zonder nieuwe tick is de
     # markt dicht en wordt er niet gemeten.
-    t0 = _lees()
+    t0 = _w5_lees()
     vers = {}
     deadline = _t.time() + float(os.getenv("W5_CLOCK_PROBE_S", "30"))
     while _t.time() < deadline:
-        t1 = _lees()
+        t1 = _w5_lees()
         vers = {k: v for k, v in t1.items() if k in t0 and v > t0[k]}
         if len(vers) >= 2:
             break
