@@ -111,6 +111,15 @@ class ChallengeConfig:
     conservative_risk_pct: float = 0.4
 
 
+# Zelfcorrectie tegen de echte serverklok, in hele uren. Wordt NIET hier bepaald
+# maar gezet door main_live_bot._w5_set_clock_corr(), dat hem op dezelfde waarde
+# houdt als de rest van de bot. Zonder dit zou een gemeten afwijking wel de scan,
+# het rolvenster en de de-risk verschuiven, maar NIET de reset van de daglimiet
+# hieronder — twee delen van de bot een uur uit elkaar, erger dan allebei
+# hetzelfde uur mis.
+_CLOCK_CORR_H = 0
+
+
 def _server_date_now():
     """Huidige datum op de MT5-serverklok (UTC+2 winter, UTC+3 zomer).
 
@@ -124,9 +133,9 @@ def _server_date_now():
     try:
         from zoneinfo import ZoneInfo
         ny = now.astimezone(ZoneInfo(_os.getenv("W5_BROKER_TZ", "America/New_York")))
-        return (ny + timedelta(hours=7)).date()
+        return (ny + timedelta(hours=7 + _CLOCK_CORR_H)).date()
     except Exception:
-        return now.astimezone(timezone(timedelta(hours=2))).date()
+        return now.astimezone(timezone(timedelta(hours=2 + _CLOCK_CORR_H))).date()
 
 
 class ChallengeRiskManager:

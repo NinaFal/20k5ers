@@ -256,12 +256,22 @@ def main():
             _clock_fail.append(f"{why} op regel(s) {lines}")
         else:
             print(f"  OK    {why:<44} geen")
-    for fn in ("_w5_server_tz", "_w5_in_rollover", "_w5_derisk_now", "_w5_broker_now"):
+    for fn in ("_w5_server_tz", "_w5_in_rollover", "_w5_derisk_now", "_w5_broker_now",
+               "_w5_check_server_clock", "_w5_set_clock_corr"):
         ok_ = f"def {fn}(" in _live_src
         print(f"  {'OK  ' if ok_ else 'FAIL'}  {fn + ' aanwezig':<44} "
               f"{'ja' if ok_ else 'ONTBREEKT'}")
         if not ok_:
             _clock_fail.append(f"{fn} ontbreekt — de klokken zijn niet DST-vast")
+    # De daglimiet wordt gereset in challenge_risk_manager, dat zijn serverdatum
+    # zelf uitrekent. Die MOET de klokcorrectie volgen, anders verschuift een
+    # gemeten afwijking wel scan en de-risk maar niet de daglimiet.
+    _crm_src = (REPO / "challenge_risk_manager.py").read_text()
+    _ok_crm = ("_CLOCK_CORR_H" in _crm_src and "_crm._CLOCK_CORR_H" in _live_src)
+    print(f"  {'OK  ' if _ok_crm else 'FAIL'}  {'daglimiet-reset volgt klokcorrectie':<44} "
+          f"{'ja' if _ok_crm else 'NEE'}")
+    if not _ok_crm:
+        _clock_fail.append("daglimiet-reset (challenge_risk_manager) volgt de klokcorrectie niet")
     fails.extend(_clock_fail)
 
     # 6 ── known deliberate divergences, reported not failed

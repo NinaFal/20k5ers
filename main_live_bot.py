@@ -475,6 +475,18 @@ def _w5_derisk_now(now_utc=None):
     return start <= m < min(start + 60, eind)
 
 
+def _w5_set_clock_corr(uren):
+    """De ENIGE plek waar de klokcorrectie wordt gezet. Houdt main_live_bot en
+    challenge_risk_manager (dat de daglimiet reset) altijd gelijk."""
+    global _W5_CLOCK_CORR_H
+    _W5_CLOCK_CORR_H = int(uren)
+    try:
+        import challenge_risk_manager as _crm
+        _crm._CLOCK_CORR_H = int(uren)
+    except Exception as _e:
+        log.error(f"[KLOK] correctie kon NIET naar de daglimiet-reset: {_e}")
+
+
 def _w5_measure_server_offset(mt5_client, symbols=("EURUSD", "GBPUSD", "USDJPY")):
     """Offset van de 5ers-server in hele uren, gemeten aan live ticks, of None.
 
@@ -544,18 +556,17 @@ def _w5_check_server_clock(mt5_client, reden, symbols=None):
     zomertijd maar iets anders, en dan is blind corrigeren gevaarlijker dan het
     luid melden.
     """
-    global _W5_CLOCK_CORR_H
     server = _w5_measure_server_offset(mt5_client, symbols or ("EURUSD", "GBPUSD", "USDJPY"))
     if server is None:
         log.warning(f"[KLOK] ? ({reden}) servertijd niet te meten (markt dicht?) — "
                     f"blijft op correctie {_W5_CLOCK_CORR_H:+d}u, volgende controle opnieuw")
         return None
     oud = _W5_CLOCK_CORR_H
-    _W5_CLOCK_CORR_H = 0
+    _w5_set_clock_corr(0)
     try:
         verwacht = int(_w5_server_tz().utcoffset(None).total_seconds() // 3600)
     finally:
-        _W5_CLOCK_CORR_H = oud
+        _w5_set_clock_corr(oud)
     verschil = server - verwacht
     if verschil == 0:
         if _W5_CLOCK_CORR_H:
@@ -563,7 +574,7 @@ def _w5_check_server_clock(mt5_client, reden, symbols=None):
                         f"eigen berekening — correctie {_W5_CLOCK_CORR_H:+d}u opgeheven")
         else:
             log.info(f"[KLOK] PASS ({reden}) server UTC{server:+d} = bot UTC{verwacht:+d}")
-        _W5_CLOCK_CORR_H = 0
+        _w5_set_clock_corr(0)
         return True
     if abs(verschil) > 2:
         log.error("=" * 70)
@@ -577,7 +588,7 @@ def _w5_check_server_clock(mt5_client, reden, symbols=None):
         log.error(f"  Bot volgt vanaf nu de SERVER (correctie {verschil:+d}u): daglimiet, "
                   f"scan, middernacht-sync, rolvenster en de-risk.")
         log.error("=" * 70)
-    _W5_CLOCK_CORR_H = verschil
+    _w5_set_clock_corr(verschil)
     return False
 
 
