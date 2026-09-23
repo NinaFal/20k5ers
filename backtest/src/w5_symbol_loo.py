@@ -62,8 +62,13 @@ cr = importlib.util.module_from_spec(_cr); _cr.loader.exec_module(cr)
 YEARS = list(range(2015, 2026))
 START_BALANCE = 50_000.0
 TRIAL = int(os.getenv("W5_CAND_TRIAL", "31"))
-OUT = w5.W5_DIR / "symbol_loo.json"
-COSTS = {"SLIPPAGE_MAP": json.dumps(cr.spread_map(1.0)), "COST_LIMIT_ENTRIES": "1"}
+# Uitvoer en kostentabel mogen uit de omgeving komen. De eerste reeks
+# (symbol_loo.json) draaide op spread_map(): 4,5 pip op vijf crosses waar de bot
+# boven 3,0 pip weigert te openen. De herhaling draait op spread_map_real() en
+# schrijft naar een eigen bestand, zodat beide reeksen naast elkaar blijven.
+OUT = w5.W5_DIR / os.getenv("W5_LOO_OUT", "symbol_loo.json")
+COSTS = {"SLIPPAGE_MAP": os.getenv("SLIPPAGE_MAP") or json.dumps(cr.spread_map(1.0)),
+         "COST_LIMIT_ENTRIES": "1"}
 
 BASE_EXCL = [s.strip() for s in w5.BASE_ENV["EXCLUDE_SYMBOLS"].split(",") if s.strip()]
 # De 29 die nu meedoen, uit config.py zodat de lijst niet twee keer bestaat.
@@ -117,7 +122,7 @@ def run_year(arm, year, balance):
     e.update(COSTS)
     # De arm MOET in de padnaam, anders wissen gelijktijdige armen elkaars
     # werkmap halverwege (zie W5_DATA_INTEGRITY.md).
-    d = w5.DOE_DIR / "tmp" / f"loo_{arm.replace('/', '_')}_{year}"
+    d = w5.DOE_DIR / "tmp" / f"loo_{OUT.stem}_{arm.replace('/', '_')}_{year}"
     shutil.rmtree(d, ignore_errors=True); d.mkdir(parents=True, exist_ok=True)
     try:
         subprocess.run([sys.executable, str(w5.cs.dh.BACKTEST),
