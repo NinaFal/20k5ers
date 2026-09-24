@@ -123,6 +123,17 @@ EXTRA_ENV = {}
 # is: geen CHF-exposure. Die arm staat hieronder.
 CHF = [s for s in AAN if "CHF" in s]
 ARMS["-CHF"] = (BASE_EXCL + CHF, True, False)
+
+# CHF HOUDEN MAAR KLEINER (CCY_RISK_MULT). -CHF overleeft maar kost 18% van de
+# opnames, en CHF eruit is geen optie. Een stop begrenst een centrale-bank-gap
+# niet; de positiegrootte wel. Getest op de basis EN op de drie armen die op de
+# SNB-dag stierven: pas als die overleven is het geluk uit de uitkomst.
+for m in ("0.25", "0.4"):
+    tag = "chf" + m.replace("0.", "")
+    for src in ("basis", "-EUR_CHF", "-GBP_NZD", "+XAG_USD"):
+        arm = tag if src == "basis" else tag + src
+        ARMS[arm] = ARMS[src]
+        EXTRA_ENV[arm] = {"CCY_RISK_MULT": "CHF:" + m}
 for cap in (2, 3):
     ARMS[f"ccy{cap}"] = (BASE_EXCL, True, False)
     EXTRA_ENV[f"ccy{cap}"] = {"CCY_CAP": str(cap)}
@@ -144,7 +155,8 @@ def run_year(arm, year, balance):
     for k in ("SLIPPAGE_MAP", "COST_LIMIT_ENTRIES", "SL_SLIPPAGE_OFF", "SL_SLIPPAGE_PIPS"):
         e.pop(k, None)
     e.update(COSTS)
-    e.pop("CCY_CAP", None); e.pop("CCY_CAP_CURRENCIES", None)
+    for k in ("CCY_CAP", "CCY_CAP_CURRENCIES", "CCY_RISK_MULT"):
+        e.pop(k, None)
     e.update(EXTRA_ENV.get(arm, {}))
     # De arm MOET in de padnaam, anders wissen gelijktijdige armen elkaars
     # werkmap halverwege (zie W5_DATA_INTEGRITY.md).

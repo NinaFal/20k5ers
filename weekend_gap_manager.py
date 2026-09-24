@@ -197,6 +197,30 @@ def currency_cap_config() -> tuple:
     return cap, ccys
 
 
+def currency_risk_multiplier(symbol: str) -> float:
+    """Risk multiplier from CCY_RISK_MULT, e.g. "CHF:0.25"; default 1.0 (off).
+
+    A stop does not bound the loss in a central-bank gap: on 2015-01-15 a
+    GBP_CHF stop was filled 12x its distance away. Sizing the exposed currency
+    down bounds that loss where the stop cannot. The smallest multiplier of
+    the two legs applies.
+    """
+    import os
+    raw = os.getenv("CCY_RISK_MULT", "").replace(" ", "")
+    if not raw:
+        return 1.0
+    table = {}
+    for part in raw.split(","):
+        if ":" in part:
+            k, v = part.split(":", 1)
+            try:
+                table[k.upper()] = float(v)
+            except ValueError:
+                pass
+    mults = [table[c] for c in currency_legs(symbol) if c in table]
+    return min(mults) if mults else 1.0
+
+
 def currency_cap_block(symbol: str, open_symbols, pending_symbols):
     """Return (currency, count, cap) if adding `symbol` would exceed CCY_CAP, else None.
 

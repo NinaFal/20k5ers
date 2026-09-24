@@ -5038,6 +5038,20 @@ class LiveTradingBot:
             risk_pct = risk_pct * _rm
             log.info(f"[{symbol}] [W5] Regime-risk x{_rm:.2f} -> risk {risk_pct:.3f}%")
 
+        # ── W5 PORT: currency risk multiplier (CCY_RISK_MULT; default off) ──
+        # e.g. "CHF:0.25". A stop does not bound a central-bank gap (SNB
+        # 2015-01-15: GBP_CHF filled 12x its stop distance away); sizing the
+        # exposed currency down does. Backtest: main_live_bot_backtest.py,
+        # directly after the regime-risk multiplier.
+        try:
+            import weekend_gap_manager as _wgm
+            _cm = _wgm.currency_risk_multiplier(symbol)
+        except Exception:
+            _cm = 1.0
+        if _cm != 1.0:
+            risk_pct = risk_pct * _cm
+            log.info(f"[{symbol}] [W5] Currency-risk x{_cm:.2f} -> risk {risk_pct:.3f}%")
+
         # ── W5 PORT: wall-guard / room-to-the-wall cap ──────────────────────
         # No live equivalent existed. In the high-TDD zone, cap each trade so
         # that even a FULL stop-loss cannot push total drawdown through the 10%

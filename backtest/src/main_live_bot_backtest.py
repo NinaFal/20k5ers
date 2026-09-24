@@ -3397,6 +3397,17 @@ class LiveTradingBot:
             risk_pct = risk_pct * _rm
             log.info(f"[{symbol}] Regime-risk x{_rm:.2f} -> risk {risk_pct:.3f}%")
 
+        # Currency risk multiplier (CCY_RISK_MULT, e.g. "CHF:0.25"; default off).
+        # Bounds the gap loss a stop cannot bound (SNB 2015: fill 12x the stop).
+        try:
+            import weekend_gap_manager as _wgm
+            _cm = _wgm.currency_risk_multiplier(symbol)
+        except Exception:
+            _cm = 1.0
+        if _cm != 1.0:
+            risk_pct = risk_pct * _cm
+            log.info(f"[{symbol}] Currency-risk x{_cm:.2f} -> risk {risk_pct:.3f}%")
+
         # ── TREND-QUALITY CONTROLLER (D3; env-gated; default off) ────────────
         # Continuous ADX-based sizing: full risk in strong trends, floor risk in
         # chop. Size-UP side gated by drawdown like the other multipliers.
