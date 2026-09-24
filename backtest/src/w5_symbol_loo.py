@@ -134,6 +134,20 @@ for m in ("0.25", "0.4"):
         arm = tag if src == "basis" else tag + src
         ARMS[arm] = ARMS[src]
         EXTRA_ENV[arm] = {"CCY_RISK_MULT": "CHF:" + m}
+
+# Uitkomst: ook CHF op 25% redt -GBP_NZD en +XAG_USD niet (13,8% en 11,3%),
+# want er staan meerdere CHF-posities tegelijk open. Kleiner inzetten helpt niet
+# genoeg; NIET inzetten zolang de munt vastgepind is wel.
+# PEG GUARD: geen nieuwe trades in een munt waarvan het referentiepaar de
+# volatiliteitsinstorting van een bodem toont. Drempel 2,5% op jaarbasis:
+# EUR/CHF onder de bodem 0,4-1,4%, vrij zwevend 4,5-10%. In 2015-2025 slaat hij
+# alleen aan op 1-14 januari 2015 en twee dagen in 2020, dus hij kost bijna
+# niets. Getest op de vier armen die op de SNB-dag stierven (ook ccy2: die
+# stierf aan EEN GBP_CHF-positie) en op de basis.
+for src in ("basis", "-EUR_CHF", "-GBP_NZD", "+XAG_USD", "ccy2"):
+    arm = "peg" if src == "basis" else "peg" + src
+    ARMS[arm] = ARMS["basis" if src == "ccy2" else src]
+    EXTRA_ENV[arm] = {**({"CCY_CAP": "2"} if src == "ccy2" else {}), "PEG_GUARD_VOL": "2.5"}
 for cap in (2, 3):
     ARMS[f"ccy{cap}"] = (BASE_EXCL, True, False)
     EXTRA_ENV[f"ccy{cap}"] = {"CCY_CAP": str(cap)}
@@ -155,7 +169,7 @@ def run_year(arm, year, balance):
     for k in ("SLIPPAGE_MAP", "COST_LIMIT_ENTRIES", "SL_SLIPPAGE_OFF", "SL_SLIPPAGE_PIPS"):
         e.pop(k, None)
     e.update(COSTS)
-    for k in ("CCY_CAP", "CCY_CAP_CURRENCIES", "CCY_RISK_MULT"):
+    for k in ("CCY_CAP", "CCY_CAP_CURRENCIES", "CCY_RISK_MULT", "PEG_GUARD_VOL"):
         e.pop(k, None)
     e.update(EXTRA_ENV.get(arm, {}))
     # De arm MOET in de padnaam, anders wissen gelijktijdige armen elkaars

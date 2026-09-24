@@ -221,6 +221,63 @@ def currency_risk_multiplier(symbol: str) -> float:
     return min(mults) if mults else 1.0
 
 
+# Reference pair per currency for the peg guard: the pair a central bank would
+# pin it against. USD has none; a currency pinned to USD shows up in its own pair.
+PEG_REFERENCE = {"CHF": "EUR_CHF", "EUR": "EUR_USD", "GBP": "EUR_GBP", "JPY": "USD_JPY",
+                 "AUD": "AUD_USD", "NZD": "NZD_USD", "CAD": "USD_CAD"}
+
+
+def realized_vol_pct(candles, days: int = 60) -> float:
+    """Annualized close-to-close volatility (%) over the last `days` daily bars."""
+    import math
+    closes = []
+    for c in candles or []:
+        v = c.get("close", c.get("Close")) if isinstance(c, dict) else None
+        if v:
+            closes.append(float(v))
+    closes = closes[-(days + 1):]
+    if len(closes) < days + 1:
+        return float("nan")
+    rets = [math.log(b / a) for a, b in zip(closes, closes[1:]) if a > 0 and b > 0]
+    if len(rets) < days:
+        return float("nan")
+    m = sum(rets) / len(rets)
+    var = sum((r - m) ** 2 for r in rets) / (len(rets) - 1)
+    return math.sqrt(var) * math.sqrt(252) * 100
+
+
+def peg_guard_block(symbol: str, fetch_d1) -> tuple:
+    """Return (currency, vol%) if a leg of `symbol` looks pinned, else ().
+
+    PEG_GUARD_VOL (annualized %, default 0 = off). A central-bank floor shows as
+    a collapse in realized volatility of the pinned pair: EUR/CHF ran at 0.4-1%
+    under the 1.20 floor (2012-2014) against 5-10% free-floating. When the floor
+    goes, the stop is useless (2015-01-15: fills 12x the stop away), so the only
+    protection is not holding the currency while it is pinned. The same measure
+    flags DKK, HKD, CNH and the CZK floor of 2013-2017 on 20 years of data.
+    `fetch_d1(pair)` returns daily candles (dicts with 'close') before now.
+    """
+    import os, math
+    try:
+        thr = float(os.getenv("PEG_GUARD_VOL", "0"))
+    except ValueError:
+        thr = 0.0
+    if thr <= 0:
+        return ()
+    days = int(os.getenv("PEG_GUARD_DAYS", "60"))
+    for ccy in currency_legs(symbol):
+        ref = PEG_REFERENCE.get(ccy)
+        if not ref:
+            continue
+        try:
+            vol = realized_vol_pct(fetch_d1(ref), days)
+        except Exception:
+            continue
+        if not math.isnan(vol) and vol < thr:
+            return ccy, vol
+    return ()
+
+
 def currency_cap_block(symbol: str, open_symbols, pending_symbols):
     """Return (currency, count, cap) if adding `symbol` would exceed CCY_CAP, else None.
 

@@ -5999,6 +5999,22 @@ class LiveTradingBot:
             except Exception as _e:
                 log.debug(f"[{symbol}] ccy-cap skipped: {_e}")
 
+            # ── W5 PORT: peg guard (PEG_GUARD_VOL, 0 = off/default) ─────────
+            # No new trades in a currency whose reference pair shows the
+            # volatility collapse of a central-bank floor. A stop does not
+            # protect when the floor goes (SNB 2015-01-15). Backtest gate:
+            # main_live_bot_backtest.py, after the currency cap.
+            try:
+                import weekend_gap_manager as _wgm
+                _pg = _wgm.peg_guard_block(
+                    symbol,
+                    lambda pair: self.mt5.get_ohlcv(self.symbol_map.get(pair, pair), "D1", 70))
+                if _pg:
+                    log.info(f"[{symbol}] [W5] Peg guard: {_pg[0]} vol {_pg[1]:.2f}% — NO TRADE")
+                    return False
+            except Exception as _e:
+                log.debug(f"[{symbol}] peg-guard skipped: {_e}")
+
             # Layer 1: Rollover window — no new entries 21:30-22:30 UTC
             # Spread widens 5-50x during rollover; floating equity spikes can
             # trigger false DDD halts. Existing positions ride it out normally.

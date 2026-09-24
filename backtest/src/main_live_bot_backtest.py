@@ -4344,6 +4344,29 @@ class LiveTradingBot:
             except Exception as _e:
                 log.debug(f"[{symbol}] ccy-cap skipped: {_e}")
 
+            # ── PEG GUARD (env-gated; PEG_GUARD_VOL, 0 = off/default) ────────
+            # No new trades in a currency whose reference pair shows the
+            # volatility collapse of a central-bank floor (EUR/CHF 2012-2014).
+            try:
+                import weekend_gap_manager as _wgm
+                _pc = getattr(self, "_peg_cache", None)
+                if _pc is None:
+                    _pc = self._peg_cache = {}
+                _ct = getattr(self.mt5, "_current_time", None)
+                _day = _ct.date() if _ct is not None and hasattr(_ct, "date") else None
+
+                def _d1(pair):
+                    k = (pair, _day)
+                    if k not in _pc:
+                        _pc[k] = self.mt5.get_ohlcv(self.symbol_map.get(pair, pair), "D1", 70)
+                    return _pc[k]
+                _pg = _wgm.peg_guard_block(symbol, _d1)
+                if _pg:
+                    log.info(f"[{symbol}] Peg guard: {_pg[0]} vol {_pg[1]:.2f}% — NO TRADE")
+                    return False
+            except Exception as _e:
+                log.debug(f"[{symbol}] peg-guard skipped: {_e}")
+
             # Protection layers (rollover window + news blackout)
             blocked, reason = self._protection_block(symbol, direction)
             if blocked:
