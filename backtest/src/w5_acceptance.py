@@ -274,7 +274,33 @@ def main():
         _clock_fail.append("daglimiet-reset (challenge_risk_manager) volgt de klokcorrectie niet")
     fails.extend(_clock_fail)
 
+    # 5d ── PIN-BEWAKING staat live standaard aan (PEG_GUARD_VOL=2.5).
+    _live_src2 = LIVE.read_text()
+    _m = re.search(r'^def _w5_peg_guard_vol\(\):.*?(?=\n\ndef )', _live_src2, re.S | re.M)
+    _ns = {"os": os}
+    _saved = os.environ.pop("PEG_GUARD_VOL", None)
+    try:
+        if _m:
+            exec(_m.group(0), _ns)
+        _peg = float(_ns["_w5_peg_guard_vol"]()) if _m else 0.0
+    finally:
+        if _saved is not None:
+            os.environ["PEG_GUARD_VOL"] = _saved
+    _wired = "default_vol=_w5_peg_guard_vol()" in _live_src2
+    _bt_ok = "peg_guard_block(" in bt_src
+    _ok_peg = abs(_peg - 2.5) < 1e-9 and _wired and _bt_ok
+    print(f"\n  {'OK  ' if _ok_peg else 'FAIL'}  {'pin-bewaking live standaard aan (2.5)':<44} "
+          f"{_peg} / gekoppeld {_wired} / backtest {_bt_ok}")
+    if not _ok_peg:
+        fails.append("pin-bewaking: live standaard moet PEG_GUARD_VOL=2.5 zijn, gekoppeld aan de gate")
+
     # 6 ── known deliberate divergences, reported not failed
+    notes.append(
+        "PIN-BEWAKING staat live standaard AAN (PEG_GUARD_VOL=2.5), de backtest "
+        "standaard UIT, zodat opgeslagen resultaten reproduceerbaar blijven. De "
+        "gevalideerde meting draait hem expliciet aan (arm 'peg' in "
+        "symbol_loo_real.json): 11/11 jaar, -2,9% opnames, volledig de "
+        "CHF-meevaller van januari 2015; 2017-2025 tot op de dollar gelijk.")
     notes.append(
         "NACHTELIJKE DE-RISK draait live op de NEW YORKSE klok, de backtest op UTC. "
         "Live: 16:00-16:14 New York, dus 21:00-21:14 UTC in de winter en "

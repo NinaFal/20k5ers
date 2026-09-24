@@ -246,10 +246,11 @@ def realized_vol_pct(candles, days: int = 60) -> float:
     return math.sqrt(var) * math.sqrt(252) * 100
 
 
-def peg_guard_block(symbol: str, fetch_d1) -> tuple:
+def peg_guard_block(symbol: str, fetch_d1, default_vol: str = "0") -> tuple:
     """Return (currency, vol%) if a leg of `symbol` looks pinned, else ().
 
-    PEG_GUARD_VOL (annualized %, default 0 = off). A central-bank floor shows as
+    PEG_GUARD_VOL (annualized %; 0 = off). The default comes from the caller:
+    the live bot passes 2.5, the backtest keeps 0 so stored results reproduce. A central-bank floor shows as
     a collapse in realized volatility of the pinned pair: EUR/CHF ran at 0.4-1%
     under the 1.20 floor (2012-2014) against 5-10% free-floating. When the floor
     goes, the stop is useless (2015-01-15: fills 12x the stop away), so the only
@@ -259,7 +260,7 @@ def peg_guard_block(symbol: str, fetch_d1) -> tuple:
     """
     import os, math
     try:
-        thr = float(os.getenv("PEG_GUARD_VOL", "0"))
+        thr = float(os.getenv("PEG_GUARD_VOL", default_vol))
     except ValueError:
         thr = 0.0
     if thr <= 0:

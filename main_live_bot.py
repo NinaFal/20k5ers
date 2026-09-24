@@ -323,6 +323,21 @@ def _w5_corr_group_cap():
     return int(os.getenv("CORR_GROUP_CAP", "6"))
 
 
+def _w5_peg_guard_vol():
+    """Peg guard threshold, annualized % volatility (PEG_GUARD_VOL); 0 = off.
+
+    ON by default at 2.5. A central-bank floor collapses the realized
+    volatility of the pinned pair (EUR/CHF 0.9-1.4% under the 1.20 floor,
+    4.5-10% free-floating); when the floor goes, a stop does not protect
+    (2015-01-15: GBP_CHF filled 12x its stop away). With the guard no new
+    trades open in such a currency. Measured over eleven years: the basis
+    survives 11/11, -2.9% withdrawals, all of it the lucky CHF trades of
+    January 2015; 2017-2025 are identical to the dollar. Three of the four
+    arms that died on the SNB day survive it with the guard.
+    """
+    return os.getenv("PEG_GUARD_VOL", "2.5")
+
+
 def _w5_max_total_positions():
     """Max concurrent positions overall (MAX_TOTAL_POSITIONS)."""
     return int(os.getenv("MAX_TOTAL_POSITIONS", "20"))
@@ -5999,7 +6014,7 @@ class LiveTradingBot:
             except Exception as _e:
                 log.debug(f"[{symbol}] ccy-cap skipped: {_e}")
 
-            # ── W5 PORT: peg guard (PEG_GUARD_VOL, 0 = off/default) ─────────
+            # ── W5 PORT: peg guard (PEG_GUARD_VOL, default 2.5 = ON) ────────
             # No new trades in a currency whose reference pair shows the
             # volatility collapse of a central-bank floor. A stop does not
             # protect when the floor goes (SNB 2015-01-15). Backtest gate:
@@ -6008,7 +6023,8 @@ class LiveTradingBot:
                 import weekend_gap_manager as _wgm
                 _pg = _wgm.peg_guard_block(
                     symbol,
-                    lambda pair: self.mt5.get_ohlcv(self.symbol_map.get(pair, pair), "D1", 70))
+                    lambda pair: self.mt5.get_ohlcv(self.symbol_map.get(pair, pair), "D1", 70),
+                    default_vol=_w5_peg_guard_vol())
                 if _pg:
                     log.info(f"[{symbol}] [W5] Peg guard: {_pg[0]} vol {_pg[1]:.2f}% — NO TRADE")
                     return False
