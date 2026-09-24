@@ -113,6 +113,16 @@ ARMS["+SPX500_USD"] = (BASE_EXCL, True, True)
 # op de basis, en redt hij de armen die stierven? Alleen als hij de dode armen
 # redt, haalt hij het geluk uit de uitkomst.
 EXTRA_ENV = {}
+
+# Uitkomst (januari 2015 opnieuw afgespeeld, trades bewaard): de muntlimiet
+# beschermt niet. De dood van ccy2 is EEN positie: GBP_CHF long, 1,0 lot,
+# geopend 09:30 op 2015-01-15, stop 137 pip weg, gevuld 1.684 pip verder
+# (-$16.844 = 34% van $50.000). De basis stond die ochtend toevallig CHF-long
+# en verdiende eraan. Het is dus een muntworp op de richting, en een limiet op
+# het AANTAL posities verandert alleen welke munt er valt. Wat wel structureel
+# is: geen CHF-exposure. Die arm staat hieronder.
+CHF = [s for s in AAN if "CHF" in s]
+ARMS["-CHF"] = (BASE_EXCL + CHF, True, False)
 for cap in (2, 3):
     ARMS[f"ccy{cap}"] = (BASE_EXCL, True, False)
     EXTRA_ENV[f"ccy{cap}"] = {"CCY_CAP": str(cap)}
