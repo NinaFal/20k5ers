@@ -549,12 +549,20 @@ class CSVMT5Simulator:
             )
             if cache_file.stat().st_mtime > csv_mtime:
                 log.info(f"📦 Loading from cache: {cache_file.name} ...")
-                with open(cache_file, 'rb') as f:
-                    cached = pickle.load(f)
-                self._m15_indexed = cached['m15_indexed']
-                self._available_symbols = cached['available_symbols']
-                log.info(f"✅ Cache loaded: {len(self._available_symbols)} symbols in seconds")
-                return
+                try:
+                    with open(cache_file, 'rb') as f:
+                        cached = pickle.load(f)
+                    self._m15_indexed = cached['m15_indexed']
+                    self._available_symbols = cached['available_symbols']
+                    log.info(f"✅ Cache loaded: {len(self._available_symbols)} symbols in seconds")
+                    return
+                except Exception as e:
+                    # A truncated cache (process killed mid-write) must not end
+                    # the run: drop it and rebuild from the CSV files.
+                    log.warning(f"Cache {cache_file.name} unreadable ({e}) — rebuilding")
+                    cache_file.unlink(missing_ok=True)
+                    self._m15_indexed = {}
+                    self._available_symbols = []
 
         log.info("No cache found — loading from CSV files (this takes a while)...")
         for symbol in symbols:
@@ -581,11 +589,15 @@ class CSVMT5Simulator:
                 self._m15_indexed[symbol] = df_indexed
 
         log.info(f"Loaded M15 data for {len(self._available_symbols)} symbols — saving cache...")
-        with open(cache_file, 'wb') as f:
+        # Write to a temp file and rename, so a kill mid-write never leaves a
+        # truncated cache behind for the next run to trip over.
+        tmp_file = cache_file.with_suffix(f".{os.getpid()}.tmp")
+        with open(tmp_file, 'wb') as f:
             pickle.dump({
                 'm15_indexed': self._m15_indexed,
                 'available_symbols': self._available_symbols,
             }, f, protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(tmp_file, cache_file)
         log.info(f"✅ Cache saved: {cache_file.name}")
     
     def get_m15_bar(self, symbol: str, time: datetime) -> Optional[dict]:
