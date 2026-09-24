@@ -148,6 +148,15 @@ for src in ("basis", "-EUR_CHF", "-GBP_NZD", "+XAG_USD", "ccy2"):
     arm = "peg" if src == "basis" else "peg" + src
     ARMS[arm] = ARMS["basis" if src == "ccy2" else src]
     EXTRA_ENV[arm] = {**({"CCY_CAP": "2"} if src == "ccy2" else {}), "PEG_GUARD_VOL": "2.5"}
+
+# De rest van de tickerstudie draait MET de pin-bewaking, tegen de arm "peg" als
+# basis. Zonder bewaking beslist de SNB-dag over leven of dood van een arm, en
+# dat is geluk en geen eigenschap van het symbool.
+for src in [k for k in list(ARMS) if k[:1] in "+-" and k not in ("-CHF", "-OLIE")]:
+    arm = "peg" + src
+    if arm not in ARMS:
+        ARMS[arm] = ARMS[src]
+        EXTRA_ENV[arm] = {"PEG_GUARD_VOL": "2.5"}
 for cap in (2, 3):
     ARMS[f"ccy{cap}"] = (BASE_EXCL, True, False)
     EXTRA_ENV[f"ccy{cap}"] = {"CCY_CAP": str(cap)}
