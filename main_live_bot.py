@@ -5967,6 +5967,24 @@ class LiveTradingBot:
                 except Exception as _e:
                     log.debug(f"[{symbol}] corr-cap skipped: {_e}")
 
+            # ── W5 PORT: currency cap (CCY_CAP, 0 = off/default) ────────────
+            # Correlation groups miss a shared leg (GBP_CHF, EUR_CHF, CAD_CHF).
+            # Counts pending orders too: on 2015-01-15 CHF limit orders filled
+            # into the SNB gap. Backtest gate: main_live_bot_backtest.py, after
+            # the correlation cap.
+            try:
+                import weekend_gap_manager as _wgm
+                _blk = _wgm.currency_cap_block(
+                    symbol,
+                    [p.symbol for p in (self.mt5.get_my_positions() if self.mt5 else [])],
+                    [s.symbol for s in self.pending_setups.values() if s.status == "pending"])
+                if _blk:
+                    log.info(f"[{symbol}] [W5] Currency cap: {_blk[0]} already has "
+                             f"{_blk[1]} (cap {_blk[2]}) — NO TRADE")
+                    return False
+            except Exception as _e:
+                log.debug(f"[{symbol}] ccy-cap skipped: {_e}")
+
             # Layer 1: Rollover window — no new entries 21:30-22:30 UTC
             # Spread widens 5-50x during rollover; floating equity spikes can
             # trigger false DDD halts. Existing positions ride it out normally.

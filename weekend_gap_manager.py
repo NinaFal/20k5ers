@@ -168,6 +168,53 @@ def get_correlation_group(symbol: str) -> str:
     return 'UNCORRELATED'
 
 
+FX_CURRENCIES = {"USD", "EUR", "GBP", "JPY", "CHF", "AUD", "NZD", "CAD"}
+
+
+def currency_legs(symbol: str) -> tuple:
+    """Both currencies of an FX pair, or () for metals, oil, indices, crypto.
+
+    Accepts OANDA ("GBP_CHF") and broker ("GBPCHF", "GBPCHF.x") formats.
+    """
+    s = "".join(c for c in convert_broker_to_oanda(symbol) if c.isalpha()).upper()[:6]
+    a, b = s[:3], s[3:6]
+    return (a, b) if a in FX_CURRENCIES and b in FX_CURRENCIES else ()
+
+
+def currency_cap_config() -> tuple:
+    """(cap, capped currencies) from CCY_CAP / CCY_CAP_CURRENCIES; cap 0 = off.
+
+    Default currency set is every FX currency except USD: USD is one leg of
+    most of the book, so capping it would act as a second total-position cap.
+    """
+    import os
+    try:
+        cap = int(os.getenv("CCY_CAP", "0"))
+    except ValueError:
+        cap = 0
+    raw = os.getenv("CCY_CAP_CURRENCIES", "")
+    ccys = {c.strip().upper() for c in raw.split(",") if c.strip()} or (FX_CURRENCIES - {"USD"})
+    return cap, ccys
+
+
+def currency_cap_block(symbol: str, open_symbols, pending_symbols):
+    """Return (currency, count, cap) if adding `symbol` would exceed CCY_CAP, else None.
+
+    Counts open positions AND pending orders: on 2015-01-15 the loss came from
+    CHF limit orders that filled into the gap, not only from open positions.
+    """
+    cap, ccys = currency_cap_config()
+    if cap <= 0:
+        return None
+    for ccy in currency_legs(symbol):
+        if ccy not in ccys:
+            continue
+        n = sum(1 for s in list(open_symbols) + list(pending_symbols) if ccy in currency_legs(s))
+        if n >= cap:
+            return ccy, n, cap
+    return None
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # POSITION HELPER FUNCTIONS
 # ═══════════════════════════════════════════════════════════════════════════

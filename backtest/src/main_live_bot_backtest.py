@@ -4317,6 +4317,22 @@ class LiveTradingBot:
                 except Exception as _e:
                     log.debug(f"[{symbol}] corr-cap skipped: {_e}")
 
+            # ── CURRENCY CAP (env-gated; CCY_CAP, 0 = off/default) ───────────
+            # Correlation groups do not see that GBP_CHF, EUR_CHF and CAD_CHF
+            # share one leg. On 2015-01-15 five CHF limit orders filled into
+            # the SNB gap. Cap open+pending positions per currency.
+            try:
+                import weekend_gap_manager as _wgm
+                _blk = _wgm.currency_cap_block(
+                    symbol,
+                    [p.symbol for p in (self.mt5.get_my_positions() if self.mt5 else [])],
+                    [s.symbol for s in self.pending_setups.values() if s.status == "pending"])
+                if _blk:
+                    log.info(f"[{symbol}] Currency cap: {_blk[0]} already has {_blk[1]} (cap {_blk[2]}) — NO TRADE")
+                    return False
+            except Exception as _e:
+                log.debug(f"[{symbol}] ccy-cap skipped: {_e}")
+
             # Protection layers (rollover window + news blackout)
             blocked, reason = self._protection_block(symbol, direction)
             if blocked:

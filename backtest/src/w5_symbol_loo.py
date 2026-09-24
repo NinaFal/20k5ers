@@ -106,6 +106,20 @@ for s in UIT:
 # kosten, op een configuratie die inmiddels dood is.
 ARMS["+SPX500_USD"] = (BASE_EXCL, True, True)
 
+# MUNTLIMIET (CCY_CAP). Drie armen stierven op 2015-01-15, de SNB-dag, met
+# CHF-limietorders die in de koersval vulden. De basis overleefde die dag, maar
+# een ander symbool erbij of eraf is al genoeg om hem te laten sterven: dat is
+# geluk, geen robuustheid. De vraag hier is dus tweeledig: kost de limiet winst
+# op de basis, en redt hij de armen die stierven? Alleen als hij de dode armen
+# redt, haalt hij het geluk uit de uitkomst.
+EXTRA_ENV = {}
+for cap in (2, 3):
+    ARMS[f"ccy{cap}"] = (BASE_EXCL, True, False)
+    EXTRA_ENV[f"ccy{cap}"] = {"CCY_CAP": str(cap)}
+    for dood in ("-EUR_CHF", "-GBP_NZD", "+XAG_USD"):
+        ARMS[f"ccy{cap}{dood}"] = ARMS[dood]
+        EXTRA_ENV[f"ccy{cap}{dood}"] = {"CCY_CAP": str(cap)}
+
 
 def run_year(arm, year, balance):
     excl, oil, spx = ARMS[arm]
@@ -120,6 +134,8 @@ def run_year(arm, year, balance):
     for k in ("SLIPPAGE_MAP", "COST_LIMIT_ENTRIES", "SL_SLIPPAGE_OFF", "SL_SLIPPAGE_PIPS"):
         e.pop(k, None)
     e.update(COSTS)
+    e.pop("CCY_CAP", None); e.pop("CCY_CAP_CURRENCIES", None)
+    e.update(EXTRA_ENV.get(arm, {}))
     # De arm MOET in de padnaam, anders wissen gelijktijdige armen elkaars
     # werkmap halverwege (zie W5_DATA_INTEGRITY.md).
     d = w5.DOE_DIR / "tmp" / f"loo_{OUT.stem}_{arm.replace('/', '_')}_{year}"
