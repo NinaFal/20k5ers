@@ -152,6 +152,11 @@ for src in ("basis", "-EUR_CHF", "-GBP_NZD", "+XAG_USD", "ccy2"):
 # De rest van de tickerstudie draait MET de pin-bewaking, tegen de arm "peg" als
 # basis. Zonder bewaking beslist de SNB-dag over leven of dood van een arm, en
 # dat is geluk en geen eigenschap van het symbool.
+# Bevestiging: de twee sterkste schrap-kandidaten samen eruit. Laat-er-een-weg
+# telt niet op, dus een combinatie moet apart gemeten worden.
+ARMS["peg-USD_JPY-AUD_JPY"] = (BASE_EXCL + ["USD_JPY", "AUD_JPY"], True, False)
+EXTRA_ENV["peg-USD_JPY-AUD_JPY"] = {"PEG_GUARD_VOL": "2.5"}
+
 for src in [k for k in list(ARMS) if k[:1] in "+-" and k not in ("-CHF", "-OLIE")]:
     arm = "peg" + src
     if arm not in ARMS:
