@@ -1,0 +1,42 @@
+{
+  "old_universe/TRAIN": {
+    "score": -18.96,
+    "p20": 0.188,
+    "p30": 0.312,
+    "p40": 0.375,
+    "p60": 0.375,
+    "breach_rate": 0.188,
+    "median_total": 21,
+    "n": 16
+  },
+  "orig_repro/TRAIN": {
+    "score": 49.79,
+    "p20": 0.188,
+    "p30": 0.312,
+    "p40": 0.375,
+    "p60": 0.438,
+    "breach_rate": 0.125,
+    "median_total": 21,
+    "n": 16
+  },
+  "faithful/TRAIN": {
+    "score": -31.52,
+    "p20": 0.188,
+    "p30": 0.25,
+    "p40": 0.375,
+    "p60": 0.438,
+    "breach_rate": 0.188,
+    "median_total": 27.0,
+    "n": 16
+  },
+  "faithful_nobleed/TRAIN": {
+    "score": -100.27,
+    "p20": 0.188,
+    "p30": 0.25,
+    "p40": 0.375,
+    "p60": 0.375,
+    "breach_rate": 0.25,
+    "median_total": 27.0,
+    "n": 16
+  }
+}

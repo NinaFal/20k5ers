@@ -1,0 +1,290 @@
+[
+  {
+    "start": "2016-01-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded"
+  },
+  {
+    "start": "2016-04-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded"
+  },
+  {
+    "start": "2016-07-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded"
+  },
+  {
+    "start": "2016-10-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded"
+  },
+  {
+    "start": "2018-01-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded"
+  },
+  {
+    "start": "2018-04-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded"
+  },
+  {
+    "start": "2018-07-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded"
+  },
+  {
+    "start": "2018-10-01",
+    "total": null,
+    "d1": 59,
+    "d2": null,
+    "breach": false,
+    "why": "step2",
+    "variant": "expanded"
+  },
+  {
+    "start": "2021-01-01",
+    "total": null,
+    "d1": 48,
+    "d2": null,
+    "breach": false,
+    "why": "step2",
+    "variant": "expanded"
+  },
+  {
+    "start": "2021-04-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded"
+  },
+  {
+    "start": "2021-07-01",
+    "total": null,
+    "d1": 60,
+    "d2": null,
+    "breach": false,
+    "why": "step2",
+    "variant": "expanded"
+  },
+  {
+    "start": "2021-10-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded"
+  },
+  {
+    "start": "2023-01-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded"
+  },
+  {
+    "start": "2023-04-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded"
+  },
+  {
+    "start": "2023-07-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded"
+  },
+  {
+    "start": "2023-10-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded"
+  },
+  {
+    "start": "2016-01-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2016-04-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2016-07-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2016-10-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2018-01-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2018-04-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2018-07-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2018-10-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2021-01-01",
+    "total": 54,
+    "d1": 28,
+    "d2": 25,
+    "breach": false,
+    "why": "",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2021-04-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2021-07-01",
+    "total": null,
+    "d1": 60,
+    "d2": null,
+    "breach": false,
+    "why": "step2",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2021-10-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2023-01-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2023-04-01",
+    "total": 82,
+    "d1": 60,
+    "d2": 21,
+    "breach": false,
+    "why": "",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2023-07-01",
+    "total": null,
+    "d1": 60,
+    "d2": null,
+    "breach": true,
+    "why": "step2",
+    "variant": "expanded_no_bleed"
+  },
+  {
+    "start": "2023-10-01",
+    "total": null,
+    "d1": null,
+    "d2": null,
+    "breach": false,
+    "why": "step1",
+    "variant": "expanded_no_bleed"
+  }
+]

@@ -12,6 +12,7 @@ import json
 import time
 from pathlib import Path
 import logging
+import os as _os
 
 log = logging.getLogger(__name__)
 
@@ -108,6 +109,33 @@ class ChallengeConfig:
     max_trades_per_day: int = 10
     risk_per_trade_pct: float = 0.6
     conservative_risk_pct: float = 0.4
+
+
+# Zelfcorrectie tegen de echte serverklok, in hele uren. Wordt NIET hier bepaald
+# maar gezet door main_live_bot._w5_set_clock_corr(), dat hem op dezelfde waarde
+# houdt als de rest van de bot. Zonder dit zou een gemeten afwijking wel de scan,
+# het rolvenster en de de-risk verschuiven, maar NIET de reset van de daglimiet
+# hieronder — twee delen van de bot een uur uit elkaar, erger dan allebei
+# hetzelfde uur mis.
+_CLOCK_CORR_H = 0
+
+
+def _server_date_now():
+    """Huidige datum op de MT5-serverklok (UTC+2 winter, UTC+3 zomer).
+
+    Afgeleid van America/New_York, want dat is de klok die de FX-dagovergang
+    bepaalt en die de data aantoonbaar volgt: server = New York + 7 uur.
+    Zonder tijdzonedatabase valt hij terug op UTC+2 — het oude gedrag, dus mis
+    in de zomer maar niet erger dan het was.
+    """
+    from datetime import timedelta, timezone
+    now = datetime.now(timezone.utc)
+    try:
+        from zoneinfo import ZoneInfo
+        ny = now.astimezone(ZoneInfo(_os.getenv("W5_BROKER_TZ", "America/New_York")))
+        return (ny + timedelta(hours=7 + _CLOCK_CORR_H)).date()
+    except Exception:
+        return now.astimezone(timezone(timedelta(hours=2 + _CLOCK_CORR_H))).date()
 
 
 class ChallengeRiskManager:
@@ -317,10 +345,28 @@ class ChallengeRiskManager:
             sim_date: Optional simulated date for backtesting (if None, uses real date)
         """
         from datetime import timedelta, timezone
-        # Use UTC+2 (MT5 server timezone) so rollover at 22:00 UTC is handled
-        # correctly. Passing sim_date overrides this (used in backtesting).
-        _SERVER_TZ = timezone(timedelta(hours=2))
-        today = sim_date if sim_date else datetime.now(_SERVER_TZ).date()
+        # De serverdag, en dus de dag waarop 5ers je 5%-daglimiet reset.
+        #
+        # Hier stond een VASTE UTC+2. Dat klopt alleen in de winter. Gemeten aan
+        # elf jaar dagbars springt de dagovergang in de data op de tweede zondag
+        # van maart en de eerste zondag van november — de Amerikaanse
+        # zomertijddata, 22 van de 22 overgangen. De FX-dag rolt op 17:00 New
+        # York: 22:00 UTC in de winter, 21:00 UTC in de zomer. De server staat
+        # dus op UTC+2 in de winter en UTC+3 in de zomer.
+        #
+        # Waarom dat gevaarlijk was, niet alleen onnauwkeurig: deze datum bepaalt
+        # wanneer day_start_equity opnieuw wordt gezet. In de zomer reset 5ers om
+        # 21:00 UTC en deze code pas om 22:00. Is het account in de tussentijd
+        # geklommen, dan meet de bot dat uur nog tegen de OUDE, lagere basis en
+        # denkt hij meer ruimte te hebben dan hij heeft. Voorbeeld: basis
+        # gisteren $100.000, equity $104.000 om 21:00. 5ers legt de muur op
+        # $98.800; de bot denkt $95.000. Een daling naar $98.500 in dat uur is
+        # een breach die de bot niet ziet aankomen.
+        #
+        # Passing sim_date overrides this (used in backtesting) — de backtest
+        # geeft de datum altijd mee, dus deze tak draait uitsluitend live en
+        # geen enkel opgeslagen backtestresultaat verandert hierdoor.
+        today = sim_date if sim_date else _server_date_now()
 
         # Check for new day OR if we missed days (weekend/week gap)
         days_difference = (today - self.current_date).days if self.current_date else 0

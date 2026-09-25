@@ -197,6 +197,17 @@ class StrategyParams:
     entry_fib_level_volatile: float = 0.0   # 0.0 = inherit entry_fib_level (off)
     fib_vol_ratio_threshold: float = 1.15   # ATR ratio above which "volatile"
 
+    # Optional THIRD tier. The two-tier split above lumps a dead-quiet market and
+    # an average one into the same bucket, while the risk sizer already has
+    # three-way machinery off the identical ATR(14)/ATR(50) ratio. Setting
+    # entry_fib_level_calm > 0 splits the lower bucket:
+    #   ratio <  fib_calm_ratio_threshold                  -> calm    -> _calm
+    #   fib_calm_ratio_threshold <= ratio < fib_vol_ratio_threshold -> neutral -> base
+    #   ratio >= fib_vol_ratio_threshold                   -> volatile -> _volatile
+    # Default 0.0 => third tier OFF, behaviour identical to the two-tier split.
+    entry_fib_level_calm: float = 0.0       # 0.0 = off (calm shares the base level)
+    fib_calm_ratio_threshold: float = 0.85
+
     # Binding trend-quality gate (Stage 1c). Retracement-continuation only pays
     # when a real trend exists to resume; skip weak-trend setups (the calm-bleed
     # failure mode). adx_min_entry <= 0 OR gate off => no skipping (default OFF).
@@ -2333,18 +2344,23 @@ def _regime_entry_fib(params, daily_candles: List[Dict], atr: float) -> float:
     Backward-compatible: if entry_fib_level_volatile is 0.0 (sentinel) or equal
     to the base level, the base level is always returned (feature OFF).
     """
-    fib_calm = getattr(params, 'entry_fib_level', 0.618)
+    fib_base = getattr(params, 'entry_fib_level', 0.618)
     fib_vol = getattr(params, 'entry_fib_level_volatile', 0.0)
-    if not fib_vol or fib_vol == fib_calm:
-        return fib_calm
+    fib_calm = getattr(params, 'entry_fib_level_calm', 0.0)
+    # Both upper and lower tiers off => nothing to switch on.
+    if (not fib_vol or fib_vol == fib_base) and not fib_calm:
+        return fib_base
     atr_slow = _atr(daily_candles, 50)
     if atr_slow <= 0:
-        return fib_calm
+        return fib_base
     vol_ratio = atr / atr_slow
-    thr = getattr(params, 'fib_vol_ratio_threshold', 1.15)
-    return fib_vol if vol_ratio >= thr else fib_calm
-
-
+    thr_vol = getattr(params, 'fib_vol_ratio_threshold', 1.15)
+    if fib_vol and fib_vol != fib_base and vol_ratio >= thr_vol:
+        return fib_vol
+    thr_calm = getattr(params, 'fib_calm_ratio_threshold', 0.85)
+    if fib_calm and vol_ratio < thr_calm:
+        return fib_calm
+    return fib_base
 def compute_trade_levels(
     daily_candles: List[Dict],
     direction: str,
