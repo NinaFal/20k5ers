@@ -249,7 +249,18 @@ backtest/output/doe/*_live.log
 backtest/output/doe/*_run.log
 backtest/output/doe/*_supervisor.log
 backtest/output/doe/*.db
+# per-trial breach diagnostics — large trades.csv; numbers captured in STAGE5C_BREACH_DIAGNOSIS.md
+backtest/output/doe/diag_*/
+# live optimizer results CSV (churns every trial while running; final winner captured in a *_WINNER/*_FINDINGS doc)
+backtest/output/doe/challenge*.csv
+backtest/output/doe/stageC*.csv
+backtest/output/doe/stageD*.csv
+backtest/output/doe/stageE*.csv
+backtest/output/doe/stageS*.csv
 
 
 # Claude Code local tooling / worktrees (do not commit)
 .claude/
+backtest/output/doe/full_2step_eval.json
+backtest/output/doe/wall5/*_run.log
+backtest/output/doe/wall5/margin_trades/

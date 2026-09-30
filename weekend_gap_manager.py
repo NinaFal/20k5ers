@@ -168,6 +168,135 @@ def get_correlation_group(symbol: str) -> str:
     return 'UNCORRELATED'
 
 
+FX_CURRENCIES = {"USD", "EUR", "GBP", "JPY", "CHF", "AUD", "NZD", "CAD"}
+
+
+def currency_legs(symbol: str) -> tuple:
+    """Both currencies of an FX pair, or () for metals, oil, indices, crypto.
+
+    Accepts OANDA ("GBP_CHF") and broker ("GBPCHF", "GBPCHF.x") formats.
+    """
+    s = "".join(c for c in convert_broker_to_oanda(symbol) if c.isalpha()).upper()[:6]
+    a, b = s[:3], s[3:6]
+    return (a, b) if a in FX_CURRENCIES and b in FX_CURRENCIES else ()
+
+
+def currency_cap_config() -> tuple:
+    """(cap, capped currencies) from CCY_CAP / CCY_CAP_CURRENCIES; cap 0 = off.
+
+    Default currency set is every FX currency except USD: USD is one leg of
+    most of the book, so capping it would act as a second total-position cap.
+    """
+    import os
+    try:
+        cap = int(os.getenv("CCY_CAP", "0"))
+    except ValueError:
+        cap = 0
+    raw = os.getenv("CCY_CAP_CURRENCIES", "")
+    ccys = {c.strip().upper() for c in raw.split(",") if c.strip()} or (FX_CURRENCIES - {"USD"})
+    return cap, ccys
+
+
+def currency_risk_multiplier(symbol: str) -> float:
+    """Risk multiplier from CCY_RISK_MULT, e.g. "CHF:0.25"; default 1.0 (off).
+
+    A stop does not bound the loss in a central-bank gap: on 2015-01-15 a
+    GBP_CHF stop was filled 12x its distance away. Sizing the exposed currency
+    down bounds that loss where the stop cannot. The smallest multiplier of
+    the two legs applies.
+    """
+    import os
+    raw = os.getenv("CCY_RISK_MULT", "").replace(" ", "")
+    if not raw:
+        return 1.0
+    table = {}
+    for part in raw.split(","):
+        if ":" in part:
+            k, v = part.split(":", 1)
+            try:
+                table[k.upper()] = float(v)
+            except ValueError:
+                pass
+    mults = [table[c] for c in currency_legs(symbol) if c in table]
+    return min(mults) if mults else 1.0
+
+
+# Reference pair per currency for the peg guard: the pair a central bank would
+# pin it against. USD has none; a currency pinned to USD shows up in its own pair.
+PEG_REFERENCE = {"CHF": "EUR_CHF", "EUR": "EUR_USD", "GBP": "EUR_GBP", "JPY": "USD_JPY",
+                 "AUD": "AUD_USD", "NZD": "NZD_USD", "CAD": "USD_CAD"}
+
+
+def realized_vol_pct(candles, days: int = 60) -> float:
+    """Annualized close-to-close volatility (%) over the last `days` daily bars."""
+    import math
+    closes = []
+    for c in candles or []:
+        v = c.get("close", c.get("Close")) if isinstance(c, dict) else None
+        if v:
+            closes.append(float(v))
+    closes = closes[-(days + 1):]
+    if len(closes) < days + 1:
+        return float("nan")
+    rets = [math.log(b / a) for a, b in zip(closes, closes[1:]) if a > 0 and b > 0]
+    if len(rets) < days:
+        return float("nan")
+    m = sum(rets) / len(rets)
+    var = sum((r - m) ** 2 for r in rets) / (len(rets) - 1)
+    return math.sqrt(var) * math.sqrt(252) * 100
+
+
+def peg_guard_block(symbol: str, fetch_d1, default_vol: str = "0") -> tuple:
+    """Return (currency, vol%) if a leg of `symbol` looks pinned, else ().
+
+    PEG_GUARD_VOL (annualized %; 0 = off). The default comes from the caller:
+    the live bot passes 2.5, the backtest keeps 0 so stored results reproduce. A central-bank floor shows as
+    a collapse in realized volatility of the pinned pair: EUR/CHF ran at 0.4-1%
+    under the 1.20 floor (2012-2014) against 5-10% free-floating. When the floor
+    goes, the stop is useless (2015-01-15: fills 12x the stop away), so the only
+    protection is not holding the currency while it is pinned. The same measure
+    flags DKK, HKD, CNH and the CZK floor of 2013-2017 on 20 years of data.
+    `fetch_d1(pair)` returns daily candles (dicts with 'close') before now.
+    """
+    import os, math
+    try:
+        thr = float(os.getenv("PEG_GUARD_VOL", default_vol))
+    except ValueError:
+        thr = 0.0
+    if thr <= 0:
+        return ()
+    days = int(os.getenv("PEG_GUARD_DAYS", "60"))
+    for ccy in currency_legs(symbol):
+        ref = PEG_REFERENCE.get(ccy)
+        if not ref:
+            continue
+        try:
+            vol = realized_vol_pct(fetch_d1(ref), days)
+        except Exception:
+            continue
+        if not math.isnan(vol) and vol < thr:
+            return ccy, vol
+    return ()
+
+
+def currency_cap_block(symbol: str, open_symbols, pending_symbols):
+    """Return (currency, count, cap) if adding `symbol` would exceed CCY_CAP, else None.
+
+    Counts open positions AND pending orders: on 2015-01-15 the loss came from
+    CHF limit orders that filled into the gap, not only from open positions.
+    """
+    cap, ccys = currency_cap_config()
+    if cap <= 0:
+        return None
+    for ccy in currency_legs(symbol):
+        if ccy not in ccys:
+            continue
+        n = sum(1 for s in list(open_symbols) + list(pending_symbols) if ccy in currency_legs(s))
+        if n >= cap:
+            return ccy, n, cap
+    return None
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # POSITION HELPER FUNCTIONS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -264,6 +393,8 @@ def select_positions_for_weekend_tier1(
     r_close_losing: float = 0.0,
     r_new_position: float = 0.5,
     reduce_pct: float = 0.50,
+    enforce_friday_gate: bool = True,
+    honor_manual_exclusions: bool = True,
 ) -> dict:
     """
     TIER 1: Conservative correlation-aware weekend position selector
@@ -301,7 +432,12 @@ def select_positions_for_weekend_tier1(
     # Only run Friday 19:30+ UTC (2.5 hours before forex close)
     hour = current_time.hour
     minute = current_time.minute
-    if current_time.weekday() != 4 or not (hour > 19 or (hour == 19 and minute >= 30)):
+    # The selection logic itself is time-agnostic; this gate just stops it being
+    # applied on a non-Friday. Callers that want the same correlation-aware
+    # de-risking on another schedule (e.g. the nightly overnight-gap control)
+    # pass enforce_friday_gate=False.
+    if enforce_friday_gate and (
+        current_time.weekday() != 4 or not (hour > 19 or (hour == 19 and minute >= 30))):
         return {
             'HOLD': list(positions),
             'CLOSE': [],
@@ -337,7 +473,13 @@ def select_positions_for_weekend_tier1(
 
         # MANUAL EXCLUDED (e.g. NAS100): Manually managed by trader - skip entirely
         # Do NOT close, reduce, or count toward position limits
-        if is_manual_excluded(symbol):
+        # Manual exclusions are a LIVE convenience — symbols the trader manages
+        # by hand. A caller enforcing an automated risk rule (the nightly
+        # overnight-gap control) passes honor_manual_exclusions=False so nothing
+        # sits outside that rule: an exempt symbol is neither closed, reduced,
+        # nor counted toward the position caps, which is exactly the unmanaged
+        # overnight exposure the rule exists to bound.
+        if honor_manual_exclusions and is_manual_excluded(symbol):
             hold.append(pos)
             logger.info(f"⛔ HOLD {oanda_symbol}: MANUALLY EXCLUDED ({current_r:+.2f}R) - Not touched by Friday check")
             continue

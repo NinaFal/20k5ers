@@ -234,8 +234,20 @@ class Fiveers60KConfig:
 
     def __post_init__(self):
         """Validate configuration parameters"""
-        if self.risk_per_trade_pct > 2.5:  # Allow optimizer wide range
-            raise ValueError("Risk per trade cannot exceed 2.5% for 5ers")
+        # W5: ceiling raised 2.5 -> 5.0. The 2.5 figure was a self-imposed guard
+        # with no basis in 5ers' rules — they publish the 5% daily wall, the 10%
+        # total wall, 1:100 leverage and a 50-lot per-position cap, and NO
+        # per-trade risk limit. The real constraint on position size is margin.
+        # The validated config risks 2.7% per trade, so the old ceiling rejected
+        # the very configuration this bot exists to run.
+        #
+        # Safe to change while the backtest is running, unlike the threshold
+        # fields: this is an assertion, so it either raises or does not, and
+        # cannot alter a trade outcome. The behavioural fields in this file are
+        # imported by main_live_bot_backtest.py:165 and must NOT be edited —
+        # doing so silently rewrote the backtest earlier in this port.
+        if self.risk_per_trade_pct > 5.0:
+            raise ValueError("Risk per trade cannot exceed 5.0% for 5ers")
         if self.max_daily_loss_pct > 5.0:
             raise ValueError("Max daily loss cannot exceed 5% for 5ers")
         if self.max_total_drawdown_pct > 10.0:
@@ -639,7 +651,16 @@ def get_pip_size(symbol: str) -> float:
     elif "ETH" in base_symbol:
         return 1.0  # $1 move = 1 pip for Ethereum
     # Indices
-    elif any(i in base_symbol for i in ["NAS", "US100", "US30", "UK100", "GER40", "FRA40", "JPN225"]):
+    elif any(i in base_symbol for i in ["NAS", "US100", "US30", "UK100", "GER40",
+                                        "FRA40", "JPN225", "SPX", "US500", "SP500"]):
+        # SPX/US500/SP500 ontbraken hier. Gevolg: SPX500_USD viel door naar de
+        # forex-standaard van 0,0001, dus een stop van 20 indexpunten werd
+        # gelezen als 200.000 pips en het berekende risico liep zo ver boven het
+        # bedoelde dat de risicoveiligheid ELKE order weigerde — 16 van de 16 in
+        # een testvenster van twee maanden. Het symbool scande en signaleerde
+        # netjes, dus in de resultaten was alleen te zien dat er niets gebeurde.
+        # get_sl_limits noemt SPX in zijn docstring wel als index; die twee
+        # tabellen liepen uit de pas.
         return 1.0  # Other indices
     # Oil / Energy
     elif "XBR" in base_symbol or "BCO" in base_symbol:

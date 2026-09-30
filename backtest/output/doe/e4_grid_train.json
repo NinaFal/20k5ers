@@ -1,0 +1,133 @@
+{
+  "1-2/1.6": {
+    "breach_rate": 0.5,
+    "complete_rate": 0.0,
+    "median_days": null,
+    "fastest_days": null,
+    "p30": 0.0,
+    "p40": 0.0,
+    "p60": 0.0,
+    "aborted_after": 4
+  },
+  "1-2/1.5": {
+    "breach_rate": 0.125,
+    "complete_rate": 0.0,
+    "median_days": null,
+    "fastest_days": null,
+    "p30": 0.0,
+    "p40": 0.0,
+    "p60": 0.0,
+    "aborted_after": 8
+  },
+  "1-2/1.4": {
+    "breach_rate": 0.125,
+    "complete_rate": 0.0,
+    "median_days": null,
+    "fastest_days": null,
+    "p30": 0.0,
+    "p40": 0.0,
+    "p60": 0.0,
+    "aborted_after": 8
+  },
+  "1-2/1.3": {
+    "breach_rate": 0.125,
+    "complete_rate": 0.0,
+    "median_days": null,
+    "fastest_days": null,
+    "p30": 0.0,
+    "p40": 0.0,
+    "p60": 0.0,
+    "aborted_after": 8
+  },
+  "1-2/1.2": {
+    "breach_rate": 0.125,
+    "complete_rate": 0.0,
+    "median_days": null,
+    "fastest_days": null,
+    "p30": 0.0,
+    "p40": 0.0,
+    "p60": 0.0,
+    "aborted_after": 8
+  },
+  "1-2/1.1": {
+    "breach_rate": 0.0,
+    "complete_rate": 0.562,
+    "median_days": 63,
+    "fastest_days": 30,
+    "p30": 0.062,
+    "p40": 0.188,
+    "p60": 0.25,
+    "totals": [
+      30,
+      38,
+      39,
+      43,
+      63,
+      68,
+      75,
+      79,
+      103
+    ],
+    "aborted_after": null
+  },
+  "1-3/1.6": {
+    "breach_rate": 0.25,
+    "complete_rate": 0.0,
+    "median_days": null,
+    "fastest_days": null,
+    "p30": 0.0,
+    "p40": 0.0,
+    "p60": 0.0,
+    "aborted_after": 4
+  },
+  "1-3/1.5": {
+    "breach_rate": 0.125,
+    "complete_rate": 0.0,
+    "median_days": null,
+    "fastest_days": null,
+    "p30": 0.0,
+    "p40": 0.0,
+    "p60": 0.0,
+    "aborted_after": 8
+  },
+  "1-3/1.4": {
+    "breach_rate": 0.125,
+    "complete_rate": 0.0,
+    "median_days": null,
+    "fastest_days": null,
+    "p30": 0.0,
+    "p40": 0.0,
+    "p60": 0.0,
+    "aborted_after": 8
+  },
+  "1-3/1.3": {
+    "breach_rate": 0.125,
+    "complete_rate": 0.0,
+    "median_days": null,
+    "fastest_days": null,
+    "p30": 0.0,
+    "p40": 0.0,
+    "p60": 0.0,
+    "aborted_after": 8
+  },
+  "1-3/1.2": {
+    "breach_rate": 0.125,
+    "complete_rate": 0.0,
+    "median_days": null,
+    "fastest_days": null,
+    "p30": 0.0,
+    "p40": 0.0,
+    "p60": 0.0,
+    "aborted_after": 8
+  },
+  "1-3/1.1": {
+    "breach_rate": 0.083,
+    "complete_rate": 0.0,
+    "median_days": null,
+    "fastest_days": null,
+    "p30": 0.0,
+    "p40": 0.0,
+    "p60": 0.0,
+    "aborted_after": 12
+  }
+}

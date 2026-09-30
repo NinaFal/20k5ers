@@ -10,6 +10,7 @@ SYMBOL FORMATS:
 """
 
 import os
+import os as _os
 from pathlib import Path
 
 # Load environment variables from .env file (for Windows VM or local dev)
@@ -149,6 +150,12 @@ INDICES = [
     "NAS100_USD",  # Nasdaq 100 (US100 on FTMO) - High volatility
     "UK100_USD",   # FTSE 100 (OPTIMIZED: Added for diversity)
 ]
+
+# SPX500 stond hier niet in, dus hij werd nooit verhandeld — ook niet toen er
+# data voor was. Standaard blijft dat zo, zodat elk bestaand resultaat identiek
+# is; SPX500_ENABLE=1 zet hem aan om gemeten te kunnen worden.
+if _os.getenv("SPX500_ENABLE", "0").strip().lower() in ("1", "true", "yes", "on"):
+    INDICES = INDICES + ["SPX500_USD"]
 
 # Oil / Energy
 OIL_ASSETS = [
