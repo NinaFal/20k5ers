@@ -5078,6 +5078,10 @@ class LiveTradingBot:
             base_risk = min(base_risk, 0.40)
         elif current_balance >= 300_000:
             base_risk = min(base_risk, 0.60)
+        elif _w5_challenge_step() == "funded" and os.getenv("FUNDED_CLIMB_RISK_PCT", ""):
+            # W5: cap risk during the funded climb to 300k (default off).
+            # Backtest gate: main_live_bot_backtest.py, funded-level caps.
+            base_risk = min(base_risk, float(os.getenv("FUNDED_CLIMB_RISK_PCT")))
 
         # Apply safety reductions based on drawdown levels.
         # Graduated recovery: TDD must drop to <3% before returning to full 1.1% risk,

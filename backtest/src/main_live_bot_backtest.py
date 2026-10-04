@@ -806,6 +806,12 @@ class LiveTradingBot:
 
     @staticmethod
     def _is_news_blackout(t) -> bool:
+        # NEWS_NY=1 (default off): release times in their own timezone, so
+        # summer/winter time are right, plus Canadian jobs and ISM. The old
+        # UTC window below misses the 12:30 UTC NFP release in US summer.
+        if os.getenv("NEWS_NY", "0") == "1":
+            import news_calendar as _nc
+            return bool(_nc.in_blackout(t))
         # NFP: first Friday of the month, 13:00-15:00 UTC
         if t.weekday() == 4 and t.day <= 7:
             if (t.hour == 13) or (t.hour == 14):
@@ -897,6 +903,9 @@ class LiveTradingBot:
 
     def _news_affected_currencies(self, t) -> list:
         """Return list of currency codes whose pending orders should be cancelled during this news event."""
+        if os.getenv("NEWS_NY", "0") == "1":
+            import news_calendar as _nc
+            return _nc.in_blackout(t)
         # ECB → EUR pairs
         ecb_dates = {
             (2015,1,22),(2015,3,5),(2015,4,15),(2015,6,3),(2015,7,16),(2015,9,3),(2015,10,22),(2015,12,3),
@@ -3346,6 +3355,14 @@ class LiveTradingBot:
             base_risk = min(base_risk, 0.40)
         elif funded_level >= 300_000:
             base_risk = min(base_risk, 0.60)
+        else:
+            # FUNDED_CLIMB_RISK_PCT (default off): cap risk during the climb
+            # from the start level to 300k. Every funded death in the random
+            # study (15/40) happened below 300k, where the account trades at
+            # full risk; above 300k the cap above already applies.
+            _climb = os.getenv("FUNDED_CLIMB_RISK_PCT", "")
+            if _climb:
+                base_risk = min(base_risk, float(_climb))
 
         # Apply safety reductions based on drawdown levels.
         # Graduated recovery: TDD must drop to <3% before returning to full risk,
@@ -6340,6 +6357,31 @@ class LiveTradingBot:
             # Only cancel pairs linked to the news event (ECB→EUR, NFP/FOMC→USD)
             # Rollover is handled by Layer 5 (dynamic halt at 2.5%) — no cancel needed
             # ═══════════════════════════════════════════════════════════════
+            # NEWS_FLAT=half|all (default off): before a release, cut OPEN
+            # positions in the affected currency. Blocking new entries alone
+            # left the open book fully exposed on every funded death day.
+            _nf = os.getenv("NEWS_FLAT", "")
+            if _nf in ("half", "all"):
+                import news_calendar as _nc
+                _done = getattr(self, "_news_flat_done", None)
+                if _done is None:
+                    _done = self._news_flat_done = set()
+                for _t, _name, _ccys in _nc.upcoming(current_time,
+                                                    int(os.getenv("NEWS_FLAT_MIN", "15"))):
+                    _k = (_t, _name)
+                    if _k in _done:
+                        continue
+                    _done.add(_k)
+                    for pos in list(self.mt5.get_my_positions()):
+                        if not any(c in pos.symbol for c in _ccys):
+                            continue
+                        if _nf == "all":
+                            self.mt5.close_position(pos.ticket)
+                        else:
+                            _v = round(pos.volume * 0.5, 2)
+                            if _v >= 0.01:
+                                self.mt5.partial_close(pos.ticket, _v)
+                    log.info(f"news-flat ({_nf}) before {_name} {_t}: {','.join(_ccys)}")
             _now_in_blackout = self._is_news_blackout(current_time)
             if _now_in_blackout:
                 affected = self._news_affected_currencies(current_time)
