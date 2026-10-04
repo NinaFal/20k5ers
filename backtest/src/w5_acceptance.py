@@ -294,6 +294,25 @@ def main():
     if not _ok_peg:
         fails.append("pin-bewaking: live standaard moet PEG_GUARD_VOL=2.5 zijn, gekoppeld aan de gate")
 
+    # 5e ── STAP 2 handelt kleiner (STEP2_RISK_PCT=1.8, automatisch per login).
+    _m2 = re.search(r'^def _w5_step2_risk_pct\(\):.*?(?=\n\n\n)', _live_src2, re.S | re.M)
+    _ns2 = {"os": os}
+    _sv = os.environ.pop("STEP2_RISK_PCT", None)
+    try:
+        if _m2:
+            exec(_m2.group(0), _ns2)
+        _s2 = float(_ns2["_w5_step2_risk_pct"]()) if _m2 else 0.0
+    finally:
+        if _sv is not None:
+            os.environ["STEP2_RISK_PCT"] = _sv
+    _s2_wired = ('_w5_challenge_step() == "2"' in _live_src2
+                 and "base_risk = min(base_risk, _w5_step2_risk_pct())" in _live_src2)
+    _ok_s2 = abs(_s2 - 1.8) < 1e-9 and _s2_wired
+    print(f"  {'OK  ' if _ok_s2 else 'FAIL'}  {'stap 2 risico 1.8% (automatisch per login)':<44} "
+          f"{_s2} / gekoppeld {_s2_wired}")
+    if not _ok_s2:
+        fails.append("stap 2: STEP2_RISK_PCT moet standaard 1.8 zijn en aan de risicoberekening hangen")
+
     # 6 ── known deliberate divergences, reported not failed
     notes.append(
         "PIN-BEWAKING staat live standaard AAN (PEG_GUARD_VOL=2.5), de backtest "

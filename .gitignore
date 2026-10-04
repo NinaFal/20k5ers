@@ -264,3 +264,4 @@ backtest/output/doe/stageS*.csv
 backtest/output/doe/full_2step_eval.json
 backtest/output/doe/wall5/*_run.log
 backtest/output/doe/wall5/margin_trades/
+challenge_steps.json

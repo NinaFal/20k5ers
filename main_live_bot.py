@@ -323,6 +323,71 @@ def _w5_corr_group_cap():
     return int(os.getenv("CORR_GROUP_CAP", "6"))
 
 
+def _w5_step2_risk_pct():
+    """Risk per trade in challenge STEP 2 (STEP2_RISK_PCT, default 1.8).
+
+    Step 2 needs 5% instead of 8%, so full risk buys nothing but breaches.
+    Measured on the same 100 random challenges (w5_step2_risk.py): step 2 at
+    2.7% -> 89 pass / 6 breach; at 1.8% -> 95 pass / 2 breach, median still
+    20 days. Only step 2 changes; step 1 and funded keep the params risk.
+    """
+    return float(os.getenv("STEP2_RISK_PCT", "1.8"))
+
+
+_W5_STEP_FILE = Path(__file__).resolve().parent / "challenge_steps.json"
+_W5_STEP_CACHE = {}
+
+
+def _w5_challenge_step(login=None):
+    """Which 5ers account this is: "1", "2" or "funded". Automatic per login.
+
+    The 5ers issue a NEW account (new login) for step 2 and again when funded,
+    so the step follows from the login history in challenge_steps.json: the
+    first login seen is step 1; a new login after a passed step 1 is step 2;
+    a new login after a passed step 2 is funded. A login keeps the step it was
+    first given. CHALLENGE_STEP=1|2|funded overrides, for a manual correction.
+    """
+    ov = os.getenv("CHALLENGE_STEP", "").strip().lower()
+    if ov in ("1", "2", "funded"):
+        return ov
+    login = str(login if login is not None else MT5_LOGIN or "")
+    if login in _W5_STEP_CACHE:
+        return _W5_STEP_CACHE[login]
+    try:
+        data = json.loads(_W5_STEP_FILE.read_text()) if _W5_STEP_FILE.exists() else {}
+    except Exception:
+        data = {}
+    logins = data.setdefault("logins", {})
+    if login not in logins:
+        passed = {v.get("step") for v in logins.values() if v.get("passed")}
+        step = "funded" if "2" in passed else ("2" if "1" in passed else "1")
+        logins[login] = {"step": step, "passed": False,
+                         "first_seen": datetime.now(timezone.utc).isoformat()}
+        try:
+            _W5_STEP_FILE.write_text(json.dumps(data, indent=2))
+        except Exception as e:
+            log.warning(f"[W5] challenge_steps.json not written: {e}")
+    _W5_STEP_CACHE[login] = logins[login]["step"]
+    return _W5_STEP_CACHE[login]
+
+
+def _w5_mark_step_passed(login=None):
+    """Record that this login met its step target (8% / 5% plus 3 days)."""
+    login = str(login if login is not None else MT5_LOGIN or "")
+    try:
+        data = json.loads(_W5_STEP_FILE.read_text()) if _W5_STEP_FILE.exists() else {}
+        rec = data.setdefault("logins", {}).get(login)
+        if rec and not rec.get("passed"):
+            rec["passed"] = True
+            rec["passed_at"] = datetime.now(timezone.utc).isoformat()
+            _W5_STEP_FILE.write_text(json.dumps(data, indent=2))
+            log.info(f"[W5] Challenge step {rec['step']} PASSED on login {login} — "
+                     f"the next new login is treated as step "
+                     f"{'2' if rec['step'] == '1' else 'funded'}")
+    except Exception as e:
+        log.warning(f"[W5] could not record passed step: {e}")
+
+
 def _w5_peg_guard_vol():
     """Peg guard threshold, annualized % volatility (PEG_GUARD_VOL); 0 = off.
 
@@ -5000,6 +5065,10 @@ class LiveTradingBot:
         # but still apply DDD/TDD safety reductions and funded-level scaling
         base_risk = getattr(self.params, 'risk_per_trade_pct', FIVEERS_CONFIG.risk_per_trade_pct)
 
+        # W5: challenge step 2 trades smaller (target 5% instead of 8%).
+        if _w5_challenge_step() == "2":
+            base_risk = min(base_risk, _w5_step2_risk_pct())
+
         # Scale risk down as funded level grows to prevent DDD breaches.
         # At higher balances, dollar-risk per trade would otherwise become
         # too large relative to the fixed 5% DDD limit.
@@ -7237,6 +7306,17 @@ class LiveTradingBot:
             
             phase = 1 if profit_pct < 8.0 else 2
             target_pct = 8.0 if phase == 1 else 5.0
+
+            # W5: the step follows the login (5ers issue a new account per step).
+            _step = _w5_challenge_step()
+            if _step in ("1", "2"):
+                _tgt = 8.0 if _step == "1" else 5.0
+                log.info(f"  Challenge step (by login): {_step}  target {_tgt}%  "
+                         f"risk cap {'params' if _step == '1' else f'{_w5_step2_risk_pct()}%'}")
+                if profit_pct >= _tgt and len(self.challenge_manager.trading_days) >= 3:
+                    _w5_mark_step_passed()
+            else:
+                log.info("  Account (by login): FUNDED — params risk")
             
             log.info(f"  Challenge Phase: {phase}")
             log.info(f"  Balance: ${balance:,.2f}")
