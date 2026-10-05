@@ -1,0 +1,182 @@
+{
+  "initial_balance": 175000,
+  "final_balance": 175781.92,
+  "net_pnl": 136873.33,
+  "closed_trades_pnl": 76114.19,
+  "total_commission": 1209.88,
+  "total_swap": 0.0,
+  "return_pct": 136.87,
+  "total_trades": 596,
+  "winners": 211,
+  "losers": 385,
+  "win_rate": 35.4,
+  "mfe_r_median": 0.276,
+  "mfe_r_p75": 0.608,
+  "mae_r_median": 0.191,
+  "tp1_hits": 370,
+  "tp1_hit_rate": 62.1,
+  "max_tdd_pct": 0.47,
+  "max_ddd_pct": 2.31,
+  "tdd_bars_ge_9_0": 0,
+  "tdd_bars_ge_9_5": 0,
+  "tdd_bars_ge_9_9": 0,
+  "tdd_days_ge_9_0": 0,
+  "tdd_days_ge_9_5": 0,
+  "tdd_days_ge_9_9": 0,
+  "tdd_excursions_ge_9_5": 0,
+  "safety_events": 1,
+  "ddd_halts": 0,
+  "ddd_halts_midbar": 0,
+  "breaches_5pct": 0,
+  "ddd_reduces": 0,
+  "ddd_warnings": 1,
+  "tdd_stopouts": 0,
+  "monthly_stats": {
+    "2017-01": {
+      "trades": 63,
+      "winners": 20,
+      "losers": 43,
+      "pnl": 5231.1,
+      "partial_closes": 58,
+      "win_rate": 31.7
+    },
+    "2017-02": {
+      "trades": 49,
+      "winners": 18,
+      "losers": 31,
+      "pnl": 852.19,
+      "partial_closes": 63,
+      "win_rate": 36.7
+    },
+    "2017-03": {
+      "trades": 51,
+      "winners": 14,
+      "losers": 37,
+      "pnl": 2139.6,
+      "partial_closes": 62,
+      "win_rate": 27.5
+    },
+    "2017-04": {
+      "trades": 34,
+      "winners": 11,
+      "losers": 23,
+      "pnl": -445.81,
+      "partial_closes": 54,
+      "win_rate": 32.4
+    },
+    "2017-05": {
+      "trades": 40,
+      "winners": 13,
+      "losers": 27,
+      "pnl": 2245.83,
+      "partial_closes": 52,
+      "win_rate": 32.5
+    },
+    "2017-06": {
+      "trades": 44,
+      "winners": 16,
+      "losers": 28,
+      "pnl": 7794.67,
+      "partial_closes": 56,
+      "win_rate": 36.4
+    },
+    "2017-07": {
+      "trades": 37,
+      "winners": 17,
+      "losers": 20,
+      "pnl": 7172.63,
+      "partial_closes": 53,
+      "win_rate": 45.9
+    },
+    "2017-08": {
+      "trades": 46,
+      "winners": 16,
+      "losers": 30,
+      "pnl": 3779.0,
+      "partial_closes": 56,
+      "win_rate": 34.8
+    },
+    "2017-09": {
+      "trades": 52,
+      "winners": 20,
+      "losers": 32,
+      "pnl": 3481.79,
+      "partial_closes": 58,
+      "win_rate": 38.5
+    },
+    "2017-10": {
+      "trades": 59,
+      "winners": 25,
+      "losers": 34,
+      "pnl": 19791.53,
+      "partial_closes": 84,
+      "win_rate": 42.4
+    },
+    "2017-11": {
+      "trades": 58,
+      "winners": 18,
+      "losers": 40,
+      "pnl": 653.96,
+      "partial_closes": 79,
+      "win_rate": 31.0
+    },
+    "2017-12": {
+      "trades": 63,
+      "winners": 23,
+      "losers": 40,
+      "pnl": 23417.7,
+      "partial_closes": 68,
+      "win_rate": 36.5
+    }
+  },
+  "fiveers_total_withdrawn": 61091.41,
+  "fiveers_final_funded_level": 175000,
+  "fiveers_scaling_events": 5,
+  "fiveers_scaling_log": [
+    {
+      "time": "2017-06-06 12:30:00+00:00",
+      "old_level": 100000.0,
+      "new_level": 125000,
+      "profit_made": 10156.37,
+      "trader_payout": 8125.1,
+      "profit_split": 0.8
+    },
+    {
+      "time": "2017-07-26 09:30:00+00:00",
+      "old_level": 125000,
+      "new_level": 150000,
+      "profit_made": 12553.97,
+      "trader_payout": 10043.18,
+      "profit_split": 0.8
+    },
+    {
+      "time": "2017-10-18 13:45:00+00:00",
+      "old_level": 150000,
+      "new_level": 175000,
+      "profit_made": 15542.12,
+      "trader_payout": 12433.7,
+      "profit_split": 0.8
+    },
+    {
+      "time": "2017-12-07 11:00:00+00:00",
+      "old_level": 175000,
+      "new_level": 175000,
+      "profit_made": 17713.6,
+      "trader_payout": 15056.56,
+      "profit_split": 0.85,
+      "note": "at_cap"
+    },
+    {
+      "time": "2017-12-29 22:00:00+00:00",
+      "old_level": 175000,
+      "new_level": 175000,
+      "profit_made": 18156.32,
+      "trader_payout": 15432.87,
+      "profit_split": 0.85,
+      "note": "at_cap"
+    }
+  ],
+  "terminal_on_breach": true,
+  "account_failed": false,
+  "fail_info": null
+}
