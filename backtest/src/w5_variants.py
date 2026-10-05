@@ -37,6 +37,7 @@ VARIANTS = {
     "news_half": ({"NEWS_NY": "1", "NEWS_FLAT": "half"}, None),
     "news_all": ({"NEWS_NY": "1", "NEWS_FLAT": "all"}, None),
     "climb18": ({"FUNDED_CLIMB_RISK_PCT": "1.8"}, None),
+    "climb18_news": ({"FUNDED_CLIMB_RISK_PCT": "1.8", "NEWS_NY": "1", "NEWS_FLAT": "all"}, None),
 }
 
 
